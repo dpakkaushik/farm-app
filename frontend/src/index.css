@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #1D9E75;
+  --danger:  #E24B4A;
+  --warning: #BA7517;
+}
+
+body { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color: #fff; }
+
+.mapboxgl-ctrl-logo { display: none !important; }
