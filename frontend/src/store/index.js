@@ -496,6 +496,48 @@ const useAppStore = create((set, get) => ({
     set(s => ({ cropCycles: s.cropCycles.map(c => c.id === id ? { ...c, ...data } : c) }))
   },
 
+  addPlot: async (data) => {
+    const { data: row, error } = await supabase.from('plots').insert({
+      name:        data.name,
+      area_acres:  parseFloat(data.area_acres) || 0,
+      soil_type:   data.soil_type || null,
+      water_source: data.water_source || null,
+      status:      'active',
+      point_a_lat: parseFloat(data.point_a_lat) || null,
+      point_a_lng: parseFloat(data.point_a_lng) || null,
+      point_b_lat: parseFloat(data.point_b_lat) || null,
+      point_b_lng: parseFloat(data.point_b_lng) || null,
+      point_c_lat: parseFloat(data.point_c_lat) || null,
+      point_c_lng: parseFloat(data.point_c_lng) || null,
+      point_d_lat: parseFloat(data.point_d_lat) || null,
+      point_d_lng: parseFloat(data.point_d_lng) || null,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ plots: [...s.plots, row].sort((a, b) => (a.name || '').localeCompare(b.name || '')) }))
+    return row
+  },
+
+  updatePlot: async (id, data) => {
+    const allowed = ['name','area_acres','soil_type','water_source',
+      'point_a_lat','point_a_lng','point_b_lat','point_b_lng',
+      'point_c_lat','point_c_lng','point_d_lat','point_d_lng','geo_polygon']
+    const updates = Object.fromEntries(
+      Object.entries(data).filter(([k]) => allowed.includes(k))
+    )
+    const { error } = await supabase.from('plots').update(updates).eq('id', id)
+    if (error) throw error
+    set(s => ({ plots: s.plots.map(p => p.id === id ? { ...p, ...updates } : p) }))
+  },
+
+  deletePlot: async (id) => {
+    const hasCycles = get().cropCycles.some(c => c.plotId === id)
+    if (hasCycles) return { blocked: true }
+    const { error } = await supabase.from('plots').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ plots: s.plots.filter(p => p.id !== id) }))
+    return { blocked: false }
+  },
+
   // ── Spray reminders (local only) ────────────────────────────────────────────
   addSprayReminder:    (r)  => set(s => ({ sprayReminders: [{ ...r, id: 'sr' + Date.now(), done: false }, ...s.sprayReminders] })),
   dismissSprayReminder:(id) => set(s => ({ sprayReminders: s.sprayReminders.map(r => r.id === id ? { ...r, done: true } : r) })),

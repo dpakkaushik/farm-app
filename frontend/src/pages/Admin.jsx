@@ -1,8 +1,21 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react'
 import { useAppStore } from '../store'
 
-const TABS = ['Crops', 'Cycles', 'Inventory', 'Labour']
+const TABS = ['Crops', 'Cycles', 'Inventory', 'Labour', 'Plots']
+
+const PALETTE_COLORS = [
+  '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
+  '#7B2D8B','#2AB5B5','#86B335','#E8742A','#E84393',
+  '#8B4513','#1A3A5C','#FF6B6B','#5F8A5E','#8B2252',
+]
+
+const FARM_EMOJIS = [
+  '🌾','🌽','🍃','🌱','🌻','🍀','🌲','🌳','🪴',
+  '🍅','🥦','🥕','🧅','🧄','🫘','🥜','🌿','🌵',
+  '🪵','🌰','🫛','🍂','☘️','🍁','🌴','🍋','🍇',
+  '🍓','🫐','🍑','🍎','🍒','🌊','🪨','🧺','🪺',
+]
 
 export default function Admin() {
   const [tab, setTab] = useState('Crops')
@@ -26,6 +39,7 @@ export default function Admin() {
         {tab === 'Cycles'    && <CyclesMaster />}
         {tab === 'Inventory' && <InventoryMaster />}
         {tab === 'Labour'    && <LabourMaster />}
+        {tab === 'Plots'     && <PlotsMaster />}
       </div>
     </div>
   )
@@ -70,14 +84,8 @@ function CropsMaster() {
     }
   }
 
-  const COLORS = [
-    { label: 'Golden (Wheat)',   fill: 'rgba(220,180,40,0.65)' },
-    { label: 'Teal (Sugarcane)', fill: 'rgba(29,158,117,0.55)' },
-    { label: 'Amber (Mustard)',  fill: 'rgba(186,117,23,0.65)' },
-    { label: 'Aqua (Paddy)',     fill: 'rgba(100,180,150,0.60)' },
-    { label: 'Green (Grass)',    fill: 'rgba(134,179,53,0.45)' },
-    { label: 'Blue (Other)',     fill: 'rgba(120,140,200,0.55)' },
-  ]
+  const usedEmojis = new Set(cropMaster.map(c => c.emoji).filter(Boolean))
+  const usedColors = new Set(cropMaster.map(c => c.color).filter(Boolean))
   const SEASONS = [
     { value: 'rabi',   label: 'Rabi (Winter)' },
     { value: 'kharif', label: 'Kharif (Monsoon)' },
@@ -98,18 +106,29 @@ function CropsMaster() {
             <input className="finput" placeholder="e.g. Cotton"
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
           </FRow>
-          <div className="grid grid-cols-2 gap-2">
-            <FRow label="Emoji / Icon">
-              <input className="finput" placeholder="🌾"
-                value={form.emoji || ''} onChange={e => setForm(p => ({ ...p, emoji: e.target.value }))} />
-            </FRow>
-            <FRow label="Season">
-              <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: '#1a2030' }}>
-                <option value="" style={{ background: '#1a2030' }}>Select…</option>
-                {SEASONS.map(s => <option key={s.value} value={s.value} style={{ background: '#1a2030' }}>{s.label}</option>)}
-              </select>
-            </FRow>
-          </div>
+          <FRow label="Crop Icon">
+            <div className="flex flex-wrap gap-1.5 mt-0.5">
+              {FARM_EMOJIS.map(emoji => {
+                const isUsed = usedEmojis.has(emoji)
+                const isSel  = form.emoji === emoji
+                return (
+                  <button key={emoji} type="button"
+                    onClick={() => !isUsed && setForm(p => ({ ...p, emoji }))}
+                    className={`text-lg p-1 rounded-lg border transition-all ${isSel ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : isUsed ? 'opacity-25 cursor-not-allowed border-transparent' : 'border-white/10 hover:border-white/30'}`}
+                    title={isUsed ? 'Already used by another crop' : emoji}>
+                    {emoji}
+                  </button>
+                )
+              })}
+            </div>
+            {form.emoji && <p className="text-[10px] text-white/40 mt-1">Selected: {form.emoji}</p>}
+          </FRow>
+          <FRow label="Season">
+            <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: '#1a2030' }}>
+              <option value="" style={{ background: '#1a2030' }}>Select…</option>
+              {SEASONS.map(s => <option key={s.value} value={s.value} style={{ background: '#1a2030' }}>{s.label}</option>)}
+            </select>
+          </FRow>
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Growing days">
               <input type="number" className="finput" placeholder="120"
@@ -131,10 +150,26 @@ function CropsMaster() {
             </FRow>
           </div>
           <FRow label="Map colour">
-            <select className="finput" value={form.color || ''} onChange={e => setForm(p => ({ ...p, color: e.target.value }))} style={{ background: '#1a2030' }}>
-              <option value="" style={{ background: '#1a2030' }}>Select…</option>
-              {COLORS.map(c => <option key={c.fill} value={c.fill} style={{ background: '#1a2030' }}>{c.label}</option>)}
-            </select>
+            <div className="flex flex-wrap gap-2 mt-0.5">
+              {PALETTE_COLORS.map(color => {
+                const isUsed = usedColors.has(color)
+                const isSel  = form.color === color
+                return (
+                  <button key={color} type="button"
+                    onClick={() => !isUsed && setForm(p => ({ ...p, color }))}
+                    className={`w-8 h-8 rounded-lg border-2 relative transition-all ${isSel ? 'border-white scale-110' : isUsed ? 'opacity-30 cursor-not-allowed border-transparent' : 'border-transparent hover:border-white/50'}`}
+                    style={{ background: color }} title={isUsed ? 'Used by another crop' : color}>
+                    {isUsed && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✕</span>}
+                  </button>
+                )
+              })}
+            </div>
+            {form.color && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="w-3 h-3 rounded" style={{ background: form.color }} />
+                <span className="text-[10px] text-white/40">{form.color}</span>
+              </div>
+            )}
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
@@ -437,6 +472,182 @@ function LabourMaster() {
       </>)}
 
       {toast && <Toast msg={toast} />}
+      <Style />
+    </div>
+  )
+}
+
+// ── Plots — full CRUD with GPS boundary points ────────────────────────────────
+const SOIL_TYPES   = ['loamy', 'clay', 'sandy', 'black', 'red', 'silty', 'other']
+const WATER_SRCS   = ['borewell', 'canal', 'rain-fed', 'river', 'drip', 'other']
+const EMPTY_PLOT   = { name:'', area_acres:'', soil_type:'loamy', water_source:'borewell',
+  point_a_lat:'', point_a_lng:'', point_b_lat:'', point_b_lng:'',
+  point_c_lat:'', point_c_lng:'', point_d_lat:'', point_d_lng:'' }
+
+function PlotsMaster() {
+  const { plots, cropCycles, addPlot, updatePlot, deletePlot } = useAppStore()
+  const [form,      setForm]    = useState(null)   // null = closed, {} = new, {id,...} = edit
+  const [saving,    setSaving]  = useState(false)
+  const [toast,     setToast]   = useState(null)
+
+  const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
+  const f = (field, val) => setForm(p => ({ ...p, [field]: val }))
+
+  const hasAllPoints = (d) =>
+    d.point_a_lat && d.point_a_lng && d.point_b_lat && d.point_b_lng &&
+    d.point_c_lat && d.point_c_lng && d.point_d_lat && d.point_d_lng
+
+  const save = async () => {
+    if (!form.name || !form.area_acres) return showToast('Name and area are required', 'warn')
+    setSaving(true)
+    try {
+      if (form.id) {
+        await updatePlot(form.id, form)
+        showToast('Plot updated ✓')
+      } else {
+        await addPlot(form)
+        showToast('Plot added ✓')
+      }
+      setForm(null)
+    } catch (e) { showToast('Save failed: ' + e.message, 'warn') }
+    setSaving(false)
+  }
+
+  const handleDelete = async (id) => {
+    try {
+      const res = await deletePlot(id)
+      if (res?.blocked) showToast('Cannot delete — plot has active crop cycles', 'warn')
+      else showToast('Plot removed')
+    } catch (e) { showToast('Delete failed: ' + e.message, 'warn') }
+  }
+
+  const PointRow = ({ label, latKey, lngKey }) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-mono font-semibold text-[#1D9E75] w-6 shrink-0">{label}</span>
+      <div className="flex-1">
+        <input type="number" step="any" placeholder="Latitude (28.xxx)"
+          value={form?.[latKey] || ''}
+          onChange={e => f(latKey, e.target.value)}
+          className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#1D9E75]" />
+      </div>
+      <div className="flex-1">
+        <input type="number" step="any" placeholder="Longitude (80.xxx)"
+          value={form?.[lngKey] || ''}
+          onChange={e => f(lngKey, e.target.value)}
+          className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#1D9E75]" />
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      <button onClick={() => setForm({ ...EMPTY_PLOT })}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        <Plus size={14} /> Add New Plot
+      </button>
+
+      {form !== null && (
+        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Plot' : 'New Plot'}</p>
+
+          <div className="grid grid-cols-2 gap-2">
+            <FRow label="Plot name">
+              <input className="finput" placeholder="e.g. Plot A"
+                value={form.name || ''} onChange={e => f('name', e.target.value)} />
+            </FRow>
+            <FRow label="Area (acres)">
+              <input type="number" step="0.5" className="finput" placeholder="2.0"
+                value={form.area_acres || ''} onChange={e => f('area_acres', e.target.value)} />
+            </FRow>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <FRow label="Soil type">
+              <select className="finput" value={form.soil_type || ''} onChange={e => f('soil_type', e.target.value)} style={{ background: '#1a2030' }}>
+                {SOIL_TYPES.map(s => <option key={s} value={s} style={{ background: '#1a2030' }}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </FRow>
+            <FRow label="Water source">
+              <select className="finput" value={form.water_source || ''} onChange={e => f('water_source', e.target.value)} style={{ background: '#1a2030' }}>
+                {WATER_SRCS.map(w => <option key={w} value={w} style={{ background: '#1a2030' }}>{w.charAt(0).toUpperCase()+w.slice(1)}</option>)}
+              </select>
+            </FRow>
+          </div>
+
+          <div className="border-t border-white/8 pt-3">
+            <p className="text-[10px] text-white/40 mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
+            <div className="grid grid-cols-2 gap-[2px] text-[9px] text-white/30 px-7 mb-1">
+              <span>Latitude</span><span>Longitude</span>
+            </div>
+            <div className="space-y-2">
+              <PointRow label="A" latKey="point_a_lat" lngKey="point_a_lng" />
+              <PointRow label="B" latKey="point_b_lat" lngKey="point_b_lng" />
+              <PointRow label="C" latKey="point_c_lat" lngKey="point_c_lng" />
+              <PointRow label="D" latKey="point_d_lat" lngKey="point_d_lng" />
+            </div>
+            {!hasAllPoints(form || {}) && (
+              <p className="text-[10px] text-[#BA7517] mt-1.5">⚠ Fill all 4 points to draw on map</p>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving}
+              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              {saving ? 'Saving…' : form.id ? 'Update Plot' : 'Save to Database'}
+            </button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {plots.map(plot => {
+        const hasPoints = plot.point_a_lat && plot.point_a_lng
+        const activeCycles = cropCycles.filter(c => c.plotId === plot.id && c.status === 'active').length
+        return (
+          <div key={plot.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white">{plot.name}</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                  <span className="text-[10px] text-white/40">{plot.area_acres} acres</span>
+                  {plot.soil_type   && <span className="text-[10px] text-white/30">{plot.soil_type}</span>}
+                  {plot.water_source && <span className="text-[10px] text-white/30">{plot.water_source}</span>}
+                </div>
+                {hasPoints ? (
+                  <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                    {[['A', plot.point_a_lat, plot.point_a_lng], ['B', plot.point_b_lat, plot.point_b_lng],
+                      ['C', plot.point_c_lat, plot.point_c_lng], ['D', plot.point_d_lat, plot.point_d_lng]].map(([lbl, lat, lng]) => (
+                      <span key={lbl} className="text-[9px] text-[#1D9E75]/70 font-mono">
+                        {lbl}: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-[#BA7517]/70 mt-0.5">No boundary set</p>
+                )}
+                {activeCycles > 0 && <p className="text-[10px] text-[#1D9E75] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
+              </div>
+              <div className="flex items-center gap-2 ml-3 shrink-0">
+                <button onClick={() => setForm({
+                  id: plot.id, name: plot.name, area_acres: String(plot.area_acres || ''),
+                  soil_type: plot.soil_type || 'loamy', water_source: plot.water_source || 'borewell',
+                  point_a_lat: String(plot.point_a_lat || ''), point_a_lng: String(plot.point_a_lng || ''),
+                  point_b_lat: String(plot.point_b_lat || ''), point_b_lng: String(plot.point_b_lng || ''),
+                  point_c_lat: String(plot.point_c_lat || ''), point_c_lng: String(plot.point_c_lng || ''),
+                  point_d_lat: String(plot.point_d_lat || ''), point_d_lng: String(plot.point_d_lng || ''),
+                })} className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(plot.id)} className="text-white/20 hover:text-[#E24B4A]">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+
+      {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
     </div>
   )

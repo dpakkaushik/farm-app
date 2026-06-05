@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
-import { useMapStore, useFarmStore, useAppStore } from '../store'
+import { useMapStore, useAppStore } from '../store'
 import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -46,58 +46,53 @@ const R3 = mkPlot([9,10,11,27,28,26,25]), R4 = mkPlot([11,27,28,29,12])
 const R5 = mkPlot([12,13,30,29]),    R6 = mkPlot([13,14,15,31,30])
 const R7 = mkPlot([15,16,31])
 
-// ── Plot geometry — GPS polygons only (no operational data) ───────────────────
-const PLOT_GEOMETRY = [
-  { shortId:'p', label:'Plot P', acres:1.5,  geo_polygon: L1 },
-  { shortId:'a', label:'Plot A', acres:2.0,  geo_polygon: L2 },
-  { shortId:'n', label:'Plot N', acres:2.0,  geo_polygon: L3 },
-  { shortId:'m', label:'Plot M', acres:2.0,  geo_polygon: L4 },
-  { shortId:'l', label:'Plot L', acres:3.5,  geo_polygon: L5 },
-  { shortId:'k', label:'Plot K', acres:4.0,  geo_polygon: L6 },
-  { shortId:'j', label:'Plot J', acres:4.0,  geo_polygon: L7 },
-  { shortId:'i', label:'Plot I', acres:2.5,  geo_polygon: L8 },
-  { shortId:'h', label:'Plot H', acres:1.5,  geo_polygon: R1 },
-  { shortId:'b', label:'Plot B', acres:5.5,  geo_polygon: R2 },
-  { shortId:'c', label:'Plot C', acres:5.0,  geo_polygon: R3 },
-  { shortId:'d', label:'Plot D', acres:5.0,  geo_polygon: R4 },
-  { shortId:'e', label:'Plot E', acres:7.0,  geo_polygon: R5 },
-  { shortId:'f', label:'Plot F', acres:5.0,  geo_polygon: R6 },
-  { shortId:'g', label:'Plot G', acres:3.0,  geo_polygon: R7 },
-]
-
-// ── Colours ───────────────────────────────────────────────────────────────────
-const CROP_COLORS = {
-  wheat:     { fill: 'rgba(220,180,40,0.65)',  outline: 'rgba(220,180,40,0.95)' },
-  sugarcane: { fill: 'rgba(29,158,117,0.55)',  outline: 'rgba(29,158,117,0.90)' },
-  mustard:   { fill: 'rgba(186,117,23,0.65)',  outline: 'rgba(186,117,23,0.90)' },
-  paddy:     { fill: 'rgba(100,180,150,0.60)', outline: 'rgba(100,180,150,0.90)' },
-  grass:     { fill: 'rgba(134,179,53,0.45)',  outline: 'rgba(134,179,53,0.75)' },
-  fallow:    { fill: 'rgba(136,135,128,0.30)', outline: 'rgba(255,255,255,0.40)' },
-  empty:     { fill: 'rgba(0,0,0,0)',          outline: 'rgba(255,255,255,0.35)' },
+// ── Build GeoJSON polygon from 4 DB point columns ────────────────────────────
+function buildPolygonFromPoints(p) {
+  const pts = [
+    [parseFloat(p.point_a_lng), parseFloat(p.point_a_lat)],
+    [parseFloat(p.point_b_lng), parseFloat(p.point_b_lat)],
+    [parseFloat(p.point_c_lng), parseFloat(p.point_c_lat)],
+    [parseFloat(p.point_d_lng), parseFloat(p.point_d_lat)],
+  ]
+  if (pts.some(([lng, lat]) => isNaN(lng) || isNaN(lat))) return null
+  return {
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [[...pts, pts[0]]] },
+  }
 }
 
-const getCropKey = (name) => {
-  if (!name) return 'empty'
-  const c = name.toLowerCase()
-  if (c.includes('wheat'))  return 'wheat'
-  if (c.includes('cane'))   return 'sugarcane'
-  if (c.includes('mustard')) return 'mustard'
-  if (c.includes('paddy') || c.includes('rice')) return 'paddy'
-  if (c.includes('grass'))  return 'grass'
-  return 'wheat'
+// ── Plot geometry fallback (used when DB has no point columns set) ────────────
+const PLOT_GEO_FALLBACK = [
+  { label:'Plot P', acres:1.5,  geo_polygon: L1 },
+  { label:'Plot A', acres:2.0,  geo_polygon: L2 },
+  { label:'Plot N', acres:2.0,  geo_polygon: L3 },
+  { label:'Plot M', acres:2.0,  geo_polygon: L4 },
+  { label:'Plot L', acres:3.5,  geo_polygon: L5 },
+  { label:'Plot K', acres:4.0,  geo_polygon: L6 },
+  { label:'Plot J', acres:4.0,  geo_polygon: L7 },
+  { label:'Plot I', acres:2.5,  geo_polygon: L8 },
+  { label:'Plot H', acres:1.5,  geo_polygon: R1 },
+  { label:'Plot B', acres:5.5,  geo_polygon: R2 },
+  { label:'Plot C', acres:5.0,  geo_polygon: R3 },
+  { label:'Plot D', acres:5.0,  geo_polygon: R4 },
+  { label:'Plot E', acres:7.0,  geo_polygon: R5 },
+  { label:'Plot F', acres:5.0,  geo_polygon: R6 },
+  { label:'Plot G', acres:3.0,  geo_polygon: R7 },
+]
+
+// ── Color helpers (driven by crop.color from DB) ───────────────────────────────
+function hexToRgba(hex, alpha) {
+  if (!hex) return `rgba(29,158,117,${alpha})`
+  if (hex.startsWith('rgba')) return hex.replace(/[\d.]+\)$/, `${alpha})`)
+  if (hex.startsWith('rgb(')) return hex.replace('rgb(', 'rgba(').replace(')', `,${alpha})`)
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r},${g},${b},${alpha})`
 }
 
-const getStageFill    = (p) => p.stage === 'empty' ? CROP_COLORS.empty.fill    : p.stage === 'fallow' ? CROP_COLORS.fallow.fill    : CROP_COLORS[getCropKey(p.current_crop)].fill
-const getStageOutline = (p) => p.stage === 'empty' ? CROP_COLORS.empty.outline : p.health_status === 'concern' ? '#E24B4A' : p.stage === 'harvest_ready' ? '#ffffff' : CROP_COLORS[getCropKey(p.current_crop)].outline
-
-const STAGE_LEGEND = [
-  { label:'Wheat',        color: CROP_COLORS.wheat.fill     },
-  { label:'Sugarcane',    color: CROP_COLORS.sugarcane.fill },
-  { label:'Mustard',      color: CROP_COLORS.mustard.fill   },
-  { label:'Paddy / Rice', color: CROP_COLORS.paddy.fill     },
-  { label:'Grass',        color: CROP_COLORS.grass.fill     },
-  { label:'Fallow/Empty', color: CROP_COLORS.fallow.fill    },
-]
+const getFillColor    = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(0,0,0,0)' : hexToRgba(p.crop_color, 0.55)
+const getOutlineColor = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(200,200,200,0.45)' : p.health_status === 'concern' ? '#E24B4A' : p.stage === 'harvest_ready' ? '#ffffff' : hexToRgba(p.crop_color, 0.9)
 
 function getWeatherEmoji(code) {
   if (code === 0) return '☀️'
@@ -116,8 +111,7 @@ export default function Field() {
   const saveTimer    = useRef(null)
 
   const { zoom, center, bearing, pitch, setMapState, overlay, setOverlay } = useMapStore()
-  const { setPlots } = useFarmStore()
-  const { cropCycles, cropMaster, activities, issues, labourLogs } = useAppStore()
+  const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
 
   const [selectedPlot, setSelectedPlot]         = useState(null)
   const [showCoordPanel, setShowCoordPanel]     = useState(false)
@@ -134,67 +128,83 @@ export default function Field() {
       .then(r => r.json()).then(d => setWeather(d.current)).catch(() => {})
   }, [])
 
-  // ── Compute live plot data from Supabase store ─────────────────────────────
+  // ── Compute live plot data (DB plots + fallback to hardcoded geometry) ────────
   const livePlots = useMemo(() => {
     const today = todayDate()
 
-    return PLOT_GEOMETRY.map(geo => {
-      const cycle = cropCycles.find(c => c.status === 'active' && c.plotLabel === geo.label)
+    return plots.map(p => {
+      const fromPoints = buildPolygonFromPoints(p)
+      const fallback   = PLOT_GEO_FALLBACK.find(g => g.label === p.name)
+      const rawGeo     = p.geo_polygon ? (typeof p.geo_polygon === 'string' ? JSON.parse(p.geo_polygon) : p.geo_polygon) : null
+      const geoPolygon = fromPoints || rawGeo || fallback?.geo_polygon
+      if (!geoPolygon) return null
+      const cycle      = cropCycles.find(c => c.status === 'active' && c.plotId === p.id)
 
       if (!cycle) {
-        return { ...geo, id: geo.shortId, stage: 'fallow', health_status: 'fallow',
-          current_crop: null, days_since_sow: null, days_to_harvest: null,
-          season_cost: 0, progress_pct: 0, today_task: null, next_task: null, last_task: null }
+        return {
+          id:            p.id,
+          label:         p.name || '',
+          acres:         Number(p.area_acres) || fallback?.acres || 0,
+          geo_polygon:   geoPolygon,
+          stage:         'fallow',
+          health_status: 'fallow',
+          current_crop:  null,
+          crop_color:    null,
+          days_since_sow: null, days_to_harvest: null,
+          season_cost: 0, progress_pct: 0,
+          today_task: null, next_task: null, last_task: null,
+        }
       }
 
-      const crop        = cropMaster.find(c => c.id === cycle.cropId)
-      const sowDate     = new Date(cycle.sowDate); sowDate.setHours(0,0,0,0)
+      const crop         = cropMaster.find(c => c.id === cycle.cropId)
+      const sowDate      = new Date(cycle.sowDate); sowDate.setHours(0,0,0,0)
       const daysSinceSow = Math.floor((today - sowDate) / 86400000)
-
-      const totalDays     = crop?.duration_days || 120
+      const totalDays    = crop?.duration_days || 120
       const daysToHarvest = Math.max(0, totalDays - daysSinceSow)
 
       let stage = 'growing'
-      if (daysToHarvest <= 0)  stage = 'harvest_ready'
+      if (daysToHarvest <= 0)       stage = 'harvest_ready'
       else if (daysToHarvest <= 10) stage = 'pre_harvest'
       const progress_pct = Math.min(100, Math.round((daysSinceSow / totalDays) * 100))
 
-      const inputCost  = issues.filter(i => i.cropCycleId === cycle.id).reduce((s, i) => s + (i.totalCost || 0), 0)
-      const lCost      = labourLogs.filter(l => l.cropCycleId === cycle.id).reduce((s, l) => s + (l.totalCost || 0), 0)
+      const inputCost   = issues.filter(i => i.cropCycleId === cycle.id).reduce((s, i) => s + (i.totalCost || 0), 0)
+      const lCost       = labourLogs.filter(l => l.cropCycleId === cycle.id).reduce((s, l) => s + (l.totalCost || 0), 0)
       const season_cost = inputCost + lCost
 
-      const cycleActs  = activities.filter(a => a.cropCycleId === cycle.id)
+      const cycleActs = activities.filter(a => a.cropCycleId === cycle.id)
         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      const lastAct    = cycleActs[0]
-      const last_task  = lastAct ? {
+      const lastAct   = cycleActs[0]
+      const last_task = lastAct ? {
         label:    lastAct.notes || lastAct.type,
         days_ago: Math.max(0, Math.floor((today - new Date(lastAct.date)) / 86400000)),
       } : null
 
-      const estYield   = crop ? Math.round(cycle.acres * (crop.yieldPerAcre || 0)) : 0
+      const acres      = cycle.acres || Number(p.area_acres) || fallback?.acres || 0
+      const estYield   = crop ? Math.round(acres * (crop.yieldPerAcre || 0)) : 0
       const estRevenue = crop ? Math.round(estYield * (crop.pricePerQtl || 0)) : 0
 
       return {
-        ...geo,
-        id:                geo.shortId,
-        supabase_plot_id:  cycle.plotId,
-        cycle_id:          cycle.id,
-        acres:             cycle.acres || geo.acres,
+        id:             p.id,
+        cycle_id:       cycle.id,
+        label:          p.name,
+        acres,
+        geo_polygon:    geoPolygon,
         stage,
-        health_status:     'good',
-        current_crop:      crop?.name || 'Unknown',
-        days_since_sow:    daysSinceSow,
-        days_to_harvest:   daysToHarvest,
+        health_status:  'good',
+        current_crop:   crop?.name || 'Unknown',
+        crop_color:     crop?.color || '#1D9E75',
+        days_since_sow: daysSinceSow,
+        days_to_harvest: daysToHarvest,
         season_cost,
         progress_pct,
-        est_yield_qtl:     estYield,
-        est_revenue:       estRevenue,
-        today_task:        null,
-        next_task:         null,
+        est_yield_qtl:  estYield,
+        est_revenue:    estRevenue,
+        today_task:     null,
+        next_task:      null,
         last_task,
       }
-    })
-  }, [cropCycles, cropMaster, activities, issues, labourLogs])
+    }).filter(Boolean)
+  }, [plots, cropCycles, cropMaster, activities, issues, labourLogs])
 
   // ── Crop summary strip ─────────────────────────────────────────────────────
   const cropSummary = useMemo(() => {
@@ -212,6 +222,19 @@ export default function Field() {
       }
     })
     return Object.values(groups).sort((a, b) => b.acres - a.acres)
+  }, [livePlots])
+
+  const stageLegend = useMemo(() => {
+    const seen  = new Set()
+    const items = []
+    livePlots.forEach(p => {
+      if (p.current_crop && !seen.has(p.current_crop)) {
+        seen.add(p.current_crop)
+        items.push({ label: p.current_crop, color: hexToRgba(p.crop_color || '#1D9E75', 0.55) })
+      }
+    })
+    items.push({ label: 'Fallow / Empty', color: 'rgba(136,135,128,0.30)' })
+    return items
   }, [livePlots])
 
   // ── Map init ───────────────────────────────────────────────────────────────
@@ -288,8 +311,8 @@ export default function Field() {
       properties: {
         label:      p.label,
         crop_short: p.current_crop ? p.current_crop.split(' ').slice(0,2).join(' ') : 'Empty',
-        color:      getStageFill(p),
-        outline:    getStageOutline(p),
+        color:      getFillColor(p),
+        outline:    getOutlineColor(p),
         __raw:      JSON.stringify(p),
       },
     }))
@@ -437,7 +460,7 @@ export default function Field() {
       {/* Legend */}
       <div className="absolute bottom-10 left-3 bg-black/60 backdrop-blur-sm rounded-xl p-3 text-xs space-y-1.5">
         <p className="text-white/40 text-[10px] uppercase tracking-wide mb-1.5">Crop</p>
-        {STAGE_LEGEND.map(({ label, color }) => (
+        {stageLegend.map(({ label, color }) => (
           <div key={label} className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-sm inline-block border border-white/20" style={{ background: color }}/>
             <span className="text-white/80">{label}</span>
@@ -712,7 +735,7 @@ function LogActivityModal({ plot, onClose }) {
   const submit = async () => {
     if (!form.date) return
     await logActivity({
-      plotId:      plot.supabase_plot_id || null,
+      plotId:      plot.id || null,
       cropCycleId: plot.cycle_id || null,
       type:        form.type,
       date:        form.date,
@@ -781,7 +804,7 @@ function IssueInputModal({ plot, onClose }) {
       await logLabour({
         labourTypeId: form.labourTypeId,
         labourName:   selectedLT?.name || '',
-        plotId:       plot.supabase_plot_id || null,
+        plotId:       plot.id || null,
         cropCycleId:  plot.cycle_id || null,
         date:         form.date,
         workers:      parseFloat(form.workers),
