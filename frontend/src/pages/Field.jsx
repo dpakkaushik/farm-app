@@ -9,44 +9,29 @@ import {
   Wheat, Droplets, Sprout, Package, ChevronRight, Camera,
 } from 'lucide-react'
 
-// ── 31-point GPS survey ───────────────────────────────────────────────────────
-const P = [null,
-  [80.482547, 28.504776], [80.485826, 28.504895], [80.487267, 28.504516],
-  [80.483410, 28.505902], [80.485838, 28.505068], [80.486639, 28.504722],
-  [80.487576, 28.505198], [80.486060, 28.505621], [80.486097, 28.505805],
-  [80.486195, 28.506011], [80.486362, 28.506379], [80.486652, 28.507231],
-  [80.486913, 28.507871], [80.486950, 28.508101], [80.487231, 28.508905],
-  [80.487427, 28.509529], [80.483943, 28.506615], [80.484410, 28.507288],
-  [80.483392, 28.507822], [80.484074, 28.508626], [80.484559, 28.509254],
-  [80.485181, 28.509989], [80.485695, 28.510693], [80.486984, 28.505344],
-  [80.487111, 28.505817], [80.487904, 28.505692], [80.486530, 28.506968],
-  [80.488046, 28.506401], [80.488300, 28.507260], [80.488683, 28.508280],
-  [80.488867, 28.508690],
-]
-
-const FARM_CENTER  = P[11]
+// ── Farm infrastructure (boundary outline + internal channel) ─────────────────
+const FARM_CENTER  = [80.486362, 28.506379]
 const FARM_CORNERS = [
   [80.482547, 28.510693], [80.488867, 28.510693],
   [80.488867, 28.504516], [80.482547, 28.504516],
 ]
-const FARM_BOUNDARY_COORDS = [1,2,3,7,26,28,29,30,31,16,23,22,21,20,19,18,17,4,1].map(i => P[i])
-const CHANNEL_COORDS = [6,8,9,10,11,12,13,14,15,16].map(i => P[i])
+const FARM_BOUNDARY_COORDS = [
+  [80.482547, 28.504776], [80.485826, 28.504895], [80.487267, 28.504516],
+  [80.487576, 28.505198], [80.487904, 28.505692], [80.488046, 28.506401],
+  [80.488300, 28.507260], [80.488683, 28.508280], [80.488867, 28.508690],
+  [80.487427, 28.509529], [80.485695, 28.510693], [80.485181, 28.509989],
+  [80.484559, 28.509254], [80.484074, 28.508626], [80.483392, 28.507822],
+  [80.484410, 28.507288], [80.483943, 28.506615], [80.483410, 28.505902],
+  [80.482547, 28.504776],
+]
+const CHANNEL_COORDS = [
+  [80.486639, 28.504722], [80.486060, 28.505621], [80.486097, 28.505805],
+  [80.486195, 28.506011], [80.486362, 28.506379], [80.486652, 28.507231],
+  [80.486913, 28.507871], [80.486950, 28.508101], [80.487231, 28.508905],
+  [80.487427, 28.509529],
+]
 
-const mkPlot = (ids) => ({
-  type: 'Feature',
-  geometry: { type: 'Polygon', coordinates: [[...ids.map(i => P[i]), P[ids[0]]]] },
-})
-
-const L1 = mkPlot([1,4,9,8,6,2]),    L2 = mkPlot([4,17,10,9])
-const L3 = mkPlot([17,18,11,10]),    L4 = mkPlot([18,19,12,11])
-const L5 = mkPlot([19,20,13,12]),    L6 = mkPlot([20,21,14,13])
-const L7 = mkPlot([21,22,15,14]),    L8 = mkPlot([22,23,16,15])
-const R1 = mkPlot([6,8,24,7,3]),     R2 = mkPlot([8,9,25,26,7,24])
-const R3 = mkPlot([9,10,11,27,28,26,25]), R4 = mkPlot([11,27,28,29,12])
-const R5 = mkPlot([12,13,30,29]),    R6 = mkPlot([13,14,15,31,30])
-const R7 = mkPlot([15,16,31])
-
-// ── Build GeoJSON polygon from 4 DB point columns ────────────────────────────
+// ── Build GeoJSON polygon from 4 DB point columns (A→B→C→D→A) ────────────────
 function buildPolygonFromPoints(p) {
   const pts = [
     [parseFloat(p.point_a_lng), parseFloat(p.point_a_lat)],
@@ -60,25 +45,6 @@ function buildPolygonFromPoints(p) {
     geometry: { type: 'Polygon', coordinates: [[...pts, pts[0]]] },
   }
 }
-
-// ── Plot geometry fallback (used when DB has no point columns set) ────────────
-const PLOT_GEO_FALLBACK = [
-  { label:'Plot P', acres:1.5,  geo_polygon: L1 },
-  { label:'Plot A', acres:2.0,  geo_polygon: L2 },
-  { label:'Plot N', acres:2.0,  geo_polygon: L3 },
-  { label:'Plot M', acres:2.0,  geo_polygon: L4 },
-  { label:'Plot L', acres:3.5,  geo_polygon: L5 },
-  { label:'Plot K', acres:4.0,  geo_polygon: L6 },
-  { label:'Plot J', acres:4.0,  geo_polygon: L7 },
-  { label:'Plot I', acres:2.5,  geo_polygon: L8 },
-  { label:'Plot H', acres:1.5,  geo_polygon: R1 },
-  { label:'Plot B', acres:5.5,  geo_polygon: R2 },
-  { label:'Plot C', acres:5.0,  geo_polygon: R3 },
-  { label:'Plot D', acres:5.0,  geo_polygon: R4 },
-  { label:'Plot E', acres:7.0,  geo_polygon: R5 },
-  { label:'Plot F', acres:5.0,  geo_polygon: R6 },
-  { label:'Plot G', acres:3.0,  geo_polygon: R7 },
-]
 
 // ── Color helpers (driven by crop.color from DB) ───────────────────────────────
 function hexToRgba(hex, alpha) {
@@ -128,23 +94,20 @@ export default function Field() {
       .then(r => r.json()).then(d => setWeather(d.current)).catch(() => {})
   }, [])
 
-  // ── Compute live plot data (DB plots + fallback to hardcoded geometry) ────────
+  // ── Compute live plot data — only plots with all 4 GPS points set in DB ────────
   const livePlots = useMemo(() => {
     const today = todayDate()
 
     return plots.map(p => {
-      const fromPoints = buildPolygonFromPoints(p)
-      const fallback   = PLOT_GEO_FALLBACK.find(g => g.label === p.name)
-      const rawGeo     = p.geo_polygon ? (typeof p.geo_polygon === 'string' ? JSON.parse(p.geo_polygon) : p.geo_polygon) : null
-      const geoPolygon = fromPoints || rawGeo || fallback?.geo_polygon
+      const geoPolygon = buildPolygonFromPoints(p)
       if (!geoPolygon) return null
-      const cycle      = cropCycles.find(c => c.status === 'active' && c.plotId === p.id)
+      const cycle = cropCycles.find(c => c.status === 'active' && c.plotId === p.id)
 
       if (!cycle) {
         return {
           id:            p.id,
           label:         p.name || '',
-          acres:         Number(p.area_acres) || fallback?.acres || 0,
+          acres:         Number(p.area_acres) || 0,
           geo_polygon:   geoPolygon,
           stage:         'fallow',
           health_status: 'fallow',
@@ -179,7 +142,7 @@ export default function Field() {
         days_ago: Math.max(0, Math.floor((today - new Date(lastAct.date)) / 86400000)),
       } : null
 
-      const acres      = cycle.acres || Number(p.area_acres) || fallback?.acres || 0
+      const acres      = cycle.acres || Number(p.area_acres) || 0
       const estYield   = crop ? Math.round(acres * (crop.yieldPerAcre || 0)) : 0
       const estRevenue = crop ? Math.round(estYield * (crop.pricePerQtl || 0)) : 0
 
