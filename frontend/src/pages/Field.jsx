@@ -24,12 +24,6 @@ const FARM_BOUNDARY_COORDS = [
   [80.484410, 28.507288], [80.483943, 28.506615], [80.483410, 28.505902],
   [80.482547, 28.504776],
 ]
-const CHANNEL_COORDS = [
-  [80.486639, 28.504722], [80.486060, 28.505621], [80.486097, 28.505805],
-  [80.486195, 28.506011], [80.486362, 28.506379], [80.486652, 28.507231],
-  [80.486913, 28.507871], [80.486950, 28.508101], [80.487231, 28.508905],
-  [80.487427, 28.509529],
-]
 
 // ── Build GeoJSON polygon from 4 DB point columns (A→B→C→D→A) ────────────────
 function buildPolygonFromPoints(p) {
@@ -244,12 +238,6 @@ export default function Field() {
     }})
     map.current.addLayer({ id:'farm-boundary-line', type:'line', source:'farm-boundary',
       paint:{ 'line-color':'#ffffff', 'line-width':2.5, 'line-opacity':0.55, 'line-dasharray':[4,3] }
-    })
-    map.current.addSource('road', { type:'geojson', data:{
-      type:'Feature', geometry:{ type:'LineString', coordinates: CHANNEL_COORDS }
-    }})
-    map.current.addLayer({ id:'road-line', type:'line', source:'road',
-      paint:{ 'line-color':'#4ade80', 'line-width':2.5, 'line-opacity':0.75 }
     })
     map.current.addSource('plots', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'plot-fill',    type:'fill',   source:'plots', paint:{ 'fill-color':['get','color'], 'fill-opacity':1 } })
