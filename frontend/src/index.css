@@ -10,4 +10,59 @@
 
 body { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color: #fff; }
 
+/* ── Dark inputs — prevent white-on-white on iOS/Android ── */
+input, textarea, select {
+  background-color: #1a2030;
+  color: #ffffff;
+  color-scheme: dark;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+}
+
+/* Override browser autofill (Chrome/Safari apply blue/white bg) */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #1a2030 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* ── Global .finput used in modals across all pages ── */
+.finput {
+  width: 100%;
+  background: #1a2030 !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: #ffffff !important;
+  font-size: 14px;
+  outline: none;
+  -webkit-text-fill-color: #ffffff;
+}
+
+.finput:focus {
+  border-color: #1D9E75;
+}
+
+.finput::placeholder {
+  color: rgba(255, 255, 255, 0.30);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.30);
+}
+
+/* ── Scrollbar hide utility ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Map ── */
 .mapboxgl-ctrl-logo { display: none !important; }

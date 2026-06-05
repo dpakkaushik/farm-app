@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom'
-import { Map, ListChecks, Package, Wheat, BarChart3, Camera, Settings } from 'lucide-react'
+import { useAppStore } from './store'
+import { Map, ListChecks, Package, Wheat, BarChart3, Users, Camera, Settings } from 'lucide-react'
 import Field     from './pages/Field'
 import Today     from './pages/Today'
 import Inventory from './pages/Inventory'
@@ -8,17 +9,21 @@ import Harvest   from './pages/Harvest'
 import Dashboard from './pages/Dashboard'
 import Admin     from './pages/Admin'
 import Media     from './pages/Media'
+import Labour    from './pages/Labour'
 
 const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
   { to: '/today',     label: 'Today',     Icon: ListChecks },
-  { to: '/media',     label: 'Media',     Icon: Camera     },
   { to: '/inventory', label: 'Inventory', Icon: Package    },
+  { to: '/labour',    label: 'Labour',    Icon: Users      },
   { to: '/harvest',   label: 'Harvest',   Icon: Wheat      },
+  { to: '/media',     label: 'Media',     Icon: Camera     },
   { to: '/owner',     label: 'Owner',     Icon: BarChart3  },
 ]
 
 export default function App() {
+  useEffect(() => { useAppStore.getState().loadAll() }, [])
+
   return (
     <div className="flex flex-col bg-[#0f1117]" style={{ height: '100dvh' }}>
       <main className="flex-1 overflow-hidden min-h-0">
@@ -26,11 +31,12 @@ export default function App() {
           <Route path="/"          element={<Navigate to="/field" replace />} />
           <Route path="/field"     element={<Field />} />
           <Route path="/today"     element={<Today />} />
-          <Route path="/media"     element={<Media />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/labour"    element={<Labour />} />
           <Route path="/harvest"   element={<Harvest />} />
           <Route path="/owner"     element={<Dashboard />} />
           <Route path="/admin"     element={<Admin />} />
+          <Route path="/media"     element={<Media />} />
           <Route path="/dashboard" element={<Navigate to="/owner" replace />} />
           <Route path="/diary"     element={<Navigate to="/today" replace />} />
         </Routes>

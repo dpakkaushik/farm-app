@@ -6,6 +6,10 @@ __pycache__/
 *.pyc
 .vercel/
 FarmApp_Database.xlsx
+FarmApp_Schema_v2.xlsx
+FarmApp_AppFlow.html
 export_excel.py
+generate_schema_v2.py
+frontend/.env.local
 backend/dependencies.py
 backend/schemas/
