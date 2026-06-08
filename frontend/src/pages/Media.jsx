@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Camera, Video, X, Play, ChevronLeft, ChevronRight, Filter, ImageOff } from 'lucide-react'
+import { Camera, Video, X, Play, ChevronLeft, ChevronRight, Filter, ImageOff, Trash2 } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import { useAuthStore, isAdmin } from '../store/auth'
 
 // ── Compression profiles ────────────────────────────────────────────────────
 const FULL_OPTIONS = {
@@ -82,6 +83,18 @@ const fmtDuration = (secs) => {
 // ── Component ────────────────────────────────────────────────────────────────
 export default function Media() {
   const { mediaItems, addMediaItem, plots } = useAppStore()
+  const { profile } = useAuthStore()
+  const adminUser = isAdmin(profile)
+
+  const deleteMedia = async (item, e) => {
+    e.stopPropagation()
+    if (!window.confirm('Delete this media permanently?')) return
+    const bucket = item.type === 'video' ? 'farm-videos' : 'farm-photos'
+    if (item.storagePath)  await supabase.storage.from(bucket).remove([item.storagePath])
+    if (item.thumbnailPath) await supabase.storage.from(bucket).remove([item.thumbnailPath])
+    await supabase.from('media_files').delete().eq('id', item.id)
+    useAppStore.setState(s => ({ mediaItems: s.mediaItems.filter(m => m.id !== item.id) }))
+  }
   const [searchParams] = useSearchParams()
 
   const [plotFilter, setPlotFilter] = useState(searchParams.get('plot') || 'all')
@@ -333,7 +346,7 @@ export default function Media() {
           <div style={{ columns: '2', columnGap: '8px' }}>
             {filtered.map((item, idx) => (
               <div key={item.id}
-                className="mb-2 break-inside-avoid cursor-pointer rounded-2xl overflow-hidden bg-[#161a23]"
+                className="mb-2 break-inside-avoid cursor-pointer rounded-2xl overflow-hidden bg-[#161a23] group"
                 style={{ breakInside: 'avoid' }}
                 onClick={() => setViewerIdx(idx)}>
 
@@ -378,6 +391,13 @@ export default function Media() {
                     </div>
                     <p className="text-[9px] text-white/50">{item.date}</p>
                   </div>
+                  {adminUser && (
+                    <button
+                      onClick={e => deleteMedia(item, e)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-[#E24B4A]/80 transition-all border border-white/20">
+                      <Trash2 size={12} className="text-white"/>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

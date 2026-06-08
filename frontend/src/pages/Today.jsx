@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList } from 'lucide-react'
 import { useAppStore } from '../store'
+import { useAuthStore, isManager } from '../store/auth'
 
 const TODAY_DATE = new Date()
 TODAY_DATE.setHours(0, 0, 0, 0)
@@ -35,6 +36,7 @@ const ACT_COLOR = {
 export default function Today() {
   const { cropCycles, cropMaster, activities, plots, logActivity, logActivities } = useAppStore()
 
+  const { profile } = useAuthStore()
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
@@ -166,15 +168,17 @@ export default function Today() {
       {/* Header */}
       <div className="px-4 pt-4 pb-2 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">{greeting}</h1>
+          <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || 'there'} 👋</h1>
           <p className="text-sm text-white/40">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
-          style={{ background: '#1D9E75', color: '#fff' }}>
-          <Plus size={14} strokeWidth={2.5} /> Log Activity
-        </button>
+        {isManager(profile) && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
+            style={{ background: '#1D9E75', color: '#fff' }}>
+            <Plus size={14} strokeWidth={2.5} /> Log Activity
+          </button>
+        )}
       </div>
 
       {/* Summary pills */}

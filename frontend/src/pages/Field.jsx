@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
+import { useAuthStore, isManager } from '../store/auth'
 import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -580,8 +581,10 @@ function ActiveCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput })
       </div>
 
       <div className="flex gap-2">
-        <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Log Activity</button>
-        <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Issue Inputs</button>
+        {isManager(useAuthStore.getState().profile) && <>
+          <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Log Activity</button>
+          <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Issue Inputs</button>
+        </>}
         {!isPreHarvest && (
           <button className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 text-white/40 border border-white/8 opacity-50 cursor-not-allowed" title="Harvest unlocks when crop is ready">
             Harvest 🔒

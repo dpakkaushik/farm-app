@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AlertTriangle, TrendingUp, Package, CalendarDays, Leaf, ChevronDown, ChevronUp } from 'lucide-react'
 import { farmApi } from '../api/client'
 import { format } from 'date-fns'
+import { useAuthStore } from '../store/auth'
 
 const FARM_ID = import.meta.env.VITE_FARM_ID || 'demo'
 
@@ -173,6 +174,7 @@ export default function Dashboard() {
       .catch(() => setData(DEMO))
   }, [])
 
+  const { profile } = useAuthStore()
   const d = data || DEMO
   const hour = now.getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -183,7 +185,7 @@ export default function Dashboard() {
 
       {/* Greeting */}
       <div>
-        <h1 className="text-xl font-bold text-white">{greeting}, {d.owner_name} 👋</h1>
+        <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
         <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
       </div>
 
