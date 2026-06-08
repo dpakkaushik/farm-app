@@ -102,6 +102,7 @@ export default function Field() {
   const [weather,         setWeather]         = useState(null)
   const [forecast,        setForecast]        = useState(null)
   const [weatherExpanded, setWeatherExpanded] = useState(false)
+  const [cropPanelOpen,   setCropPanelOpen]   = useState(false)
 
   useEffect(() => {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=28.5073&longitude=80.4863&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia/Kolkata&forecast_days=7')
@@ -381,27 +382,44 @@ export default function Field() {
         z {currentZoom}
       </div>
 
-      {/* Crop summary strip — bottom, above legend */}
-      {cropSummary.length > 0 && (
-        <div className="absolute left-0 right-0 px-3 overflow-x-auto no-scrollbar pointer-events-none"
-          style={{ bottom: '155px' }}>
-          <div className="flex gap-2 pb-1">
-            {cropSummary.map(g => (
-              <div key={g.crop} className="shrink-0 bg-black/65 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10 min-w-[90px]">
-                <p className="text-xs font-semibold text-white leading-tight truncate max-w-[100px]">{g.crop}</p>
-                <p className="text-[10px] text-white/50 mt-0.5">{g.acres.toFixed(1)} ac</p>
-                <p className="text-[10px] text-[#1D9E75] font-medium">~{g.estYield} qtl</p>
-                <p className="text-[10px] text-white/40">₹{(g.estRevenue / 1000).toFixed(0)}k est.</p>
-                {g.daysToHarvest !== null && (
-                  <p className="text-[10px] text-[#BA7517] mt-0.5">
-                    {g.daysToHarvest <= 0 ? '🎯 Ready' : `${g.daysToHarvest}d left`}
-                  </p>
-                )}
-              </div>
-            ))}
+      {/* Crop summary drawer — handle on left edge */}
+      {cropSummary.length > 0 && (<>
+        {/* Tap-outside backdrop */}
+        {cropPanelOpen && (
+          <div className="absolute inset-0 z-10" onClick={() => setCropPanelOpen(false)} />
+        )}
+
+        {/* Sliding panel */}
+        <div className={`absolute top-0 bottom-0 left-0 z-20 flex transition-transform duration-300 ease-out ${cropPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
+          style={{ width: cropSummary.length > 4 ? '268px' : '180px' }}>
+          <div className="flex-1 bg-black/80 backdrop-blur-md border-r border-white/10 p-3 overflow-y-auto">
+            <p className="text-[9px] text-white/35 uppercase tracking-widest mb-2.5 font-semibold">Active Crops</p>
+            <div className={`grid gap-2 ${cropSummary.length > 4 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {cropSummary.map(g => (
+                <div key={g.crop} className="bg-white/8 rounded-xl p-2.5 border border-white/10">
+                  <p className="text-xs font-bold text-white truncate">{g.crop}</p>
+                  <p className="text-[10px] text-white/45 mt-0.5">{g.acres.toFixed(1)} ac</p>
+                  <p className="text-[10px] text-[#1D9E75] font-semibold">~{g.estYield} qtl</p>
+                  <p className="text-[10px] text-white/35">₹{(g.estRevenue/1000).toFixed(0)}k est.</p>
+                  {g.daysToHarvest !== null && (
+                    <p className="text-[10px] text-[#BA7517] font-medium mt-0.5">
+                      {g.daysToHarvest <= 0 ? '🎯 Ready' : `${g.daysToHarvest}d left`}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Handle tab — always visible on left edge */}
+        <button
+          onClick={() => setCropPanelOpen(v => !v)}
+          className="absolute z-20 flex items-center justify-center bg-black/70 backdrop-blur-md border border-white/15 border-l-0 rounded-r-xl pointer-events-auto"
+          style={{ left: cropPanelOpen ? (cropSummary.length > 4 ? '268px' : '180px') : '0px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '56px', transition: 'left 0.3s ease-out' }}>
+          <ChevronRight size={12} className={`text-white/60 transition-transform duration-300 ${cropPanelOpen ? 'rotate-180' : ''}`} />
+        </button>
+      </>)}
 
       {/* Right controls */}
       <div className="absolute top-3 right-3 flex flex-col gap-2">
