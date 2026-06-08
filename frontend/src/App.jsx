@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { Routes, Route, Navigate, NavLink } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin } from './store/auth'
 import { Map, ListChecks, Package, Wheat, BarChart3, Users, Camera, Settings, LogOut } from 'lucide-react'
@@ -36,11 +36,29 @@ function LoadingScreen() {
 
 export default function App() {
   const { user, profile, loading, init, logout } = useAuthStore()
+  const { mediaItems } = useAppStore()
+  const location = useLocation()
+  const [mediaUnread, setMediaUnread] = useState(0)
 
   useEffect(() => { init() }, [])
   useEffect(() => {
     if (user) useAppStore.getState().loadAll()
   }, [user])
+
+  // Track unseen media
+  useEffect(() => {
+    if (!mediaItems.length) return
+    const seen = parseInt(localStorage.getItem('mediaSeenCount') || '0')
+    setMediaUnread(Math.max(0, mediaItems.length - seen))
+  }, [mediaItems])
+
+  // Clear badge when Media tab is opened
+  useEffect(() => {
+    if (location.pathname === '/media') {
+      localStorage.setItem('mediaSeenCount', String(mediaItems.length))
+      setMediaUnread(0)
+    }
+  }, [location.pathname])
 
   if (loading) return <LoadingScreen />
   if (!user || !profile) return <Login />
@@ -89,7 +107,14 @@ export default function App() {
             {({ isActive }) => (
               <div className={`flex flex-col items-center gap-1 py-2.5 transition-colors
                 ${isActive ? 'text-[#1D9E75]' : 'text-white/35'}`}>
-                <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
+                <div className="relative">
+                  <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
+                  {to === '/media' && mediaUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {mediaUnread > 9 ? '9+' : mediaUnread}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[8px] font-medium tracking-wide">{label}</span>
               </div>
             )}

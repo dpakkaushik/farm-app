@@ -91,17 +91,24 @@ export default function Field() {
 
   // ── Compute live plot data — only plots with all 4 GPS points set in DB ────────
   const livePlots = useMemo(() => {
-    const today = todayDate()
+    const today    = todayDate()
+    const todayStr = new Date().toISOString().slice(0, 10)
 
     return plots.map(p => {
       const geoPolygon = buildPolygonFromPoints(p)
       if (!geoPolygon) return null
       const cycle = cropCycles.find(c => c.status === 'active' && c.plotId === p.id)
 
+      const todayActs  = activities.filter(a => a.date === todayStr && (a.plotId === p.id || (cycle && a.cropCycleId === cycle.id)))
+      const todayType  = todayActs[0]?.type || null
+      const todayWorkers = todayActs.reduce((s, a) => s + (a.workers || 0), 0)
+      const subLabel   = todayType ? `${todayType.charAt(0).toUpperCase() + todayType.slice(1)}${todayWorkers > 0 ? ` · ${todayWorkers}w` : ''}` : null
+
       if (!cycle) {
         return {
           id:            p.id,
           label:         p.name || '',
+          sub_label:     subLabel || '',
           acres:         Number(p.area_acres) || 0,
           geo_polygon:   geoPolygon,
           stage:         'fallow',
@@ -145,6 +152,7 @@ export default function Field() {
         id:             p.id,
         cycle_id:       cycle.id,
         label:          p.name,
+        sub_label:      subLabel || '',
         acres,
         geo_polygon:    geoPolygon,
         stage,
@@ -262,7 +270,7 @@ export default function Field() {
       ...p.geo_polygon,
       properties: {
         label:      p.label,
-        crop_short: p.current_crop ? p.current_crop.split(' ').slice(0,2).join(' ') : 'Empty',
+        crop_short: p.sub_label || '',
         color:      getFillColor(p),
         outline:    getOutlineColor(p),
         __raw:      JSON.stringify(p),
