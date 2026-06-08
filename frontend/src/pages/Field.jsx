@@ -415,10 +415,10 @@ export default function Field() {
         {/* Handle tab — always visible on left edge */}
         <button
           onClick={() => setCropPanelOpen(v => !v)}
-          className="absolute z-20 flex items-center justify-center border-l-0 rounded-r-xl pointer-events-auto shadow-lg"
-          style={{ background: '#1D9E75', borderColor: 'rgba(255,255,255,0.3)', borderWidth: '1px', borderStyle: 'solid', ...({}) }}
-          style={{ left: cropPanelOpen ? (cropSummary.length > 4 ? '268px' : '180px') : '0px', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '56px', transition: 'left 0.3s ease-out' }}>
-          <ChevronRight size={12} className={`text-white transition-transform duration-300 ${cropPanelOpen ? 'rotate-180' : ''}`} />
+          className="absolute z-20 flex items-center justify-center rounded-r-xl pointer-events-auto"
+          style={{ background: '#ffffff', boxShadow: '2px 0 8px rgba(0,0,0,0.35)', width: '18px', height: '56px' }}
+          style={{ left: cropPanelOpen ? (cropSummary.length > 4 ? '268px' : '180px') : '0px', top: '50%', transform: 'translateY(-50%)', transition: 'left 0.3s ease-out' }}>
+          <ChevronRight size={13} className={`text-[#1D9E75] transition-transform duration-300 ${cropPanelOpen ? 'rotate-180' : ''}`} />
         </button>
       </>)}
 
