@@ -703,7 +703,7 @@ function LogActivityModal({ plot, onClose }) {
       plotId:      plot.id || null,
       cropCycleId: plot.cycle_id || null,
       type:        form.type,
-      date:        form.date,
+      date:        new Date().toISOString().slice(0,10),
       notes:       form.notes,
       workers:     Number(form.workers) || 0,
     })
@@ -723,9 +723,6 @@ function LogActivityModal({ plot, onClose }) {
             <select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{background:'#1a2030'}}>
               {TYPES.map(t=><option key={t} value={t} style={{background:'#1a2030'}}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
             </select>
-          </div>
-          <div><label className="text-xs text-white/50 block mb-1">Date</label>
-            <input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{colorScheme:'dark'}}/>
           </div>
           <div><label className="text-xs text-white/50 block mb-1">Workers</label>
             <input type="number" placeholder="0" value={form.workers} onChange={e=>setForm(p=>({...p,workers:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
@@ -760,7 +757,7 @@ function IssueInputModal({ plot, onClose }) {
       await issueItem({
         itemId:      form.itemId,
         cropCycleId: plot.cycle_id || null,
-        date:        form.date,
+        date:        new Date().toISOString().slice(0,10),
         qty:         parseFloat(form.qty),
         purpose:     form.purpose,
       })
@@ -797,9 +794,6 @@ function IssueInputModal({ plot, onClose }) {
           ))}
         </div>
         <div className="space-y-3">
-          <div><label className="text-xs text-white/50 block mb-1">Date</label>
-            <input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{colorScheme:'dark'}}/>
-          </div>
           {tab==='material' ? (<>
             <div><label className="text-xs text-white/50 block mb-1">Select item</label>
               <select value={form.itemId} onChange={e=>setForm(p=>({...p,itemId:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{background:'#1a2030'}}>

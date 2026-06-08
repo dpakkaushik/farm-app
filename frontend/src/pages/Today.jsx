@@ -4,9 +4,10 @@ import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList } from 'lu
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 
-const TODAY_DATE = new Date()
-TODAY_DATE.setHours(0, 0, 0, 0)
-const TODAY_STR = TODAY_DATE.toISOString().slice(0, 10)
+const getTodayStr = () => new Date().toISOString().slice(0, 10)
+const getTodayDate = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
+const TODAY_DATE = getTodayDate()
+const TODAY_STR  = getTodayStr()
 
 const ACTIVITY_TYPES = [
   { value: 'irrigation',    label: 'Irrigation',          emoji: '💧' },
@@ -43,7 +44,6 @@ export default function Today() {
   const [showModal, setShowModal]   = useState(false)
   const [selPlots,  setSelPlots]    = useState(new Set())
   const [actType,   setActType]     = useState('irrigation')
-  const [actDate,   setActDate]     = useState(TODAY_STR)
   const [actWorkers,setActWorkers]  = useState(0)
   const [actNotes,  setActNotes]    = useState('')
   const [doneTasks, setDoneTasks]   = useState(new Set())
@@ -141,7 +141,7 @@ export default function Today() {
     await logActivities(plotIds, {
       type:    actType,
       workers: actWorkers,
-      date:    actDate,
+      date:    getTodayStr(),
       notes:   actNotes.trim(),
     })
     setSaving(false)
@@ -150,7 +150,6 @@ export default function Today() {
     setActType('irrigation')
     setActWorkers(0)
     setActNotes('')
-    setActDate(TODAY_STR)
   }
 
   const togglePlot = (plotId) =>
