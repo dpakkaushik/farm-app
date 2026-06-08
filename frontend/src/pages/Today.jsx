@@ -389,28 +389,20 @@ export default function Today() {
                 </div>
               </div>
 
-              {/* Date + Workers */}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">Date</label>
-                  <input type="date" value={actDate} onChange={e => setActDate(e.target.value)}
-                    className="w-full rounded-xl px-4 py-3 text-sm outline-none border"
-                    style={{ background: '#0f1117', color: '#fff', borderColor: 'rgba(255,255,255,0.12)', colorScheme: 'dark' }} />
-                </div>
-                <div className="w-36">
-                  <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">Workers</label>
-                  <div className="flex items-center gap-0 rounded-xl border overflow-hidden"
-                    style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
-                    <button onClick={() => setActWorkers(w => Math.max(0, w - 1))}
-                      className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-                      <ChevronDown size={16} />
-                    </button>
-                    <span className="flex-1 text-center text-sm font-bold text-white">{actWorkers}</span>
-                    <button onClick={() => setActWorkers(w => w + 1)}
-                      className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
-                      <ChevronUp size={16} />
-                    </button>
-                  </div>
+              {/* Workers */}
+              <div>
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">Workers</label>
+                <div className="flex items-center gap-0 rounded-xl border overflow-hidden w-40"
+                  style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                  <button onClick={() => setActWorkers(w => Math.max(0, w - 1))}
+                    className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                    <ChevronDown size={16} />
+                  </button>
+                  <span className="flex-1 text-center text-sm font-bold text-white">{actWorkers}</span>
+                  <button onClick={() => setActWorkers(w => w + 1)}
+                    className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                    <ChevronUp size={16} />
+                  </button>
                 </div>
               </div>
 

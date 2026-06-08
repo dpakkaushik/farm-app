@@ -101,8 +101,8 @@ export default function Field() {
 
       const todayActs  = activities.filter(a => a.date === todayStr && (a.plotId === p.id || (cycle && a.cropCycleId === cycle.id)))
       const todayType  = todayActs[0]?.type || null
-      const todayWorkers = todayActs.reduce((s, a) => s + (a.workers || 0), 0)
-      const subLabel   = todayType ? `${todayType.charAt(0).toUpperCase() + todayType.slice(1)}${todayWorkers > 0 ? ` · ${todayWorkers}w` : ''}` : null
+      const todayNote  = todayActs[0]?.notes || null
+      const subLabel   = todayType ? todayType.charAt(0).toUpperCase() + todayType.slice(1) : null
 
       if (!cycle) {
         return {
@@ -117,7 +117,8 @@ export default function Field() {
           crop_color:    null,
           days_since_sow: null, days_to_harvest: null,
           season_cost: 0, progress_pct: 0,
-          today_task: null, next_task: null, last_task: null,
+          today_task: subLabel || null, today_note: todayNote,
+          next_task: null, last_task: null,
         }
       }
 
@@ -165,7 +166,8 @@ export default function Field() {
         progress_pct,
         est_yield_qtl:  estYield,
         est_revenue:    estRevenue,
-        today_task:     null,
+        today_task:     subLabel || null,
+        today_note:     todayNote,
         next_task:      null,
         last_task,
       }
@@ -566,6 +568,7 @@ function ActiveCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput })
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: isConcern ? '#E24B4A' : '#BA7517' }}>Today</p>
             <p className="text-xs text-white/80">{plot.today_task}</p>
+            {plot.today_note && <p className="text-[10px] text-white/50 mt-1 italic">"{plot.today_note}"</p>}
           </div>
         </div>
       )}
