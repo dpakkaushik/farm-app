@@ -7,7 +7,7 @@ import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
   Eye, EyeOff, CheckCircle2, Clock, AlertTriangle,
-  Wheat, Droplets, Sprout, Package, ChevronRight, Camera,
+  Wheat, Droplets, Sprout, Package, ChevronRight, Camera, ChevronDown,
 } from 'lucide-react'
 
 // ── Farm infrastructure (boundary outline + internal channel) ─────────────────
@@ -55,12 +55,29 @@ function hexToRgba(hex, alpha) {
 const getFillColor    = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(0,0,0,0)' : hexToRgba(p.crop_color, 0.55)
 const getOutlineColor = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(200,200,200,0.45)' : p.health_status === 'concern' ? '#E24B4A' : p.stage === 'harvest_ready' ? '#ffffff' : hexToRgba(p.crop_color, 0.9)
 
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+
 function getWeatherEmoji(code) {
-  if (code === 0) return '☀️'
-  if (code <= 2)  return '🌤️'
-  if (code <= 48) return '⛅'
-  if (code <= 65) return '🌧️'
+  if (code === 0)  return '☀️'
+  if (code <= 2)   return '🌤️'
+  if (code <= 3)   return '☁️'
+  if (code <= 48)  return '🌫️'
+  if (code <= 57)  return '🌦️'
+  if (code <= 65)  return '🌧️'
+  if (code <= 77)  return '🌨️'
+  if (code <= 82)  return '🌦️'
   return '⛈️'
+}
+
+function getWeatherCondition(code) {
+  if (code === 0)  return 'Clear Sky'
+  if (code <= 2)   return 'Partly Cloudy'
+  if (code === 3)  return 'Overcast'
+  if (code <= 48)  return 'Foggy'
+  if (code <= 57)  return 'Drizzle'
+  if (code <= 65)  return 'Rainy'
+  if (code <= 82)  return 'Showers'
+  return 'Thunderstorm'
 }
 
 // ── Compute today's date once per render ──────────────────────────────────────
@@ -82,11 +99,13 @@ export default function Field() {
   const [overlayVisible, setOverlayVisible]     = useState(true)
   const [uploading, setUploading]               = useState(false)
   const [currentZoom, setCurrentZoom]           = useState(zoom)
-  const [weather, setWeather]                   = useState(null)
+  const [weather,         setWeather]         = useState(null)
+  const [forecast,        setForecast]        = useState(null)
+  const [weatherExpanded, setWeatherExpanded] = useState(false)
 
   useEffect(() => {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=28.5073&longitude=80.4863&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=Asia/Kolkata&forecast_days=1')
-      .then(r => r.json()).then(d => setWeather(d.current)).catch(() => {})
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=28.5073&longitude=80.4863&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia/Kolkata&forecast_days=7')
+      .then(r => r.json()).then(d => { setWeather(d.current); setForecast(d.daily) }).catch(() => {})
   }, [])
 
   // ── Compute live plot data — only plots with all 4 GPS points set in DB ────────
@@ -311,18 +330,56 @@ export default function Field() {
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
 
-      {/* Farm name + weather */}
-      <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none">
-        <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-1.5 text-xs font-semibold text-white">
-          My Farm · 28.5073°N 80.4863°E
+      {/* Greeting + Weather */}
+      <div className="absolute top-3 left-3 flex flex-col gap-2" style={{ width: '200px' }}>
+        {/* Greeting card */}
+        <div className="bg-black/70 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10 pointer-events-none">
+          <p className="text-white font-bold text-sm leading-tight">
+            Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} 👋
+          </p>
+          <p className="text-white/40 text-[10px] mt-0.5 font-medium">Welcome to Pallia Farm</p>
         </div>
+
+        {/* Weather widget */}
         {weather && (
-          <div className="bg-black/60 backdrop-blur-sm rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-xs">
-            <span className="text-sm">{getWeatherEmoji(weather.weather_code)}</span>
-            <span className="text-white font-medium">{Math.round(weather.temperature_2m)}°C</span>
-            <span className="text-white/25">·</span>
-            <Droplets size={10} className="text-blue-400 shrink-0"/>
-            <span className="text-white/60">{weather.relative_humidity_2m}%</span>
+          <div className="flex flex-col gap-1.5 pointer-events-auto">
+            <button onClick={() => setWeatherExpanded(v => !v)}
+              className="bg-black/70 backdrop-blur-md rounded-2xl px-4 py-3 border border-white/10 text-left w-full transition-colors hover:bg-black/80">
+              <div className="flex items-center gap-2.5">
+                <span className="text-3xl leading-none">{getWeatherEmoji(weather.weather_code)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-white font-bold text-lg">{Math.round(weather.temperature_2m)}°C</span>
+                  </div>
+                  <p className="text-white/50 text-[10px] truncate">{getWeatherCondition(weather.weather_code)}</p>
+                  <div className="flex gap-2 text-[9px] text-white/35 mt-0.5">
+                    <span>💧 {weather.relative_humidity_2m}%</span>
+                    <span>💨 {Math.round(weather.wind_speed_10m)} km/h</span>
+                  </div>
+                </div>
+                <ChevronDown size={14} className={`text-white/40 shrink-0 transition-transform duration-200 ${weatherExpanded ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {/* 7-day forecast */}
+            {weatherExpanded && forecast && (
+              <div className="bg-black/70 backdrop-blur-md rounded-2xl p-3 border border-white/10">
+                <p className="text-[9px] text-white/30 uppercase tracking-wider mb-2">7-Day Forecast</p>
+                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                  {forecast.time?.map((date, i) => (
+                    <div key={date} className="flex flex-col items-center gap-0.5 min-w-[36px]">
+                      <span className="text-[9px] text-white/40 font-medium">{i === 0 ? 'Today' : DAYS[new Date(date + 'T00:00:00').getDay()]}</span>
+                      <span className="text-xl leading-snug">{getWeatherEmoji(forecast.weather_code?.[i] ?? 0)}</span>
+                      <span className="text-[10px] font-bold text-white">{Math.round(forecast.temperature_2m_max?.[i] ?? 0)}°</span>
+                      <span className="text-[9px] text-white/35">{Math.round(forecast.temperature_2m_min?.[i] ?? 0)}°</span>
+                      {(forecast.precipitation_probability_max?.[i] ?? 0) > 20 && (
+                        <span className="text-[8px] text-blue-400 font-semibold">{forecast.precipitation_probability_max[i]}%</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -334,8 +391,8 @@ export default function Field() {
 
       {/* Crop summary strip */}
       {cropSummary.length > 0 && (
-        <div className="absolute left-0 right-14 px-3 overflow-x-auto no-scrollbar pointer-events-none"
-          style={{ top: weather ? '76px' : '48px' }}>
+        <div className="absolute right-14 px-3 overflow-x-auto no-scrollbar pointer-events-none"
+          style={{ top: '12px', left: '216px' }}>
           <div className="flex gap-2 pb-1">
             {cropSummary.map(g => (
               <div key={g.crop} className="shrink-0 bg-black/65 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10 min-w-[90px]">
