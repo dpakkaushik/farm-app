@@ -174,6 +174,7 @@ export default function Field() {
         cycle_id:       cycle.id,
         label:          p.name,
         sub_label:      subLabel || '',
+        crop_emoji:     crop?.emoji || '',
         acres,
         geo_polygon:    geoPolygon,
         stage,
@@ -274,7 +275,7 @@ export default function Field() {
     map.current.addLayer({ id:'plot-fill',    type:'fill',   source:'plots', paint:{ 'fill-color':['get','color'], 'fill-opacity':1 } })
     map.current.addLayer({ id:'plot-outline', type:'line',   source:'plots', paint:{ 'line-color':['get','outline'], 'line-width':1.8, 'line-opacity':0.95 } })
     map.current.addLayer({ id:'plot-label',   type:'symbol', source:'plots',
-      layout:{ 'text-field':['concat',['get','label'],'\n',['get','crop_short']], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':false },
+      layout:{ 'text-field':['concat',['get','emoji'],['case',['!=',['get','emoji'],''],'\n',''],['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':false },
       paint:{ 'text-color':'#fff', 'text-halo-color':'#000', 'text-halo-width':1.2 },
     })
     map.current.on('click', 'plot-fill', (e) => {
@@ -293,6 +294,7 @@ export default function Field() {
       properties: {
         label:      p.label,
         crop_short: p.sub_label || '',
+        emoji:      p.crop_emoji || '',
         color:      getFillColor(p),
         outline:    getOutlineColor(p),
         __raw:      JSON.stringify(p),
