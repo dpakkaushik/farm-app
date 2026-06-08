@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
-import { Plus, Trash2, AlertTriangle, CheckCircle2, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus } from 'lucide-react'
 import { useAppStore } from '../store'
+import { useAuthStore } from '../store/auth'
 
-const TABS = ['Crops', 'Cycles', 'Inventory', 'Labour', 'Plots']
+const TABS = ['Crops', 'Cycles', 'Inventory', 'Labour', 'Plots', 'Users']
 
 const PALETTE_COLORS = [
   '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
@@ -40,6 +41,7 @@ export default function Admin() {
         {tab === 'Inventory' && <InventoryMaster />}
         {tab === 'Labour'    && <LabourMaster />}
         {tab === 'Plots'     && <PlotsMaster />}
+        {tab === 'Users'     && <UsersMaster />}
       </div>
     </div>
   )
@@ -647,6 +649,153 @@ function PlotsMaster() {
         )
       })}
 
+      {toast && <Toast msg={toast.m} type={toast.type} />}
+      <Style />
+    </div>
+  )
+}
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+const ROLES = [
+  { value: 'admin',     label: 'Admin',     color: '#1D9E75', desc: 'Full access including masters' },
+  { value: 'manager',   label: 'Manager',   color: '#BA7517', desc: 'Log activities, issue inventory' },
+  { value: 'view_only', label: 'View Only', color: '#888',    desc: 'View + save media only' },
+]
+
+function UsersMaster() {
+  const { users, loadUsers, createUser, updateUser, deactivateUser, reactivateUser, profile: me } = useAuthStore()
+  const [form,    setForm]    = useState(null)
+  const [saving,  setSaving]  = useState(false)
+  const [toast,   setToast]   = useState(null)
+
+  useEffect(() => { loadUsers() }, [])
+
+  const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
+
+  const save = async () => {
+    if (!form.email || !form.password || !form.full_name || !form.role)
+      return showToast('All fields are required', 'warn')
+    if (form.password.length < 6)
+      return showToast('Password must be at least 6 characters', 'warn')
+    setSaving(true)
+    try {
+      await createUser(form)
+      showToast('User created ✓')
+      setForm(null)
+    } catch (e) { showToast(e.message, 'warn') }
+    setSaving(false)
+  }
+
+  const changeRole = async (id, role) => {
+    try {
+      await updateUser(id, { role })
+      showToast('Role updated ✓')
+    } catch (e) { showToast(e.message, 'warn') }
+  }
+
+  const toggleActive = async (user) => {
+    try {
+      if (user.is_active) { await deactivateUser(user.id); showToast('User deactivated') }
+      else               { await reactivateUser(user.id); showToast('User reactivated') }
+    } catch (e) { showToast(e.message, 'warn') }
+  }
+
+  const roleStyle = (role) => {
+    const r = ROLES.find(x => x.value === role)
+    return r ? { color: r.color, background: r.color + '20', border: r.color + '40' } : {}
+  }
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      <button onClick={() => setForm({ email:'', password:'', full_name:'', role:'manager', phone:'' })}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        <UserPlus size={14} /> Add New User
+      </button>
+
+      {form !== null && (
+        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#1D9E75]">New User</p>
+          <div className="grid grid-cols-2 gap-2">
+            <FRow label="Full name">
+              <input className="finput" placeholder="Ramesh Kumar"
+                value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} />
+            </FRow>
+            <FRow label="Phone (optional)">
+              <input className="finput" placeholder="9876543210"
+                value={form.phone} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+            </FRow>
+          </div>
+          <FRow label="Email">
+            <input type="email" className="finput" placeholder="user@example.com"
+              value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+          </FRow>
+          <FRow label="Password">
+            <input type="password" className="finput" placeholder="Min. 6 characters"
+              value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} />
+          </FRow>
+          <FRow label="Role">
+            <div className="space-y-1.5 mt-0.5">
+              {ROLES.map(r => (
+                <button key={r.value} type="button"
+                  onClick={() => setForm(p => ({ ...p, role: r.value }))}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${form.role === r.value ? 'border-[#1D9E75]/60 bg-[#1D9E75]/10' : 'border-white/8 bg-white/4'}`}>
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
+                  <div>
+                    <p className="text-xs font-semibold text-white">{r.label}</p>
+                    <p className="text-[10px] text-white/35">{r.desc}</p>
+                  </div>
+                  {form.role === r.value && <span className="ml-auto text-[#1D9E75] text-xs">✓</span>}
+                </button>
+              ))}
+            </div>
+          </FRow>
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving}
+              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              {saving ? 'Creating…' : 'Create User'}
+            </button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {users.map(user => {
+        const isSelf = user.id === me?.id
+        return (
+          <div key={user.id} className={`bg-[#161a23] rounded-2xl border p-4 ${user.is_active ? 'border-white/8' : 'border-white/4 opacity-50'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-white">{user.full_name}</p>
+                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded border" style={roleStyle(user.role)}>
+                    {ROLES.find(r => r.value === user.role)?.label}
+                  </span>
+                  {!user.is_active && <span className="text-[9px] text-[#E24B4A] bg-[#E24B4A]/10 px-1.5 py-0.5 rounded">Inactive</span>}
+                  {isSelf && <span className="text-[9px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">You</span>}
+                </div>
+                <p className="text-[10px] text-white/40 mt-0.5">{user.email}</p>
+                {user.phone && <p className="text-[10px] text-white/30">{user.phone}</p>}
+              </div>
+              {!isSelf && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <select value={user.role}
+                    onChange={e => changeRole(user.id, e.target.value)}
+                    className="text-[10px] bg-white/8 border border-white/12 rounded-lg px-1.5 py-1 text-white focus:outline-none"
+                    style={{ background: '#1a2030' }}>
+                    {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: '#1a2030' }}>{r.label}</option>)}
+                  </select>
+                  <button onClick={() => toggleActive(user)}
+                    className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${user.is_active ? 'border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10' : 'border-[#1D9E75]/30 text-[#1D9E75] hover:bg-[#1D9E75]/10'}`}>
+                    {user.is_active ? 'Deactivate' : 'Reactivate'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+
+      {users.length === 0 && <p className="text-xs text-white/30 text-center py-6">No users yet.</p>}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
     </div>
