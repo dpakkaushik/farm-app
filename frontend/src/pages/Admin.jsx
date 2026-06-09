@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus, Pencil, Wallet } from 'lucide-react'
+import FilePicker from '../components/FilePicker'
+import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 
@@ -49,11 +51,12 @@ export default function Admin() {
 
 // ── Crops ─────────────────────────────────────────────────────────────────────
 function CropsMaster() {
-  const { cropMaster, cropCycles, addCrop, deleteCrop } = useAppStore()
-  const [form, setForm]   = useState(null)
+  const { cropMaster, cropCycles, addCrop, updateCrop, deleteCrop } = useAppStore()
+  const [form, setForm]     = useState(null)
   const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [toast, setToast]   = useState(null)
   const [toastType, setToastType] = useState('success')
+  const [confirm, setConfirm] = useState(null)
 
   const showToast = (m, type = 'success') => {
     setToast(m); setToastType(type)
@@ -64,8 +67,13 @@ function CropsMaster() {
     if (!form.name || !form.duration_days) return
     setSaving(true)
     try {
-      await addCrop(form)
-      showToast('Crop saved to database ✓')
+      if (form.id) {
+        await updateCrop(form.id, form)
+        showToast('Crop updated ✓')
+      } else {
+        await addCrop(form)
+        showToast('Crop saved to database ✓')
+      }
       setForm(null)
     } catch (e) {
       showToast('Save failed: ' + e.message, 'warn')
@@ -73,21 +81,30 @@ function CropsMaster() {
     setSaving(false)
   }
 
-  const handleDelete = async (id) => {
-    try {
-      const result = await deleteCrop(id)
-      if (result?.blocked) {
-        showToast(`Cannot delete — ${result.count} active cycle${result.count > 1 ? 's' : ''} use this crop`, 'warn')
-      } else {
-        showToast('Crop removed')
-      }
-    } catch (e) {
-      showToast('Delete failed: ' + e.message, 'warn')
-    }
+  const handleDelete = (id, name) => {
+    setConfirm({
+      title: `Delete "${name}"?`,
+      message: 'This crop will be permanently removed from the master list. Active cycles using this crop will be unaffected.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const result = await deleteCrop(id)
+          if (result?.blocked) {
+            showToast(`Cannot delete — ${result.count} active cycle${result.count > 1 ? 's' : ''} use this crop`, 'warn')
+          } else {
+            showToast('Crop removed')
+          }
+        } catch (e) {
+          showToast('Delete failed: ' + e.message, 'warn')
+        }
+      },
+    })
   }
 
-  const usedEmojis = new Set(cropMaster.map(c => c.emoji).filter(Boolean))
-  const usedColors = new Set(cropMaster.map(c => c.color).filter(Boolean))
+  // Exclude current editing item so it can keep its own emoji/color
+  const usedEmojis = new Set(cropMaster.filter(c => c.id !== form?.id).map(c => c.emoji).filter(Boolean))
+  const usedColors = new Set(cropMaster.filter(c => c.id !== form?.id).map(c => c.color).filter(Boolean))
   const SEASONS = [
     { value: 'rabi',   label: 'Rabi (Winter)' },
     { value: 'kharif', label: 'Kharif (Monsoon)' },
@@ -103,7 +120,7 @@ function CropsMaster() {
 
       {form !== null && (
         <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">New Crop</p>
+          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
           <FRow label="Crop name">
             <input className="finput" placeholder="e.g. Cotton"
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -176,7 +193,7 @@ function CropsMaster() {
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
-              {saving ? 'Saving…' : 'Save to Database'}
+              {saving ? 'Saving…' : form.id ? 'Update Crop' : 'Save to Database'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
           </div>
@@ -193,12 +210,21 @@ function CropsMaster() {
               <p className="text-[10px] text-white/40">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
               {activeCycles > 0 && <p className="text-[10px] text-[#1D9E75] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
             </div>
-            <button onClick={() => handleDelete(c.id)} className="text-white/20 hover:text-[#E24B4A] shrink-0 ml-2">
-              <Trash2 size={15} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl })}
+                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+                Edit
+              </button>
+              <button onClick={() => handleDelete(c.id, c.name)} className="text-white/20 hover:text-[#E24B4A] shrink-0">
+                <Trash2 size={15} />
+              </button>
+            </div>
           </div>
         )
       })}
+
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast} type={toastType} />}
       <Style />
     </div>
@@ -207,11 +233,12 @@ function CropsMaster() {
 
 // ── Inventory ─────────────────────────────────────────────────────────────────
 function InventoryMaster() {
-  const { inventoryMaster, addInventoryItem, deleteInventoryItem } = useAppStore()
+  const { inventoryMaster, addInventoryItem, updateInventoryItem, deleteInventoryItem } = useAppStore()
   const [form, setForm]     = useState(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast]   = useState(null)
   const [toastType, setToastType] = useState('success')
+  const [confirm, setConfirm] = useState(null)
 
   const showToast = (m, type = 'success') => {
     setToast(m); setToastType(type)
@@ -225,8 +252,13 @@ function InventoryMaster() {
     if (!form.name || !form.category || !form.unit) return
     setSaving(true)
     try {
-      await addInventoryItem(form)
-      showToast('Item saved to database ✓')
+      if (form.id) {
+        await updateInventoryItem(form.id, form)
+        showToast('Item updated ✓')
+      } else {
+        await addInventoryItem(form)
+        showToast('Item saved to database ✓')
+      }
       setForm(null)
     } catch (e) {
       showToast('Save failed: ' + e.message, 'warn')
@@ -234,17 +266,25 @@ function InventoryMaster() {
     setSaving(false)
   }
 
-  const handleDelete = async (id) => {
-    try {
-      const result = await deleteInventoryItem(id)
-      if (result?.blocked) {
-        showToast('Cannot delete — item has purchase or issue records', 'warn')
-      } else {
-        showToast('Item removed')
-      }
-    } catch (e) {
-      showToast('Delete failed: ' + e.message, 'warn')
-    }
+  const handleDelete = (id, name) => {
+    setConfirm({
+      title: `Delete "${name}"?`,
+      message: 'This inventory item will be removed from the master list. Items with purchase or issue records cannot be deleted.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const result = await deleteInventoryItem(id)
+          if (result?.blocked) {
+            showToast('Cannot delete — item has purchase or issue records', 'warn')
+          } else {
+            showToast('Item removed')
+          }
+        } catch (e) {
+          showToast('Delete failed: ' + e.message, 'warn')
+        }
+      },
+    })
   }
 
   return (
@@ -256,7 +296,7 @@ function InventoryMaster() {
 
       {form !== null && (
         <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">New Item</p>
+          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Item' : 'New Item'}</p>
           <FRow label="Name">
             <input className="finput" placeholder="e.g. DAP"
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -281,15 +321,11 @@ function InventoryMaster() {
               <input type="number" className="finput" placeholder="0"
                 value={form.minThreshold || ''} onChange={e => setForm(p => ({ ...p, minThreshold: e.target.value }))} />
             </FRow>
-            <FRow label="Supplier (optional)">
-              <input className="finput"
-                value={form.supplier || ''} onChange={e => setForm(p => ({ ...p, supplier: e.target.value }))} />
-            </FRow>
           </div>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
-              {saving ? 'Saving…' : 'Save to Database'}
+              {saving ? 'Saving…' : form.id ? 'Update Item' : 'Save to Database'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
           </div>
@@ -298,16 +334,25 @@ function InventoryMaster() {
 
       {inventoryMaster.map(i => (
         <div key={i.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center justify-between">
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white">{i.name}</p>
             <p className="text-[10px] text-white/40">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
             <p className="text-[10px] text-[#1D9E75] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
           </div>
-          <button onClick={() => handleDelete(i.id)} className="text-white/20 hover:text-[#E24B4A] ml-3">
-            <Trash2 size={15} />
-          </button>
+          <div className="flex items-center gap-2 ml-3 shrink-0">
+            <button
+              onClick={() => setForm({ id: i.id, name: i.name, category: i.category, unit: i.unit, costPerUnit: i.costPerUnit, minThreshold: i.minThreshold })}
+              className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+              Edit
+            </button>
+            <button onClick={() => handleDelete(i.id, i.name)} className="text-white/20 hover:text-[#E24B4A]">
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
       ))}
+
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast} type={toastType} />}
       <Style />
     </div>
@@ -316,80 +361,215 @@ function InventoryMaster() {
 
 // ── Labour ────────────────────────────────────────────────────────────────────
 const WORK_TYPES = ['Farm Worker', 'Driver', 'Cook', 'Cleaning', 'Watchman', 'Gardener', 'Mechanic', 'Other']
+const LABOUR_TABS = [
+  ['staff',       '🏢 Staff'],
+  ['regular',     '👤 Regular'],
+  ['contractual', '🏗️ Contract'],
+  ['advances',    '💰 Advances'],
+  ['regularize',  '📅 Regularize'],
+]
 
 function LabourMaster() {
-  const { regularLabourers, contractualLabour, addRegularLabourer, deleteRegularLabourer, addContractualLabour, deleteContractualLabour } = useAppStore()
-  const [tab, setTab]       = useState('regular')
-  const [form, setForm]     = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [toast, setToast]   = useState(null)
+  const {
+    permanentStaff, regularLabourers, contractualLabour, advances,
+    addPermanentStaff, updatePermanentStaff, deletePermanentStaff,
+    addRegularLabourer, updateRegularLabourer, deleteRegularLabourer,
+    addContractualLabour, updateContractualLabour, deleteContractualLabour,
+    addAdvance,
+  } = useAppStore()
+  const [tab, setTab]           = useState('staff')
+  const [form, setForm]         = useState(null)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [advForm, setAdvForm]   = useState(null)
+  const [saving, setSaving]     = useState(false)
+  const [toast, setToast]       = useState(null)
+  const [confirm, setConfirm]   = useState(null)
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
+  const today = new Date().toISOString().slice(0, 10)
 
-  const saveRegular = async () => {
-    if (!form.name || !form.workType) return
+  const uploadPhoto = async (file, folder) => {
+    if (!file) return null
+    const ext  = file.name.split('.').pop()
+    const path = `${folder}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('farm-photos').upload(path, file)
+    if (error) return null
+    return supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
+  }
+
+  // ── Permanent Staff ─────────────────────────────────────────────────────────
+  const saveStaff = async () => {
+    if (!form.name) return
     setSaving(true)
     try {
-      await addRegularLabourer(form)
-      showToast('Labourer saved to database ✓')
-      setForm(null)
-    } catch (e) {
-      showToast('Save failed: ' + e.message)
-    }
+      const photoUrl = photoFile ? await uploadPhoto(photoFile, 'staff-photos') : form.photoUrl
+      const payload  = { ...form, photoUrl }
+      if (form.id) { await updatePermanentStaff(form.id, payload); showToast('Staff updated ✓') }
+      else         { await addPermanentStaff(payload);              showToast('Staff saved ✓') }
+      setForm(null); setPhotoFile(null)
+    } catch (e) { showToast('Save failed: ' + e.message) }
     setSaving(false)
   }
 
+  const handleDeleteStaff = (id, name) => setConfirm({
+    title: `Remove "${name}"?`, message: 'Staff member will be marked inactive.',
+    confirmLabel: 'Remove',
+    onConfirm: async () => { setConfirm(null); try { await deletePermanentStaff(id); showToast('Removed') } catch (e) { showToast(e.message) } },
+  })
+
+  // ── Regular Labour ──────────────────────────────────────────────────────────
+  const saveRegular = async () => {
+    if (!form.name) return
+    setSaving(true)
+    try {
+      const photoUrl = photoFile ? await uploadPhoto(photoFile, 'labour-photos') : form.photoUrl
+      const payload  = { ...form, photoUrl }
+      if (form.id) { await updateRegularLabourer(form.id, payload); showToast('Labourer updated ✓') }
+      else         { await addRegularLabourer(payload);              showToast('Labourer saved ✓') }
+      setForm(null); setPhotoFile(null)
+    } catch (e) { showToast('Save failed: ' + e.message) }
+    setSaving(false)
+  }
+
+  const handleDeleteRegular = (id, name) => setConfirm({
+    title: `Remove "${name}"?`, message: 'Labourer will be marked inactive.',
+    confirmLabel: 'Remove',
+    onConfirm: async () => { setConfirm(null); try { await deleteRegularLabourer(id); showToast('Removed') } catch (e) { showToast(e.message) } },
+  })
+
+  // ── Contractual ─────────────────────────────────────────────────────────────
   const saveContractual = async () => {
     if (!form.name || !form.defaultRate) return
     setSaving(true)
     try {
-      await addContractualLabour(form)
-      showToast('Category saved to database ✓')
+      if (form.id) { await updateContractualLabour(form.id, form); showToast('Category updated ✓') }
+      else         { await addContractualLabour(form);              showToast('Category saved ✓') }
       setForm(null)
-    } catch (e) {
-      showToast('Save failed: ' + e.message)
-    }
+    } catch (e) { showToast('Save failed: ' + e.message) }
     setSaving(false)
   }
 
-  const handleDeleteRegular = async (id) => {
-    try {
-      await deleteRegularLabourer(id)
-      showToast('Labourer removed')
-    } catch (e) {
-      showToast('Delete failed: ' + e.message)
-    }
-  }
+  const handleDeleteContractual = (id, name) => setConfirm({
+    title: `Remove "${name}"?`, message: 'Category will be marked inactive.',
+    confirmLabel: 'Remove',
+    onConfirm: async () => { setConfirm(null); try { await deleteContractualLabour(id); showToast('Removed') } catch (e) { showToast(e.message) } },
+  })
 
-  const handleDeleteContractual = async (id) => {
+  // ── Advances ────────────────────────────────────────────────────────────────
+  const allTracked = [...permanentStaff, ...regularLabourers]
+  const saveAdvance = async () => {
+    if (!advForm.labourerId || !advForm.amount) return
+    setSaving(true)
     try {
-      await deleteContractualLabour(id)
-      showToast('Category removed')
-    } catch (e) {
-      showToast('Delete failed: ' + e.message)
-    }
+      await addAdvance({ ...advForm, date: advForm.date || today })
+      showToast('Advance recorded ✓')
+      setAdvForm(null)
+    } catch (e) { showToast('Failed: ' + e.message) }
+    setSaving(false)
   }
 
   return (
     <div className="p-4 space-y-3 pb-6">
-      <div className="flex gap-1 bg-[#161a23] rounded-xl p-1">
-        {[['regular', '👤 Regular'], ['contractual', '🏗️ Contractual']].map(([k, lbl]) => (
+      {/* Tab strip */}
+      <div className="flex gap-1 bg-[#161a23] rounded-xl p-1 overflow-x-auto no-scrollbar">
+        {LABOUR_TABS.map(([k, lbl]) => (
           <button key={k} onClick={() => { setTab(k); setForm(null) }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors ${tab === k ? 'bg-[#1D9E75] text-white' : 'text-white/40'}`}>
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${tab === k ? 'bg-[#1D9E75] text-white' : 'text-white/40'}`}>
             {lbl}
           </button>
         ))}
       </div>
 
+      {/* ── Permanent Staff ── */}
+      {tab === 'staff' && (<>
+        <p className="text-[11px] text-white/30 px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
+        <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
+          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+          <Plus size={14} /> Add Staff Member
+        </button>
+        {form !== null && (
+          <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Staff' : 'New Staff Member'}</p>
+            <div className="grid grid-cols-2 gap-2">
+              <FRow label="Full name">
+                <input className="finput" placeholder="e.g. Suresh Sharma"
+                  value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+              </FRow>
+              <FRow label="Designation">
+                <input className="finput" placeholder="e.g. Farm Manager"
+                  value={form.designation || ''} onChange={e => setForm(p => ({ ...p, designation: e.target.value }))} />
+              </FRow>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FRow label="Monthly salary (₹)">
+                <input type="number" className="finput" placeholder="15000"
+                  value={form.monthlySalary || ''} onChange={e => setForm(p => ({ ...p, monthlySalary: e.target.value }))} />
+              </FRow>
+              <FRow label="Phone">
+                <input type="tel" className="finput" placeholder="optional"
+                  value={form.phone || ''} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
+              </FRow>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <FRow label="Opening balance (₹)">
+                <input type="number" className="finput" placeholder="0"
+                  value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
+              </FRow>
+              <FRow label="Join date">
+                <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
+              </FRow>
+            </div>
+            <p className="text-[10px] text-white/30 px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
+            <FRow label="Photo">
+              <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
+                onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
+            </FRow>
+            <div className="flex gap-2">
+              <button onClick={saveStaff} disabled={saving}
+                className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                {saving ? 'Saving…' : form.id ? 'Update' : 'Save to Database'}
+              </button>
+              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            </div>
+          </div>
+        )}
+        {permanentStaff.map(s => (
+          <div key={s.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center gap-3">
+            {s.photoUrl
+              ? <img src={s.photoUrl} className="w-9 h-9 rounded-full object-cover shrink-0" alt={s.name} />
+              : <div className="w-9 h-9 rounded-full bg-[#4169E1]/15 flex items-center justify-center text-sm font-bold text-[#4169E1] shrink-0">
+                  {s.name.charAt(0)}
+                </div>
+            }
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white">{s.name}</p>
+              <p className="text-[10px] text-white/40">{s.designation || 'Staff'} · ₹{s.monthlySalary}/mo{s.phone ? ` · ${s.phone}` : ''}</p>
+              {s.openingBalance !== 0 && (
+                <p className="text-[10px] mt-0.5" style={{ color: s.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
+                  Opening: {s.openingBalance > 0 ? '+' : ''}₹{s.openingBalance}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '' })}
+                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
+              <button onClick={() => handleDeleteStaff(s.id, s.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
+            </div>
+          </div>
+        ))}
+        {permanentStaff.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No permanent staff added yet</p>}
+      </>)}
+
+      {/* ── Regular Labour ── */}
       {tab === 'regular' && (<>
-        <p className="text-[11px] text-white/30 px-1">People you regularly call — tracked by name, work type and rate.</p>
-        <button onClick={() => setForm({ workType: 'Farm Worker' })}
+        <p className="text-[11px] text-white/30 px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
+        <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Regular Labourer
         </button>
         {form !== null && (
           <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-            <p className="text-xs font-bold text-[#1D9E75]">New Regular Labourer</p>
+            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Labourer' : 'New Regular Labourer'}</p>
             <FRow label="Full name">
               <input className="finput" placeholder="e.g. Ramesh Kumar"
                 value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -409,40 +589,59 @@ function LabourMaster() {
                   value={form.phone || ''} onChange={e => setForm(p => ({ ...p, phone: e.target.value }))} />
               </FRow>
             </div>
+            <FRow label="Opening balance (₹)">
+              <input type="number" className="finput" placeholder="0"
+                value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
+            </FRow>
+            <p className="text-[10px] text-white/30 px-0.5">Positive = farm owes them from last month. Negative = they owe farm.</p>
+            <FRow label="Photo">
+              <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
+                onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
+            </FRow>
             <div className="flex gap-2">
               <button onClick={saveRegular} disabled={saving}
                 className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
-                {saving ? 'Saving…' : 'Save to Database'}
+                {saving ? 'Saving…' : form.id ? 'Update Labourer' : 'Save to Database'}
               </button>
-              <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
             </div>
           </div>
         )}
         {regularLabourers.map(l => (
           <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75] shrink-0">
-              {l.name.charAt(0)}
-            </div>
+            {l.photoUrl
+              ? <img src={l.photoUrl} className="w-9 h-9 rounded-full object-cover shrink-0" alt={l.name} />
+              : <div className="w-9 h-9 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75] shrink-0">{l.name.charAt(0)}</div>
+            }
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white">{l.name}</p>
               <p className="text-[10px] text-white/40">{l.workType} · ₹{l.ratePerDay}/day{l.phone ? ` · ${l.phone}` : ''}</p>
+              {l.openingBalance !== 0 && (
+                <p className="text-[10px] mt-0.5" style={{ color: l.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
+                  Opening: {l.openingBalance > 0 ? '+' : ''}₹{l.openingBalance}
+                </p>
+              )}
             </div>
-            <button onClick={() => handleDeleteRegular(l.id)} className="text-white/15 hover:text-[#E24B4A] shrink-0">
-              <Trash2 size={15} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => { setPhotoFile(null); setForm({ id: l.id, name: l.name, workType: l.workType, ratePerDay: l.ratePerDay, phone: l.phone || '', openingBalance: l.openingBalance, photoUrl: l.photoUrl }) }}
+                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
+              <button onClick={() => handleDeleteRegular(l.id, l.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
+            </div>
           </div>
         ))}
+        {regularLabourers.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No regular labour added yet</p>}
       </>)}
 
+      {/* ── Contractual ── */}
       {tab === 'contractual' && (<>
-        <p className="text-[11px] text-white/30 px-1">Bulk workers for harvesting, ploughing etc. Tracked by category.</p>
+        <p className="text-[11px] text-white/30 px-1">Bulk workers called for busy periods — per day rate, count-based tracking in Today tab.</p>
         <button onClick={() => setForm({})}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Labour Category
         </button>
         {form !== null && (
           <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-            <p className="text-xs font-bold text-[#1D9E75]">New Category</p>
+            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Category' : 'New Category'}</p>
             <FRow label="Category name">
               <input className="finput" placeholder="e.g. Harvesting Labour"
                 value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -454,7 +653,7 @@ function LabourMaster() {
             <div className="flex gap-2">
               <button onClick={saveContractual} disabled={saving}
                 className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
-                {saving ? 'Saving…' : 'Save to Database'}
+                {saving ? 'Saving…' : form.id ? 'Update Category' : 'Save to Database'}
               </button>
               <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
             </div>
@@ -466,12 +665,378 @@ function LabourMaster() {
               <p className="text-sm font-semibold text-white">{l.name}</p>
               <p className="text-[10px] text-white/40">₹{l.defaultRate}/day standard rate</p>
             </div>
-            <button onClick={() => handleDeleteContractual(l.id)} className="text-white/15 hover:text-[#E24B4A]">
-              <Trash2 size={15} />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => setForm({ id: l.id, name: l.name, defaultRate: l.defaultRate })}
+                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
+              <button onClick={() => handleDeleteContractual(l.id, l.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
+            </div>
           </div>
         ))}
+        {contractualLabour.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No categories added yet</p>}
       </>)}
+
+      {/* ── Advances ── */}
+      {tab === 'advances' && (<>
+        <p className="text-[11px] text-white/30 px-1">Salary advances given to permanent staff or regular labour. Deducted at month-end salary.</p>
+        {allTracked.length === 0 ? (
+          <p className="text-xs text-white/20 text-center py-6">Add staff or regular labour first to record advances.</p>
+        ) : (<>
+          <button onClick={() => setAdvForm({ labourerId: '', amount: '', date: today, reason: '' })}
+            className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#BA7517]/30 rounded-2xl text-xs text-[#BA7517] hover:border-[#BA7517]/60">
+            <Wallet size={14} /> Record Advance
+          </button>
+
+          {advForm !== null && (
+            <div className="bg-[#161a23] rounded-2xl border border-[#BA7517]/30 p-4 space-y-3">
+              <p className="text-xs font-bold text-[#BA7517]">New Salary Advance</p>
+              <FRow label="Person">
+                <select className="finput" value={advForm.labourerId} onChange={e => setAdvForm(p => ({ ...p, labourerId: e.target.value }))} style={{ background: '#1a2030' }}>
+                  <option value="" style={{ background: '#1a2030' }}>Select…</option>
+                  {permanentStaff.length > 0 && (
+                    <optgroup label="Permanent Staff" style={{ background: '#1a2030' }}>
+                      {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: '#1a2030' }}>{s.name}</option>)}
+                    </optgroup>
+                  )}
+                  {regularLabourers.length > 0 && (
+                    <optgroup label="Regular Labour" style={{ background: '#1a2030' }}>
+                      {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: '#1a2030' }}>{l.name}</option>)}
+                    </optgroup>
+                  )}
+                </select>
+              </FRow>
+              <div className="grid grid-cols-2 gap-2">
+                <FRow label="Amount (₹)">
+                  <input type="number" className="finput" placeholder="0"
+                    value={advForm.amount} onChange={e => setAdvForm(p => ({ ...p, amount: e.target.value }))} />
+                </FRow>
+                <FRow label="Date">
+                  <input type="date" className="finput" value={advForm.date} onChange={e => setAdvForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
+                </FRow>
+              </div>
+              <FRow label="Reason (optional)">
+                <input className="finput" placeholder="e.g. Medical emergency"
+                  value={advForm.reason} onChange={e => setAdvForm(p => ({ ...p, reason: e.target.value }))} />
+              </FRow>
+              <div className="flex gap-2">
+                <button onClick={saveAdvance} disabled={saving || !advForm.labourerId || !advForm.amount}
+                  className="flex-1 py-2.5 bg-[#BA7517] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                  {saving ? 'Saving…' : 'Record Advance'}
+                </button>
+                <button onClick={() => setAdvForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {advances.length === 0 ? (
+            <p className="text-xs text-white/20 text-center py-4">No pending advances</p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">Pending Recovery</p>
+              {advances.map(adv => {
+                const person = allTracked.find(p => p.id === adv.labourerId)
+                return (
+                  <div key={adv.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{person?.name || '—'}</p>
+                        <p className="text-[10px] text-white/40">{adv.date}{adv.reason ? ` · ${adv.reason}` : ''}</p>
+                      </div>
+                      <p className="text-base font-bold text-[#BA7517]">₹{adv.amount}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>)}
+      </>)}
+
+      {/* ── Regularize ── */}
+      {tab === 'regularize' && <AttendanceRegularize />}
+
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      {toast && <Toast msg={toast} />}
+      <Style />
+    </div>
+  )
+}
+
+// ── Attendance Regularization Calendar ────────────────────────────────────────
+const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+const ATT_STYLES = {
+  present:    { bg: '#1D9E75', label: 'P' },
+  half_day:   { bg: '#BA7517', label: 'H' },
+  leave:      { bg: '#4169E1', label: 'L' },
+  holiday:    { bg: '#7B2D8B', label: 'PH' },
+  absent:     { bg: '#E24B4A', label: 'A' },
+  weekly_off: { bg: '#2a2a2a', label: '' },
+}
+// Cycle for normal days: null→P→H→L→A→null
+const NORMAL_CYCLE  = [null, 'present', 'half_day', 'leave', 'absent']
+// Cycle for public holiday days: null(shows PH)→present→absent→null
+const HOLIDAY_CYCLE = [null, 'present', 'absent']
+
+function AttendanceRegularize() {
+  const {
+    permanentStaff, staffMonthAttendance, publicHolidays,
+    loadMonthAttendance, markAttendanceOnDate,
+    loadPublicHolidays, addPublicHoliday, deletePublicHoliday,
+  } = useAppStore()
+
+  const now  = new Date()
+  const [year,    setYear]    = React.useState(now.getFullYear())
+  const [month,   setMonth]   = React.useState(now.getMonth() + 1)
+  const [staffId, setStaffId] = React.useState(null)
+  const [saving,  setSaving]  = React.useState(null)
+  const [hForm,   setHForm]   = React.useState(null)
+  const [hSaving, setHSaving] = React.useState(false)
+  const [toast,   setToast]   = React.useState(null)
+
+  const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
+
+  React.useEffect(() => { loadPublicHolidays() }, [])
+
+  React.useEffect(() => {
+    if (permanentStaff.length && !staffId) setStaffId(permanentStaff[0].id)
+  }, [permanentStaff])
+
+  React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
+
+  const mm          = String(month).padStart(2, '0')
+  const monthKey    = `${year}-${mm}`
+  const personAtt   = staffMonthAttendance[monthKey]?.[staffId] || {}
+
+  // Public holidays this month as a map { dateStr: name }
+  const phMap = React.useMemo(() =>
+    publicHolidays.filter(h => h.date.startsWith(monthKey))
+      .reduce((acc, h) => { acc[h.date] = h; return acc }, {}),
+    [publicHolidays, monthKey]
+  )
+
+  // Build calendar cells
+  const todayStr     = now.toISOString().slice(0, 10)
+  const firstDow     = new Date(year, month - 1, 1).getDay()
+  const daysInMonth  = new Date(year, month, 0).getDate()
+  const cells = []
+  for (let i = 0; i < firstDow; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds       = `${year}-${mm}-${String(d).padStart(2, '0')}`
+    const dow      = new Date(year, month - 1, d).getDay()
+    const isSun    = dow === 0
+    const isPH     = !!phMap[ds]
+    const isFuture = ds > todayStr
+    const recStatus = personAtt[ds]?.status
+    // Display status: explicit record first, then auto-derive
+    const dispStatus = recStatus || (isSun ? 'weekly_off' : isPH ? 'holiday' : null)
+    cells.push({ ds, d, isSun, isPH, isFuture, recStatus, dispStatus })
+  }
+
+  // Stats
+  const stats = { present: 0, half_day: 0, leave: 0, holiday: 0, absent: 0 }
+  cells.filter(Boolean).forEach(c => {
+    if (!c.isSun && !c.isFuture && c.dispStatus && stats[c.dispStatus] !== undefined)
+      stats[c.dispStatus]++
+  })
+  const workingDays = cells.filter(Boolean).filter(c => !c.isSun && !c.isFuture).length
+  const phCount     = cells.filter(Boolean).filter(c => c.isPH && !c.isFuture && (!c.recStatus || c.recStatus === 'holiday')).length
+  const paidDays    = stats.present + stats.half_day * 0.5 + stats.leave + phCount
+  const staff       = permanentStaff.find(s => s.id === staffId)
+  const estSalary   = workingDays > 0 && staff?.monthlySalary
+    ? Math.round(staff.monthlySalary * paidDays / workingDays)
+    : null
+
+  const handleDayTap = async (cell) => {
+    if (cell.isSun || cell.isFuture || !staffId) return
+    const cycle = cell.isPH ? HOLIDAY_CYCLE : NORMAL_CYCLE
+    const idx   = cycle.indexOf(cell.recStatus ?? null)
+    const next  = cycle[(idx + 1) % cycle.length]
+    setSaving(cell.ds)
+    try { await markAttendanceOnDate(staffId, cell.ds, next) }
+    catch (e) { showToast('Failed: ' + e.message) }
+    finally { setSaving(null) }
+  }
+
+  const handleAddHoliday = async () => {
+    if (!hForm?.date || !hForm?.name) return
+    setHSaving(true)
+    try { await addPublicHoliday(hForm.date, hForm.name); showToast('Holiday added ✓'); setHForm(null) }
+    catch (e) { showToast(e.message) }
+    setHSaving(false)
+  }
+
+  const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
+  const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
+
+  if (permanentStaff.length === 0) return (
+    <div className="p-4 pt-0">
+      <div className="rounded-2xl border border-white/8 p-6 text-center">
+        <p className="text-2xl mb-2">📅</p>
+        <p className="text-sm font-semibold text-white/60">No permanent staff added</p>
+        <p className="text-xs text-white/30 mt-1">Add staff in the Staff tab first</p>
+      </div>
+      <Style />
+    </div>
+  )
+
+  return (
+    <div className="p-4 pt-0 space-y-3 pb-6">
+      <div className="bg-[#1a1e2a] rounded-2xl p-2.5 text-[10px] text-white/35 leading-relaxed">
+        Staff: <span className="text-white/60">6 days/week (Sunday off) · 10 paid leaves/year · Public holidays paid</span>
+        &nbsp;·&nbsp;Regular labour: salary = days present × daily rate only
+      </div>
+
+      {/* Staff selector */}
+      {permanentStaff.length > 1 && (
+        <select className="finput" value={staffId || ''} onChange={e => setStaffId(e.target.value)} style={{ background: '#1a2030' }}>
+          {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: '#1a2030' }}>{s.name} — {s.designation || 'Staff'}</option>)}
+        </select>
+      )}
+      {permanentStaff.length === 1 && (
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-7 h-7 rounded-full bg-[#4169E1]/20 flex items-center justify-center text-xs font-bold text-[#4169E1]">
+            {staff?.name?.charAt(0)}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-white">{staff?.name}</p>
+            <p className="text-[10px] text-white/40">{staff?.designation} · ₹{staff?.monthlySalary}/mo</p>
+          </div>
+        </div>
+      )}
+
+      {/* Month navigation */}
+      <div className="flex items-center justify-between bg-[#161a23] rounded-2xl px-4 py-3">
+        <button onClick={prevMonth} className="text-white/50 hover:text-white px-2 py-1 rounded-lg hover:bg-white/8 text-lg">‹</button>
+        <p className="text-sm font-bold text-white">{MONTH_NAMES[month - 1]} {year}</p>
+        <button onClick={nextMonth} className="text-white/50 hover:text-white px-2 py-1 rounded-lg hover:bg-white/8 text-lg">›</button>
+      </div>
+
+      {/* Calendar */}
+      <div className="bg-[#161a23] rounded-2xl overflow-hidden">
+        {/* Day headers */}
+        <div className="grid grid-cols-7 border-b border-white/6">
+          {DAY_LABELS.map((d, i) => (
+            <div key={d} className="text-center py-2 text-[10px] font-bold"
+              style={{ color: i === 0 ? '#E24B4A80' : 'rgba(255,255,255,0.30)' }}>{d}</div>
+          ))}
+        </div>
+        {/* Cells */}
+        <div className="grid grid-cols-7">
+          {cells.map((cell, i) => {
+            if (!cell) return <div key={`e${i}`} className="aspect-square" />
+            const style = cell.dispStatus ? ATT_STYLES[cell.dispStatus] : null
+            const isToday = cell.ds === todayStr
+            const isTapping = saving === cell.ds
+            return (
+              <button key={cell.ds} onClick={() => handleDayTap(cell)}
+                disabled={cell.isSun || cell.isFuture || isTapping}
+                className="aspect-square flex flex-col items-center justify-center gap-0.5 border border-white/[0.04] transition-opacity disabled:cursor-default"
+                style={{ background: style ? style.bg + '30' : 'transparent', opacity: cell.isFuture ? 0.35 : 1 }}>
+                <span className="text-[10px] font-semibold leading-none"
+                  style={{ color: cell.isSun ? '#E24B4A60' : style ? style.bg : 'rgba(255,255,255,0.55)' }}>
+                  {cell.d}
+                </span>
+                {style && style.label && (
+                  <span className="text-[8px] font-bold leading-none px-1 py-0.5 rounded"
+                    style={{ background: style.bg + '50', color: style.bg }}>
+                    {isTapping ? '…' : style.label}
+                  </span>
+                )}
+                {cell.isPH && !cell.recStatus && (
+                  <span className="text-[7px] text-[#7B2D8B] leading-none">PH</span>
+                )}
+                {isToday && !style && (
+                  <div className="w-1 h-1 rounded-full bg-white/40 mt-0.5" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Present',    val: stats.present,   color: '#1D9E75' },
+          { label: 'Half Day',   val: stats.half_day,  color: '#BA7517' },
+          { label: 'Leave',      val: stats.leave,     color: '#4169E1' },
+          { label: 'P. Holiday', val: phCount,          color: '#7B2D8B' },
+          { label: 'Absent',     val: stats.absent,    color: '#E24B4A' },
+          { label: 'Working Days', val: workingDays,   color: '#888' },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="bg-[#161a23] rounded-xl p-3 text-center border border-white/6">
+            <p className="text-lg font-bold" style={{ color }}>{val}</p>
+            <p className="text-[10px] text-white/35 mt-0.5">{label}</p>
+          </div>
+        ))}
+      </div>
+      {estSalary !== null && (
+        <div className="bg-[#1a2030] rounded-2xl p-4 flex items-center justify-between border border-white/8">
+          <div>
+            <p className="text-xs text-white/40">Estimated salary · {paidDays.toFixed(1)} paid days / {workingDays} working</p>
+            <p className="text-[10px] text-white/25 mt-0.5">= ₹{staff?.monthlySalary} × {paidDays.toFixed(1)}/{workingDays}</p>
+          </div>
+          <p className="text-xl font-bold text-[#1D9E75]">₹{estSalary.toLocaleString('en-IN')}</p>
+        </div>
+      )}
+
+      {/* Legend + tap hint */}
+      <div className="flex flex-wrap gap-2">
+        {Object.entries(ATT_STYLES).filter(([k]) => k !== 'weekly_off').map(([s, cfg]) => (
+          <div key={s} className="flex items-center gap-1.5">
+            <div className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center"
+              style={{ background: cfg.bg + '30', color: cfg.bg, border: `1px solid ${cfg.bg}60` }}>
+              {cfg.label}
+            </div>
+            <span className="text-[10px] text-white/30 capitalize">{s.replace('_', ' ')}</span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-white/20 text-center">Tap a day to cycle: P → H → L → A → clear</p>
+
+      {/* Public Holidays */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">Public Holidays</p>
+          <button onClick={() => setHForm({ date: '', name: '' })}
+            className="text-[10px] text-[#7B2D8B] px-2 py-1 border border-[#7B2D8B]/30 rounded-lg hover:bg-[#7B2D8B]/10">
+            + Add
+          </button>
+        </div>
+        {hForm && (
+          <div className="bg-[#161a23] rounded-2xl border border-[#7B2D8B]/30 p-4 space-y-3 mb-2">
+            <div className="grid grid-cols-2 gap-2">
+              <FRow label="Date">
+                <input type="date" className="finput" value={hForm.date} onChange={e => setHForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
+              </FRow>
+              <FRow label="Holiday name">
+                <input className="finput" placeholder="e.g. Diwali" value={hForm.name} onChange={e => setHForm(p => ({ ...p, name: e.target.value }))} />
+              </FRow>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleAddHoliday} disabled={hSaving || !hForm.date || !hForm.name}
+                className="flex-1 py-2.5 text-xs font-bold text-white rounded-xl disabled:opacity-40"
+                style={{ background: '#7B2D8B' }}>
+                {hSaving ? 'Saving…' : 'Add Holiday'}
+              </button>
+              <button onClick={() => setHForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            </div>
+          </div>
+        )}
+        {publicHolidays.length === 0
+          ? <p className="text-[10px] text-white/20 text-center py-2">No public holidays added</p>
+          : publicHolidays.map(h => (
+            <div key={h.id} className="flex items-center justify-between py-2 border-b border-white/5">
+              <div>
+                <p className="text-xs font-semibold text-white">{h.name}</p>
+                <p className="text-[10px] text-[#7B2D8B]">{h.date}</p>
+              </div>
+              <button onClick={() => deletePublicHoliday(h.id)} className="text-white/20 hover:text-[#E24B4A]"><Trash2 size={13} /></button>
+            </div>
+          ))
+        }
+      </div>
 
       {toast && <Toast msg={toast} />}
       <Style />
@@ -488,9 +1053,10 @@ const EMPTY_PLOT   = { name:'', area_acres:'', soil_type:'loamy', water_source:'
 
 function PlotsMaster() {
   const { plots, cropCycles, addPlot, updatePlot, deletePlot } = useAppStore()
-  const [form,      setForm]    = useState(null)   // null = closed, {} = new, {id,...} = edit
-  const [saving,    setSaving]  = useState(false)
-  const [toast,     setToast]   = useState(null)
+  const [form,    setForm]    = useState(null)
+  const [saving,  setSaving]  = useState(false)
+  const [toast,   setToast]   = useState(null)
+  const [confirm, setConfirm] = useState(null)
 
   const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
   const f = (field, val) => setForm(p => ({ ...p, [field]: val }))
@@ -515,12 +1081,20 @@ function PlotsMaster() {
     setSaving(false)
   }
 
-  const handleDelete = async (id) => {
-    try {
-      const res = await deletePlot(id)
-      if (res?.blocked) showToast('Cannot delete — plot has active crop cycles', 'warn')
-      else showToast('Plot removed')
-    } catch (e) { showToast('Delete failed: ' + e.message, 'warn') }
+  const handleDelete = (id, name) => {
+    setConfirm({
+      title: `Delete "${name}"?`,
+      message: 'This plot will be permanently deleted. Plots with active or past crop cycles cannot be deleted.',
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const res = await deletePlot(id)
+          if (res?.blocked) showToast('Cannot delete — plot has active crop cycles', 'warn')
+          else showToast('Plot removed')
+        } catch (e) { showToast('Delete failed: ' + e.message, 'warn') }
+      },
+    })
   }
 
   const PointRow = ({ label, latKey, lngKey }) => (
@@ -640,7 +1214,7 @@ function PlotsMaster() {
                 })} className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                   Edit
                 </button>
-                <button onClick={() => handleDelete(plot.id)} className="text-white/20 hover:text-[#E24B4A]">
+                <button onClick={() => handleDelete(plot.id, plot.name)} className="text-white/20 hover:text-[#E24B4A]">
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -649,6 +1223,7 @@ function PlotsMaster() {
         )
       })}
 
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
     </div>
@@ -667,6 +1242,7 @@ function UsersMaster() {
   const [form,    setForm]    = useState(null)
   const [saving,  setSaving]  = useState(false)
   const [toast,   setToast]   = useState(null)
+  const [confirm, setConfirm] = useState(null)
 
   useEffect(() => { loadUsers() }, [])
 
@@ -693,10 +1269,25 @@ function UsersMaster() {
     } catch (e) { showToast(e.message, 'warn') }
   }
 
-  const toggleActive = async (user) => {
+  const handleDeactivate = (user) => {
+    setConfirm({
+      title: `Deactivate "${user.full_name}"?`,
+      message: 'This user will lose access to the app immediately. You can reactivate them at any time.',
+      confirmLabel: 'Deactivate',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await deactivateUser(user.id)
+          showToast('User deactivated')
+        } catch (e) { showToast(e.message, 'warn') }
+      },
+    })
+  }
+
+  const handleReactivate = async (user) => {
     try {
-      if (user.is_active) { await deactivateUser(user.id); showToast('User deactivated') }
-      else               { await reactivateUser(user.id); showToast('User reactivated') }
+      await reactivateUser(user.id)
+      showToast('User reactivated')
     } catch (e) { showToast(e.message, 'warn') }
   }
 
@@ -784,10 +1375,17 @@ function UsersMaster() {
                     style={{ background: '#1a2030' }}>
                     {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: '#1a2030' }}>{r.label}</option>)}
                   </select>
-                  <button onClick={() => toggleActive(user)}
-                    className={`text-[10px] px-2 py-1 rounded-lg border transition-colors ${user.is_active ? 'border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10' : 'border-[#1D9E75]/30 text-[#1D9E75] hover:bg-[#1D9E75]/10'}`}>
-                    {user.is_active ? 'Deactivate' : 'Reactivate'}
-                  </button>
+                  {user.is_active ? (
+                    <button onClick={() => handleDeactivate(user)}
+                      className="text-[10px] px-2 py-1 rounded-lg border border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10 transition-colors">
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button onClick={() => handleReactivate(user)}
+                      className="text-[10px] px-2 py-1 rounded-lg border border-[#1D9E75]/30 text-[#1D9E75] hover:bg-[#1D9E75]/10 transition-colors">
+                      Reactivate
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -796,6 +1394,7 @@ function UsersMaster() {
       })}
 
       {users.length === 0 && <p className="text-xs text-white/30 text-center py-6">No users yet.</p>}
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
     </div>
@@ -806,6 +1405,34 @@ function UsersMaster() {
 const FRow = ({ label, children }) => (
   <div><label className="text-xs font-medium text-white/50 block mb-1.5">{label}</label>{children}</div>
 )
+
+function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 px-4 pb-6 sm:pb-0">
+      <div className="bg-[#1a1f2e] rounded-2xl border border-white/12 p-5 w-full max-w-sm space-y-4 shadow-2xl">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-[#E24B4A]/15 flex items-center justify-center">
+            <AlertTriangle size={18} className="text-[#E24B4A]" />
+          </div>
+          <div className="flex-1 pt-0.5">
+            <p className="text-sm font-bold text-white">{title}</p>
+            <p className="text-xs text-white/50 mt-1 leading-relaxed">{message}</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 py-3 bg-white/8 text-white/70 text-xs font-semibold rounded-xl hover:bg-white/12 transition-colors">
+            Cancel
+          </button>
+          <button onClick={onConfirm}
+            className="flex-1 py-3 bg-[#E24B4A] text-white text-xs font-bold rounded-xl hover:bg-[#cc3938] transition-colors">
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function Toast({ msg, type = 'success' }) {
   const bg   = type === 'warn' ? '#BA7517' : '#1D9E75'
@@ -829,19 +1456,18 @@ function CyclesMaster() {
   const [saving, setSaving] = useState(false)
   const [toast,  setToast]  = useState(null)
   const [toastType, setToastType] = useState('success')
+  const [confirm, setConfirm] = useState(null)
 
   const showToast = (m, type = 'success') => {
     setToast(m); setToastType(type); setTimeout(() => setToast(null), 3000)
   }
 
-  // Plots that already have an active cycle
   const activePlotIds = new Set(cropCycles.filter(c => c.status === 'active').map(c => c.plotId))
 
   const save = async () => {
     if (!form.plotId || !form.cropId || !form.sowDate || !form.season) {
       return showToast('Fill all fields', 'warn')
     }
-    // Warn if plot already has active cycle
     if (activePlotIds.has(form.plotId)) {
       return showToast('This plot already has an active cycle. End the existing cycle first.', 'warn')
     }
@@ -865,18 +1491,25 @@ function CyclesMaster() {
     setSaving(false)
   }
 
-  const endCycle = async (id) => {
-    try {
-      await updateCropCycle(id, { status: 'harvested' })
-      showToast('Cycle marked as harvested')
-    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
+  const handleEndCycle = (c) => {
+    const crop = cropMaster.find(cr => cr.id === c.cropId)
+    setConfirm({
+      title: `End cycle for ${c.plotLabel}?`,
+      message: `This will mark the ${crop?.name || 'crop'} cycle as harvested. This action cannot be undone.`,
+      confirmLabel: 'End Cycle',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await updateCropCycle(c.id, { status: 'harvested' })
+          showToast('Cycle marked as harvested')
+        } catch (e) { showToast('Failed: ' + e.message, 'warn') }
+      },
+    })
   }
 
   const today = new Date().toISOString().slice(0, 10)
   const activeCycles   = cropCycles.filter(c => c.status === 'active')
   const inactiveCycles = cropCycles.filter(c => c.status !== 'active')
-
-  // Plots without active cycles (available for new sowing)
   const availablePlots = plots.filter(p => !activePlotIds.has(p.id))
 
   return (
@@ -955,16 +1588,15 @@ function CyclesMaster() {
         </div>
       )}
 
-      {/* Active cycles */}
       {activeCycles.length > 0 && (
         <div>
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Active Cycles ({activeCycles.length})</p>
           {activeCycles.map(c => {
             const crop = cropMaster.find(cr => cr.id === c.cropId)
-            const today = new Date(); today.setHours(0,0,0,0)
-            const sow   = new Date(c.sowDate)
-            const days  = Math.floor((today - sow) / 86400000)
-            const left  = Math.max(0, (crop?.duration_days || 120) - days)
+            const now  = new Date(); now.setHours(0,0,0,0)
+            const sow  = new Date(c.sowDate)
+            const days = Math.floor((now - sow) / 86400000)
+            const left = Math.max(0, (crop?.duration_days || 120) - days)
             return (
               <div key={c.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 mb-2 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-base"
@@ -976,8 +1608,8 @@ function CyclesMaster() {
                   <p className="text-[10px] text-white/40">Sown {c.sowDate} · Day {days} · {left}d left</p>
                   <p className="text-[10px] text-white/30">{c.season}</p>
                 </div>
-                <button onClick={() => endCycle(c.id)}
-                  className="shrink-0 px-2 py-1.5 text-[10px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10">
+                <button onClick={() => handleEndCycle(c)}
+                  className="shrink-0 px-2 py-1.5 text-[10px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10 transition-colors">
                   End
                 </button>
               </div>
@@ -986,7 +1618,6 @@ function CyclesMaster() {
         </div>
       )}
 
-      {/* Past cycles */}
       {inactiveCycles.length > 0 && (
         <div>
           <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Past Cycles ({inactiveCycles.length})</p>
@@ -1002,6 +1633,7 @@ function CyclesMaster() {
         </div>
       )}
 
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast} type={toastType} />}
       <Style />
     </div>

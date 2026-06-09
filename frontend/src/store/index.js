@@ -5,13 +5,15 @@ import { supabase } from '../lib/supabase'
 
 function mapCrop(c, templates = []) {
   return {
-    id:           c.id,
-    name:         c.name,
-    emoji:        c.icon,
-    color:        c.color,
-    duration_days: c.duration_days,
-    pricePerQtl:  Number(c.price_per_qtl) || 0,
-    yieldPerAcre: Number(c.yield_per_acre) || 0,
+    id:                  c.id,
+    name:                c.name,
+    emoji:               c.icon,
+    color:               c.color,
+    duration_days:       c.duration_days,
+    harvest_window_days: c.harvest_window_days || 14,
+    season_type:         c.season_type || null,
+    pricePerQtl:         Number(c.price_per_qtl) || 0,
+    yieldPerAcre:        Number(c.yield_per_acre) || 0,
     activities:   templates
       .filter(t => t.crop_id === c.id)
       .sort((a, b) => a.day_offset - b.day_offset)
@@ -47,29 +49,34 @@ function mapItem(i) {
 
 function mapPurchase(p) {
   return {
-    id:        p.id,
-    itemId:    p.item_id,
-    date:      p.purchase_date,
-    qty:       Number(p.quantity),
-    unitPrice: Number(p.unit_price),
-    totalCost: Number(p.total_cost) || Number(p.quantity) * Number(p.unit_price),
-    vendor:    p.vendor_name || '',
-    invoiceNo: p.invoice_number || '',
-    notes:     p.notes || '',
+    id:            p.id,
+    itemId:        p.item_id,
+    date:          p.purchase_date,
+    invoiceDate:   p.invoice_date || null,
+    entryDate:     p.entry_date || null,
+    qty:           Number(p.quantity),
+    unitPrice:     Number(p.unit_price),
+    totalCost:     Number(p.total_cost) || Number(p.quantity) * Number(p.unit_price),
+    vendor:        p.vendor_name || '',
+    invoiceNo:     p.invoice_number || '',
+    billImagePath: p.bill_image_path || null,
   }
 }
 
 function mapIssue(i) {
+  const plotName = i.plots?.name || i.crop_cycles?.plots?.name || null
   return {
     id:          i.id,
     itemId:      i.item_id,
     cropCycleId: i.cycle_id,
-    plotLabel:   i.crop_cycles?.plots?.name || (i.cycle_id ? '' : 'Farm-wide'),
+    plotId:      i.plot_id || null,
+    plotLabel:   plotName || (i.stage === 'farm_wide' ? 'Farm-wide' : i.stage === 'preparation' ? 'Preparation' : '—'),
+    stage:       i.stage || 'active',
     date:        i.issue_date,
     qty:         Number(i.quantity),
+    unitCost:    Number(i.unit_cost_at_issue || i.cost_per_unit) || 0,
     totalCost:   Number(i.total_cost) || 0,
     purpose:     i.purpose || '',
-    activityType: 'manual',
   }
 }
 
@@ -112,6 +119,45 @@ function mapMediaFile(mf) {
   }
 }
 
+function mapStaff(l) {
+  return {
+    id:             l.id,
+    name:           l.name,
+    designation:    l.designation || '',
+    phone:          l.phone || '',
+    monthlySalary:  Number(l.monthly_salary) || 0,
+    dailyRate:      Number(l.daily_base_rate) || 0,
+    openingBalance: Number(l.opening_balance) || 0,
+    joinDate:       l.join_date || null,
+    photoUrl:       l.photo_url || null,
+  }
+}
+
+function mapRegularLabourer(l) {
+  return {
+    id:             l.id,
+    name:           l.name,
+    workType:       'Farm Worker',
+    ratePerDay:     Number(l.daily_base_rate) || 400,
+    phone:          l.phone || '',
+    openingBalance: Number(l.opening_balance) || 0,
+    joinDate:       l.join_date || null,
+    photoUrl:       l.photo_url || null,
+  }
+}
+
+function mapAdvance(a) {
+  return {
+    id:            a.id,
+    labourerId:    a.labourer_id,
+    date:          a.advance_date,
+    amount:        Number(a.amount),
+    reason:        a.reason || '',
+    isRecovered:   a.is_recovered,
+    recoveryMonth: a.recovery_month || null,
+  }
+}
+
 function mapLabourLog(l) {
   return {
     id:          l.id,
@@ -146,8 +192,9 @@ const useAppStore = create((set, get) => ({
   plots:             [],
   cropMaster:        [],
   inventoryMaster:   [],
-  regularLabourers:  [],
-  contractualLabour: [],
+  permanentStaff:    [],   // sub_type = 'permanent' — monthly salary, attendance tracked
+  regularLabourers:  [],   // sub_type = 'regular'   — per-day rate, attendance tracked
+  contractualLabour: [],   // sub_type = 'contractual' — per-day rate, count only
   purchases:         [],
   issues:            [],
   labourLogs:        [],
@@ -156,6 +203,8 @@ const useAppStore = create((set, get) => ({
   scrapSales:        [],
   sprayReminders:    [],
   mediaItems:        [],
+  todayAttendance:   {},   // { [labourerId]: { id, status } }
+  advances:          [],   // salary_advances rows
   loading:           false,
   initialized:       false,
 
@@ -175,6 +224,8 @@ const useAppStore = create((set, get) => ({
         { data: labourRaw },
         { data: labourLogsRaw },
         { data: mediaRaw },
+        { data: attendanceRaw },
+        { data: advancesRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -186,7 +237,7 @@ const useAppStore = create((set, get) => ({
         supabase.from('inventory_purchases')
           .select('*').order('purchase_date', { ascending: false }),
         supabase.from('inventory_issues')
-          .select('*, crop_cycles(season, plots(name))')
+          .select('*, plots(name), crop_cycles(season, plots(name))')
           .order('issue_date', { ascending: false }),
         supabase.from('activity_logs')
           .select('*, plots(name)').order('created_at', { ascending: false }),
@@ -197,6 +248,13 @@ const useAppStore = create((set, get) => ({
           .select('*, plots(name)')
           .in('entity_type', ['farm_photo', 'farm_video'])
           .order('created_at', { ascending: false }),
+        supabase.from('attendance')
+          .select('id, labour_master_id, status')
+          .eq('attendance_date', new Date().toISOString().slice(0, 10)),
+        supabase.from('salary_advances')
+          .select('*')
+          .eq('is_recovered', false)
+          .order('advance_date', { ascending: false }),
       ])
 
       const tpl = templates || []
@@ -208,14 +266,21 @@ const useAppStore = create((set, get) => ({
         purchases:         (purchasesRaw || []).map(mapPurchase),
         issues:            (issuesRaw || []).map(mapIssue),
         activities:        (activitiesRaw || []).map(mapActivity),
+        permanentStaff: (labourRaw || [])
+          .filter(l => l.sub_type === 'permanent')
+          .map(mapStaff),
         regularLabourers:  (labourRaw || [])
-          .filter(l => l.sub_type === 'regular' || l.sub_type === 'permanent')
-          .map(l => ({ id: l.id, name: l.name, workType: 'Farm Worker', ratePerDay: Number(l.daily_base_rate) || 400, phone: l.phone || '' })),
+          .filter(l => l.sub_type === 'regular')
+          .map(mapRegularLabourer),
         contractualLabour: (labourRaw || [])
           .filter(l => l.sub_type === 'contractual' || l.sub_type === 'seasonal')
           .map(l => ({ id: l.id, name: l.name, defaultRate: Number(l.daily_base_rate) || 400 })),
         labourLogs:        (labourLogsRaw || []).map(mapLabourLog),
         mediaItems:        (mediaRaw || []).map(mapMediaFile),
+        todayAttendance:   Object.fromEntries(
+          (attendanceRaw || []).map(a => [a.labour_master_id, { id: a.id, status: a.status }])
+        ),
+        advances: (advancesRaw || []).map(mapAdvance),
         loading:           false,
         initialized:       true,
       })
@@ -244,12 +309,14 @@ const useAppStore = create((set, get) => ({
 
   updateCrop: async (id, data) => {
     const { error } = await supabase.from('crops').update({
-      name:          data.name,
-      icon:          data.emoji,
-      color:         data.color,
-      duration_days: data.duration_days,
-      price_per_qtl: data.pricePerQtl,
-      yield_per_acre: data.yieldPerAcre,
+      name:                data.name,
+      icon:                data.emoji,
+      color:               data.color,
+      duration_days:       parseInt(data.duration_days) || 120,
+      harvest_window_days: parseInt(data.harvest_window_days) || 14,
+      season_type:         data.season_type || null,
+      price_per_qtl:       parseFloat(data.pricePerQtl) || null,
+      yield_per_acre:      parseFloat(data.yieldPerAcre) || null,
     }).eq('id', id)
     if (error) throw error
     set(s => ({ cropMaster: s.cropMaster.map(c => c.id === id ? { ...c, ...data } : c) }))
@@ -273,7 +340,6 @@ const useAppStore = create((set, get) => ({
       current_stock: 0,
       min_threshold: parseFloat(item.minThreshold) || 0,
       cost_per_unit: parseFloat(item.costPerUnit) || 0,
-      supplier_name: item.supplier || null,
     }).select().single()
     if (error) throw error
     set(s => ({ inventoryMaster: [...s.inventoryMaster, mapItem(data)] }))
@@ -282,11 +348,15 @@ const useAppStore = create((set, get) => ({
   updateInventoryItem: async (id, data) => {
     const { error } = await supabase.from('inventory_items').update({
       name:          data.name,
-      min_threshold: data.minThreshold,
-      cost_per_unit: data.costPerUnit,
+      category:      data.category,
+      unit:          data.unit,
+      min_threshold: parseFloat(data.minThreshold) || 0,
+      cost_per_unit: parseFloat(data.costPerUnit) || 0,
     }).eq('id', id)
     if (error) throw error
-    set(s => ({ inventoryMaster: s.inventoryMaster.map(i => i.id === id ? { ...i, ...data } : i) }))
+    set(s => ({ inventoryMaster: s.inventoryMaster.map(i =>
+      i.id === id ? { ...i, name: data.name, category: data.category, unit: data.unit, minThreshold: parseFloat(data.minThreshold) || 0, costPerUnit: parseFloat(data.costPerUnit) || 0 } : i
+    ) }))
   },
 
   deleteInventoryItem: async (id) => {
@@ -300,21 +370,16 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Labour masters ──────────────────────────────────────────────────────────
-  addRegularLabourer: async (l) => {
-    const { data, error } = await supabase.from('labour_master').insert({
-      name:            l.name,
-      phone:           l.phone || null,
-      sub_type:        'regular',
-      daily_base_rate: parseFloat(l.ratePerDay) || 400,
-      status:          'active',
-    }).select().single()
+
+  updateRegularLabourer: async (id, data) => {
+    const { error } = await supabase.from('labour_master').update({
+      name:            data.name,
+      phone:           data.phone || null,
+      daily_base_rate: parseFloat(data.ratePerDay) || 400,
+      opening_balance: parseFloat(data.openingBalance) || 0,
+    }).eq('id', id)
     if (error) throw error
-    set(s => ({
-      regularLabourers: [...s.regularLabourers, {
-        id: data.id, name: data.name, workType: l.workType || 'Farm Worker',
-        ratePerDay: Number(data.daily_base_rate), phone: data.phone || '',
-      }],
-    }))
+    set(s => ({ regularLabourers: s.regularLabourers.map(l => l.id === id ? { ...l, ...data } : l) }))
   },
 
   deleteRegularLabourer: async (id) => {
@@ -338,61 +403,267 @@ const useAppStore = create((set, get) => ({
     }))
   },
 
+  updateContractualLabour: async (id, data) => {
+    const { error } = await supabase.from('labour_master').update({
+      name:            data.name,
+      daily_base_rate: parseFloat(data.defaultRate) || 400,
+    }).eq('id', id)
+    if (error) throw error
+    set(s => ({ contractualLabour: s.contractualLabour.map(l => l.id === id ? { ...l, ...data } : l) }))
+  },
+
   deleteContractualLabour: async (id) => {
     const { error } = await supabase.from('labour_master').update({ status: 'inactive' }).eq('id', id)
     if (error) throw error
     set(s => ({ contractualLabour: s.contractualLabour.filter(l => l.id !== id) }))
   },
 
+  // ── Permanent staff ─────────────────────────────────────────────────────────
+  addPermanentStaff: async (s) => {
+    const { data, error } = await supabase.from('labour_master').insert({
+      name:            s.name,
+      phone:           s.phone || null,
+      designation:     s.designation || null,
+      sub_type:        'permanent',
+      monthly_salary:  parseFloat(s.monthlySalary) || 0,
+      daily_base_rate: parseFloat(s.dailyRate) || 0,
+      opening_balance: parseFloat(s.openingBalance) || 0,
+      join_date:       s.joinDate || null,
+      photo_url:       s.photoUrl || null,
+      status:          'active',
+    }).select().single()
+    if (error) throw error
+    set(st => ({ permanentStaff: [...st.permanentStaff, mapStaff(data)] }))
+  },
+
+  updatePermanentStaff: async (id, s) => {
+    const upd = {
+      name:            s.name,
+      phone:           s.phone || null,
+      designation:     s.designation || null,
+      monthly_salary:  parseFloat(s.monthlySalary) || 0,
+      daily_base_rate: parseFloat(s.dailyRate) || 0,
+      opening_balance: parseFloat(s.openingBalance) || 0,
+      join_date:       s.joinDate || null,
+    }
+    if (s.photoUrl !== undefined) upd.photo_url = s.photoUrl
+    const { error } = await supabase.from('labour_master').update(upd).eq('id', id)
+    if (error) throw error
+    set(st => ({ permanentStaff: st.permanentStaff.map(p => p.id === id ? { ...p, ...s } : p) }))
+  },
+
+  deletePermanentStaff: async (id) => {
+    const { error } = await supabase.from('labour_master').update({ status: 'inactive' }).eq('id', id)
+    if (error) throw error
+    set(st => ({ permanentStaff: st.permanentStaff.filter(p => p.id !== id) }))
+  },
+
+  addRegularLabourer: async (l) => {
+    const { data, error } = await supabase.from('labour_master').insert({
+      name:            l.name,
+      phone:           l.phone || null,
+      sub_type:        'regular',
+      daily_base_rate: parseFloat(l.ratePerDay) || 400,
+      opening_balance: parseFloat(l.openingBalance) || 0,
+      join_date:       l.joinDate || null,
+      photo_url:       l.photoUrl || null,
+      status:          'active',
+    }).select().single()
+    if (error) throw error
+    set(s => ({ regularLabourers: [...s.regularLabourers, mapRegularLabourer(data)] }))
+  },
+
+  // ── Attendance ──────────────────────────────────────────────────────────────
+  markAttendance: async (labourerId, status) => {
+    const today = new Date().toISOString().slice(0, 10)
+    const existing = get().todayAttendance[labourerId]
+    if (existing) {
+      const { error } = await supabase.from('attendance')
+        .update({ status }).eq('id', existing.id)
+      if (error) throw error
+    } else {
+      const { data, error } = await supabase.from('attendance')
+        .insert({ labour_master_id: labourerId, attendance_date: today, status })
+        .select('id').single()
+      if (error) throw error
+      set(s => ({ todayAttendance: { ...s.todayAttendance, [labourerId]: { id: data.id, status } } }))
+      return
+    }
+    set(s => ({ todayAttendance: { ...s.todayAttendance, [labourerId]: { ...s.todayAttendance[labourerId], status } } }))
+  },
+
+  // Reload today's attendance (e.g. after date change)
+  refreshTodayAttendance: async () => {
+    const today = new Date().toISOString().slice(0, 10)
+    const { data } = await supabase.from('attendance')
+      .select('id, labour_master_id, status')
+      .eq('attendance_date', today)
+    set({ todayAttendance: Object.fromEntries((data || []).map(a => [a.labour_master_id, { id: a.id, status: a.status }])) })
+  },
+
+  // ── Salary advances ─────────────────────────────────────────────────────────
+  addAdvance: async (adv) => {
+    const { data, error } = await supabase.from('salary_advances').insert({
+      labourer_id:  adv.labourerId,
+      advance_date: adv.date,
+      amount:       parseFloat(adv.amount),
+      reason:       adv.reason || null,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
+  },
+
+  markAdvanceRecovered: async (id, recoveryMonth) => {
+    const { error } = await supabase.from('salary_advances')
+      .update({ is_recovered: true, recovery_month: recoveryMonth })
+      .eq('id', id)
+    if (error) throw error
+    set(s => ({ advances: s.advances.filter(a => a.id !== id) }))
+  },
+
+  // ── Staff attendance calendar ────────────────────────────────────────────────
+  staffMonthAttendance: {},   // { 'YYYY-MM': { [labourerId]: { [dateStr]: {id,status} } } }
+  publicHolidays: [],
+
+  loadMonthAttendance: async (year, month) => {
+    const { permanentStaff } = get()
+    if (!permanentStaff.length) return
+    const mm        = String(month).padStart(2, '0')
+    const startDate = `${year}-${mm}-01`
+    const lastDay   = new Date(year, month, 0).getDate()
+    const endDate   = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`
+    const { data }  = await supabase.from('attendance')
+      .select('id, labour_master_id, attendance_date, status')
+      .in('labour_master_id', permanentStaff.map(s => s.id))
+      .gte('attendance_date', startDate)
+      .lte('attendance_date', endDate)
+    const byPerson = {}
+    for (const rec of (data || [])) {
+      if (!byPerson[rec.labour_master_id]) byPerson[rec.labour_master_id] = {}
+      byPerson[rec.labour_master_id][rec.attendance_date] = { id: rec.id, status: rec.status }
+    }
+    const key = `${year}-${mm}`
+    set(s => ({ staffMonthAttendance: { ...s.staffMonthAttendance, [key]: byPerson } }))
+  },
+
+  markAttendanceOnDate: async (labourerId, date, status) => {
+    const ym      = date.slice(0, 7)
+    const cur     = get().staffMonthAttendance[ym]?.[labourerId]?.[date]
+    let newRec    = null
+    if (status === null) {
+      if (cur) await supabase.from('attendance').delete().eq('id', cur.id)
+    } else if (cur) {
+      await supabase.from('attendance').update({ status }).eq('id', cur.id)
+      newRec = { id: cur.id, status }
+    } else {
+      const { data, error } = await supabase.from('attendance')
+        .insert({ labour_master_id: labourerId, attendance_date: date, status })
+        .select('id').single()
+      if (error) throw error
+      newRec = { id: data.id, status }
+    }
+    set(s => {
+      const monthData  = { ...(s.staffMonthAttendance[ym] || {}) }
+      const personData = { ...(monthData[labourerId] || {}) }
+      if (status === null) delete personData[date]; else personData[date] = newRec
+      monthData[labourerId] = personData
+      const updated = { ...s.staffMonthAttendance, [ym]: monthData }
+      // Sync today's quick attendance map if the date is today
+      const today = new Date().toISOString().slice(0, 10)
+      if (date === today) {
+        const ta = { ...s.todayAttendance }
+        if (status === null) delete ta[labourerId]; else ta[labourerId] = newRec
+        return { staffMonthAttendance: updated, todayAttendance: ta }
+      }
+      return { staffMonthAttendance: updated }
+    })
+  },
+
+  loadPublicHolidays: async () => {
+    const { data } = await supabase.from('public_holidays').select('*').order('date')
+    set({ publicHolidays: (data || []).map(h => ({ id: h.id, date: h.date, name: h.name })) })
+  },
+
+  addPublicHoliday: async (date, name) => {
+    const { data, error } = await supabase.from('public_holidays')
+      .insert({ date, name }).select().single()
+    if (error) throw error
+    set(s => ({ publicHolidays: [...s.publicHolidays, { id: data.id, date: data.date, name: data.name }]
+      .sort((a, b) => a.date.localeCompare(b.date)) }))
+  },
+
+  deletePublicHoliday: async (id) => {
+    await supabase.from('public_holidays').delete().eq('id', id)
+    set(s => ({ publicHolidays: s.publicHolidays.filter(h => h.id !== id) }))
+  },
+
   // ── Purchases — adds stock ──────────────────────────────────────────────────
   recordPurchase: async (purchase) => {
+    const item     = get().inventoryMaster.find(i => i.id === purchase.itemId)
+    const oldStock = item?.currentStock || 0
+    const oldWAC   = item?.costPerUnit  || 0
+    const newStock = oldStock + purchase.qty
+    // Weighted Average Cost
+    const newWAC   = newStock > 0
+      ? Math.round(((oldStock * oldWAC) + (purchase.qty * purchase.unitPrice)) / newStock * 100) / 100
+      : purchase.unitPrice
+
     const { data, error } = await supabase.from('inventory_purchases').insert({
-      item_id:        purchase.itemId,
-      purchase_date:  purchase.date,
-      quantity:       purchase.qty,
-      unit_price:     purchase.unitPrice,
-      vendor_name:    purchase.vendor || null,
-      invoice_number: purchase.invoiceNo || null,
-      notes:          purchase.notes || null,
+      item_id:         purchase.itemId,
+      purchase_date:   purchase.date,
+      invoice_date:    purchase.invoiceDate || null,
+      quantity:        purchase.qty,
+      unit_price:      purchase.unitPrice,
+      vendor_name:     purchase.vendor || null,
+      invoice_number:  purchase.invoiceNo || null,
+      bill_image_path: purchase.billImagePath || null,
     }).select().single()
     if (error) throw error
 
-    const item     = get().inventoryMaster.find(i => i.id === purchase.itemId)
-    const newStock = (item?.currentStock || 0) + purchase.qty
     await supabase.from('inventory_items')
-      .update({ current_stock: newStock, cost_per_unit: purchase.unitPrice })
+      .update({ current_stock: newStock, cost_per_unit: newWAC })
       .eq('id', purchase.itemId)
 
     set(s => ({
       purchases: [mapPurchase(data), ...s.purchases],
       inventoryMaster: s.inventoryMaster.map(i =>
-        i.id === purchase.itemId
-          ? { ...i, currentStock: newStock, costPerUnit: purchase.unitPrice }
-          : i
+        i.id === purchase.itemId ? { ...i, currentStock: newStock, costPerUnit: newWAC } : i
       ),
     }))
   },
 
-  // ── Issue item — reduces stock ──────────────────────────────────────────────
+  // ── Issue item — plot-based, WAC snapshot ───────────────────────────────────
   issueItem: async (issue) => {
-    const cycleId = (issue.cropCycleId && issue.cropCycleId !== '__farm__')
-      ? issue.cropCycleId : null
-    const item    = get().inventoryMaster.find(i => i.id === issue.itemId)
+    const { cropCycles } = get()
+    const item = get().inventoryMaster.find(i => i.id === issue.itemId)
+    const wac  = item?.costPerUnit || 0
 
+    // Auto-resolve cycle from plot
+    let cycleId = null
+    let stage   = 'farm_wide'
+    if (issue.plotId) {
+      const activeCycle = cropCycles.find(c => c.plotId === issue.plotId && c.status === 'active')
+      cycleId = activeCycle?.id || null
+      stage   = activeCycle ? 'active' : 'preparation'
+    }
+
+    const totalCost = issue.qty * wac
     const { data, error } = await supabase.from('inventory_issues').insert({
-      item_id:      issue.itemId,
-      cycle_id:     cycleId,
-      issue_date:   issue.date,
-      quantity:     issue.qty,
-      cost_per_unit: item?.costPerUnit || 0,
-      purpose:      issue.purpose || null,
-    }).select().single()
+      item_id:            issue.itemId,
+      plot_id:            issue.plotId || null,
+      cycle_id:           cycleId,
+      stage,
+      issue_date:         issue.date,
+      quantity:           issue.qty,
+      cost_per_unit:      wac,
+      unit_cost_at_issue: wac,
+      total_cost:         totalCost,
+      purpose:            issue.purpose || null,
+    }).select('*, plots(name), crop_cycles(season, plots(name))').single()
     if (error) throw error
 
     const newStock = Math.max(0, (item?.currentStock || 0) - issue.qty)
-    await supabase.from('inventory_items')
-      .update({ current_stock: newStock })
-      .eq('id', issue.itemId)
+    await supabase.from('inventory_items').update({ current_stock: newStock }).eq('id', issue.itemId)
 
     set(s => ({
       issues: [mapIssue(data), ...s.issues],
@@ -483,7 +754,30 @@ const useAppStore = create((set, get) => ({
       budget:               cycle.budget || null,
     }).select('*, plots(name, area_acres), crops(name, color, icon)').single()
     if (error) throw error
-    set(s => ({ cropCycles: [mapCycle(data), ...s.cropCycles] }))
+
+    // Auto-link preparation issues for this plot — only those AFTER the last cycle ended
+    const { cropCycles: existingCycles } = get()
+    const lastCycle = existingCycles
+      .filter(c => c.plotId === cycle.plotId && c.status !== 'active')
+      .sort((a, b) => (b.harvestDate || b.sowDate || '').localeCompare(a.harvestDate || a.sowDate || ''))
+      [0]
+    const cutoffDate = lastCycle?.harvestDate || lastCycle?.sowDate || null
+
+    let query = supabase.from('inventory_issues')
+      .update({ cycle_id: data.id, stage: 'active' })
+      .eq('plot_id', cycle.plotId)
+      .eq('stage', 'preparation')
+    if (cutoffDate) query = query.gt('issue_date', cutoffDate)
+    await query
+
+    set(s => ({
+      cropCycles: [mapCycle(data), ...s.cropCycles],
+      issues: s.issues.map(i => {
+        if (i.plotId !== cycle.plotId || i.stage !== 'preparation') return i
+        if (cutoffDate && i.date <= cutoffDate) return i
+        return { ...i, cropCycleId: data.id, stage: 'active' }
+      }),
+    }))
     return data
   },
 

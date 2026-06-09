@@ -19,8 +19,8 @@ const CONTRACTUAL_TYPES = [
 ]
 
 export default function Labour() {
-  const [subTab, setSubTab] = useState('today')
-  const { regularLabourers, labourLogs, cropCycles, cropMaster, logLabour } = useAppStore()
+  const [subTab, setSubTab] = useState('attendance')
+  const { permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour } = useAppStore()
   const [toast, setToast] = useState(null)
   const [toastType, setToastType] = useState('success')
 
@@ -35,7 +35,7 @@ export default function Labour() {
         <h2 className="text-lg font-bold text-white">Labour</h2>
         <p className="text-xs text-white/40 mb-3">Attendance · Work logs · Payments</p>
         <div className="flex gap-1 border-b border-white/8">
-          {[['today','📋 Today'], ['logs','🗒 Logs'], ['summary','📊 Summary']].map(([k, lbl]) => (
+          {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['summary','📊 Summary']].map(([k, lbl]) => (
             <button key={k} onClick={() => setSubTab(k)}
               className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors
                 ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-white/40'}`}>
@@ -46,9 +46,9 @@ export default function Labour() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'today'   && <LabourToday   regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
+        {subTab === 'attendance' && <LabourToday   permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
         {subTab === 'logs'    && <LabourLogs    labourLogs={labourLogs} />}
-        {subTab === 'summary' && <LabourSummary regularLabourers={regularLabourers} labourLogs={labourLogs} />}
+        {subTab === 'summary' && <LabourSummary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} />}
       </div>
 
       {toast && (
@@ -61,13 +61,20 @@ export default function Labour() {
 }
 
 // ── Today: attendance + task log ──────────────────────────────────────────────
-function LabourToday({ regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
+function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
+  const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
   const [savingAtt,     setSavingAtt]    = useState({})
   const [showLogModal,  setShowLogModal] = useState(null)
   const [ctForm,        setCtForm]       = useState({ category: '', workers: '', rate: '', cycleId: '', purpose: '', date: TODAY_STR })
   const [saving,        setSaving]       = useState(false)
+
+  // Auto-switch if selected tab becomes empty after load
+  useEffect(() => {
+    if (attTab === 'staff' && permanentStaff.length === 0 && regularLabourers.length > 0) setAttTab('labour')
+    if (attTab === 'labour' && regularLabourers.length === 0 && permanentStaff.length > 0) setAttTab('staff')
+  }, [permanentStaff.length, regularLabourers.length])
 
   useEffect(() => {
     supabase.from('attendance').select('*').eq('attendance_date', TODAY_STR)
@@ -80,7 +87,7 @@ function LabourToday({ regularLabourers, labourLogs, cropCycles, cropMaster, log
   }, [])
 
   const markAttendance = async (labourId, status) => {
-    if (attendance[labourId]?.status === status) return  // already marked — ignore
+    if (attendance[labourId]?.status === status) return
     setSavingAtt(s => ({ ...s, [labourId]: true }))
     const { data, error } = await supabase.from('attendance').upsert(
       { labour_master_id: labourId, attendance_date: TODAY_STR, status },
@@ -143,74 +150,108 @@ function LabourToday({ regularLabourers, labourLogs, cropCycles, cropMaster, log
         </div>
       </div>
 
-      {/* Regular labourers */}
+      {/* Staff / Labour toggle + attendance */}
       <div>
+        {/* Toggle buttons */}
+        <div className="flex gap-2 mb-3">
+          <button onClick={() => setAttTab('staff')}
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
+            style={{
+              background:  attTab === 'staff' ? '#4169E122' : 'rgba(255,255,255,0.04)',
+              borderColor: attTab === 'staff' ? '#4169E1'   : 'rgba(255,255,255,0.10)',
+              color:       attTab === 'staff' ? '#4169E1'   : 'rgba(255,255,255,0.35)',
+            }}>
+            🏢 Staff {permanentStaff.length > 0 ? `(${permanentStaff.length})` : ''}
+          </button>
+          <button onClick={() => setAttTab('labour')}
+            className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
+            style={{
+              background:  attTab === 'labour' ? '#1D9E7522' : 'rgba(255,255,255,0.04)',
+              borderColor: attTab === 'labour' ? '#1D9E75'   : 'rgba(255,255,255,0.10)',
+              color:       attTab === 'labour' ? '#1D9E75'   : 'rgba(255,255,255,0.35)',
+            }}>
+            👷 Labour {regularLabourers.length > 0 ? `(${regularLabourers.length})` : ''}
+          </button>
+        </div>
+
         <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">
-          Regular Labourers — Mark Attendance
+          {attTab === 'staff' ? 'Permanent Staff' : 'Regular Labourers'} — Mark Attendance
           {loadingAtt && <span className="ml-2 text-white/20">loading…</span>}
         </p>
 
-        {regularLabourers.length === 0 && (
-          <div className="bg-[#161a23] rounded-xl border border-white/8 px-4 py-6 text-center">
-            <p className="text-sm text-white/30">No regular labourers added yet.</p>
-            <p className="text-xs text-white/20 mt-1">Go to Admin → Labour to add them.</p>
-          </div>
-        )}
+        {/* People list */}
+        {(() => {
+          const people = attTab === 'staff' ? permanentStaff : regularLabourers
+          const accentColor = attTab === 'staff' ? '#4169E1' : '#1D9E75'
 
-        {regularLabourers.map(l => {
-          const att    = attendance[l.id]
-          const status = att?.status
-          const busy   = !!savingAtt[l.id]
-
-          return (
-            <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-3 mb-2">
-              <div className="flex items-center gap-3 mb-2.5">
-                <div className="w-9 h-9 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75] shrink-0">
-                  {l.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{l.name}</p>
-                  <p className="text-[10px] text-white/40">{l.workType} · ₹{l.ratePerDay}/day{l.phone ? ` · ${l.phone}` : ''}</p>
-                </div>
-                {status && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
-                    ${status === 'present'  ? 'bg-[#1D9E75]/20 text-[#1D9E75]'
-                    : status === 'half_day' ? 'bg-[#BA7517]/20 text-[#BA7517]'
-                    :                         'bg-[#E24B4A]/20 text-[#E24B4A]'}`}>
-                    {status === 'present' ? '✓ Present' : status === 'half_day' ? '½ Half' : '✗ Absent'}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex gap-1.5">
-                {[
-                  ['present',  '✓ Present',  '#1D9E75'],
-                  ['half_day', '½ Half Day', '#BA7517'],
-                  ['absent',   '✗ Absent',   '#E24B4A'],
-                ].map(([s, label, color]) => (
-                  <button key={s}
-                    onClick={() => markAttendance(l.id, s)}
-                    disabled={busy || status === s}
-                    className="flex-1 py-1.5 text-[10px] font-semibold rounded-xl border transition-all disabled:opacity-40"
-                    style={{
-                      background:  status === s ? color + '22' : 'rgba(255,255,255,0.05)',
-                      borderColor: status === s ? color + '55' : 'rgba(255,255,255,0.1)',
-                      color:       status === s ? color         : 'rgba(255,255,255,0.4)',
-                    }}>
-                    {busy ? '…' : label}
-                  </button>
-                ))}
-              </div>
-
-              {(status === 'present' || status === 'half_day') && (
-                <button onClick={() => setShowLogModal(l.id)}
-                  className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-white/10 text-white/40 hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
-                  📋 Assign / Log Task
-                </button>
-              )}
+          if (people.length === 0) return (
+            <div className="bg-[#161a23] rounded-xl border border-white/8 px-4 py-6 text-center">
+              <p className="text-sm text-white/30">
+                No {attTab === 'staff' ? 'permanent staff' : 'regular labourers'} added yet.
+              </p>
+              <p className="text-xs text-white/20 mt-1">Go to Admin → Labour to add them.</p>
             </div>
           )
-        })}
+
+          return people.map(l => {
+            const att    = attendance[l.id]
+            const status = att?.status
+            const busy   = !!savingAtt[l.id]
+            const subLabel = attTab === 'staff'
+              ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo${l.phone ? ` · ${l.phone}` : ''}`
+              : `${l.workType} · ₹${l.ratePerDay}/day${l.phone ? ` · ${l.phone}` : ''}`
+
+            return (
+              <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-3 mb-2">
+                <div className="flex items-center gap-3 mb-2.5">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                    style={{ background: accentColor + '20', color: accentColor }}>
+                    {l.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">{l.name}</p>
+                    <p className="text-[10px] text-white/40">{subLabel}</p>
+                  </div>
+                  {status && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
+                      ${status === 'present'  ? 'bg-[#1D9E75]/20 text-[#1D9E75]'
+                      : status === 'half_day' ? 'bg-[#BA7517]/20 text-[#BA7517]'
+                      :                         'bg-[#E24B4A]/20 text-[#E24B4A]'}`}>
+                      {status === 'present' ? '✓ Present' : status === 'half_day' ? '½ Half' : '✗ Absent'}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-1.5">
+                  {[
+                    ['present',  '✓ Present',  '#1D9E75'],
+                    ['half_day', '½ Half Day', '#BA7517'],
+                    ['absent',   '✗ Absent',   '#E24B4A'],
+                  ].map(([s, label, color]) => (
+                    <button key={s}
+                      onClick={() => markAttendance(l.id, s)}
+                      disabled={busy}
+                      className="flex-1 py-1.5 text-[10px] font-semibold rounded-xl border transition-all"
+                      style={{
+                        background:  status === s ? color + '22' : 'rgba(255,255,255,0.05)',
+                        borderColor: status === s ? color + '55' : 'rgba(255,255,255,0.1)',
+                        color:       status === s ? color        : 'rgba(255,255,255,0.4)',
+                      }}>
+                      {busy ? '…' : label}
+                    </button>
+                  ))}
+                </div>
+
+                {attTab === 'labour' && (status === 'present' || status === 'half_day') && (
+                  <button onClick={() => setShowLogModal(l.id)}
+                    className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-white/10 text-white/40 hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
+                    📋 Assign / Log Task
+                  </button>
+                )}
+              </div>
+            )
+          })
+        })()}
       </div>
 
       {/* Contractual */}

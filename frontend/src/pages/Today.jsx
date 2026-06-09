@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 
@@ -503,6 +503,144 @@ function ScheduledCard({ task, status, onDone }) {
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Attendance Card ───────────────────────────────────────────────────────────
+const STATUS_CFG = {
+  present:  { label: 'P', color: '#1D9E75' },
+  half_day: { label: 'H', color: '#BA7517' },
+  absent:   { label: 'A', color: '#E24B4A' },
+}
+
+function AttendanceCard({ permanentStaff, regularLabourers, todayAttendance, markAttendance }) {
+  const [tab, setTab]             = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
+  const [collapsed, setCollapsed] = useState(false)
+  const [saving, setSaving]       = useState(null)
+
+  // Auto-switch tab if the active tab has no people and the other does
+  React.useEffect(() => {
+    if (tab === 'staff' && permanentStaff.length === 0 && regularLabourers.length > 0) setTab('labour')
+    if (tab === 'labour' && regularLabourers.length === 0 && permanentStaff.length > 0) setTab('staff')
+  }, [permanentStaff.length, regularLabourers.length])
+
+  const people      = tab === 'staff' ? permanentStaff : regularLabourers
+  const staffColor  = '#4169E1'
+  const labourColor = '#1D9E75'
+  const markedCount = Object.keys(todayAttendance).length
+
+  const handleMark = async (id, status) => {
+    if (todayAttendance[id]?.status === status) return
+    setSaving(id)
+    try { await markAttendance(id, status) } finally { setSaving(null) }
+  }
+
+  return (
+    <div className="rounded-2xl border border-white/8 overflow-hidden">
+      {/* Header */}
+      <button onClick={() => setCollapsed(c => !c)}
+        className="w-full flex items-center justify-between px-4 py-3.5 bg-white/[0.03]">
+        <div className="flex items-center gap-2">
+          <Users size={14} className="text-white/40" />
+          <span className="text-xs font-bold text-white/60 uppercase tracking-wide">Attendance</span>
+          <span className="text-[10px] text-white/30">{format(new Date(), 'd MMM')}</span>
+          {markedCount > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#1D9E75]/20 text-[#1D9E75]">
+              {markedCount} marked
+            </span>
+          )}
+        </div>
+        <ChevronRight size={14} className="text-white/30 transition-transform"
+          style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)' }} />
+      </button>
+
+      {!collapsed && (
+        <div className="px-4 pb-4 pt-3">
+          {/* Prominent toggle buttons */}
+          <div className="flex gap-2 mb-4">
+            <button onClick={() => setTab('staff')}
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border"
+              style={{
+                background:  tab === 'staff' ? staffColor + '22' : 'rgba(255,255,255,0.04)',
+                borderColor: tab === 'staff' ? staffColor        : 'rgba(255,255,255,0.10)',
+                color:       tab === 'staff' ? staffColor        : 'rgba(255,255,255,0.35)',
+              }}>
+              🏢 Staff {permanentStaff.length > 0 ? `(${permanentStaff.length})` : ''}
+            </button>
+            <button onClick={() => setTab('labour')}
+              className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border"
+              style={{
+                background:  tab === 'labour' ? labourColor + '22' : 'rgba(255,255,255,0.04)',
+                borderColor: tab === 'labour' ? labourColor        : 'rgba(255,255,255,0.10)',
+                color:       tab === 'labour' ? labourColor        : 'rgba(255,255,255,0.35)',
+              }}>
+              👷 Labour {regularLabourers.length > 0 ? `(${regularLabourers.length})` : ''}
+            </button>
+          </div>
+
+          {people.length === 0 ? (
+            <p className="text-xs text-white/30 text-center py-4 italic">
+              No {tab === 'staff' ? 'permanent staff' : 'regular labour'} added yet —
+              go to Admin → Labour → {tab === 'staff' ? 'Staff' : 'Regular'}
+            </p>
+          ) : (
+            <div className="space-y-2.5">
+              {people.map(person => {
+                const current  = todayAttendance[person.id]?.status
+                const isSaving = saving === person.id
+                const avatarColor = tab === 'staff' ? staffColor : labourColor
+                return (
+                  <div key={person.id} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{ background: avatarColor + '20', color: avatarColor }}>
+                      {person.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-white truncate">{person.name}</p>
+                      <p className="text-[10px] text-white/30">
+                        {person.designation || person.workType || '—'}
+                        {tab === 'staff' && person.monthlySalary ? ` · ₹${person.monthlySalary}/mo` : ''}
+                        {tab === 'labour' && person.ratePerDay   ? ` · ₹${person.ratePerDay}/day`   : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      {Object.entries(STATUS_CFG).map(([s, cfg]) => {
+                        const isActive = current === s
+                        return (
+                          <button key={s} onClick={() => handleMark(person.id, s)}
+                            disabled={isSaving}
+                            className="w-8 h-8 rounded-lg text-[11px] font-bold border transition-all disabled:opacity-40"
+                            style={{
+                              background:  isActive ? cfg.color + '28' : 'rgba(255,255,255,0.04)',
+                              borderColor: isActive ? cfg.color        : 'rgba(255,255,255,0.10)',
+                              color:       isActive ? cfg.color        : 'rgba(255,255,255,0.28)',
+                            }}>
+                            {isSaving ? '…' : cfg.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Legend */}
+          <div className="flex gap-3 flex-wrap mt-3 pt-3 border-t border-white/6">
+            {Object.entries(STATUS_CFG).map(([s, cfg]) => (
+              <div key={s} className="flex items-center gap-1">
+                <div className="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center"
+                  style={{ background: cfg.color + '25', color: cfg.color, border: `1px solid ${cfg.color}` }}>
+                  {cfg.label}
+                </div>
+                <span className="text-[10px] text-white/30 capitalize">{s.replace('_', ' ')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
