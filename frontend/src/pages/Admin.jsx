@@ -390,11 +390,10 @@ function LabourMaster() {
   const today = new Date().toISOString().slice(0, 10)
 
   const uploadPhoto = async (file, folder) => {
-    if (!file) return null
-    const ext  = file.name.split('.').pop()
+    const ext  = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'jpg'
     const path = `${folder}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('farm-photos').upload(path, file)
-    if (error) return null
+    const { error } = await supabase.storage.from('farm-photos').upload(path, file, { upsert: true })
+    if (error) throw new Error('Upload failed: ' + error.message)
     return supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
   }
 
@@ -403,8 +402,17 @@ function LabourMaster() {
     if (!form.name) return
     setSaving(true)
     try {
-      const photoUrl = photoFile ? await uploadPhoto(photoFile, 'staff-photos') : form.photoUrl
-      const payload  = { ...form, photoUrl }
+      let photoUrl = form.photoUrl   // keep existing if no new file chosen
+      if (photoFile) {
+        try {
+          photoUrl = await uploadPhoto(photoFile, 'staff-photos')
+        } catch (upErr) {
+          showToast(upErr.message, 'warn')
+          setSaving(false)
+          return   // don't save with a broken/null photo URL
+        }
+      }
+      const payload = { ...form, photoUrl }
       if (form.id) { await updatePermanentStaff(form.id, payload); showToast('Staff updated ✓') }
       else         { await addPermanentStaff(payload);              showToast('Staff saved ✓') }
       setForm(null); setPhotoFile(null)
@@ -423,8 +431,17 @@ function LabourMaster() {
     if (!form.name) return
     setSaving(true)
     try {
-      const photoUrl = photoFile ? await uploadPhoto(photoFile, 'labour-photos') : form.photoUrl
-      const payload  = { ...form, photoUrl }
+      let photoUrl = form.photoUrl
+      if (photoFile) {
+        try {
+          photoUrl = await uploadPhoto(photoFile, 'labour-photos')
+        } catch (upErr) {
+          showToast(upErr.message, 'warn')
+          setSaving(false)
+          return
+        }
+      }
+      const payload = { ...form, photoUrl }
       if (form.id) { await updateRegularLabourer(form.id, payload); showToast('Labourer updated ✓') }
       else         { await addRegularLabourer(payload);              showToast('Labourer saved ✓') }
       setForm(null); setPhotoFile(null)
