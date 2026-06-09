@@ -17,7 +17,7 @@ const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
   { to: '/today',     label: 'Today',     Icon: ListChecks },
   { to: '/inventory', label: 'Inventory', Icon: Package    },
-  { to: '/labour',    label: 'Labour',    Icon: Users      },
+  { to: '/labour',    label: 'Manpower',  Icon: Users      },
   { to: '/harvest',   label: 'Harvest',   Icon: Wheat      },
   { to: '/media',     label: 'Media',     Icon: Camera     },
   { to: '/owner',     label: 'Owner',     Icon: BarChart3  },

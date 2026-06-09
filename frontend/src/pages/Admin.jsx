@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 
-const TABS = ['Crops', 'Cycles', 'Inventory', 'Labour', 'Plots', 'Users']
+const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Plots', 'Users']
 
 const PALETTE_COLORS = [
   '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
@@ -41,7 +41,7 @@ export default function Admin() {
         {tab === 'Crops'     && <CropsMaster />}
         {tab === 'Cycles'    && <CyclesMaster />}
         {tab === 'Inventory' && <InventoryMaster />}
-        {tab === 'Labour'    && <LabourMaster />}
+        {tab === 'Manpower'  && <LabourMaster />}
         {tab === 'Plots'     && <PlotsMaster />}
         {tab === 'Users'     && <UsersMaster />}
       </div>

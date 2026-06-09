@@ -32,7 +32,7 @@ export default function Labour() {
     <div className="h-full flex flex-col bg-[#0f1117]">
       {/* Header */}
       <div className="shrink-0 px-4 pt-4 pb-0 bg-[#0f1117]">
-        <h2 className="text-lg font-bold text-white">Labour</h2>
+        <h2 className="text-lg font-bold text-white">Manpower</h2>
         <p className="text-xs text-white/40 mb-3">Attendance · Work logs · Payments</p>
         <div className="flex gap-1 border-b border-white/8">
           {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['summary','📊 Summary']].map(([k, lbl]) => (
