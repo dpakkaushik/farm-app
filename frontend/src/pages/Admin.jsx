@@ -377,13 +377,14 @@ function LabourMaster() {
     addContractualLabour, updateContractualLabour, deleteContractualLabour,
     addAdvance,
   } = useAppStore()
-  const [tab, setTab]           = useState('staff')
-  const [form, setForm]         = useState(null)
+  const [tab, setTab]             = useState('staff')
+  const [form, setForm]           = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
-  const [advForm, setAdvForm]   = useState(null)
-  const [saving, setSaving]     = useState(false)
-  const [toast, setToast]       = useState(null)
-  const [confirm, setConfirm]   = useState(null)
+  const [openLog, setOpenLog]     = useState(null)   // id of person whose log is expanded
+  const [advForm, setAdvForm]     = useState(null)
+  const [saving, setSaving]       = useState(false)
+  const [toast, setToast]         = useState(null)
+  const [confirm, setConfirm]     = useState(null)
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
   const today = new Date().toISOString().slice(0, 10)
@@ -534,28 +535,15 @@ function LabourMaster() {
           </div>
         )}
         {permanentStaff.map(s => (
-          <div key={s.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center gap-3">
-            {s.photoUrl
-              ? <img src={s.photoUrl} className="w-9 h-9 rounded-full object-cover shrink-0" alt={s.name} />
-              : <div className="w-9 h-9 rounded-full bg-[#4169E1]/15 flex items-center justify-center text-sm font-bold text-[#4169E1] shrink-0">
-                  {s.name.charAt(0)}
-                </div>
-            }
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">{s.name}</p>
-              <p className="text-[10px] text-white/40">{s.designation || 'Staff'} · ₹{s.monthlySalary}/mo{s.phone ? ` · ${s.phone}` : ''}</p>
-              {s.openingBalance !== 0 && (
-                <p className="text-[10px] mt-0.5" style={{ color: s.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
-                  Opening: {s.openingBalance > 0 ? '+' : ''}₹{s.openingBalance}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '' })}
-                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
-              <button onClick={() => handleDeleteStaff(s.id, s.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
-            </div>
-          </div>
+          <PersonCard key={s.id}
+            person={s} accentColor="#4169E1"
+            isLogOpen={openLog === s.id}
+            onToggleLog={() => setOpenLog(openLog === s.id ? null : s.id)}
+            onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, dailyRate: s.dailyRate, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '', photoUrl: s.photoUrl }) }}
+            onDelete={() => handleDeleteStaff(s.id, s.name)}
+            subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo`}
+            ratePerDay={null} monthlySalary={s.monthlySalary}
+          />
         ))}
         {permanentStaff.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No permanent staff added yet</p>}
       </>)}
@@ -608,26 +596,15 @@ function LabourMaster() {
           </div>
         )}
         {regularLabourers.map(l => (
-          <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center gap-3">
-            {l.photoUrl
-              ? <img src={l.photoUrl} className="w-9 h-9 rounded-full object-cover shrink-0" alt={l.name} />
-              : <div className="w-9 h-9 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75] shrink-0">{l.name.charAt(0)}</div>
-            }
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">{l.name}</p>
-              <p className="text-[10px] text-white/40">{l.workType} · ₹{l.ratePerDay}/day{l.phone ? ` · ${l.phone}` : ''}</p>
-              {l.openingBalance !== 0 && (
-                <p className="text-[10px] mt-0.5" style={{ color: l.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
-                  Opening: {l.openingBalance > 0 ? '+' : ''}₹{l.openingBalance}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => { setPhotoFile(null); setForm({ id: l.id, name: l.name, workType: l.workType, ratePerDay: l.ratePerDay, phone: l.phone || '', openingBalance: l.openingBalance, photoUrl: l.photoUrl }) }}
-                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
-              <button onClick={() => handleDeleteRegular(l.id, l.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
-            </div>
-          </div>
+          <PersonCard key={l.id}
+            person={l} accentColor="#1D9E75"
+            isLogOpen={openLog === l.id}
+            onToggleLog={() => setOpenLog(openLog === l.id ? null : l.id)}
+            onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: l.id, name: l.name, workType: l.workType, ratePerDay: l.ratePerDay, phone: l.phone || '', openingBalance: l.openingBalance, photoUrl: l.photoUrl }) }}
+            onDelete={() => handleDeleteRegular(l.id, l.name)}
+            subLabel={`${l.workType} · ₹${l.ratePerDay}/day`}
+            ratePerDay={l.ratePerDay} monthlySalary={null}
+          />
         ))}
         {regularLabourers.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No regular labour added yet</p>}
       </>)}
@@ -1397,6 +1374,162 @@ function UsersMaster() {
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
+    </div>
+  )
+}
+
+// ── Person Card (Staff + Regular Labour) ─────────────────────────────────────
+function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDelete, subLabel, ratePerDay, monthlySalary }) {
+  return (
+    <div className="bg-[#161a23] rounded-2xl border border-white/8 overflow-hidden">
+      {/* Main row */}
+      <div className="p-4 flex items-start gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-white">{person.name}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">{subLabel}</p>
+          {person.phone && (
+            <a href={`tel:${person.phone}`}
+              className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold rounded-lg px-2 py-0.5 border transition-colors hover:bg-white/8"
+              style={{ color: accentColor, borderColor: accentColor + '40' }}>
+              📞 {person.phone}
+            </a>
+          )}
+          {person.openingBalance !== 0 && (
+            <p className="text-[10px] mt-1" style={{ color: person.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
+              Opening bal: {person.openingBalance > 0 ? '+' : ''}₹{Number(person.openingBalance).toLocaleString()}
+            </p>
+          )}
+        </div>
+        {/* Photo right side */}
+        <div className="shrink-0">
+          {person.photoUrl
+            ? <img src={person.photoUrl} alt={person.name}
+                className="w-16 h-16 rounded-xl object-cover border border-white/10" />
+            : <BlankFace color={accentColor} />
+          }
+        </div>
+      </div>
+      {/* Action bar */}
+      <div className="flex border-t border-white/6 divide-x divide-white/6">
+        <button onClick={onToggleLog}
+          className={`flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors ${isLogOpen ? 'text-[#BA7517] bg-[#BA7517]/8' : 'text-white/35 hover:text-white/70'}`}>
+          📋 Log
+        </button>
+        <button onClick={onEdit}
+          className="flex-1 py-2.5 text-[10px] font-semibold text-white/35 hover:text-[#1D9E75] flex items-center justify-center gap-1 transition-colors">
+          ✏️ Edit
+        </button>
+        <button onClick={onDelete}
+          className="flex-1 py-2.5 text-[10px] font-semibold text-white/35 hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
+          🗑 Delete
+        </button>
+      </div>
+      {/* Salary log */}
+      {isLogOpen && (
+        <SalaryLog personId={person.id} ratePerDay={ratePerDay} monthlySalary={monthlySalary} />
+      )}
+    </div>
+  )
+}
+
+function BlankFace({ color }) {
+  return (
+    <div className="w-16 h-16 rounded-xl border border-white/10 flex items-center justify-center"
+      style={{ background: color + '12' }}>
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+        stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.4">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+      </svg>
+    </div>
+  )
+}
+
+const MONTH_NAMES_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function SalaryLog({ personId, ratePerDay, monthlySalary }) {
+  const [rows, setRows] = React.useState(null)
+
+  React.useEffect(() => {
+    const from = new Date()
+    from.setMonth(from.getMonth() - 5)
+    from.setDate(1)
+    const fromStr = from.toISOString().slice(0, 10)
+
+    Promise.all([
+      supabase.from('attendance')
+        .select('attendance_date, status')
+        .eq('labour_master_id', personId)
+        .gte('attendance_date', fromStr),
+      supabase.from('salary_advances')
+        .select('advance_date, amount')
+        .eq('labourer_id', personId)
+        .gte('advance_date', fromStr),
+    ]).then(([{ data: att }, { data: adv }]) => {
+      const months = {}
+      ;(att || []).forEach(r => {
+        const ym = r.attendance_date.slice(0, 7)
+        if (!months[ym]) months[ym] = { present: 0, half: 0, absent: 0 }
+        if (r.status === 'present')       months[ym].present++
+        else if (r.status === 'half_day') months[ym].half++
+        else if (r.status === 'absent')   months[ym].absent++
+      })
+      const advances = {}
+      ;(adv || []).forEach(a => {
+        const ym = a.advance_date.slice(0, 7)
+        advances[ym] = (advances[ym] || 0) + Number(a.amount)
+      })
+      setRows({ months, advances })
+    })
+  }, [personId])
+
+  if (!rows) return <div className="px-4 pb-3 text-[10px] text-white/30">Loading…</div>
+
+  const monthKeys = Object.keys(rows.months).sort().reverse()
+
+  return (
+    <div className="border-t border-white/6 px-4 pb-4 pt-3 space-y-2">
+      <p className="text-[10px] font-bold text-white/30 uppercase tracking-wide">Salary Log — Last 6 Months</p>
+      {monthKeys.length === 0 && (
+        <p className="text-[10px] text-white/20 italic">No attendance recorded yet</p>
+      )}
+      {monthKeys.map(ym => {
+        const { present, half, absent } = rows.months[ym]
+        const paidDays = present + half * 0.5
+        const [y, m]   = ym.split('-')
+        const label    = `${MONTH_NAMES_SHORT[Number(m) - 1]} ${y}`
+        const earned   = ratePerDay
+          ? Math.round(paidDays * ratePerDay)
+          : monthlySalary
+            ? null   // for staff show days only; prorated needs working-days count
+            : null
+        const advance  = rows.advances[ym] || 0
+        const net      = earned !== null ? earned - advance : null
+
+        return (
+          <div key={ym} className="bg-white/[0.04] rounded-xl px-3 py-2.5">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold text-white">{label}</p>
+                <p className="text-[10px] text-white/40 mt-0.5">
+                  {present}P · {half}H · {absent}A · {paidDays} paid days
+                </p>
+                {advance > 0 && (
+                  <p className="text-[10px] text-[#BA7517] mt-0.5">Advance taken: ₹{advance.toLocaleString()}</p>
+                )}
+              </div>
+              {earned !== null && (
+                <div className="text-right shrink-0 ml-3">
+                  <p className="text-sm font-bold text-[#1D9E75]">₹{earned.toLocaleString()}</p>
+                  {advance > 0 && (
+                    <p className="text-[10px] text-white/40">Net ₹{net.toLocaleString()}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
