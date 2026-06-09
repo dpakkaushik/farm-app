@@ -392,7 +392,7 @@ function LabourMaster() {
   const uploadPhoto = async (file, folder) => {
     const ext  = (file.name && file.name.includes('.')) ? file.name.split('.').pop() : 'jpg'
     const path = `${folder}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('farm-photos').upload(path, file, { upsert: true })
+    const { error } = await supabase.storage.from('farm-photos').upload(path, file)
     if (error) throw new Error('Upload failed: ' + error.message)
     return supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
   }
