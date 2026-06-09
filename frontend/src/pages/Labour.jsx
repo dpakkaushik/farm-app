@@ -204,13 +204,27 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             return (
               <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-3 mb-2">
                 <div className="flex items-center gap-3 mb-2.5">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                    style={{ background: accentColor + '20', color: accentColor }}>
-                    {l.name.charAt(0)}
-                  </div>
+                  {l.photoUrl
+                    ? <img src={l.photoUrl} alt={l.name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-white/10" />
+                    : <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-white/10"
+                        style={{ background: accentColor + '15' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.6">
+                          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                        </svg>
+                      </div>
+                  }
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-white">{l.name}</p>
-                    <p className="text-[10px] text-white/40">{subLabel}</p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <p className="text-[10px] text-white/40">{attTab === 'staff' ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo` : `${l.workType} · ₹${l.ratePerDay}/day`}</p>
+                      {l.phone && (
+                        <a href={`tel:${l.phone}`} onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg border transition-colors hover:bg-white/8"
+                          style={{ color: accentColor, borderColor: accentColor + '40' }}>
+                          📞 {l.phone}
+                        </a>
+                      )}
+                    </div>
                   </div>
                   {status && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
