@@ -18,7 +18,9 @@ const CONTRACT_TYPES = [
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour } = useAppStore()
+  const permanentStaff    = allStaff.filter(s => s.isActive !== false)
+  const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
   const [toastType, setToastType] = useState('success')
 

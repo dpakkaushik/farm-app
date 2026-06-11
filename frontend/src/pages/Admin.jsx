@@ -533,7 +533,7 @@ function LabourMaster() {
     addPermanentStaff, updatePermanentStaff, deletePermanentStaff,
     addRegularLabourer, updateRegularLabourer, deleteRegularLabourer,
     addContractualLabour, updateContractualLabour, deleteContractualLabour,
-    addAdvance,
+    addAdvance, deactivateLabourer, reactivateLabourer,
   } = useAppStore()
   const [tab, setTab]             = useState('staff')
   const [form, setForm]           = useState(null)
@@ -716,6 +716,8 @@ function LabourMaster() {
             onToggleLog={() => setOpenLog(openLog === s.id ? null : s.id)}
             onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, dailyRate: s.dailyRate, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '', photoUrl: s.photoUrl }) }}
             onDelete={() => handleDeleteStaff(s.id, s.name)}
+            onDeactivate={() => { setConfirm({ title: `Deactivate "${s.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(s.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
+            onReactivate={async () => { try { await reactivateLabourer(s.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
             subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo`}
             ratePerDay={null} monthlySalary={s.monthlySalary}
           />
@@ -777,6 +779,8 @@ function LabourMaster() {
             onToggleLog={() => setOpenLog(openLog === l.id ? null : l.id)}
             onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: l.id, name: l.name, workType: l.workType, ratePerDay: l.ratePerDay, phone: l.phone || '', openingBalance: l.openingBalance, photoUrl: l.photoUrl }) }}
             onDelete={() => handleDeleteRegular(l.id, l.name)}
+            onDeactivate={() => { setConfirm({ title: `Deactivate "${l.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(l.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
+            onReactivate={async () => { try { await reactivateLabourer(l.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
             subLabel={`${l.workType} · ₹${l.ratePerDay}/day`}
             ratePerDay={l.ratePerDay} monthlySalary={null}
           />
@@ -1514,13 +1518,23 @@ function UsersMaster() {
 }
 
 // ── Person Card (Staff + Regular Labour) ─────────────────────────────────────
-function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDelete, subLabel, ratePerDay, monthlySalary }) {
+function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDelete, onDeactivate, onReactivate, subLabel, ratePerDay, monthlySalary }) {
+  const isActive = person.isActive !== false
   return (
-    <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
+    <div className="bg-[var(--c-nav)] rounded-2xl border overflow-hidden transition-opacity"
+      style={{ borderColor: isActive ? 'var(--c-border)' : '#E24B4A30', opacity: isActive ? 1 : 0.7 }}>
       {/* Main row */}
       <div className="p-4 flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[var(--c-text)]">{person.name}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-bold text-[var(--c-text)]">{person.name}</p>
+            {!isActive && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
+                style={{ color: '#E24B4A', borderColor: '#E24B4A40', background: '#E24B4A10' }}>
+                ⏸ Deactivated
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{subLabel}</p>
           {person.phone && (
             <a href={`tel:${person.phone}`}
@@ -1554,6 +1568,18 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
           className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] flex items-center justify-center gap-1 transition-colors">
           ✏️ Edit
         </button>
+        {isActive ? (
+          <button onClick={onDeactivate}
+            className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] flex items-center justify-center gap-1 transition-colors">
+            ⏸ Pause
+          </button>
+        ) : (
+          <button onClick={onReactivate}
+            className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors"
+            style={{ color: '#1D9E75' }}>
+            ▶ Activate
+          </button>
+        )}
         <button onClick={onDelete}
           className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
           🗑 Delete

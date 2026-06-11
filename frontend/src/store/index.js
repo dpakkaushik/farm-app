@@ -132,6 +132,7 @@ function mapStaff(l) {
     openingBalance: Number(l.opening_balance) || 0,
     joinDate:       l.join_date || null,
     photoUrl:       l.photo_url || null,
+    isActive:       l.status !== 'paused',
   }
 }
 
@@ -145,6 +146,7 @@ function mapRegularLabourer(l) {
     openingBalance: Number(l.opening_balance) || 0,
     joinDate:       l.join_date || null,
     photoUrl:       l.photo_url || null,
+    isActive:       l.status !== 'paused',
   }
 }
 
@@ -251,7 +253,7 @@ const useAppStore = create((set, get) => ({
           .order('issue_date', { ascending: false }),
         supabase.from('activity_logs')
           .select('*, plots(name)').order('created_at', { ascending: false }),
-        supabase.from('labour_master').select('*').eq('status', 'active').order('name'),
+        supabase.from('labour_master').select('*').in('status', ['active', 'paused']).order('name'),
         supabase.from('labour_logs')
           .select('*, plots(name)').order('activity_date', { ascending: false }),
         supabase.from('media_files')
@@ -400,6 +402,20 @@ const useAppStore = create((set, get) => ({
     const { error } = await supabase.from('labour_master').update({ status: 'inactive' }).eq('id', id)
     if (error) throw error
     set(s => ({ regularLabourers: s.regularLabourers.filter(l => l.id !== id) }))
+  },
+
+  deactivateLabourer: async (id) => {
+    const { error } = await supabase.from('labour_master').update({ status: 'paused' }).eq('id', id)
+    if (error) throw error
+    const pause = arr => arr.map(p => p.id === id ? { ...p, isActive: false } : p)
+    set(s => ({ permanentStaff: pause(s.permanentStaff), regularLabourers: pause(s.regularLabourers) }))
+  },
+
+  reactivateLabourer: async (id) => {
+    const { error } = await supabase.from('labour_master').update({ status: 'active' }).eq('id', id)
+    if (error) throw error
+    const activate = arr => arr.map(p => p.id === id ? { ...p, isActive: true } : p)
+    set(s => ({ permanentStaff: activate(s.permanentStaff), regularLabourers: activate(s.regularLabourers) }))
   },
 
   addContractualLabour: async (l) => {
