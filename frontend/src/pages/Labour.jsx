@@ -102,7 +102,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     if (!wForm.workTypeId)   return showToast('Select a work type', 'warn')
     if (!wForm.contractType) return showToast('Select contract type', 'warn')
     const cycle    = cropCycles.find(c => c.id === wForm.cycleId)
-    const workType = activityTypes.find(a => a.name === wForm.workTypeId)
+    const workType = activityTypes.find(a => a.id === wForm.workTypeId)
     setSaving(true)
     try {
       if (wForm.workerType === 'regular') {
@@ -334,7 +334,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           <FRow label="Work Type">
             <select className="finput" value={wForm.workTypeId} onChange={e => setWForm(p => ({ ...p, workTypeId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               <option value="" style={{ background: 'var(--c-surface)' }}>Select work type…</option>
-              {activityTypes.map(a => <option key={a.name} value={a.name} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
+              {activityTypes.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
             </select>
           </FRow>
 
