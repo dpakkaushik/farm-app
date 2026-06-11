@@ -1,0 +1,16 @@
+{
+  "appId": "com.farmapp.manager",
+  "appName": "Farm Manager",
+  "webDir": "dist",
+  "server": {
+    "url": "https://frontend-zeta-ten-64.vercel.app",
+    "cleartext": false
+  },
+  "plugins": {
+    "StatusBar": {
+      "backgroundColor": "#161a23",
+      "style": "DARK",
+      "overlaysWebView": false
+    }
+  }
+}

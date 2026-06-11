@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { AppLauncher } from '@capacitor/app-launcher'
 import { AlertTriangle, TrendingUp, Package, CalendarDays, Leaf, ChevronDown, ChevronUp } from 'lucide-react'
 import { farmApi } from '../api/client'
 import { format } from 'date-fns'
@@ -190,7 +191,7 @@ export default function Dashboard() {
           <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
         </div>
         <button
-          onClick={() => window.open('intent://open#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mm.android.direct.g_CMOB_XU;end', '_system')}
+          onClick={() => AppLauncher.openUrl({ url: 'package:com.mm.android.direct.g_CMOB_XU' })}
           className="flex items-center gap-1.5 bg-[#E24B4A]/15 border border-[#E24B4A]/30 rounded-xl px-3 py-2 active:scale-95 transition-transform shrink-0"
         >
           <span className="relative flex h-2 w-2">
