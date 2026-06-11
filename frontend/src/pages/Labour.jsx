@@ -24,6 +24,28 @@ export default function Labour() {
   const [toast, setToast] = useState(null)
   const [toastType, setToastType] = useState('success')
 
+  // Shared month attendance — loaded here so it survives tab switches
+  const [logMonth,    setLogMonth]    = useState(new Date().toISOString().slice(0, 7))
+  const [logMonthAtt, setLogMonthAtt] = useState({})
+
+  useEffect(() => {
+    const from = logMonth + '-01'
+    const to   = logMonth + '-31'
+    supabase.from('attendance')
+      .select('labour_master_id, status')
+      .gte('attendance_date', from)
+      .lte('attendance_date', to)
+      .then(({ data, error }) => {
+        if (error || !data) return
+        const counts = {}
+        data.forEach(r => {
+          const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
+          if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
+        })
+        setLogMonthAtt(counts)
+      })
+  }, [logMonth])
+
   const showToast = (msg, type = 'success') => {
     setToast(msg); setToastType(type); setTimeout(() => setToast(null), 3000)
   }
@@ -47,8 +69,8 @@ export default function Labour() {
 
       <div className="flex-1 overflow-y-auto">
         {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
-        {subTab === 'logs'    && <LabourLogs labourLogs={labourLogs} permanentStaff={permanentStaff} regularLabourers={regularLabourers} />}
-        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} />}
+        {subTab === 'logs'    && <LabourLogs labourLogs={labourLogs} permanentStaff={permanentStaff} regularLabourers={regularLabourers} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
+        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
 
       {toast && (
@@ -751,25 +773,7 @@ function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, 
 }
 
 // ── Labour Logs ───────────────────────────────────────────────────────────────
-function LabourLogs({ labourLogs, permanentStaff, regularLabourers }) {
-  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
-  const [att,   setAtt]   = useState({})
-
-  useEffect(() => {
-    supabase.from('attendance')
-      .select('labour_master_id, status')
-      .gte('attendance_date', month + '-01')
-      .lte('attendance_date', month + '-31')
-      .then(({ data }) => {
-        const counts = {}
-        ;(data || []).forEach(r => {
-          const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
-          if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
-        })
-        setAtt(counts)
-      })
-  }, [month])
-
+function LabourLogs({ labourLogs, permanentStaff, regularLabourers, month, setMonth, att }) {
   const now           = new Date(month + '-01')
   const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const filtered      = labourLogs.filter(l => l.date?.startsWith(month))
@@ -843,27 +847,10 @@ function LabourLogs({ labourLogs, permanentStaff, regularLabourers }) {
 }
 
 // ── Labour Salary tab ─────────────────────────────────────────────────────────
-function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, showToast }) {
-  const [month,   setMonth]   = useState(new Date().toISOString().slice(0, 7))
-  const [att,     setAtt]     = useState({})
+function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, showToast, month, setMonth, att }) {
   const [modal,   setModal]   = useState(null)  // { worker, type: 'salary'|'advance' }
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '' })
   const [saving,  setSaving]  = useState(false)
-
-  useEffect(() => {
-    supabase.from('attendance')
-      .select('labour_master_id, status')
-      .gte('attendance_date', month + '-01')
-      .lte('attendance_date', month + '-31')
-      .then(({ data }) => {
-        const counts = {}
-        ;(data || []).forEach(r => {
-          const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
-          if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
-        })
-        setAtt(counts)
-      })
-  }, [month])
 
   const daysInMonth = new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).getDate()
   const allWorkers  = [
