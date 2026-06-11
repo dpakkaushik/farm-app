@@ -162,17 +162,21 @@ function mapAdvance(a) {
 
 function mapLabourLog(l) {
   return {
-    id:          l.id,
-    labourName:  l.labour_name,
-    plotId:      l.plot_id,
-    plotLabel:   l.plots?.name || '—',
-    cropCycleId: l.cycle_id,
-    date:        l.activity_date,
-    workers:     Number(l.quantity) || 0,
-    hours:       8,
-    ratePerDay:  Number(l.base_rate) || 0,
-    totalCost:   Number(l.total_payment) || 0,
-    purpose:     l.work_type || '',
+    id:           l.id,
+    labourName:   l.labour_name,
+    labourType:   l.labour_type || 'contractual',
+    labourMasterId: l.labour_master_id || null,
+    plotId:       l.plot_id,
+    plotLabel:    l.plots?.name || '—',
+    cropCycleId:  l.cycle_id,
+    date:         l.activity_date,
+    workers:      Number(l.quantity) || 0,
+    ratePerDay:   Number(l.base_rate) || 0,
+    totalCost:    Number(l.total_payment) || 0,
+    purpose:      l.work_type || '',
+    workTypeId:   l.work_type_id || null,
+    contractType: l.contract_type || null,
+    contractQty:  Number(l.contract_qty) || 0,
   }
 }
 
@@ -197,6 +201,7 @@ const useAppStore = create((set, get) => ({
   permanentStaff:    [],   // sub_type = 'permanent' — monthly salary, attendance tracked
   regularLabourers:  [],   // sub_type = 'regular'   — per-day rate, attendance tracked
   contractualLabour: [],   // sub_type = 'contractual' — per-day rate, count only
+  workTypes:         [],   // work_types table — admin-managed labels, no rate
   purchases:         [],
   issues:            [],
   labourLogs:        [],
@@ -228,6 +233,7 @@ const useAppStore = create((set, get) => ({
         { data: mediaRaw },
         { data: attendanceRaw },
         { data: advancesRaw },
+        { data: workTypesRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -257,6 +263,7 @@ const useAppStore = create((set, get) => ({
           .select('*')
           .eq('is_recovered', false)
           .order('advance_date', { ascending: false }),
+        supabase.from('work_types').select('*').eq('is_active', true).order('name'),
       ])
 
       const tpl = templates || []
@@ -282,7 +289,8 @@ const useAppStore = create((set, get) => ({
         todayAttendance:   Object.fromEntries(
           (attendanceRaw || []).map(a => [a.labour_master_id, { id: a.id, status: a.status }])
         ),
-        advances: (advancesRaw || []).map(mapAdvance),
+        advances:          (advancesRaw || []).map(mapAdvance),
+        workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
         loading:           false,
         initialized:       true,
       })
@@ -684,14 +692,29 @@ const useAppStore = create((set, get) => ({
       plot_id:          log.plotId || null,
       cycle_id:         log.cropCycleId || null,
       work_type:        log.purpose || 'General',
+      work_type_id:     log.workTypeId || null,
       activity_date:    log.date,
       quantity:         log.workers || null,
       quantity_unit:    'workers',
       base_rate:        log.ratePerDay || null,
       total_payment:    log.totalCost || null,
+      contract_type:    log.contractType || null,
+      contract_qty:     log.contractQty || null,
     }).select('*, plots(name)').single()
     if (error) throw error
     set(s => ({ labourLogs: [mapLabourLog(data), ...s.labourLogs] }))
+  },
+
+  addWorkType: async (name) => {
+    const { data, error } = await supabase.from('work_types').insert({ name }).select().single()
+    if (error) throw error
+    set(s => ({ workTypes: [...s.workTypes, { id: data.id, name: data.name }].sort((a,b) => a.name.localeCompare(b.name)) }))
+  },
+
+  deleteWorkType: async (id) => {
+    const { error } = await supabase.from('work_types').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ workTypes: s.workTypes.filter(w => w.id !== id) }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────

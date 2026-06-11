@@ -1,0 +1,21 @@
+{
+  "env": {
+    "ECC_GATEGUARD": "off"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(where android-studio *)",
+      "Bash(where java *)",
+      "Bash(java -version)",
+      "Bash(exist \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\studio64.exe\" echo \"Android Studio found\")",
+      "Bash(npx cap *)",
+      "PowerShell(Start-Process \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\studio64.exe\" -ArgumentList \"c:\\\\Users\\\\Admin\\\\Documents\\\\Claude\\\\Projects\\\\farm_app\\\\frontend\\\\android\")"
+    ]
+  }
+}

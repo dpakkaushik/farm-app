@@ -54,13 +54,16 @@ export const inventoryApi = {
 
 // ── Labour ───────────────────────────────────────────────────────────────────
 export const labourApi = {
-  getMaster:    () => supabase.from('labour_master').select('*').eq('status', 'active').order('name'),
-  getRates:     () => supabase.from('labour_activity_rates').select('*'),
-  getLogs:      () => supabase.from('labour_logs').select('*, plots(name)').order('activity_date', { ascending: false }),
-  createLog:    (data) => supabase.from('labour_logs').insert(data).select().single(),
-  createLogs:   (rows) => supabase.from('labour_logs').insert(rows).select(),
-  getAttendance:(date) => supabase.from('attendance').select('*, labour_master(name,sub_type)').eq('attendance_date', date),
+  getMaster:     () => supabase.from('labour_master').select('*').eq('status', 'active').order('name'),
+  getRates:      () => supabase.from('labour_activity_rates').select('*'),
+  getLogs:       () => supabase.from('labour_logs').select('*, plots(name)').order('activity_date', { ascending: false }),
+  createLog:     (data) => supabase.from('labour_logs').insert(data).select().single(),
+  createLogs:    (rows) => supabase.from('labour_logs').insert(rows).select(),
+  getAttendance: (date) => supabase.from('attendance').select('*, labour_master(name,sub_type)').eq('attendance_date', date),
   markAttendance:(rows) => supabase.from('attendance').upsert(rows, { onConflict: 'labour_master_id,attendance_date' }),
+  getWorkTypes:  () => supabase.from('work_types').select('*').eq('is_active', true).order('name'),
+  addWorkType:   (name) => supabase.from('work_types').insert({ name }).select().single(),
+  deleteWorkType:(id) => supabase.from('work_types').delete().eq('id', id),
 }
 
 // ── Assets ───────────────────────────────────────────────────────────────────

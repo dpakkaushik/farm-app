@@ -359,6 +359,65 @@ function InventoryMaster() {
   )
 }
 
+// ── Work Types ────────────────────────────────────────────────────────────────
+function WorkTypesSection({ showToast }) {
+  const { workTypes, addWorkType, deleteWorkType } = useAppStore()
+  const [newName, setNewName] = useState('')
+  const [saving, setSaving]   = useState(false)
+  const [confirm, setConfirm] = useState(null)
+
+  const save = async () => {
+    const name = newName.trim()
+    if (!name) return
+    setSaving(true)
+    try { await addWorkType(name); setNewName(''); showToast('Work type added ✓') }
+    catch (e) { showToast(e.message, 'warn') }
+    setSaving(false)
+  }
+
+  const del = (id, name) => setConfirm({
+    title: `Remove "${name}"?`, message: 'Any existing logs referencing this type will be unlinked.',
+    onConfirm: async () => {
+      setConfirm(null)
+      try { await deleteWorkType(id); showToast('Removed') }
+      catch (e) { showToast(e.message, 'warn') }
+    },
+  })
+
+  return (
+    <>
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      <p className="text-[11px] text-[var(--c-faint)] px-1">
+        Work type labels used when logging contractual or regular work. No rate attached — rate is filled at log time.
+      </p>
+      <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 flex gap-2">
+        <input
+          className="finput flex-1"
+          placeholder="e.g. Harvesting, Ploughing, Spray…"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && save()}
+        />
+        <button onClick={save} disabled={saving || !newName.trim()}
+          className="px-4 py-2 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+          {saving ? '…' : 'Add'}
+        </button>
+      </div>
+      {workTypes.length === 0 && (
+        <p className="text-xs text-[var(--c-faint)] text-center py-4">No work types yet — add some above.</p>
+      )}
+      {workTypes.map(w => (
+        <div key={w.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] px-4 py-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-[var(--c-text)]">{w.name}</p>
+          <button onClick={() => del(w.id, w.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
+            <Trash2 size={15} />
+          </button>
+        </div>
+      ))}
+    </>
+  )
+}
+
 // ── Labour ────────────────────────────────────────────────────────────────────
 const WORK_TYPES = ['Farm Worker', 'Driver', 'Cook', 'Cleaning', 'Watchman', 'Gardener', 'Mechanic', 'Other']
 const LABOUR_TABS = [
@@ -626,48 +685,8 @@ function LabourMaster() {
         {regularLabourers.length === 0 && !form && <p className="text-xs text-[var(--c-faint)] text-center py-4">No regular labour added yet</p>}
       </>)}
 
-      {/* ── Contractual ── */}
-      {tab === 'contractual' && (<>
-        <p className="text-[11px] text-[var(--c-faint)] px-1">Bulk workers called for busy periods — per day rate, count-based tracking in Today tab.</p>
-        <button onClick={() => setForm({})}
-          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
-          <Plus size={14} /> Add Labour Category
-        </button>
-        {form !== null && (
-          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Category' : 'New Category'}</p>
-            <FRow label="Category name">
-              <input className="finput" placeholder="e.g. Harvesting Labour"
-                value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
-            </FRow>
-            <FRow label="Standard rate/day (₹)">
-              <input type="number" className="finput" placeholder="400"
-                value={form.defaultRate || ''} onChange={e => setForm(p => ({ ...p, defaultRate: e.target.value }))} />
-            </FRow>
-            <div className="flex gap-2">
-              <button onClick={saveContractual} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
-                {saving ? 'Saving…' : form.id ? 'Update Category' : 'Save to Database'}
-              </button>
-              <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
-            </div>
-          </div>
-        )}
-        {contractualLabour.map(l => (
-          <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
-              <p className="text-[10px] text-[var(--c-muted)]">₹{l.defaultRate}/day standard rate</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => setForm({ id: l.id, name: l.name, defaultRate: l.defaultRate })}
-                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
-              <button onClick={() => handleDeleteContractual(l.id, l.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]"><Trash2 size={15} /></button>
-            </div>
-          </div>
-        ))}
-        {contractualLabour.length === 0 && !form && <p className="text-xs text-[var(--c-faint)] text-center py-4">No categories added yet</p>}
-      </>)}
+      {/* ── Work Types ── */}
+      {tab === 'contractual' && <WorkTypesSection showToast={showToast} />}
 
       {/* ── Advances ── */}
       {tab === 'advances' && (<>

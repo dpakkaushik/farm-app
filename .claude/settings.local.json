@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npx vite *)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\Admin\\\\Documents\\\\Claude\\\\Projects\\\\farm_app\\\\frontend\\\\src\" -Recurse | Where-Object { !$_.PSIsContainer })",
+      "PowerShell(vercel --version 2>$null)",
+      "PowerShell(npx vercel --version 2>$null)",
+      "Bash(npx vercel *)",
+      "mcp__plugin_ecc_playwright__browser_navigate",
+      "Bash(cd \"/c/Users/Admin/Documents/Claude/Projects/farm_app/frontend\" && grep -n \"labourTypes\\\\|LABOUR_TYPES\" src/store/index.js | head -20)",
+      "Read(//c/c/Users/Admin/Documents/Claude/Projects/farm_app/frontend/src/store/**)",
+      "Bash(cd \"/c/Users/Admin/Documents/Claude/Projects/farm_app/frontend\" && grep -n \"labourTypes\" src/pages/Field.jsx)",
+      "Read(//c/c/Users/Admin/Documents/Claude/Projects/farm_app/frontend/src/pages/**)",
+      "Bash(pip --version)",
+      "Bash(reg query *)",
+      "Bash(py --version)",
+      "Bash(py -m pip install fastapi uvicorn sqlalchemy pyodbc pydantic pydantic-settings python-multipart python-dotenv)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__list_organizations",
+      "mcp__claude_ai_Supabase__restore_project",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(npm list *)"
+    ],
+    "additionalDirectories": [
+      "\\"
+    ]
+  }
+}
