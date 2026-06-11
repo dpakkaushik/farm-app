@@ -62,7 +62,7 @@ export default function Labour() {
 const EMPTY_WFORM = { workTypeId: '', workerType: 'contractual', selectedWorkers: new Set(), workerCount: '', contractType: '', contractQty: '', rate: '', cycleId: '', date: TODAY_STR }
 
 function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
-  const { activityTypes, syncAttendancePay } = useAppStore()
+  const { activityTypes } = useAppStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
@@ -94,10 +94,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       { labour_master_id: labourId, attendance_date: TODAY_STR, status },
       { onConflict: 'labour_master_id,attendance_date' }
     ).select().single()
-    if (!error) {
-      setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
-      await syncAttendancePay(labourId, status, TODAY_STR)
-    }
+    if (!error) setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
     setSavingAtt(s => ({ ...s, [labourId]: false }))
   }
 
