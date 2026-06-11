@@ -9,19 +9,6 @@ const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); retur
 const TODAY_DATE   = getTodayDate()
 const TODAY_STR    = getTodayStr()
 
-const ACTIVITY_TYPES = [
-  { value: 'irrigation',    label: 'Irrigation',             emoji: '💧' },
-  { value: 'weeding',       label: 'Weeding',                emoji: '🌿' },
-  { value: 'fertilizer',    label: 'Fertilizer',             emoji: '🧪' },
-  { value: 'spray',         label: 'Spray / Pesticide',      emoji: '🧴' },
-  { value: 'ploughing',     label: 'Ploughing',              emoji: '🚜' },
-  { value: 'sowing',        label: 'Sowing',                 emoji: '🌱' },
-  { value: 'harvesting',    label: 'Harvesting',             emoji: '🌾' },
-  { value: 'intercultural', label: 'Intercultural Ops',      emoji: '🔧' },
-  { value: 'crop_ops',      label: 'Other Crop Related Ops', emoji: '🌻' },
-  { value: 'events',        label: 'Events',                 emoji: '📅' },
-  { value: 'other',         label: 'Other',                  emoji: '📋' },
-]
 
 const ACT_EMOJI = {
   irrigation: '💧', weeding: '🌿', fertilizer: '🧪', spray: '🧴',
@@ -39,6 +26,7 @@ export default function Today() {
   const {
     cropCycles, cropMaster, activities, plots,
     permanentStaff, regularLabourers,
+    activityTypes, todayAttendance,
     logActivity, logActivities,
   } = useAppStore()
   const { profile } = useAuthStore()
@@ -56,11 +44,18 @@ export default function Today() {
   const [showHistory,   setShowHistory]   = useState(false)
   const [saving,        setSaving]        = useState(false)
 
-  // All named workers available for selection (staff + regular labourers)
-  const allNamedWorkers = useMemo(() => [
-    ...permanentStaff.map(s  => ({ id: s.id, name: s.name, tag: 'S' })),
-    ...regularLabourers.map(l => ({ id: l.id, name: l.name, tag: 'L' })),
-  ], [permanentStaff, regularLabourers])
+  // Only workers marked present or half-day today
+  const allNamedWorkers = useMemo(() => {
+    const present = new Set(
+      Object.entries(todayAttendance)
+        .filter(([, a]) => a.status === 'present' || a.status === 'half_day')
+        .map(([id]) => id)
+    )
+    return [
+      ...permanentStaff.map(s  => ({ id: s.id, name: s.name, tag: 'S' })),
+      ...regularLabourers.map(l => ({ id: l.id, name: l.name, tag: 'L' })),
+    ].filter(w => present.has(w.id))
+  }, [permanentStaff, regularLabourers, todayAttendance])
 
   // Active plots (one per plot with an active cycle)
   const activePlots = useMemo(() => {
@@ -316,7 +311,7 @@ export default function Today() {
                   .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                   .map(a => {
                     const color    = ACT_COLOR[a.type] || '#6b7280'
-                    const typeInfo = ACTIVITY_TYPES.find(t => t.value === a.type)
+                    const typeInfo = activityTypes.find(t => t.name === a.type)
                     return (
                       <div key={a.id} className="flex items-center gap-3 px-4 py-3"
                         style={{ background: 'var(--c-card)' }}>
@@ -453,9 +448,11 @@ export default function Today() {
                 <div className="relative">
                   <select value={actType} onChange={e => setActType(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
-                    style={{ background: 'var(--c-bg)', color: '#fff', borderColor: 'var(--c-border-md)' }}>
-                    {ACTIVITY_TYPES.map(t => (
-                      <option key={t.value} value={t.value}>{t.emoji}  {t.label}</option>
+                    style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                    {activityTypes.map(t => (
+                      <option key={t.name} value={t.name} style={{ background: 'var(--c-surface)' }}>
+                        {t.emoji}  {t.label}
+                      </option>
                     ))}
                   </select>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
@@ -621,7 +618,7 @@ function ScheduledCard({ task, status, onDone }) {
             <span className="text-xs font-bold text-[var(--c-text-80)]">{task.plotLabel}</span>
             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
               style={{ background: color + '22', color }}>
-              {ACTIVITY_TYPES.find(t => t.value === task.type)?.label || task.type}
+              {task.label || task.type}
             </span>
             {isOverdue && (
               <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
@@ -649,7 +646,7 @@ function ScheduledCard({ task, status, onDone }) {
 
 // Grouped card for "Logged Today" — shows ALL activities per plot in one card
 function LoggedPlotCard({ group }) {
-  const { permanentStaff, regularLabourers } = useAppStore()
+  const { permanentStaff, regularLabourers, activityTypes } = useAppStore()
   const workerMap = useMemo(() => {
     const m = {}
     ;[...permanentStaff, ...regularLabourers].forEach(w => { m[w.id] = w.name })
@@ -674,7 +671,7 @@ function LoggedPlotCard({ group }) {
       <div className="space-y-2.5">
         {group.activities.map(a => {
           const color    = ACT_COLOR[a.type] || '#6b7280'
-          const typeInfo = ACTIVITY_TYPES.find(t => t.value === a.type)
+          const typeInfo = activityTypes.find(t => t.name === a.type)
           const names    = (a.regularWorkerIds || []).map(id => workerMap[id]).filter(Boolean)
           const outside  = a.outsideLabourCount || 0
 

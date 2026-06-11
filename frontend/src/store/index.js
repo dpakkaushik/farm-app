@@ -202,6 +202,7 @@ const useAppStore = create((set, get) => ({
   regularLabourers:  [],   // sub_type = 'regular'   — per-day rate, attendance tracked
   contractualLabour: [],   // sub_type = 'contractual' — per-day rate, count only
   workTypes:         [],   // work_types table — admin-managed labels, no rate
+  activityTypes:     [],   // activity_types table — admin-managed (system + custom)
   purchases:         [],
   issues:            [],
   labourLogs:        [],
@@ -234,6 +235,7 @@ const useAppStore = create((set, get) => ({
         { data: attendanceRaw },
         { data: advancesRaw },
         { data: workTypesRaw },
+        { data: activityTypesRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -264,6 +266,7 @@ const useAppStore = create((set, get) => ({
           .eq('is_recovered', false)
           .order('advance_date', { ascending: false }),
         supabase.from('work_types').select('*').eq('is_active', true).order('name'),
+        supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order'),
       ])
 
       const tpl = templates || []
@@ -291,6 +294,7 @@ const useAppStore = create((set, get) => ({
         ),
         advances:          (advancesRaw || []).map(mapAdvance),
         workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
+        activityTypes:     (activityTypesRaw || []).map(a => ({ id: a.id, name: a.name, label: a.label, emoji: a.emoji, isSystem: a.is_system })),
         loading:           false,
         initialized:       true,
       })
@@ -715,6 +719,21 @@ const useAppStore = create((set, get) => ({
     const { error } = await supabase.from('work_types').delete().eq('id', id)
     if (error) throw error
     set(s => ({ workTypes: s.workTypes.filter(w => w.id !== id) }))
+  },
+
+  addActivityType: async ({ label, emoji }) => {
+    const name = label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+    const { data, error } = await supabase.from('activity_types')
+      .insert({ name, label: label.trim(), emoji: emoji || '📋', is_system: false })
+      .select().single()
+    if (error) throw error
+    set(s => ({ activityTypes: [...s.activityTypes, { id: data.id, name: data.name, label: data.label, emoji: data.emoji, isSystem: false }] }))
+  },
+
+  deleteActivityType: async (id) => {
+    const { error } = await supabase.from('activity_types').update({ is_active: false }).eq('id', id)
+    if (error) throw error
+    set(s => ({ activityTypes: s.activityTypes.filter(a => a.id !== id) }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────

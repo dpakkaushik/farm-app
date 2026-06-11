@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 
-const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Plots', 'Users']
+const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users']
 
 const PALETTE_COLORS = [
   '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
@@ -42,6 +42,7 @@ export default function Admin() {
         {tab === 'Cycles'    && <CyclesMaster />}
         {tab === 'Inventory' && <InventoryMaster />}
         {tab === 'Manpower'  && <LabourMaster />}
+        {tab === 'Activity'  && <ActivityTypesMaster />}
         {tab === 'Plots'     && <PlotsMaster />}
         {tab === 'Users'     && <UsersMaster />}
       </div>
@@ -355,6 +356,104 @@ function InventoryMaster() {
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast} type={toastType} />}
       <Style />
+    </div>
+  )
+}
+
+// ── Activity Types ────────────────────────────────────────────────────────────
+const ACT_EMOJIS = ['💧','🌿','🧪','🧴','🚜','🌱','🌾','🔧','🌻','📅','📋','✂️','🌊','🪣','⚗️','🧹','🌡️','🐛','🔥','💊']
+
+function ActivityTypesMaster() {
+  const { activityTypes, addActivityType, deleteActivityType } = useAppStore()
+  const [form,    setForm]    = useState(null)
+  const [saving,  setSaving]  = useState(false)
+  const [confirm, setConfirm] = useState(null)
+  const [toast,   setToast]   = useState(null)
+
+  const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
+
+  const save = async () => {
+    if (!form?.label?.trim()) return
+    setSaving(true)
+    try { await addActivityType({ label: form.label, emoji: form.emoji || '📋' }); setForm(null); showToast('Activity type added ✓') }
+    catch (e) { showToast(e.message, 'warn') }
+    setSaving(false)
+  }
+
+  const del = (id, label) => setConfirm({
+    title: `Remove "${label}"?`, message: 'Existing logged activities keep their type name. Only removed from future dropdowns.',
+    onConfirm: async () => { setConfirm(null); try { await deleteActivityType(id); showToast('Removed') } catch (e) { showToast(e.message, 'warn') } },
+  })
+
+  const systemTypes = activityTypes.filter(a => a.isSystem)
+  const customTypes = activityTypes.filter(a => !a.isSystem)
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
+      {toast && <Toast msg={toast.m} type={toast.type} />}
+
+      <p className="text-[11px] text-[var(--c-faint)] px-1">
+        Activity types used in Log Activity and crop templates. System types cannot be removed. Add custom types below.
+      </p>
+
+      {/* System types — display only */}
+      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">System (built-in)</p>
+      <div className="flex flex-wrap gap-2">
+        {systemTypes.map(a => (
+          <span key={a.id} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border"
+            style={{ background: 'var(--c-card)', borderColor: 'var(--c-border-md)', color: 'var(--c-sub)' }}>
+            {a.emoji} {a.label}
+          </span>
+        ))}
+      </div>
+
+      {/* Custom types */}
+      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mt-2">Custom</p>
+      <button onClick={() => setForm({ label: '', emoji: '📋' })}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        <Plus size={14} /> Add Custom Activity Type
+      </button>
+
+      {form !== null && (
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#1D9E75]">New Activity Type</p>
+          <FRow label="Name">
+            <input className="finput" placeholder="e.g. Land Levelling"
+              value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && save()} />
+          </FRow>
+          <FRow label="Icon">
+            <div className="flex flex-wrap gap-1.5">
+              {ACT_EMOJIS.map(e => (
+                <button key={e} onClick={() => setForm(p => ({ ...p, emoji: e }))}
+                  className={`text-lg p-1 rounded-lg border transition-all ${form.emoji === e ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : 'border-[var(--c-border-md)]'}`}>
+                  {e}
+                </button>
+              ))}
+            </div>
+          </FRow>
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving || !form.label.trim()}
+              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {customTypes.map(a => (
+        <div key={a.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] px-4 py-3 flex items-center justify-between">
+          <p className="text-sm font-semibold text-[var(--c-text)]">{a.emoji} {a.label}</p>
+          <button onClick={() => del(a.id, a.label)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
+            <Trash2 size={15} />
+          </button>
+        </div>
+      ))}
+      {customTypes.length === 0 && !form && (
+        <p className="text-xs text-[var(--c-faint)] text-center py-2">No custom types yet.</p>
+      )}
     </div>
   )
 }

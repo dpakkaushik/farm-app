@@ -118,10 +118,12 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             cropCycleId:    wForm.cycleId || null,
             date:           wForm.date,
             workers:        1,
-            ratePerDay:     person.ratePerDay || person.monthlySalary || 0,
+            ratePerDay:     person.ratePerDay || 0,
             totalCost:      person.ratePerDay || 0,
             purpose:        workType?.name || 'Work',
             workTypeId:     wForm.workTypeId,
+            contractType:   'per_day',
+            contractQty:    1,
           })
         }
         showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
@@ -334,18 +336,21 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
           {/* Regular: select named workers */}
           {wForm.workerType === 'regular' && (() => {
-            const allNamed = [
-              ...permanentStaff.map(s  => ({ ...s, tag: '🏢' })),
-              ...regularLabourers.map(l => ({ ...l, tag: '👷' })),
-            ]
-            if (allNamed.length === 0) return (
-              <p className="text-xs text-[var(--c-faint)] text-center py-2">No regular workers added in Admin.</p>
+            const presentWorkers = [
+              ...permanentStaff.map(s  => ({ ...s, tag: '🏢', rate: s.ratePerDay || 0 })),
+              ...regularLabourers.map(l => ({ ...l, tag: '👷', rate: l.ratePerDay || 0 })),
+            ].filter(w => {
+              const att = attendance[w.id]
+              return att?.status === 'present' || att?.status === 'half_day'
+            })
+            if (presentWorkers.length === 0) return (
+              <p className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
             )
             return (
               <div>
-                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Select Workers</p>
+                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Select Workers (present today · ₹/day from master)</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {allNamed.map(w => {
+                  {presentWorkers.map(w => {
                     const sel = wForm.selectedWorkers.has(w.id)
                     return (
                       <button key={w.id}
@@ -361,6 +366,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                           color:       sel ? '#1D9E75'   : 'var(--c-sub)',
                         }}>
                         {w.tag} {w.name}
+                        <span className="text-[9px] opacity-60 ml-0.5">₹{w.rate}</span>
                       </button>
                     )
                   })}
