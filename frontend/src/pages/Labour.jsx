@@ -188,18 +188,19 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
   }, [selMonth])
 
   const workerSalary = useMemo(() => {
+    const daysInMonth = new Date(selMonth.getFullYear(), selMonth.getMonth() + 1, 0).getDate()
     const all = [...permanentStaff, ...regularLabourers]
     return Object.fromEntries(all.map(w => {
-      const attRecs     = monthAtt.filter(a => a.labour_master_id === w.id)
-      const attPay      = w.ratePerDay
-        ? attRecs.reduce((s, a) => s + (a.status === 'present' ? w.ratePerDay : a.status === 'half_day' ? w.ratePerDay / 2 : 0), 0)
-        : (w.monthlySalary || 0)
+      const attRecs = monthAtt.filter(a => a.labour_master_id === w.id)
+      const dailyRate = w.ratePerDay || (w.monthlySalary ? w.monthlySalary / daysInMonth : 0)
+      const attPay  = attRecs.reduce((s, a) =>
+        s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0)
       const contractPay = monthLogs.filter(l => l.labour_master_id === w.id)
         .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
-      const attByDate   = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
+      const attByDate = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
       return [w.id, { attPay, contractPay, total: attPay + contractPay, attByDate }]
     }))
-  }, [monthAtt, monthLogs, permanentStaff, regularLabourers])
+  }, [monthAtt, monthLogs, permanentStaff, regularLabourers, selMonth])
 
   const markAttendance = async (labourId, status) => {
     if (attendance[labourId]?.status === status) return
@@ -208,7 +209,13 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       { labour_master_id: labourId, attendance_date: TODAY_STR, status },
       { onConflict: 'labour_master_id,attendance_date' }
     ).select().single()
-    if (!error) setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
+    if (!error) {
+      setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
+      setMonthAtt(prev => {
+        const other = prev.filter(a => !(a.labour_master_id === labourId && a.attendance_date === TODAY_STR))
+        return [...other, { id: data?.id, labour_master_id: labourId, attendance_date: TODAY_STR, status }]
+      })
+    }
     setSavingAtt(s => ({ ...s, [labourId]: false }))
   }
 
