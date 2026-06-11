@@ -62,7 +62,7 @@ export default function Labour() {
 const EMPTY_WFORM = { workTypeId: '', workerType: 'contractual', selectedWorkers: new Set(), workerCount: '', contractType: '', contractQty: '', rate: '', cycleId: '', date: TODAY_STR }
 
 function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
-  const { activityTypes } = useAppStore()
+  const { activityTypes, syncAttendancePay } = useAppStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
@@ -94,7 +94,10 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       { labour_master_id: labourId, attendance_date: TODAY_STR, status },
       { onConflict: 'labour_master_id,attendance_date' }
     ).select().single()
-    if (!error) setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
+    if (!error) {
+      setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
+      await syncAttendancePay(labourId, status, TODAY_STR)
+    }
     setSavingAtt(s => ({ ...s, [labourId]: false }))
   }
 
@@ -106,53 +109,29 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     setSaving(true)
     try {
       if (wForm.workerType === 'regular') {
-        if (!wForm.selectedWorkers.size) return showToast('Select at least one worker', 'warn')
-        const allNamed = [...permanentStaff, ...regularLabourers]
-        if (wForm.contractType === 'per_day') {
-          for (const wid of wForm.selectedWorkers) {
-            const person = allNamed.find(p => p.id === wid)
-            if (!person) continue
-            await logLabour({
-              labourType:     'regular',
-              labourMasterId: person.id,
-              labourName:     person.name,
-              plotId:         cycle?.plotId || null,
-              cropCycleId:    wForm.cycleId || null,
-              date:           wForm.date,
-              workers:        1,
-              ratePerDay:     person.ratePerDay || 0,
-              totalCost:      person.ratePerDay || 0,
-              purpose:        workType?.label || 'Work',
-              workTypeId:     wForm.workTypeId,
-              contractType:   'per_day',
-              contractQty:    1,
-            })
-          }
-          showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
-        } else {
-          const qty    = parseFloat(wForm.contractQty)
-          const rate   = parseFloat(wForm.rate)
-          if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
-          const [wid]  = wForm.selectedWorkers
-          const person = allNamed.find(p => p.id === wid)
-          if (!person) return showToast('Select a worker', 'warn')
-          await logLabour({
-            labourType:     'regular',
-            labourMasterId: person.id,
-            labourName:     person.name,
-            plotId:         cycle?.plotId || null,
-            cropCycleId:    wForm.cycleId || null,
-            date:           wForm.date,
-            workers:        1,
-            ratePerDay:     rate,
-            totalCost:      qty * rate,
-            purpose:        workType?.label || 'Work',
-            workTypeId:     wForm.workTypeId,
-            contractType:   wForm.contractType,
-            contractQty:    qty,
-          })
-          showToast('Work logged ✓')
-        }
+        if (!wForm.selectedWorkers.size) return showToast('Select a worker', 'warn')
+        const qty    = parseFloat(wForm.contractQty)
+        const rate   = parseFloat(wForm.rate)
+        if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
+        const [wid]  = wForm.selectedWorkers
+        const person = [...permanentStaff, ...regularLabourers].find(p => p.id === wid)
+        if (!person) return showToast('Select a worker', 'warn')
+        await logLabour({
+          labourType:     'regular',
+          labourMasterId: person.id,
+          labourName:     person.name,
+          plotId:         cycle?.plotId || null,
+          cropCycleId:    wForm.cycleId || null,
+          date:           wForm.date,
+          workers:        1,
+          ratePerDay:     rate,
+          totalCost:      qty * rate,
+          purpose:        workType?.label || 'Work',
+          workTypeId:     wForm.workTypeId,
+          contractType:   wForm.contractType,
+          contractQty:    qty,
+        })
+        showToast('Work logged ✓')
       } else {
         const workers = parseFloat(wForm.workerCount) || 0
         const qty     = parseFloat(wForm.contractQty)
@@ -361,7 +340,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           {/* Contract Type — always second, for both worker types */}
           <FRow label="Contract Type">
             <div className="grid grid-cols-3 gap-1.5">
-              {CONTRACT_TYPES.map(ct => (
+              {(wForm.workerType === 'regular' ? CONTRACT_TYPES.filter(ct => ct.value !== 'per_day') : CONTRACT_TYPES).map(ct => (
                 <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value, selectedWorkers: new Set(), contractQty: '', rate: '' }))}
                   className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
                   style={{
@@ -433,12 +412,6 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             )
           })()}
 
-          {/* Per Day + Regular: rate info */}
-          {wForm.workerType === 'regular' && wForm.contractType === 'per_day' && (
-            <div className="bg-[#1D9E75]/8 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
-              <p className="text-[10px] text-[#1D9E75]">✓ Rate pulled from each worker's master record (daily_base_rate)</p>
-            </div>
-          )}
 
           {/* Qty + Rate — for contractual (all types) or regular (non-per_day) */}
           {wForm.contractType && (wForm.workerType === 'contractual' || wForm.contractType !== 'per_day') && (() => {

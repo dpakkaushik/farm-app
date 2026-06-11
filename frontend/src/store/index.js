@@ -709,6 +709,40 @@ const useAppStore = create((set, get) => ({
     set(s => ({ labourLogs: [mapLabourLog(data), ...s.labourLogs] }))
   },
 
+  syncAttendancePay: async (labourId, status, date) => {
+    const { permanentStaff, regularLabourers } = get()
+    const worker = [...permanentStaff, ...regularLabourers].find(w => w.id === labourId)
+    if (!worker) return
+    await supabase.from('labour_logs')
+      .delete()
+      .eq('labour_master_id', labourId)
+      .eq('activity_date', date)
+      .eq('contract_type', 'per_day')
+    set(s => ({
+      labourLogs: s.labourLogs.filter(l =>
+        !(l.labourMasterId === labourId && l.date === date && l.contractType === 'per_day')
+      )
+    }))
+    if (status !== 'present' && status !== 'half_day') return
+    const rate  = worker.ratePerDay || 0
+    const qty   = status === 'half_day' ? 0.5 : 1
+    const { data, error } = await supabase.from('labour_logs').insert({
+      labour_type:      'regular',
+      labour_master_id: labourId,
+      labour_name:      worker.name,
+      work_type:        'Per Day',
+      work_type_id:     null,
+      activity_date:    date,
+      quantity:         1,
+      quantity_unit:    'workers',
+      base_rate:        rate,
+      total_payment:    rate * qty,
+      contract_type:    'per_day',
+      contract_qty:     qty,
+    }).select('*, plots(name)').single()
+    if (!error) set(s => ({ labourLogs: [mapLabourLog(data), ...s.labourLogs] }))
+  },
+
   addWorkType: async (name) => {
     const { data, error } = await supabase.from('work_types').insert({ name }).select().single()
     if (error) throw error
