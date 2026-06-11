@@ -62,7 +62,7 @@ export default function Labour() {
 const EMPTY_WFORM = { workTypeId: '', workerType: 'contractual', selectedWorkers: new Set(), workerCount: '', contractType: '', contractQty: '', rate: '', cycleId: '', date: TODAY_STR }
 
 function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
-  const { workTypes } = useAppStore()
+  const { activityTypes } = useAppStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
@@ -101,7 +101,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
   const submitWork = async () => {
     if (!wForm.workTypeId) return showToast('Select a work type', 'warn')
     const cycle    = cropCycles.find(c => c.id === wForm.cycleId)
-    const workType = workTypes.find(w => w.id === wForm.workTypeId)
+    const workType = activityTypes.find(a => a.name === wForm.workTypeId)
     setSaving(true)
     try {
       if (wForm.workerType === 'regular') {
@@ -120,7 +120,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             workers:        1,
             ratePerDay:     person.ratePerDay || 0,
             totalCost:      person.ratePerDay || 0,
-            purpose:        workType?.name || 'Work',
+            purpose:        workType?.label || 'Work',
             workTypeId:     wForm.workTypeId,
             contractType:   'per_day',
             contractQty:    1,
@@ -135,14 +135,14 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         if (!qty || !rate)       return showToast('Fill quantity and rate', 'warn')
         await logLabour({
           labourType:   'contractual',
-          labourName:   workType?.name || 'Contractual',
+          labourName:   workType?.label || 'Contractual',
           plotId:       cycle?.plotId || null,
           cropCycleId:  wForm.cycleId || null,
           date:         wForm.date,
           workers,
           ratePerDay:   rate,
           totalCost:    qty * rate,
-          purpose:      workType?.name || 'Contractual work',
+          purpose:      workType?.label || 'Contractual work',
           workTypeId:   wForm.workTypeId,
           contractType: wForm.contractType,
           contractQty:  qty,
@@ -311,9 +311,8 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           <FRow label="Work Type">
             <select className="finput" value={wForm.workTypeId} onChange={e => setWForm(p => ({ ...p, workTypeId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               <option value="" style={{ background: 'var(--c-surface)' }}>Select work type…</option>
-              {workTypes.map(w => <option key={w.id} value={w.id} style={{ background: 'var(--c-surface)' }}>{w.name}</option>)}
+              {activityTypes.map(a => <option key={a.name} value={a.name} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
             </select>
-            {workTypes.length === 0 && <p className="text-[10px] text-[#BA7517] mt-1">Add work types in Admin → Manpower → Contract tab.</p>}
           </FRow>
 
           {/* Regular vs Contractual toggle */}
