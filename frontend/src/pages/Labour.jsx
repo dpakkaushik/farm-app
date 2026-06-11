@@ -242,7 +242,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0)
       const contractPay = curMonthLogs.filter(l => l.labour_master_id === w.id)
         .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
-      return [w.id, { attPay, contractPay, total: attPay + contractPay }]
+      return [w.id, { attPay: Math.round(attPay), contractPay: Math.round(contractPay), total: Math.round(attPay + contractPay) }]
     }))
   }, [curMonthAtt, curMonthLogs, permanentStaff, regularLabourers])
 
@@ -434,7 +434,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       )}
                     </div>
                   </div>
-                  <button onClick={() => setExpandedWorker(expandedWorker === l.id ? null : l.id)}
+                  <button onClick={e => { e.stopPropagation(); setExpandedWorker(expandedWorker === l.id ? null : l.id) }}
                     className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all hover:bg-[var(--c-ghost)]"
                     style={{ borderColor: 'var(--c-border-md)', color: 'var(--c-muted)' }}>
                     <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: expandedWorker === l.id ? 'rotate(180deg)' : 'rotate(0deg)', fontSize: 10 }}>▼</span>
