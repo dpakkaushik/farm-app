@@ -104,6 +104,20 @@ export default function Field() {
   const [weatherExpanded, setWeatherExpanded] = useState(false)
   const [cropPanelOpen,   setCropPanelOpen]   = useState(false)
 
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const { totalWorkers: todayWorkers, fieldCount: todayFields } = useMemo(() => {
+    const todays = activities.filter(a => a.date === todayStr)
+    const namedIds = new Set()
+    let outside = 0
+    const plotIds = new Set()
+    todays.forEach(a => {
+      ;(a.regularWorkerIds || []).forEach(id => namedIds.add(id))
+      outside += a.outsideLabourCount || 0
+      if (a.plotId) plotIds.add(a.plotId)
+    })
+    return { totalWorkers: namedIds.size + outside, fieldCount: plotIds.size }
+  }, [activities, todayStr])
+
   useEffect(() => {
     fetch('https://api.open-meteo.com/v1/forecast?latitude=28.5073&longitude=80.4863&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia/Kolkata&forecast_days=7')
       .then(r => r.json()).then(d => { setWeather(d.current); setForecast(d.daily) }).catch(() => {})
@@ -338,6 +352,11 @@ export default function Field() {
         {/* Greeting pill */}
         <div className="bg-black/70 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 self-start">
           <p className="text-white text-[11px] font-semibold">🌾 Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} · Pallia Farm</p>
+          {todayWorkers > 0 && (
+            <p className="text-white/60 text-[10px] mt-0.5 leading-tight">
+              👷 {todayWorkers} working · {todayFields} field{todayFields !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
 
         {/* Weather pill — tap to expand */}
