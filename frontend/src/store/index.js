@@ -82,14 +82,16 @@ function mapIssue(i) {
 
 function mapActivity(a) {
   return {
-    id:          a.id,
-    cropCycleId: a.cycle_id,
-    plotId:      a.plot_id,
-    plotLabel:   a.plots?.name || '',
-    type:        a.activity_type,
-    notes:       a.activity_name || '',
-    date:        a.actual_date || a.created_at?.slice(0, 10),
-    workers:     a.worker_count || 0,
+    id:                 a.id,
+    cropCycleId:        a.cycle_id,
+    plotId:             a.plot_id,
+    plotLabel:          a.plots?.name || '',
+    type:               a.activity_type,
+    notes:              a.activity_name || '',
+    date:               a.actual_date || a.created_at?.slice(0, 10),
+    workers:            a.worker_count || 0,
+    regularWorkerIds:   a.regular_worker_ids || [],
+    outsideLabourCount: a.outside_labour_count || 0,
   }
 }
 
@@ -702,14 +704,16 @@ const useAppStore = create((set, get) => ({
     if (!cycleId && !isEvent) return  // non-events require a cycle
 
     const { data, error } = await supabase.from('activity_logs').insert({
-      cycle_id:      cycleId,
-      plot_id:       act.plotId || null,
-      activity_type: act.type,
-      activity_name: act.notes || act.label || act.type,
-      actual_date:   act.date || new Date().toISOString().slice(0, 10),
-      worker_count:  act.workers || 0,
-      status:        'done',
-      notes:         act.notes || null,
+      cycle_id:             cycleId,
+      plot_id:              act.plotId || null,
+      activity_type:        act.type,
+      activity_name:        act.notes || act.label || act.type,
+      actual_date:          act.date || new Date().toISOString().slice(0, 10),
+      worker_count:         act.workers || 0,
+      regular_worker_ids:   act.regularWorkerIds   || [],
+      outside_labour_count: act.outsideLabourCount || 0,
+      status:               'done',
+      notes:                act.notes || null,
     }).select('*, plots(name)').single()
     if (error) { console.error('logActivity:', error.message); return }
 
@@ -725,14 +729,16 @@ const useAppStore = create((set, get) => ({
       const cycle   = cropCycles.find(c => c.plotId === plotId && c.status === 'active')
       if (!cycle && !isEvent) return null   // events don't need a cycle
       return {
-        cycle_id:      cycle?.id || null,
-        plot_id:       plotId === '__all__' ? null : plotId,
-        activity_type: actData.type,
-        activity_name: actData.notes || actData.type,
-        actual_date:   actData.date || today,
-        worker_count:  actData.workers || 0,
-        status:        'done',
-        notes:         actData.notes || null,
+        cycle_id:             cycle?.id || null,
+        plot_id:              plotId === '__all__' ? null : plotId,
+        activity_type:        actData.type,
+        activity_name:        actData.notes || actData.type,
+        actual_date:          actData.date || today,
+        worker_count:         actData.workers         || 0,
+        regular_worker_ids:   actData.regularWorkerIds   || [],
+        outside_labour_count: actData.outsideLabourCount || 0,
+        status:               'done',
+        notes:                actData.notes || null,
       }
     }).filter(Boolean)
 

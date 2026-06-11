@@ -183,10 +183,23 @@ export default function Dashboard() {
   return (
     <div className="h-full overflow-y-auto bg-[#0f1117] p-4 space-y-4 pb-8">
 
-      {/* Greeting */}
-      <div>
-        <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
-        <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
+      {/* Greeting + Live View */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
+          <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
+        </div>
+        <a
+          href="gcmob://"
+          className="flex items-center gap-1.5 bg-[#E24B4A]/15 border border-[#E24B4A]/30 rounded-xl px-3 py-2 active:scale-95 transition-transform shrink-0"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E24B4A] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E24B4A]" />
+          </span>
+          <span className="text-[11px] font-bold text-[#E24B4A] tracking-widest">LIVE</span>
+          <span className="text-sm">📹</span>
+        </a>
       </div>
 
       {/* Alert banner */}

@@ -1,54 +1,66 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, MapPin, HardHat } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 
-const getTodayStr = () => new Date().toISOString().slice(0, 10)
-const getTodayDate = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
-const TODAY_DATE = getTodayDate()
-const TODAY_STR  = getTodayStr()
+const getTodayStr  = () => new Date().toISOString().slice(0, 10)
+const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
+const TODAY_DATE   = getTodayDate()
+const TODAY_STR    = getTodayStr()
 
 const ACTIVITY_TYPES = [
-  { value: 'irrigation',    label: 'Irrigation',          emoji: '💧' },
-  { value: 'weeding',       label: 'Weeding',             emoji: '🌿' },
-  { value: 'fertilizer',    label: 'Fertilizer',          emoji: '🧪' },
-  { value: 'spray',         label: 'Spray / Pesticide',   emoji: '🧴' },
-  { value: 'ploughing',     label: 'Ploughing',           emoji: '🚜' },
-  { value: 'sowing',        label: 'Sowing',              emoji: '🌱' },
-  { value: 'harvesting',    label: 'Harvesting',          emoji: '🌾' },
-  { value: 'intercultural', label: 'Intercultural Ops',   emoji: '🔧' },
-  { value: 'events',        label: 'Events',              emoji: '📅' },
-  { value: 'other',         label: 'Other',               emoji: '📋' },
+  { value: 'irrigation',    label: 'Irrigation',             emoji: '💧' },
+  { value: 'weeding',       label: 'Weeding',                emoji: '🌿' },
+  { value: 'fertilizer',    label: 'Fertilizer',             emoji: '🧪' },
+  { value: 'spray',         label: 'Spray / Pesticide',      emoji: '🧴' },
+  { value: 'ploughing',     label: 'Ploughing',              emoji: '🚜' },
+  { value: 'sowing',        label: 'Sowing',                 emoji: '🌱' },
+  { value: 'harvesting',    label: 'Harvesting',             emoji: '🌾' },
+  { value: 'intercultural', label: 'Intercultural Ops',      emoji: '🔧' },
+  { value: 'crop_ops',      label: 'Other Crop Related Ops', emoji: '🌻' },
+  { value: 'events',        label: 'Events',                 emoji: '📅' },
+  { value: 'other',         label: 'Other',                  emoji: '📋' },
 ]
 
 const ACT_EMOJI = {
   irrigation: '💧', weeding: '🌿', fertilizer: '🧪', spray: '🧴',
   pesticide: '🧴', ploughing: '🚜', sowing: '🌱', harvesting: '🌾',
-  harvest: '🌾', intercultural: '🔧', events: '📅', other: '📋',
+  harvest: '🌾', intercultural: '🔧', crop_ops: '🌻', events: '📅', other: '📋',
 }
 const ACT_COLOR = {
   irrigation: '#3b82f6', weeding: '#f97316', fertilizer: '#a855f7',
   spray: '#ef4444', pesticide: '#ef4444', ploughing: '#f59e0b',
   sowing: '#34d399', harvesting: '#1D9E75', harvest: '#1D9E75',
-  intercultural: '#64748b', events: '#ec4899', other: '#6b7280',
+  intercultural: '#64748b', crop_ops: '#22c55e', events: '#ec4899', other: '#6b7280',
 }
 
 export default function Today() {
-  const { cropCycles, cropMaster, activities, plots, logActivity, logActivities } = useAppStore()
-
+  const {
+    cropCycles, cropMaster, activities, plots,
+    permanentStaff, regularLabourers,
+    logActivity, logActivities,
+  } = useAppStore()
   const { profile } = useAuthStore()
-  const hour = new Date().getHours()
+
+  const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const [showModal, setShowModal]   = useState(false)
-  const [selPlots,  setSelPlots]    = useState(new Set())
-  const [actType,   setActType]     = useState('irrigation')
-  const [actWorkers,setActWorkers]  = useState(0)
-  const [actNotes,  setActNotes]    = useState('')
-  const [doneTasks, setDoneTasks]   = useState(new Set())
-  const [showHistory, setShowHistory] = useState(false)
-  const [saving,    setSaving]      = useState(false)
+  const [showModal,     setShowModal]     = useState(false)
+  const [selPlots,      setSelPlots]      = useState(new Set())
+  const [actType,       setActType]       = useState('irrigation')
+  const [selWorkers,    setSelWorkers]    = useState(new Set())  // labour_master IDs
+  const [outsideLabour, setOutsideLabour] = useState(0)          // headcount
+  const [actNotes,      setActNotes]      = useState('')
+  const [doneTasks,     setDoneTasks]     = useState(new Set())
+  const [showHistory,   setShowHistory]   = useState(false)
+  const [saving,        setSaving]        = useState(false)
+
+  // All named workers available for selection (staff + regular labourers)
+  const allNamedWorkers = useMemo(() => [
+    ...permanentStaff.map(s  => ({ id: s.id, name: s.name, tag: 'S' })),
+    ...regularLabourers.map(l => ({ id: l.id, name: l.name, tag: 'L' })),
+  ], [permanentStaff, regularLabourers])
 
   // Active plots (one per plot with an active cycle)
   const activePlots = useMemo(() => {
@@ -67,10 +79,8 @@ export default function Today() {
   // Scheduled tasks derived from crop templates
   const { overdue, todayTasks, tomorrow, upcoming } = useMemo(() => {
     const overdue = [], todayTasks = [], tomorrow = [], upcoming = []
+    const doneKeys = new Set(activities.map(a => `${a.plotId}|${a.type}|${a.date}`))
 
-    const doneKeys = new Set(
-      activities.map(a => `${a.plotId}|${a.type}|${a.date}`)
-    )
     const isAlreadyLogged = (plotId, type, scheduledDateStr) => {
       for (let offset = -7; offset <= 7; offset++) {
         const d = new Date(scheduledDateStr)
@@ -86,27 +96,21 @@ export default function Today() {
     cropCycles.filter(c => c.status === 'active').forEach(cycle => {
       const template = cropMaster.find(t => t.id === cycle.cropId)
       if (!template?.activities?.length) return
-      const sowDate = new Date(cycle.sowDate); sowDate.setHours(0, 0, 0, 0)
+      const sowDate    = new Date(cycle.sowDate); sowDate.setHours(0, 0, 0, 0)
       const dayInCycle = Math.floor((TODAY_DATE - sowDate) / 86400000)
 
       template.activities.forEach(act => {
-        const daysUntil = act.day - dayInCycle
-        const scheduledDate = new Date(sowDate.getTime() + act.day * 86400000)
+        const daysUntil      = act.day - dayInCycle
+        const scheduledDate  = new Date(sowDate.getTime() + act.day * 86400000)
         const scheduledDateStr = scheduledDate.toISOString().slice(0, 10)
 
         if (isAlreadyLogged(cycle.plotId, act.type, scheduledDateStr)) return
         if (doneTasks.has(`${cycle.id}-d${act.day}`)) return
 
         const task = {
-          id:        `${cycle.id}-d${act.day}`,
-          plotId:    cycle.plotId,
-          plotLabel: cycle.plotLabel,
-          cropName:  template.name,
-          label:     act.label,
-          type:      act.type,
-          day:       act.day,
-          daysUntil,
-          cycleId:   cycle.id,
+          id: `${cycle.id}-d${act.day}`, plotId: cycle.plotId, plotLabel: cycle.plotLabel,
+          cropName: template.name, label: act.label, type: act.type,
+          day: act.day, daysUntil, cycleId: cycle.id,
         }
         if      (daysUntil === 0)                   todayTasks.push(task)
         else if (daysUntil === 1)                   tomorrow.push(task)
@@ -117,20 +121,39 @@ export default function Today() {
     return { overdue, todayTasks, tomorrow, upcoming: upcoming.sort((a, b) => a.daysUntil - b.daysUntil) }
   }, [cropCycles, cropMaster, activities, doneTasks])
 
-  const loggedToday   = useMemo(() => activities.filter(a => a.date === TODAY_STR), [activities])
-  const pendingToday  = todayTasks.filter(t => !doneTasks.has(t.id))
-  const completedToday = todayTasks.filter(t => doneTasks.has(t.id))
+  const loggedToday    = useMemo(() => activities.filter(a => a.date === TODAY_STR), [activities])
+  const pendingToday   = todayTasks.filter(t => !doneTasks.has(t.id))
+  const completedToday = todayTasks.filter(t =>  doneTasks.has(t.id))
   const pendingOverdue = overdue.filter(t => !doneTasks.has(t.id))
+
+  // Today's labour summary across all logged activities
+  const todayRegularCount = useMemo(() => {
+    const ids = new Set()
+    loggedToday.forEach(a => (a.regularWorkerIds || []).forEach(id => ids.add(id)))
+    return ids.size
+  }, [loggedToday])
+
+  const todayOutsideTotal = useMemo(() =>
+    loggedToday.reduce((sum, a) => sum + (a.outsideLabourCount || 0), 0)
+  , [loggedToday])
+
+  // Group logged activities by plot — fixes multiple-activity-per-plot display
+  const loggedByPlot = useMemo(() => {
+    const map = new Map()
+    loggedToday.forEach(a => {
+      const key = a.plotId || '__event__'
+      if (!map.has(key)) map.set(key, { plotLabel: a.plotLabel || 'Event / Farm-wide', activities: [] })
+      map.get(key).activities.push(a)
+    })
+    return [...map.values()]
+  }, [loggedToday])
 
   const markDone = async (task) => {
     setDoneTasks(prev => new Set([...prev, task.id]))
     await logActivity({
-      plotId:      task.plotId,
-      cropCycleId: task.cycleId,
-      type:        task.type,
-      date:        TODAY_STR,
-      notes:       task.label,
-      workers:     0,
+      plotId: task.plotId, cropCycleId: task.cycleId,
+      type: task.type, date: TODAY_STR, notes: task.label,
+      workers: 0, regularWorkerIds: [], outsideLabourCount: 0,
     })
   }
 
@@ -139,27 +162,26 @@ export default function Today() {
     if (plotIds.length === 0) return
     setSaving(true)
     await logActivities(plotIds, {
-      type:    actType,
-      workers: actWorkers,
-      date:    getTodayStr(),
-      notes:   actNotes.trim(),
+      type:               actType,
+      workers:            selWorkers.size + outsideLabour,
+      regularWorkerIds:   [...selWorkers],
+      outsideLabourCount: outsideLabour,
+      date:               getTodayStr(),
+      notes:              actNotes.trim(),
     })
     setSaving(false)
     setShowModal(false)
     setSelPlots(new Set())
+    setSelWorkers(new Set())
+    setOutsideLabour(0)
     setActType('irrigation')
-    setActWorkers(0)
     setActNotes('')
   }
 
-  const togglePlot = (plotId) =>
-    setSelPlots(prev => {
-      const next = new Set(prev)
-      next.has(plotId) ? next.delete(plotId) : next.add(plotId)
-      return next
-    })
-
+  const togglePlot   = id => setSelPlots(prev   => { const n = new Set(prev);   n.has(id) ? n.delete(id) : n.add(id); return n })
+  const toggleWorker = id => setSelWorkers(prev  => { const n = new Set(prev);   n.has(id) ? n.delete(id) : n.add(id); return n })
   const totalScheduled = pendingOverdue.length + pendingToday.length + completedToday.length
+  const totalWorkers   = selWorkers.size + outsideLabour
 
   return (
     <div className="h-full overflow-y-auto bg-[#0f1117] pb-6">
@@ -167,7 +189,9 @@ export default function Today() {
       {/* Header */}
       <div className="px-4 pt-4 pb-2 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || 'there'} 👋</h1>
+          <h1 className="text-xl font-bold text-white">
+            {greeting}, {profile?.full_name?.split(' ')[0] || 'there'} 👋
+          </h1>
           <p className="text-sm text-white/40">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
         {isManager(profile) && (
@@ -180,13 +204,45 @@ export default function Today() {
         )}
       </div>
 
-      {/* Summary pills */}
-      {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0) && (
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
-          {pendingOverdue.length > 0 && <Pill count={pendingOverdue.length} label="Overdue"   color="#E24B4A" />}
-          {pendingToday.length > 0   && <Pill count={pendingToday.length}   label="Scheduled" color="#1D9E75" />}
-          {loggedToday.length > 0    && <Pill count={loggedToday.length}    label="Logged"    color="#3b82f6" />}
-          {completedToday.length > 0 && <Pill count={completedToday.length} label="Done"      color="#6b7280" dim />}
+      {/* Summary rows — Farm Activity + Manpower */}
+      {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0
+        || todayRegularCount > 0 || todayOutsideTotal > 0) && (
+        <div className="px-4 pb-3 space-y-2">
+
+          {/* Row 1 — Farm Activity */}
+          {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0 || completedToday.length > 0) && (
+            <div>
+              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1.5">
+                Farm Activity
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {pendingOverdue.length > 0 && <Pill count={pendingOverdue.length} label="Overdue"   color="#E24B4A" />}
+                {pendingToday.length > 0   && <Pill count={pendingToday.length}   label="Scheduled" color="#1D9E75" />}
+                {loggedToday.length > 0    && <Pill count={loggedToday.length}    label="Logged"    color="#3b82f6" />}
+                {completedToday.length > 0 && <Pill count={completedToday.length} label="Done"      color="#6b7280" dim />}
+              </div>
+            </div>
+          )}
+
+          {/* Row 2 — Manpower (only when workers are recorded) */}
+          {(todayRegularCount > 0 || todayOutsideTotal > 0) && (
+            <div>
+              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1.5">
+                Manpower
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {todayRegularCount > 0 && (
+                  <Pill count={todayRegularCount} label="Named Workers" color="#6366f1"
+                    icon={<Users size={11} />} />
+                )}
+                {todayOutsideTotal > 0 && (
+                  <Pill count={todayOutsideTotal} label="Outside Labour" color="#f59e0b"
+                    icon={<HardHat size={11} />} />
+                )}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -203,8 +259,8 @@ export default function Today() {
         {totalScheduled > 0 && (
           <Section title="Scheduled Today" color="#1D9E75"
             badge={pendingToday.length === 0 && todayTasks.length > 0 ? '✓ All done' : null}>
-            {pendingToday.map(t => (
-              <ScheduledCard key={t.id} task={t} status="today" onDone={() => markDone(t)} />
+            {pendingToday.map(t  => (
+              <ScheduledCard key={t.id} task={t} status="today"   onDone={() => markDone(t)} />
             ))}
             {completedToday.map(t => (
               <ScheduledCard key={t.id} task={t} status="done" />
@@ -212,9 +268,12 @@ export default function Today() {
           </Section>
         )}
 
-        {loggedToday.length > 0 && (
+        {/* Logged Today — grouped by plot so ALL activities per plot are clearly visible */}
+        {loggedByPlot.length > 0 && (
           <Section title="Logged Today" color="#3b82f6">
-            {loggedToday.map(a => <LoggedCard key={a.id} activity={a} />)}
+            {loggedByPlot.map(group => (
+              <LoggedPlotCard key={group.plotLabel} group={group} />
+            ))}
           </Section>
         )}
 
@@ -256,7 +315,7 @@ export default function Today() {
                 [...activities]
                   .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
                   .map(a => {
-                    const color = ACT_COLOR[a.type] || '#6b7280'
+                    const color    = ACT_COLOR[a.type] || '#6b7280'
                     const typeInfo = ACTIVITY_TYPES.find(t => t.value === a.type)
                     return (
                       <div key={a.id} className="flex items-center gap-3 px-4 py-3"
@@ -272,9 +331,20 @@ export default function Today() {
                               style={{ background: color + '20', color }}>
                               {typeInfo?.label || a.type}
                             </span>
-                            {a.workers > 0 && <span className="text-[9px] text-white/35">👷 {a.workers}</span>}
+                            {(a.regularWorkerIds?.length > 0) && (
+                              <span className="text-[9px] text-[#6366f1]/60">
+                                👥 {a.regularWorkerIds.length}
+                              </span>
+                            )}
+                            {(a.outsideLabourCount > 0) && (
+                              <span className="text-[9px] text-[#f59e0b]/60">
+                                👷 {a.outsideLabourCount}
+                              </span>
+                            )}
                           </div>
-                          {a.notes ? <p className="text-[11px] text-white/40 mt-0.5 truncate">{a.notes}</p> : null}
+                          {a.notes
+                            ? <p className="text-[11px] text-white/40 mt-0.5 truncate">{a.notes}</p>
+                            : null}
                         </div>
                         <span className="text-[10px] text-white/25 shrink-0">{a.date}</span>
                       </div>
@@ -294,7 +364,7 @@ export default function Today() {
         )}
       </div>
 
-      {/* Log Activity Modal */}
+      {/* ── Log Activity Modal ── */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center"
           style={{ background: 'rgba(0,0,0,0.7)' }}
@@ -316,17 +386,20 @@ export default function Today() {
               <div>
                 <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">
                   {actType === 'events' ? 'Tag (optional)' : 'Select Plots'}
-                  {actType !== 'events' && <span className="text-[#1D9E75] ml-1">({selPlots.size} selected)</span>}
+                  {actType !== 'events' && (
+                    <span className="text-[#1D9E75] ml-1">({selPlots.size} selected)</span>
+                  )}
                 </label>
 
                 {actType === 'events' ? (
-                  /* Events: All Farm + individual plots, no cycle needed */
                   <div className="flex flex-wrap gap-2">
-                    {[{ plotId: '__all__', label: 'All Farm', crop: '' }, ...plots.map(p => ({ plotId: p.id, label: p.name, crop: '' }))].map(p => {
+                    {[
+                      { plotId: '__all__', label: 'All Farm', crop: '' },
+                      ...plots.map(p => ({ plotId: p.id, label: p.name, crop: '' })),
+                    ].map(p => {
                       const sel = selPlots.has(p.plotId)
                       return (
                         <button key={p.plotId} onClick={() => {
-                          // "All Farm" is exclusive — selecting it clears others, selecting a plot clears All
                           if (p.plotId === '__all__') {
                             setSelPlots(sel ? new Set() : new Set(['__all__']))
                           } else {
@@ -349,7 +422,6 @@ export default function Today() {
                     })}
                   </div>
                 ) : (
-                  /* Other activities: only active-cycle plots */
                   <div className="flex flex-wrap gap-2">
                     {activePlots.map(p => {
                       const sel = selPlots.has(p.plotId)
@@ -375,7 +447,9 @@ export default function Today() {
 
               {/* Activity type */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">Activity Type</label>
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">
+                  Activity Type
+                </label>
                 <div className="relative">
                   <select value={actType} onChange={e => setActType(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
@@ -388,21 +462,78 @@ export default function Today() {
                 </div>
               </div>
 
-              {/* Workers */}
+              {/* Named Workers — multiselect */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">Workers</label>
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <Users size={12} style={{ color: '#6366f1' }} />
+                    Named Workers
+                    {selWorkers.size > 0 && (
+                      <span style={{ color: '#6366f1' }} className="ml-1">
+                        ({selWorkers.size} selected)
+                      </span>
+                    )}
+                  </span>
+                </label>
+                {allNamedWorkers.length === 0 ? (
+                  <p className="text-xs text-white/30 italic py-1">
+                    No named workers added yet — go to Manpower → Master
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {allNamedWorkers.map(w => {
+                      const sel = selWorkers.has(w.id)
+                      return (
+                        <button key={w.id} onClick={() => toggleWorker(w.id)}
+                          className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all"
+                          style={{
+                            background:  sel ? '#6366f120' : 'rgba(255,255,255,0.04)',
+                            borderColor: sel ? '#6366f1'   : 'rgba(255,255,255,0.1)',
+                            color:       sel ? '#6366f1'   : 'rgba(255,255,255,0.5)',
+                          }}>
+                          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                            style={{
+                              background: sel ? '#6366f140' : 'rgba(255,255,255,0.08)',
+                              color: sel ? '#6366f1' : 'rgba(255,255,255,0.4)',
+                            }}>
+                            {w.name.charAt(0).toUpperCase()}
+                          </span>
+                          {w.name.split(' ')[0]}
+                          <span className="text-[9px] opacity-40">·{w.tag}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Outside Labour — headcount stepper */}
+              <div>
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-1.5">
+                  <span className="flex items-center gap-1.5">
+                    <HardHat size={12} style={{ color: '#f59e0b' }} />
+                    Outside Labour
+                    <span className="font-normal normal-case text-white/30">(headcount)</span>
+                  </span>
+                </label>
                 <div className="flex items-center gap-0 rounded-xl border overflow-hidden w-40"
                   style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
-                  <button onClick={() => setActWorkers(w => Math.max(0, w - 1))}
+                  <button onClick={() => setOutsideLabour(n => Math.max(0, n - 1))}
                     className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
                     <ChevronDown size={16} />
                   </button>
-                  <span className="flex-1 text-center text-sm font-bold text-white">{actWorkers}</span>
-                  <button onClick={() => setActWorkers(w => w + 1)}
+                  <span className="flex-1 text-center text-sm font-bold text-white">{outsideLabour}</span>
+                  <button onClick={() => setOutsideLabour(n => n + 1)}
                     className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
                     <ChevronUp size={16} />
                   </button>
                 </div>
+                {totalWorkers > 0 && (
+                  <p className="text-[11px] text-white/40 mt-1.5">
+                    Total: {selWorkers.size} named + {outsideLabour} outside
+                    {' '}= <span className="text-white/60 font-semibold">{totalWorkers} workers</span>
+                  </p>
+                )}
               </div>
 
               {/* Notes */}
@@ -424,7 +555,9 @@ export default function Today() {
                   style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
                   Cancel
                 </button>
-                <button onClick={handleSubmit} disabled={(actType !== 'events' && selPlots.size === 0) || saving}
+                <button
+                  onClick={handleSubmit}
+                  disabled={(actType !== 'events' && selPlots.size === 0) || saving}
                   className="flex-1 py-3 rounded-xl text-sm font-bold transition-opacity disabled:opacity-40"
                   style={{ background: '#1D9E75', color: '#fff' }}>
                   {saving ? 'Saving…' : `Save${selPlots.size > 1 ? ` (${selPlots.size} plots)` : ''}`}
@@ -441,10 +574,13 @@ export default function Today() {
   )
 }
 
-function Pill({ count, label, color, dim }) {
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function Pill({ count, label, color, dim, icon }) {
   return (
     <div className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${dim ? 'opacity-40' : ''}`}
       style={{ background: color + '18', borderColor: color + '40' }}>
+      {icon && <span style={{ color }}>{icon}</span>}
       <span className="text-sm font-bold" style={{ color }}>{count}</span>
       <span className="text-xs font-medium" style={{ color }}>{label}</span>
     </div>
@@ -487,8 +623,12 @@ function ScheduledCard({ task, status, onDone }) {
               style={{ background: color + '22', color }}>
               {ACTIVITY_TYPES.find(t => t.value === task.type)?.label || task.type}
             </span>
-            {isOverdue && <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>}
-            {status === 'future' && <span className="text-[9px] text-white/30">in {task.daysUntil}d</span>}
+            {isOverdue && (
+              <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
+            )}
+            {status === 'future' && (
+              <span className="text-[9px] text-white/30">in {task.daysUntil}d</span>
+            )}
           </div>
           <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-white/30 line-through' : 'text-white/75'}`}>
             {task.label}
@@ -507,166 +647,76 @@ function ScheduledCard({ task, status, onDone }) {
   )
 }
 
-// ── Attendance Card ───────────────────────────────────────────────────────────
-const STATUS_CFG = {
-  present:  { label: 'P', color: '#1D9E75' },
-  half_day: { label: 'H', color: '#BA7517' },
-  absent:   { label: 'A', color: '#E24B4A' },
-}
-
-function AttendanceCard({ permanentStaff, regularLabourers, todayAttendance, markAttendance }) {
-  const [tab, setTab]             = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
-  const [collapsed, setCollapsed] = useState(false)
-  const [saving, setSaving]       = useState(null)
-
-  // Auto-switch tab if the active tab has no people and the other does
-  React.useEffect(() => {
-    if (tab === 'staff' && permanentStaff.length === 0 && regularLabourers.length > 0) setTab('labour')
-    if (tab === 'labour' && regularLabourers.length === 0 && permanentStaff.length > 0) setTab('staff')
-  }, [permanentStaff.length, regularLabourers.length])
-
-  const people      = tab === 'staff' ? permanentStaff : regularLabourers
-  const staffColor  = '#4169E1'
-  const labourColor = '#1D9E75'
-  const markedCount = Object.keys(todayAttendance).length
-
-  const handleMark = async (id, status) => {
-    if (todayAttendance[id]?.status === status) return
-    setSaving(id)
-    try { await markAttendance(id, status) } finally { setSaving(null) }
-  }
+// Grouped card for "Logged Today" — shows ALL activities per plot in one card
+function LoggedPlotCard({ group }) {
+  const { permanentStaff, regularLabourers } = useAppStore()
+  const workerMap = useMemo(() => {
+    const m = {}
+    ;[...permanentStaff, ...regularLabourers].forEach(w => { m[w.id] = w.name })
+    return m
+  }, [permanentStaff, regularLabourers])
 
   return (
-    <div className="rounded-2xl border border-white/8 overflow-hidden">
-      {/* Header */}
-      <button onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between px-4 py-3.5 bg-white/[0.03]">
-        <div className="flex items-center gap-2">
-          <Users size={14} className="text-white/40" />
-          <span className="text-xs font-bold text-white/60 uppercase tracking-wide">Attendance</span>
-          <span className="text-[10px] text-white/30">{format(new Date(), 'd MMM')}</span>
-          {markedCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-[#1D9E75]/20 text-[#1D9E75]">
-              {markedCount} marked
-            </span>
-          )}
-        </div>
-        <ChevronRight size={14} className="text-white/30 transition-transform"
-          style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)' }} />
-      </button>
+    <div className="rounded-2xl border p-3.5" style={{ background: '#0d1825', borderColor: '#3b82f630' }}>
+      {/* Plot header */}
+      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-white/8">
+        <MapPin size={11} style={{ color: '#3b82f6' }} className="shrink-0" />
+        <span className="text-xs font-bold text-white/80 flex-1">{group.plotLabel}</span>
+        {group.activities.length > 1 && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
+            style={{ background: '#3b82f620', color: '#3b82f6' }}>
+            {group.activities.length} ops
+          </span>
+        )}
+      </div>
 
-      {!collapsed && (
-        <div className="px-4 pb-4 pt-3">
-          {/* Prominent toggle buttons */}
-          <div className="flex gap-2 mb-4">
-            <button onClick={() => setTab('staff')}
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border"
-              style={{
-                background:  tab === 'staff' ? staffColor + '22' : 'rgba(255,255,255,0.04)',
-                borderColor: tab === 'staff' ? staffColor        : 'rgba(255,255,255,0.10)',
-                color:       tab === 'staff' ? staffColor        : 'rgba(255,255,255,0.35)',
-              }}>
-              🏢 Staff {permanentStaff.length > 0 ? `(${permanentStaff.length})` : ''}
-            </button>
-            <button onClick={() => setTab('labour')}
-              className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all border"
-              style={{
-                background:  tab === 'labour' ? labourColor + '22' : 'rgba(255,255,255,0.04)',
-                borderColor: tab === 'labour' ? labourColor        : 'rgba(255,255,255,0.10)',
-                color:       tab === 'labour' ? labourColor        : 'rgba(255,255,255,0.35)',
-              }}>
-              👷 Labour {regularLabourers.length > 0 ? `(${regularLabourers.length})` : ''}
-            </button>
-          </div>
+      {/* One row per activity */}
+      <div className="space-y-2.5">
+        {group.activities.map(a => {
+          const color    = ACT_COLOR[a.type] || '#6b7280'
+          const typeInfo = ACTIVITY_TYPES.find(t => t.value === a.type)
+          const names    = (a.regularWorkerIds || []).map(id => workerMap[id]).filter(Boolean)
+          const outside  = a.outsideLabourCount || 0
 
-          {people.length === 0 ? (
-            <p className="text-xs text-white/30 text-center py-4 italic">
-              No {tab === 'staff' ? 'permanent staff' : 'regular labour'} added yet —
-              go to Admin → Labour → {tab === 'staff' ? 'Staff' : 'Regular'}
-            </p>
-          ) : (
-            <div className="space-y-2.5">
-              {people.map(person => {
-                const current  = todayAttendance[person.id]?.status
-                const isSaving = saving === person.id
-                const avatarColor = tab === 'staff' ? staffColor : labourColor
-                return (
-                  <div key={person.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: avatarColor + '20', color: avatarColor }}>
-                      {person.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">{person.name}</p>
-                      <p className="text-[10px] text-white/30">
-                        {person.designation || person.workType || '—'}
-                        {tab === 'staff' && person.monthlySalary ? ` · ₹${person.monthlySalary}/mo` : ''}
-                        {tab === 'labour' && person.ratePerDay   ? ` · ₹${person.ratePerDay}/day`   : ''}
-                      </p>
-                    </div>
-                    <div className="flex gap-1.5 shrink-0">
-                      {Object.entries(STATUS_CFG).map(([s, cfg]) => {
-                        const isActive = current === s
-                        return (
-                          <button key={s} onClick={() => handleMark(person.id, s)}
-                            disabled={isSaving}
-                            className="w-8 h-8 rounded-lg text-[11px] font-bold border transition-all disabled:opacity-40"
-                            style={{
-                              background:  isActive ? cfg.color + '28' : 'rgba(255,255,255,0.04)',
-                              borderColor: isActive ? cfg.color        : 'rgba(255,255,255,0.10)',
-                              color:       isActive ? cfg.color        : 'rgba(255,255,255,0.28)',
-                            }}>
-                            {isSaving ? '…' : cfg.label}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Legend */}
-          <div className="flex gap-3 flex-wrap mt-3 pt-3 border-t border-white/6">
-            {Object.entries(STATUS_CFG).map(([s, cfg]) => (
-              <div key={s} className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center"
-                  style={{ background: cfg.color + '25', color: cfg.color, border: `1px solid ${cfg.color}` }}>
-                  {cfg.label}
-                </div>
-                <span className="text-[10px] text-white/30 capitalize">{s.replace('_', ' ')}</span>
+          return (
+            <div key={a.id} className="flex items-start gap-2.5">
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5"
+                style={{ background: color + '20' }}>
+                {ACT_EMOJI[a.type] || '📋'}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function LoggedCard({ activity }) {
-  const color    = ACT_COLOR[activity.type] || '#6b7280'
-  const typeInfo = ACTIVITY_TYPES.find(t => t.value === activity.type)
-  return (
-    <div className="rounded-2xl border p-3.5"
-      style={{ background: '#0d1825', borderColor: '#3b82f630' }}>
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
-          style={{ background: color + '22' }}>
-          {ACT_EMOJI[activity.type] || '📋'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-white/80">{activity.plotLabel || '—'}</span>
-            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{ background: color + '22', color }}>
-              {typeInfo?.label || activity.type}
-            </span>
-            {activity.workers > 0 && <span className="text-[9px] text-white/35">👷 {activity.workers} workers</span>}
-          </div>
-          {activity.notes ? <p className="text-sm text-white/60 mt-0.5 leading-snug">{activity.notes}</p> : null}
-        </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-semibold" style={{ color }}>
+                    {typeInfo?.label || a.type}
+                  </span>
+                  {a.notes && (
+                    <span className="text-[10px] text-white/35 truncate max-w-[160px]">
+                      · {a.notes}
+                    </span>
+                  )}
+                </div>
+                {(names.length > 0 || outside > 0) && (
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {names.length > 0 && (
+                      <span className="text-[10px] flex items-center gap-0.5"
+                        style={{ color: '#6366f1' + 'aa' }}>
+                        👥 {names.length <= 2
+                          ? names.join(', ')
+                          : `${names.slice(0, 2).join(', ')} +${names.length - 2}`}
+                      </span>
+                    )}
+                    {outside > 0 && (
+                      <span className="text-[10px] flex items-center gap-0.5"
+                        style={{ color: '#f59e0b' + 'aa' }}>
+                        👷 {outside} outside
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
