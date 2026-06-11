@@ -65,13 +65,19 @@ const ATT_STYLE = {
   absent:   { bg: '#E24B4A20', border: '#E24B4A', color: '#E24B4A' },
 }
 
-function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
-  const { attByDate = {}, attPay = 0, contractPay = 0, total = 0 } = salary
+function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthAtt, monthLogs, selMonth, setSelMonth }) {
   const y = selMonth.getFullYear()
   const m = selMonth.getMonth()
-  const daysInMonth = new Date(y, m + 1, 0).getDate()
-  const firstOffset = (new Date(y, m, 1).getDay() + 6) % 7
-  const monthLabel  = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
+  const daysInMonth  = new Date(y, m + 1, 0).getDate()
+  const firstOffset  = (new Date(y, m, 1).getDay() + 6) % 7
+  const monthLabel   = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
+  const attRecs      = monthAtt.filter(a => a.labour_master_id === workerId)
+  const dailyRate    = ratePerDay || (monthlySalary ? monthlySalary / daysInMonth : 0)
+  const attPay       = Math.round(attRecs.reduce((s, a) => s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0))
+  const contractPay  = Math.round(monthLogs.filter(l => l.labour_master_id === workerId).reduce((s, l) => s + (Number(l.total_payment) || 0), 0))
+  const attByDate    = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
+  const daysPresent  = attRecs.filter(a => a.status === 'present').length
+  const daysHalf     = attRecs.filter(a => a.status === 'half_day').length
   const cells = [
     ...Array(firstOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => {
@@ -81,13 +87,26 @@ function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
     }),
   ]
   return (
-    <div className="mt-2 border-t border-[var(--c-border)] pt-2.5 space-y-2">
+    <div className="mt-2 border-t border-[var(--c-border)] pt-2.5 space-y-2" onClick={e => e.stopPropagation()}>
+      {/* Days present summary */}
+      <div className="flex gap-3 justify-center">
+        <div className="flex items-center gap-1.5 bg-[#1D9E75]/10 rounded-lg px-2.5 py-1">
+          <div className="w-2 h-2 rounded-full bg-[#1D9E75]"/>
+          <p className="text-[10px] font-bold text-[#1D9E75]">{daysPresent} Present</p>
+        </div>
+        {daysHalf > 0 && (
+          <div className="flex items-center gap-1.5 bg-[#BA7517]/10 rounded-lg px-2.5 py-1">
+            <div className="w-2 h-2 rounded-full bg-[#BA7517]"/>
+            <p className="text-[10px] font-bold text-[#BA7517]">{daysHalf} Half Day</p>
+          </div>
+        )}
+      </div>
       {/* Month nav */}
       <div className="flex items-center justify-between">
-        <button onClick={() => setSelMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1))}
+        <button onClick={e => { e.stopPropagation(); setSelMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1)) }}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">◀</button>
         <p className="text-[11px] font-bold text-[var(--c-text)]">{monthLabel}</p>
-        <button onClick={() => setSelMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1))}
+        <button onClick={e => { e.stopPropagation(); setSelMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1)) }}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">▶</button>
       </div>
       {/* Day-of-week headers */}
@@ -104,9 +123,8 @@ function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
           return (
             <div key={i} className="flex justify-center">
               <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold border"
-                style={s
-                  ? { background: s.bg, borderColor: s.border, color: s.color }
-                  : { background: 'transparent', borderColor: 'transparent', color: 'var(--c-faint)' }}>
+                style={s ? { background: s.bg, borderColor: s.border, color: s.color }
+                         : { background: 'transparent', borderColor: 'transparent', color: 'var(--c-faint)' }}>
                 {cell.d}
               </div>
             </div>
@@ -122,7 +140,7 @@ function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
           </div>
         ))}
       </div>
-      {/* Salary breakdown */}
+      {/* Salary breakdown for this month */}
       <div className="flex items-center justify-between bg-[var(--c-card)] rounded-xl px-3 py-2.5">
         <div className="text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Attendance</p>
@@ -134,7 +152,7 @@ function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
         </div>
         <div className="text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Total</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{total.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{(attPay + contractPay).toLocaleString('en-IN')}</p>
         </div>
       </div>
     </div>
@@ -156,6 +174,8 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
   const [selMonth,      setSelMonth]     = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [monthAtt,      setMonthAtt]     = useState([])
   const [monthLogs,     setMonthLogs]    = useState([])
+  const [curMonthAtt,   setCurMonthAtt]  = useState([])
+  const [curMonthLogs,  setCurMonthLogs] = useState([])
   const [expandedWorker,setExpandedWorker] = useState(null)
 
   // Auto-switch if selected tab becomes empty after load
@@ -174,6 +194,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       })
   }, [])
 
+  // Load calendar-month data when user navigates the calendar
   useEffect(() => {
     const y = selMonth.getFullYear(), m = selMonth.getMonth()
     const start = `${y}-${String(m+1).padStart(2,'0')}-01`
@@ -187,20 +208,43 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     })
   }, [selMonth])
 
+  // Load CURRENT month once — used for salary header (never changes with calendar nav)
+  useEffect(() => {
+    const now = new Date()
+    const y = now.getFullYear(), m = now.getMonth()
+    const start = `${y}-${String(m+1).padStart(2,'0')}-01`
+    const end   = `${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`
+    Promise.all([
+      supabase.from('attendance').select('*').gte('attendance_date', start).lte('attendance_date', end),
+      supabase.from('labour_logs').select('*').gte('activity_date', start).lte('activity_date', end),
+    ]).then(([{ data: a }, { data: l }]) => {
+      setCurMonthAtt(a || [])
+      setCurMonthLogs(l || [])
+    })
+  }, [])
+
+  // Close calendar on outside click
+  useEffect(() => {
+    if (!expandedWorker) return
+    const close = () => setExpandedWorker(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [expandedWorker])
+
   const workerSalary = useMemo(() => {
-    const daysInMonth = new Date(selMonth.getFullYear(), selMonth.getMonth() + 1, 0).getDate()
+    const now = new Date()
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
     const all = [...permanentStaff, ...regularLabourers]
     return Object.fromEntries(all.map(w => {
-      const attRecs = monthAtt.filter(a => a.labour_master_id === w.id)
+      const attRecs = curMonthAtt.filter(a => a.labour_master_id === w.id)
       const dailyRate = w.ratePerDay || (w.monthlySalary ? w.monthlySalary / daysInMonth : 0)
       const attPay  = attRecs.reduce((s, a) =>
         s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0)
-      const contractPay = monthLogs.filter(l => l.labour_master_id === w.id)
+      const contractPay = curMonthLogs.filter(l => l.labour_master_id === w.id)
         .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
-      const attByDate = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
-      return [w.id, { attPay, contractPay, total: attPay + contractPay, attByDate }]
+      return [w.id, { attPay, contractPay, total: attPay + contractPay }]
     }))
-  }, [monthAtt, monthLogs, permanentStaff, regularLabourers, selMonth])
+  }, [curMonthAtt, curMonthLogs, permanentStaff, regularLabourers])
 
   const markAttendance = async (labourId, status) => {
     if (attendance[labourId]?.status === status) return
@@ -210,10 +254,15 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       { onConflict: 'labour_master_id,attendance_date' }
     ).select().single()
     if (!error) {
+      const rec = { id: data?.id, labour_master_id: labourId, attendance_date: TODAY_STR, status }
       setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
       setMonthAtt(prev => {
         const other = prev.filter(a => !(a.labour_master_id === labourId && a.attendance_date === TODAY_STR))
-        return [...other, { id: data?.id, labour_master_id: labourId, attendance_date: TODAY_STR, status }]
+        return [...other, rec]
+      })
+      setCurMonthAtt(prev => {
+        const other = prev.filter(a => !(a.labour_master_id === labourId && a.attendance_date === TODAY_STR))
+        return [...other, rec]
       })
     }
     setSavingAtt(s => ({ ...s, [labourId]: false }))
@@ -427,7 +476,15 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                   </button>
                 )}
                 {expandedWorker === l.id && (
-                  <WorkerCalendar salary={workerSalary[l.id]} selMonth={selMonth} setSelMonth={setSelMonth} />
+                  <WorkerCalendar
+                    workerId={l.id}
+                    ratePerDay={l.ratePerDay}
+                    monthlySalary={l.monthlySalary}
+                    monthAtt={monthAtt}
+                    monthLogs={monthLogs}
+                    selMonth={selMonth}
+                    setSelMonth={setSelMonth}
+                  />
                 )}
               </div>
             )
