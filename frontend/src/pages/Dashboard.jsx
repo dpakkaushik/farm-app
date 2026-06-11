@@ -191,7 +191,13 @@ export default function Dashboard() {
           <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
         </div>
         <button
-          onClick={() => AppLauncher.openUrl({ url: 'package:com.mm.android.direct.g_CMOB_XU' })}
+          onClick={async () => {
+            try {
+              await AppLauncher.openUrl({ url: 'package:com.mm.android.direct.g_CMOB_XU' })
+            } catch {
+              window.open('https://play.google.com/store/apps/details?id=com.mm.android.direct.g_CMOB_XU', '_blank')
+            }
+          }}
           className="flex items-center gap-1.5 bg-[#E24B4A]/15 border border-[#E24B4A]/30 rounded-xl px-3 py-2 active:scale-95 transition-transform shrink-0"
         >
           <span className="relative flex h-2 w-2">
