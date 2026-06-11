@@ -189,8 +189,8 @@ export default function Dashboard() {
           <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
           <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
         </div>
-        <a
-          href="intent://open#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mm.android.direct.g_CMOB_XU;end"
+        <button
+          onClick={() => window.open('intent://open#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.mm.android.direct.g_CMOB_XU;end', '_system')}
           className="flex items-center gap-1.5 bg-[#E24B4A]/15 border border-[#E24B4A]/30 rounded-xl px-3 py-2 active:scale-95 transition-transform shrink-0"
         >
           <span className="relative flex h-2 w-2">
@@ -199,7 +199,7 @@ export default function Dashboard() {
           </span>
           <span className="text-[11px] font-bold text-[#E24B4A] tracking-widest">LIVE</span>
           <span className="text-sm">📹</span>
-        </a>
+        </button>
       </div>
 
       {/* Alert banner */}
