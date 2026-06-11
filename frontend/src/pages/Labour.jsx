@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../store'
@@ -29,16 +29,16 @@ export default function Labour() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#0f1117]">
+    <div className="h-full flex flex-col bg-[var(--c-bg)]">
       {/* Header */}
-      <div className="shrink-0 px-4 pt-4 pb-0 bg-[#0f1117]">
-        <h2 className="text-lg font-bold text-white">Manpower</h2>
-        <p className="text-xs text-white/40 mb-3">Attendance · Work logs · Payments</p>
-        <div className="flex gap-1 border-b border-white/8">
+      <div className="shrink-0 px-4 pt-4 pb-0 bg-[var(--c-bg)]">
+        <h2 className="text-lg font-bold text-[var(--c-text)]">Manpower</h2>
+        <p className="text-xs text-[var(--c-muted)] mb-3">Attendance · Work logs · Payments</p>
+        <div className="flex gap-1 border-b border-[var(--c-border)]">
           {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['summary','📊 Summary']].map(([k, lbl]) => (
             <button key={k} onClick={() => setSubTab(k)}
               className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors
-                ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-white/40'}`}>
+                ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
               {lbl}
             </button>
           ))}
@@ -52,7 +52,7 @@ export default function Labour() {
       </div>
 
       {toast && (
-        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
+        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
           {toastType === 'warn' ? <AlertTriangle size={16}/> : <CheckCircle2 size={16}/>} {toast}
         </div>
       )}
@@ -134,19 +134,19 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
   return (
     <div className="p-4 space-y-4 pb-24">
-      <p className="text-xs text-white/40">{TODAY_LABEL}</p>
+      <p className="text-xs text-[var(--c-muted)]">{TODAY_LABEL}</p>
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
-          <p className="text-[10px] text-white/40">Regular wages today</p>
+          <p className="text-[10px] text-[var(--c-muted)]">Regular wages today</p>
           <p className="text-xl font-bold text-[#1D9E75]">₹{todayWages.toLocaleString()}</p>
-          <p className="text-[10px] text-white/35">{presentCount} present · {halfCount} half · {absentCount} absent</p>
+          <p className="text-[10px] text-[var(--c-muted)]">{presentCount} present · {halfCount} half · {absentCount} absent</p>
         </div>
         <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl px-3 py-2.5">
-          <p className="text-[10px] text-white/40">Contractual today</p>
+          <p className="text-[10px] text-[var(--c-muted)]">Contractual today</p>
           <p className="text-xl font-bold text-[#BA7517]">₹{todayContractual.toLocaleString()}</p>
-          <p className="text-[10px] text-white/35">{todayLogs.length} log{todayLogs.length !== 1 ? 's' : ''}</p>
+          <p className="text-[10px] text-[var(--c-muted)]">{todayLogs.length} log{todayLogs.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
@@ -157,26 +157,26 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           <button onClick={() => setAttTab('staff')}
             className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
             style={{
-              background:  attTab === 'staff' ? '#4169E122' : 'rgba(255,255,255,0.04)',
-              borderColor: attTab === 'staff' ? '#4169E1'   : 'rgba(255,255,255,0.10)',
-              color:       attTab === 'staff' ? '#4169E1'   : 'rgba(255,255,255,0.35)',
+              background:  attTab === 'staff' ? '#4169E122' : 'var(--c-card)',
+              borderColor: attTab === 'staff' ? '#4169E1'   : 'var(--c-border-md)',
+              color:       attTab === 'staff' ? '#4169E1'   : 'var(--c-muted)',
             }}>
             🏢 Staff {permanentStaff.length > 0 ? `(${permanentStaff.length})` : ''}
           </button>
           <button onClick={() => setAttTab('labour')}
             className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
             style={{
-              background:  attTab === 'labour' ? '#1D9E7522' : 'rgba(255,255,255,0.04)',
-              borderColor: attTab === 'labour' ? '#1D9E75'   : 'rgba(255,255,255,0.10)',
-              color:       attTab === 'labour' ? '#1D9E75'   : 'rgba(255,255,255,0.35)',
+              background:  attTab === 'labour' ? '#1D9E7522' : 'var(--c-card)',
+              borderColor: attTab === 'labour' ? '#1D9E75'   : 'var(--c-border-md)',
+              color:       attTab === 'labour' ? '#1D9E75'   : 'var(--c-muted)',
             }}>
             👷 Labour {regularLabourers.length > 0 ? `(${regularLabourers.length})` : ''}
           </button>
         </div>
 
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">
+        <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">
           {attTab === 'staff' ? 'Permanent Staff' : 'Regular Labourers'} — Mark Attendance
-          {loadingAtt && <span className="ml-2 text-white/20">loading…</span>}
+          {loadingAtt && <span className="ml-2 text-[var(--c-faint)]">loading…</span>}
         </p>
 
         {/* People list */}
@@ -185,11 +185,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           const accentColor = attTab === 'staff' ? '#4169E1' : '#1D9E75'
 
           if (people.length === 0) return (
-            <div className="bg-[#161a23] rounded-xl border border-white/8 px-4 py-6 text-center">
-              <p className="text-sm text-white/30">
+            <div className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] px-4 py-6 text-center">
+              <p className="text-sm text-[var(--c-faint)]">
                 No {attTab === 'staff' ? 'permanent staff' : 'regular labourers'} added yet.
               </p>
-              <p className="text-xs text-white/20 mt-1">Go to Admin → Labour to add them.</p>
+              <p className="text-xs text-[var(--c-faint)] mt-1">Go to Admin → Labour to add them.</p>
             </div>
           )
 
@@ -202,11 +202,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
               : `${l.workType} · ₹${l.ratePerDay}/day${l.phone ? ` · ${l.phone}` : ''}`
 
             return (
-              <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-3 mb-2">
+              <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 mb-2">
                 <div className="flex items-center gap-3 mb-2.5">
                   {l.photoUrl
-                    ? <img src={l.photoUrl} alt={l.name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-white/10" />
-                    : <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-white/10"
+                    ? <img src={l.photoUrl} alt={l.name} className="w-10 h-10 rounded-full object-cover shrink-0 border border-[var(--c-border-md)]" />
+                    : <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-[var(--c-border-md)]"
                         style={{ background: accentColor + '15' }}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={accentColor} strokeWidth="1.5" strokeLinecap="round" opacity="0.6">
                           <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
@@ -214,12 +214,12 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       </div>
                   }
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white">{l.name}</p>
+                    <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <p className="text-[10px] text-white/40">{attTab === 'staff' ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo` : `${l.workType} · ₹${l.ratePerDay}/day`}</p>
+                      <p className="text-[10px] text-[var(--c-muted)]">{attTab === 'staff' ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo` : `${l.workType} · ₹${l.ratePerDay}/day`}</p>
                       {l.phone && (
                         <a href={`tel:${l.phone}`} onClick={e => e.stopPropagation()}
-                          className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg border transition-colors hover:bg-white/8"
+                          className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg border transition-colors hover:bg-[var(--c-ghost)]"
                           style={{ color: accentColor, borderColor: accentColor + '40' }}>
                           📞 {l.phone}
                         </a>
@@ -247,9 +247,9 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       disabled={busy}
                       className="flex-1 py-1.5 text-[10px] font-semibold rounded-xl border transition-all"
                       style={{
-                        background:  status === s ? color + '22' : 'rgba(255,255,255,0.05)',
-                        borderColor: status === s ? color + '55' : 'rgba(255,255,255,0.1)',
-                        color:       status === s ? color        : 'rgba(255,255,255,0.4)',
+                        background:  status === s ? color + '22' : 'var(--c-card)',
+                        borderColor: status === s ? color + '55' : 'var(--c-border-md)',
+                        color:       status === s ? color        : 'var(--c-muted)',
                       }}>
                       {busy ? '…' : label}
                     </button>
@@ -258,7 +258,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
                 {attTab === 'labour' && (status === 'present' || status === 'half_day') && (
                   <button onClick={() => setShowLogModal(l.id)}
-                    className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-white/10 text-white/40 hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
+                    className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
                     📋 Assign / Log Task
                   </button>
                 )}
@@ -270,26 +270,26 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
       {/* Contractual */}
       <div>
-        <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Log Contractual Workers</p>
-        <div className="bg-[#161a23] rounded-2xl border border-white/8 p-3 space-y-2.5">
+        <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Log Contractual Workers</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Work Type">
               <select className="finput" value={ctForm.category} onChange={e => {
                 const ct = CONTRACTUAL_TYPES.find(c => c.name === e.target.value)
                 setCtForm(p => ({ ...p, category: e.target.value, rate: ct?.rate || '' }))
-              }} style={{ background: '#1a2030' }}>
-                <option value="" style={{ background: '#1a2030' }}>Select…</option>
+              }} style={{ background: 'var(--c-surface)' }}>
+                <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
                 {CONTRACTUAL_TYPES.map(c => (
-                  <option key={c.name} value={c.name} style={{ background: '#1a2030' }}>{c.name} (₹{c.rate}/day)</option>
+                  <option key={c.name} value={c.name} style={{ background: 'var(--c-surface)' }}>{c.name} (₹{c.rate}/day)</option>
                 ))}
               </select>
             </FRow>
             <FRow label="Plot / Cycle">
-              <select className="finput" value={ctForm.cycleId} onChange={e => setCtForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: '#1a2030' }}>
-                <option value="" style={{ background: '#1a2030' }}>Farm-wide</option>
+              <select className="finput" value={ctForm.cycleId} onChange={e => setCtForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide</option>
                 {cropCycles.filter(c => c.status === 'active').map(c => {
                   const crop = cropMaster.find(cr => cr.id === c.cropId)
-                  return <option key={c.id} value={c.id} style={{ background: '#1a2030' }}>{c.plotLabel} — {crop?.name || ''}</option>
+                  return <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.plotLabel} — {crop?.name || ''}</option>
                 })}
               </select>
             </FRow>
@@ -310,7 +310,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             </div>
           )}
           <button onClick={addContractual} disabled={saving}
-            className="w-full py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+            className="w-full py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
             {saving ? 'Logging…' : '+ Log Contractual Work'}
           </button>
         </div>
@@ -319,13 +319,13 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       {/* Today's logs */}
       {todayLogs.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Today's Work Logged</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Today's Work Logged</p>
           {todayLogs.map(l => (
-            <div key={l.id} className="bg-[#161a23] rounded-xl border border-white/8 p-3 mb-1.5 flex items-center justify-between">
+            <div key={l.id} className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] p-3 mb-1.5 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-white">{l.labourName}</p>
-                <p className="text-[10px] text-white/40">{l.plotLabel || 'Farm-wide'}{l.workers > 1 ? ` · ${l.workers} workers` : ''}</p>
-                {l.purpose && <p className="text-[10px] text-white/30 italic">{l.purpose}</p>}
+                <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
+                <p className="text-[10px] text-[var(--c-muted)]">{l.plotLabel || 'Farm-wide'}{l.workers > 1 ? ` · ${l.workers} workers` : ''}</p>
+                {l.purpose && <p className="text-[10px] text-[var(--c-faint)] italic">{l.purpose}</p>}
               </div>
               <p className="text-sm font-bold text-[#BA7517]">₹{(l.totalCost || 0).toLocaleString()}</p>
             </div>
@@ -377,20 +377,20 @@ function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, 
 
   return (
     <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
-      <div className="w-full bg-[#161a23] rounded-t-3xl p-5 border-t border-white/10 space-y-3" onClick={e => e.stopPropagation()}>
+      <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 border-t border-[var(--c-border-md)] space-y-3" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-white">Log Task</h3>
-            <p className="text-xs text-white/40">{labourer?.name} · ₹{labourer?.ratePerDay}/day</p>
+            <h3 className="text-sm font-bold text-[var(--c-text)]">Log Task</h3>
+            <p className="text-xs text-[var(--c-muted)]">{labourer?.name} · ₹{labourer?.ratePerDay}/day</p>
           </div>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18}/></button>
+          <button onClick={onClose} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={18}/></button>
         </div>
         <FRow label="Plot / Cycle">
-          <select className="finput" value={form.cycleId} onChange={e => setForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: '#1a2030' }}>
-            <option value="" style={{ background: '#1a2030' }}>Farm-wide / General</option>
+          <select className="finput" value={form.cycleId} onChange={e => setForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+            <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide / General</option>
             {cropCycles.filter(c => c.status === 'active').map(c => {
               const crop = cropMaster.find(cr => cr.id === c.cropId)
-              return <option key={c.id} value={c.id} style={{ background: '#1a2030' }}>{c.plotLabel} — {crop?.name || ''}</option>
+              return <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.plotLabel} — {crop?.name || ''}</option>
             })}
           </select>
         </FRow>
@@ -401,10 +401,10 @@ function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, 
           <input type="date" className="finput" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
         </FRow>
         <button onClick={submit} disabled={saving}
-          className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-40">
+          className="w-full py-3 bg-[#1D9E75] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
           {saving ? 'Saving…' : 'Log Task'}
         </button>
-        <style>{`.finput{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 14px;color:white;font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
+        <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
       </div>
     </div>
   )
@@ -416,27 +416,27 @@ function LabourLogs({ labourLogs }) {
   return (
     <div className="p-4 space-y-3 pb-4">
       <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-2xl px-4 py-3">
-        <p className="text-xs text-white/50">Total Labour Cost (all time)</p>
+        <p className="text-xs text-[var(--c-sub)]">Total Labour Cost (all time)</p>
         <p className="text-2xl font-bold text-[#BA7517]">₹{total.toLocaleString()}</p>
       </div>
       {labourLogs.map(l => (
-        <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+        <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">{l.labourName}</p>
-              <p className="text-xs text-white/40 mt-0.5">{l.plotLabel || 'Farm-wide'}</p>
-              <p className="text-[10px] text-white/30 mt-0.5">{l.date}</p>
-              {l.purpose && <p className="text-xs text-white/50 mt-1 italic">{l.purpose}</p>}
+              <p className="text-sm font-semibold text-[var(--c-text)]">{l.labourName}</p>
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">{l.plotLabel || 'Farm-wide'}</p>
+              <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{l.date}</p>
+              {l.purpose && <p className="text-xs text-[var(--c-sub)] mt-1 italic">{l.purpose}</p>}
             </div>
             <div className="text-right">
-              <p className="text-base font-bold text-white">₹{(l.totalCost || 0).toLocaleString()}</p>
-              {l.workers > 1 && <p className="text-[10px] text-white/40">{l.workers} workers</p>}
-              {l.ratePerDay > 0 && <p className="text-[10px] text-white/30">₹{l.ratePerDay}/day</p>}
+              <p className="text-base font-bold text-[var(--c-text)]">₹{(l.totalCost || 0).toLocaleString()}</p>
+              {l.workers > 1 && <p className="text-[10px] text-[var(--c-muted)]">{l.workers} workers</p>}
+              {l.ratePerDay > 0 && <p className="text-[10px] text-[var(--c-faint)]">₹{l.ratePerDay}/day</p>}
             </div>
           </div>
         </div>
       ))}
-      {labourLogs.length === 0 && <p className="text-center text-white/30 text-sm py-8">No labour logs yet.</p>}
+      {labourLogs.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-8">No labour logs yet.</p>}
     </div>
   )
 }
@@ -470,63 +470,63 @@ function LabourSummary({ regularLabourers, labourLogs }) {
   return (
     <div className="p-4 space-y-4 pb-6">
       <div className="flex items-center gap-3">
-        <p className="text-sm font-bold text-white flex-1">Monthly Summary</p>
+        <p className="text-sm font-bold text-[var(--c-text)] flex-1">Monthly Summary</p>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-          className="bg-white/8 border border-white/12 rounded-xl px-3 py-2 text-sm text-white outline-none"
+          className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-sm text-[var(--c-text)] outline-none"
           style={{ colorScheme: 'dark' }} />
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-white/40 mb-1">Regular</p>
+          <p className="text-[10px] text-[var(--c-muted)] mb-1">Regular</p>
           <p className="text-base font-bold text-[#1D9E75]">₹{regularEarned.toLocaleString()}</p>
         </div>
         <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-white/40 mb-1">Contractual</p>
+          <p className="text-[10px] text-[var(--c-muted)] mb-1">Contractual</p>
           <p className="text-base font-bold text-[#BA7517]">₹{contractualCost.toLocaleString()}</p>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-white/40 mb-1">Total</p>
-          <p className="text-base font-bold text-white">₹{grandTotal.toLocaleString()}</p>
+        <div className="bg-[var(--c-card)] border border-[var(--c-border-md)] rounded-xl p-3 text-center">
+          <p className="text-[10px] text-[var(--c-muted)] mb-1">Total</p>
+          <p className="text-base font-bold text-[var(--c-text)]">₹{grandTotal.toLocaleString()}</p>
         </div>
       </div>
 
       {regularLabourers.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Labourer Breakdown</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Labourer Breakdown</p>
           {regularLabourers.map(l => {
             const days    = attendance[l.id] || 0
             const earned  = days * l.ratePerDay
             const paid    = monthLogs.filter(log => log.labourName === l.name).reduce((s, log) => s + (log.totalCost || 0), 0)
             const balance = earned - paid
             return (
-              <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 mb-2">
+              <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 mb-2">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75]">
                     {l.name.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-white">{l.name}</p>
-                    <p className="text-[10px] text-white/40">{l.workType} · ₹{l.ratePerDay}/day</p>
+                    <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">{l.workType} · ₹{l.ratePerDay}/day</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-white/5 rounded-xl py-2">
-                    <p className="text-[10px] text-white/40">Days</p>
-                    <p className="text-sm font-bold text-white">{days}</p>
+                  <div className="bg-[var(--c-card)] rounded-xl py-2">
+                    <p className="text-[10px] text-[var(--c-muted)]">Days</p>
+                    <p className="text-sm font-bold text-[var(--c-text)]">{days}</p>
                   </div>
                   <div className="bg-[#1D9E75]/10 rounded-xl py-2">
-                    <p className="text-[10px] text-white/40">Earned</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">Earned</p>
                     <p className="text-sm font-bold text-[#1D9E75]">₹{earned.toLocaleString()}</p>
                   </div>
-                  <div className={`rounded-xl py-2 ${balance > 0 ? 'bg-[#E24B4A]/10' : 'bg-white/5'}`}>
-                    <p className="text-[10px] text-white/40">Balance</p>
-                    <p className={`text-sm font-bold ${balance > 0 ? 'text-[#E24B4A]' : 'text-white/40'}`}>
+                  <div className={`rounded-xl py-2 ${balance > 0 ? 'bg-[#E24B4A]/10' : 'bg-[var(--c-card)]'}`}>
+                    <p className="text-[10px] text-[var(--c-muted)]">Balance</p>
+                    <p className={`text-sm font-bold ${balance > 0 ? 'text-[#E24B4A]' : 'text-[var(--c-muted)]'}`}>
                       ₹{balance.toLocaleString()}
                     </p>
                   </div>
                 </div>
-                {days === 0 && <p className="text-[10px] text-white/25 text-center mt-2 italic">No attendance this month</p>}
+                {days === 0 && <p className="text-[10px] text-[var(--c-faint)] text-center mt-2 italic">No attendance this month</p>}
               </div>
             )
           })}
@@ -535,13 +535,13 @@ function LabourSummary({ regularLabourers, labourLogs }) {
 
       {contractualLogs.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Contractual Logs ({contractualLogs.length})</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Contractual Logs ({contractualLogs.length})</p>
           {contractualLogs.map(l => (
-            <div key={l.id} className="bg-[#161a23] rounded-xl border border-white/8 p-3 mb-1.5 flex items-center justify-between">
+            <div key={l.id} className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] p-3 mb-1.5 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-white">{l.labourName}</p>
-                <p className="text-[10px] text-white/40">{l.plotLabel || 'Farm-wide'} · {l.date}</p>
-                {l.purpose && <p className="text-[10px] text-white/30 italic">{l.purpose}</p>}
+                <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
+                <p className="text-[10px] text-[var(--c-muted)]">{l.plotLabel || 'Farm-wide'} · {l.date}</p>
+                {l.purpose && <p className="text-[10px] text-[var(--c-faint)] italic">{l.purpose}</p>}
               </div>
               <p className="text-sm font-bold text-[#BA7517]">₹{(l.totalCost || 0).toLocaleString()}</p>
             </div>
@@ -553,5 +553,5 @@ function LabourSummary({ regularLabourers, labourLogs }) {
 }
 
 function FRow({ label, children }) {
-  return <div><label className="text-xs font-medium text-white/50 block mb-1.5">{label}</label>{children}</div>
+  return <div><label className="text-xs font-medium text-[var(--c-sub)] block mb-1.5">{label}</label>{children}</div>
 }

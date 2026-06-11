@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+﻿import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
@@ -440,7 +440,7 @@ export default function Field() {
 
       {/* Coordinate panel */}
       {showCoordPanel && (
-        <div className="absolute top-3 right-14 bg-[#1a1f2e]/95 backdrop-blur-sm rounded-xl p-4 w-64 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-64 shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Go to Coordinates</span>
             <button onClick={() => setShowCoordPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -455,7 +455,7 @@ export default function Field() {
 
       {/* Overlay panel */}
       {showOverlayPanel && (
-        <div className="absolute top-3 right-14 bg-[#1a1f2e]/95 backdrop-blur-sm rounded-xl p-4 w-72 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-72 shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Plot Layout Overlay</span>
             <button onClick={() => setShowOverlayPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -509,7 +509,7 @@ export default function Field() {
       {selectedPlot && <PlotDetailPanel plot={selectedPlot} onClose={() => setSelectedPlot(null)} />}
 
       <style>{`
-        .map-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(26,31,46,0.9);border:1px solid rgba(255,255,255,0.12);color:#fff;cursor:pointer;backdrop-filter:blur(4px);transition:background 0.15s;}
+        .map-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(26,31,46,0.9);border:1px solid var(--c-border-md);color:#fff;cursor:pointer;backdrop-filter:blur(4px);transition:background 0.15s;}
         .map-btn:hover{background:rgba(29,158,117,0.4);}
         @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
         .animate-slide-up{animation:slide-up 0.25s ease-out;}
@@ -538,7 +538,7 @@ function PlotDetailPanel({ plot, onClose }) {
 
   if (editing) {
     return (
-      <div className="absolute bottom-0 left-0 right-0 bg-[#1a1f2e]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up">
+      <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white">Edit Plot</h3>
           <button onClick={() => setEditing(false)} className="text-white/40 hover:text-white"><X size={16}/></button>
@@ -730,7 +730,7 @@ function HarvestReadyPanel({ plot, onClose, onEdit }) {
 function PanelShell({ children, onClose, onEdit, plotId }) {
   const navigate = useNavigate()
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[#1a1f2e]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[75vh] overflow-y-auto">
+    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[75vh] overflow-y-auto">
       <div className="absolute top-3 right-3 flex items-center gap-2">
         {plotId && (
           <button onClick={() => navigate(`/media?plot=${plotId}`)} className="flex items-center gap-1 text-xs text-white/40 hover:text-[#1D9E75] px-2 py-1 rounded-lg transition-colors">
@@ -788,7 +788,7 @@ function LogActivityModal({ plot, onClose }) {
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[#1a1f2e]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[80vh] overflow-y-auto">
+    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[80vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-white">Log Activity — {plot.label}</h3>
         <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18}/></button>
@@ -856,7 +856,7 @@ function IssueInputModal({ plot, onClose }) {
   }
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[#1a1f2e]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[85vh] overflow-y-auto">
+    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[85vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-white">Issue Input — {plot.label}</h3>
         <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18}/></button>

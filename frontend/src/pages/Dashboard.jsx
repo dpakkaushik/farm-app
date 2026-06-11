@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+﻿import React, { useEffect, useState } from 'react'
 import { AppLauncher } from '@capacitor/app-launcher'
 import { AlertTriangle, TrendingUp, Package, CalendarDays, Leaf, ChevronDown, ChevronUp } from 'lucide-react'
 import { farmApi } from '../api/client'
@@ -182,13 +182,13 @@ export default function Dashboard() {
   const visiblePlots = showAllPlots ? d.plots : d.plots.slice(0, 8)
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0f1117] p-4 space-y-4 pb-8">
+    <div className="h-full overflow-y-auto p-4 space-y-4 pb-8" style={{ background: 'var(--c-bg)' }}>
 
       {/* Greeting + Live View */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
-          <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
+          <h1 className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>{greeting}, {profile?.full_name?.split(' ')[0] || d.owner_name} 👋</h1>
+          <p className="text-sm" style={{ color: 'var(--c-muted)' }}>{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
         </div>
         <button
           onClick={async () => {
@@ -234,11 +234,11 @@ export default function Dashboard() {
       <Card title="Crop Overview">
         <div className="space-y-3">
           {d.crop_summary.map((cs) => (
-            <div key={cs.crop} className="rounded-xl p-3 border border-white/6" style={{ background: `${cs.color}18` }}>
+            <div key={cs.crop} className="rounded-xl p-3 border border-[var(--c-border)]" style={{ background: `${cs.color}18` }}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-2">
                   <span className="text-base">{cs.emoji}</span>
-                  <span className="text-sm font-semibold text-white">{cs.crop}</span>
+                  <span className="text-sm font-semibold text-[var(--c-text)]">{cs.crop}</span>
                   {cs.yoy_change !== null && cs.yoy_change !== 0 && (
                     <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${cs.yoy_change > 0 ? 'bg-[#1D9E75]/20 text-[#1D9E75]' : 'bg-[#E24B4A]/20 text-[#E24B4A]'}`}>
                       {cs.yoy_change > 0 ? '↑' : '↓'}{Math.abs(cs.yoy_change)}% vs last yr
@@ -247,7 +247,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-sm font-bold" style={{ color: cs.color }}>{cs.total_acres} ac</span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-white/45">
+              <div className="flex items-center justify-between text-[11px] text-[var(--c-muted)]">
                 <span>Plots: {cs.plots}</span>
                 {cs.est_revenue > 0
                   ? <span>₹{(cs.season_cost/1000).toFixed(0)}k cost → ₹{(cs.est_revenue/1000).toFixed(0)}k est.</span>
@@ -255,7 +255,7 @@ export default function Dashboard() {
                 }
               </div>
               {cs.yield_per_acre && cs.last_yield_per_acre && (
-                <div className="mt-1.5 flex items-center gap-3 text-[10px] text-white/35">
+                <div className="mt-1.5 flex items-center gap-3 text-[10px] text-[var(--c-muted)]">
                   <span>Last yr: {cs.last_yield_per_acre} qtl/ac</span>
                   <span>·</span>
                   <span>This yr target: {cs.yield_per_acre} qtl/ac</span>
@@ -270,14 +270,14 @@ export default function Dashboard() {
       <Card title={`All Plots (${d.plots.length})`}>
         <div className="space-y-0">
           {visiblePlots.map(p => (
-            <div key={p.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+            <div key={p.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)] last:border-0">
               <div className="min-w-0 flex-1">
-                <span className="text-sm font-medium text-white">{p.label}</span>
-                <span className="text-xs text-white/40 ml-2">{p.acres}ac</span>
-                <span className="text-xs text-white/50 ml-2 truncate">{p.current_crop || 'Fallow'}</span>
+                <span className="text-sm font-medium text-[var(--c-text)]">{p.label}</span>
+                <span className="text-xs text-[var(--c-muted)] ml-2">{p.acres}ac</span>
+                <span className="text-xs text-[var(--c-sub)] ml-2 truncate">{p.current_crop || 'Fallow'}</span>
               </div>
               <div className="flex items-center gap-2 ml-2 shrink-0">
-                {p.days_to_harvest && <span className="text-[10px] text-white/30">{p.days_to_harvest}d</span>}
+                {p.days_to_harvest && <span className="text-[10px] text-[var(--c-faint)]">{p.days_to_harvest}d</span>}
                 <Pill status={p.health_status} />
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function Dashboard() {
         {d.plots.length > 8 && (
           <button
             onClick={() => setShowAllPlots(v => !v)}
-            className="mt-2 w-full text-xs text-white/40 hover:text-white flex items-center justify-center gap-1 py-1"
+            className="mt-2 w-full text-xs text-[var(--c-muted)] hover:text-[var(--c-text)] flex items-center justify-center gap-1 py-1"
           >
             {showAllPlots ? <><ChevronUp size={12}/> Show less</> : <><ChevronDown size={12}/> Show {d.plots.length - 8} more</>}
           </button>
@@ -299,7 +299,7 @@ export default function Dashboard() {
           {d.alerts.map(a => (
             <div key={a.id} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: `${SEV_COLOR[a.severity]}15` }}>
               <span className="text-base mt-0.5">{SEV_ICON[a.severity]}</span>
-              <p className="text-xs text-white/80 leading-relaxed">{a.message}</p>
+              <p className="text-xs text-[var(--c-text-80)] leading-relaxed">{a.message}</p>
             </div>
           ))}
         </div>
@@ -308,10 +308,10 @@ export default function Dashboard() {
       {/* Yesterday's diary */}
       {d.latest_diary && (
         <Card title="Yesterday's Farm Diary">
-          <p className="text-sm text-white/70 leading-relaxed mb-3">{d.latest_diary.summary}</p>
+          <p className="text-sm text-[var(--c-sub)] leading-relaxed mb-3">{d.latest_diary.summary}</p>
           <div className="flex flex-wrap gap-2 mb-3">
             {Object.entries(d.latest_diary.plot_activities).map(([plot, act]) => (
-              <span key={plot} className="text-xs bg-white/8 border border-white/10 rounded-full px-3 py-1 text-white/60">
+              <span key={plot} className="text-xs bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-full px-3 py-1 text-[var(--c-sub)]">
                 {plot}: {act}
               </span>
             ))}
@@ -319,7 +319,7 @@ export default function Dashboard() {
           {d.latest_diary.tomorrows_plan && (
             <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3">
               <p className="text-[10px] text-[#1D9E75] font-semibold uppercase mb-1">Tomorrow's Plan</p>
-              <p className="text-xs text-white/70">{d.latest_diary.tomorrows_plan}</p>
+              <p className="text-xs text-[var(--c-sub)]">{d.latest_diary.tomorrows_plan}</p>
             </div>
           )}
         </Card>
@@ -332,17 +332,17 @@ export default function Dashboard() {
             <div key={i}>
               <button
                 onClick={() => setExpandedHistory(expandedHistory === i ? null : i)}
-                className="w-full flex items-center justify-between py-2.5 border-b border-white/5 text-left"
+                className="w-full flex items-center justify-between py-2.5 border-b border-[var(--c-border)] text-left"
               >
                 <div>
-                  <span className="text-sm font-medium text-white">{h.season}</span>
-                  <span className="text-xs text-white/40 ml-2">{h.crop} · {h.acres} ac</span>
+                  <span className="text-sm font-medium text-[var(--c-text)]">{h.season}</span>
+                  <span className="text-xs text-[var(--c-muted)] ml-2">{h.crop} · {h.acres} ac</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-semibold ${h.profit >= 0 ? 'text-[#1D9E75]' : 'text-[#E24B4A]'}`}>
                     {h.profit >= 0 ? '+' : ''}₹{(h.profit/1000).toFixed(0)}k
                   </span>
-                  {expandedHistory === i ? <ChevronUp size={13} className="text-white/30"/> : <ChevronDown size={13} className="text-white/30"/>}
+                  {expandedHistory === i ? <ChevronUp size={13} className="text-[var(--c-faint)]"/> : <ChevronDown size={13} className="text-[var(--c-faint)]"/>}
                 </div>
               </button>
               {expandedHistory === i && (
@@ -367,15 +367,15 @@ export default function Dashboard() {
       <Card title="Low Stock Alerts">
         <div className="space-y-2">
           {d.low_stock_items.map(item => (
-            <div key={item.id} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+            <div key={item.id} className="flex justify-between items-center py-2 border-b border-[var(--c-border)] last:border-0">
               <div className="flex items-center gap-2">
                 <Package size={14} className="text-[#E24B4A]" />
-                <span className="text-sm text-white">{item.name}</span>
+                <span className="text-sm text-[var(--c-text)]">{item.name}</span>
               </div>
               <span className="text-xs font-medium text-[#E24B4A]">{item.current_stock} {item.unit} left</span>
             </div>
           ))}
-          {d.low_stock_items.length === 0 && <p className="text-xs text-white/40">All stock levels OK</p>}
+          {d.low_stock_items.length === 0 && <p className="text-xs text-[var(--c-muted)]">All stock levels OK</p>}
         </div>
       </Card>
 
@@ -383,14 +383,14 @@ export default function Dashboard() {
       <Card title="Upcoming Harvests">
         <div className="space-y-2">
           {d.upcoming_harvests.map((h, i) => (
-            <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+            <div key={i} className="flex items-center justify-between py-2 border-b border-[var(--c-border)] last:border-0">
               <div>
-                <span className="text-sm text-white">{h.plot}</span>
-                <span className="text-xs text-white/40 ml-2">{h.crop}</span>
+                <span className="text-sm text-[var(--c-text)]">{h.plot}</span>
+                <span className="text-xs text-[var(--c-muted)] ml-2">{h.crop}</span>
               </div>
               <div className="text-right">
                 <p className="text-xs font-medium" style={{ color: h.days <= 35 ? '#1D9E75' : '#fff' }}>{h.days}d</p>
-                <p className="text-[10px] text-white/30">{h.date}</p>
+                <p className="text-[10px] text-[var(--c-faint)]">{h.date}</p>
               </div>
             </div>
           ))}
@@ -402,8 +402,8 @@ export default function Dashboard() {
 
 function Card({ title, children }) {
   return (
-    <div className="bg-[#161a23] rounded-card border border-white/8 p-4">
-      <h3 className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-3">{title}</h3>
+    <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] p-4">
+      <h3 className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wider mb-3">{title}</h3>
       {children}
     </div>
   )
@@ -411,26 +411,26 @@ function Card({ title, children }) {
 
 function MetricCard({ label, value, icon, color }) {
   return (
-    <div className="bg-[#161a23] rounded-card border border-white/8 p-4">
+    <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] p-4">
       <div className="flex items-center gap-2 mb-2" style={{ color }}>
         {icon}
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">{label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--c-muted)]">{label}</span>
       </div>
-      <p className="text-xl font-bold text-white">{value}</p>
+      <p className="text-xl font-bold text-[var(--c-text)]">{value}</p>
     </div>
   )
 }
 
 function Pill({ status }) {
-  const colors = { good:'bg-[#1D9E75]/20 text-[#1D9E75]', average:'bg-[#BA7517]/20 text-[#BA7517]', concern:'bg-[#E24B4A]/20 text-[#E24B4A]', fallow:'bg-white/10 text-white/40' }
+  const colors = { good:'bg-[#1D9E75]/20 text-[#1D9E75]', average:'bg-[#BA7517]/20 text-[#BA7517]', concern:'bg-[#E24B4A]/20 text-[#E24B4A]', fallow:'bg-[var(--c-ghost)] text-[var(--c-muted)]' }
   const labels = { good:'Healthy', average:'Monitor', concern:'Concern', fallow:'Fallow' }
   return <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${colors[status] || colors.fallow}`}>{labels[status] || 'Fallow'}</span>
 }
 
 function MiniStat({ label, value, color, small }) {
   return (
-    <div className="bg-white/4 rounded-lg p-2 border border-white/6">
-      <p className="text-[9px] text-white/35 mb-0.5">{label}</p>
+    <div className="bg-[var(--c-card)] rounded-lg p-2 border border-[var(--c-border)]">
+      <p className="text-[9px] text-[var(--c-muted)] mb-0.5">{label}</p>
       <p className={`${small ? 'text-[10px]' : 'text-xs'} font-semibold`} style={color ? { color } : { color: '#fff' }}>{value}</p>
     </div>
   )

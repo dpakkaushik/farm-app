@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+﻿import React, { useState, useRef } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, CheckCircle2, AlertTriangle, Package, Trash2, Receipt, FileText, Download, Filter } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
@@ -121,14 +121,14 @@ export default function Inventory() {
   const items = catFilter === 'all' ? inventoryMaster : inventoryMaster.filter(i => i.category === catFilter)
 
   return (
-    <div className="h-full flex flex-col bg-[#0f1117]">
+    <div className="h-full flex flex-col bg-[var(--c-bg)]">
 
       {/* Tab bar */}
-      <div className="flex border-b border-white/8 bg-[#161a23] shrink-0">
+      <div className="flex border-b border-[var(--c-border)] bg-[var(--c-nav)] shrink-0">
         {TABS.map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors
-              ${tab === key ? 'text-[#1D9E75] border-b-2 border-[#1D9E75]' : 'text-white/40'}`}>
+              ${tab === key ? 'text-[#1D9E75] border-b-2 border-[#1D9E75]' : 'text-[var(--c-muted)]'}`}>
             <Icon size={16} />{label}
           </button>
         ))}
@@ -137,7 +137,7 @@ export default function Inventory() {
       {/* ── ITEMS ── */}
       {tab === 'items' && (
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar shrink-0 bg-[#161a23]">
+          <div className="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar shrink-0 bg-[var(--c-nav)]">
             <Chip active={catFilter === 'all'} onClick={() => setCat('all')}>All</Chip>
             {CATS.map(c => (
               <Chip key={c} active={catFilter === c} onClick={() => setCat(c)}>
@@ -151,26 +151,26 @@ export default function Inventory() {
               const isLow = item.minThreshold > 0 && item.currentStock > 0 && item.currentStock < item.minThreshold
               return (
                 <div key={item.id}
-                  className={`bg-[#161a23] rounded-2xl border p-4 ${isOut ? 'border-[#E24B4A]/40' : isLow ? 'border-[#BA7517]/35' : 'border-white/8'}`}>
+                  className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${isOut ? 'border-[#E24B4A]/40' : isLow ? 'border-[#BA7517]/35' : 'border-[var(--c-border)]'}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{item.name}</p>
-                      <p className="text-[10px] text-white/35 mt-0.5">
+                      <p className="text-sm font-semibold text-[var(--c-text)]">{item.name}</p>
+                      <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
                         {CAT_LABEL[item.category]} · WAC ₹{item.costPerUnit}/{item.unit}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-2xl font-bold ${isOut ? 'text-[#E24B4A]' : isLow ? 'text-[#BA7517]' : 'text-white'}`}>
+                      <p className={`text-2xl font-bold ${isOut ? 'text-[#E24B4A]' : isLow ? 'text-[#BA7517]' : 'text-[var(--c-text)]'}`}>
                         {item.currentStock}
                       </p>
-                      <p className="text-[10px] text-white/30">{item.unit}</p>
+                      <p className="text-[10px] text-[var(--c-faint)]">{item.unit}</p>
                       {isLow && <p className="text-[10px] text-[#BA7517]">⚠ Low (min {item.minThreshold})</p>}
                       {isOut && <p className="text-[10px] text-[#E24B4A] font-semibold">✗ Out of stock</p>}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => openPurchase(item)}
-                      className="flex-1 py-2 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 flex items-center justify-center gap-1">
+                      className="flex-1 py-2 text-xs font-medium rounded-xl bg-[var(--c-ghost)] hover:bg-white/15 text-[var(--c-text)] border border-[var(--c-border-md)] flex items-center justify-center gap-1">
                       <Plus size={11} /> Purchase
                     </button>
                     <button onClick={() => openIssue(item)} disabled={isOut}
@@ -200,9 +200,9 @@ export default function Inventory() {
       {modal === 'purchase' && selected && (
         <Modal title={`Purchase — ${selected.name}`} onClose={() => setModal(null)}>
           <div className="space-y-3">
-            <div className="bg-white/5 rounded-xl px-3 py-2 text-xs text-white/50">
-              Current stock: <span className="text-white font-semibold">{selected.currentStock} {selected.unit}</span>
-              {' '}· WAC: <span className="text-white font-semibold">₹{selected.costPerUnit}/{selected.unit}</span>
+            <div className="bg-[var(--c-card)] rounded-xl px-3 py-2 text-xs text-[var(--c-sub)]">
+              Current stock: <span className="text-[var(--c-text)] font-semibold">{selected.currentStock} {selected.unit}</span>
+              {' '}· WAC: <span className="text-[var(--c-text)] font-semibold">₹{selected.costPerUnit}/{selected.unit}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
@@ -226,12 +226,12 @@ export default function Inventory() {
             {form.qty && form.unitPrice && (
               <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2 space-y-0.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-white/50">Total cost</p>
+                  <p className="text-xs text-[var(--c-sub)]">Total cost</p>
                   <p className="text-base font-bold text-[#1D9E75]">₹{(parseFloat(form.qty) * parseFloat(form.unitPrice)).toLocaleString()}</p>
                 </div>
                 {newWACPreview && (
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-white/35">New WAC after purchase</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">New WAC after purchase</p>
                     <p className="text-[10px] font-semibold text-[#1D9E75]">₹{newWACPreview}/{selected.unit}</p>
                   </div>
                 )}
@@ -246,10 +246,10 @@ export default function Inventory() {
               <FilePicker accept="image/*,application/pdf" file={billFile} onFile={setBillFile} />
             </FRow>
 
-            <p className="text-[10px] text-white/25">Entry date recorded automatically on save.</p>
+            <p className="text-[10px] text-[var(--c-faint)]">Entry date recorded automatically on save.</p>
 
             <button onClick={confirmPurchase} disabled={saving}
-              className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-40">
+              className="w-full py-3 bg-[#1D9E75] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : 'Confirm Purchase'}
             </button>
           </div>
@@ -263,16 +263,16 @@ export default function Inventory() {
             <div className={`rounded-xl px-3 py-2 border text-xs ${
               selected.currentStock === 0 ? 'bg-[#E24B4A]/10 border-[#E24B4A]/30 text-[#E24B4A]'
               : selected.currentStock < (selected.minThreshold || 0) ? 'bg-[#BA7517]/10 border-[#BA7517]/30 text-[#BA7517]'
-              : 'bg-white/5 border-white/10 text-white/50'}`}>
-              Stock: <span className="font-bold text-white">{selected.currentStock} {selected.unit}</span>
-              {' '}· WAC: <span className="font-bold text-white">₹{selected.costPerUnit}/{selected.unit}</span>
+              : 'bg-[var(--c-card)] border-[var(--c-border-md)] text-[var(--c-sub)]'}`}>
+              Stock: <span className="font-bold text-[var(--c-text)]">{selected.currentStock} {selected.unit}</span>
+              {' '}· WAC: <span className="font-bold text-[var(--c-text)]">₹{selected.costPerUnit}/{selected.unit}</span>
             </div>
 
             {/* Plot picker */}
             <FRow label="Issue to Plot">
-              <select className="finput" value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} style={{ background: '#1a2030' }}>
-                <option value="" style={{ background: '#1a2030' }}>Farm-wide (no plot)</option>
-                {plots.map(p => <option key={p.id} value={p.id} style={{ background: '#1a2030' }}>{p.name}</option>)}
+              <select className="finput" value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide (no plot)</option>
+                {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
               </select>
             </FRow>
 
@@ -284,16 +284,16 @@ export default function Inventory() {
                 {issueStage === 'active' ? (
                   <>
                     <p className="font-semibold" style={{ color: '#1D9E75' }}>Active cycle found</p>
-                    <p className="text-white/50 mt-0.5">
+                    <p className="text-[var(--c-sub)] mt-0.5">
                       {cropMaster.find(c => c.id === activeCycleForPlot?.cropId)?.name || '—'}
                       {' '}· Sown {activeCycleForPlot?.sowDate} · {activeCycleForPlot?.season}
                     </p>
-                    <p className="text-white/30 mt-0.5 text-[10px]">Cost will be attributed to this cycle.</p>
+                    <p className="text-[var(--c-faint)] mt-0.5 text-[10px]">Cost will be attributed to this cycle.</p>
                   </>
                 ) : (
                   <>
                     <p className="font-semibold text-[#BA7517]">No active cycle — Preparation stage</p>
-                    <p className="text-white/40 mt-0.5 text-[10px]">Cost will be auto-linked to the next cycle started for this plot.</p>
+                    <p className="text-[var(--c-muted)] mt-0.5 text-[10px]">Cost will be auto-linked to the next cycle started for this plot.</p>
                   </>
                 )}
               </div>
@@ -304,7 +304,7 @@ export default function Inventory() {
                 <input type="number" className={`finput ${qtyOverStock ? 'border-[#E24B4A]' : ''}`}
                   placeholder="0" value={form.qty || ''} onChange={e => f('qty', e.target.value)} />
                 {qtyOverStock && <p className="text-xs text-[#E24B4A] mt-1">✗ Max {selected.currentStock} {selected.unit}</p>}
-                {!qtyOverStock && issueQty > 0 && <p className="text-xs text-white/30 mt-1">After: {stockAfter} {selected.unit}</p>}
+                {!qtyOverStock && issueQty > 0 && <p className="text-xs text-[var(--c-faint)] mt-1">After: {stockAfter} {selected.unit}</p>}
               </FRow>
               <FRow label="Date">
                 <input type="date" className="finput" value={form.date || ''} onChange={e => f('date', e.target.value)} style={{ colorScheme: 'dark' }} />
@@ -317,16 +317,16 @@ export default function Inventory() {
 
             {issueQty > 0 && !qtyOverStock && (
               <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2 flex items-center justify-between">
-                <p className="text-xs text-white/50">Cost ({issueQty} × ₹{selected.costPerUnit})</p>
+                <p className="text-xs text-[var(--c-sub)]">Cost ({issueQty} × ₹{selected.costPerUnit})</p>
                 <p className="text-base font-bold text-[#1D9E75]">₹{(issueQty * selected.costPerUnit).toLocaleString()}</p>
               </div>
             )}
 
-            <p className="text-[10px] text-white/25">Entry date recorded automatically on save.</p>
+            <p className="text-[10px] text-[var(--c-faint)]">Entry date recorded automatically on save.</p>
 
             <button onClick={confirmIssue}
               disabled={saving || qtyOverStock || !issueQty || selected.currentStock === 0}
-              className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-40">
+              className="w-full py-3 bg-[#1D9E75] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : 'Confirm Issue'}
             </button>
           </div>
@@ -334,12 +334,12 @@ export default function Inventory() {
       )}
 
       {toast && (
-        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
+        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
           {toastType === 'warn' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />} {toast}
         </div>
       )}
 
-      <style>{`.finput{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 14px;color:white;font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none;}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
+      <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none;}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
     </div>
   )
 }
@@ -386,25 +386,25 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
       <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
-            <p className="text-[10px] text-white/40">Total ({filtered.length} records)</p>
+            <p className="text-[10px] text-[var(--c-muted)]">Total ({filtered.length} records)</p>
             <p className="text-lg font-bold text-[#1D9E75]">₹{total.toLocaleString()}</p>
           </div>
           <button onClick={() => setShowFilter(f => !f)}
-            className="p-3 rounded-xl border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-colors">
+            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[var(--c-text)] hover:border-white/30 transition-colors">
             <Filter size={16} />
           </button>
           <button onClick={downloadCSV}
-            className="p-3 rounded-xl border border-white/10 text-white/40 hover:text-[#1D9E75] hover:border-[#1D9E75]/40 transition-colors">
+            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#1D9E75] hover:border-[#1D9E75]/40 transition-colors">
             <Download size={16} />
           </button>
         </div>
         {showFilter && (
-          <div className="bg-[#161a23] rounded-2xl border border-white/8 p-3 space-y-2">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Item">
-                <select className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: '#1a2030', padding: '8px 10px' }}>
-                  <option value="" style={{ background: '#1a2030' }}>All items</option>
-                  {inventoryMaster.map(i => <option key={i.id} value={i.id} style={{ background: '#1a2030' }}>{i.name}</option>)}
+                <select className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>All items</option>
+                  {inventoryMaster.map(i => <option key={i.id} value={i.id} style={{ background: 'var(--c-surface)' }}>{i.name}</option>)}
                 </select>
               </FRow>
               <FRow label="Vendor">
@@ -424,26 +424,26 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
-        {filtered.length === 0 && <p className="text-center text-white/30 text-sm py-8">No purchases found.</p>}
+        {filtered.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-8">No purchases found.</p>}
         {filtered.map(p => {
           const item = inventoryMaster.find(i => i.id === p.itemId)
           return (
-            <div key={p.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+            <div key={p.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{item?.name || '—'}</p>
-                  <p className="text-xs text-white/40 mt-0.5">{p.vendor}</p>
+                  <p className="text-sm font-semibold text-[var(--c-text)]">{item?.name || '—'}</p>
+                  <p className="text-xs text-[var(--c-muted)] mt-0.5">{p.vendor}</p>
                   <div className="flex flex-wrap gap-x-3 mt-0.5">
-                    <p className="text-[10px] text-white/30">Invoice: {p.invoiceDate || p.date}</p>
-                    {p.invoiceNo && <p className="text-[10px] text-white/25">#{p.invoiceNo}</p>}
+                    <p className="text-[10px] text-[var(--c-faint)]">Invoice: {p.invoiceDate || p.date}</p>
+                    {p.invoiceNo && <p className="text-[10px] text-[var(--c-faint)]">#{p.invoiceNo}</p>}
                   </div>
                   {p.billImagePath && (
                     <p className="text-[10px] text-[#1D9E75] mt-0.5">📎 Bill attached</p>
                   )}
                 </div>
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-base font-bold text-white">₹{p.totalCost.toLocaleString()}</p>
-                  <p className="text-[10px] text-white/40">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
+                  <p className="text-base font-bold text-[var(--c-text)]">₹{p.totalCost.toLocaleString()}</p>
+                  <p className="text-[10px] text-[var(--c-muted)]">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
                 </div>
               </div>
             </div>
@@ -502,41 +502,41 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
       <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-[#4169E1]/10 border border-[#4169E1]/20 rounded-xl px-3 py-2">
-            <p className="text-[10px] text-white/40">Total issued ({filtered.length} records)</p>
+            <p className="text-[10px] text-[var(--c-muted)]">Total issued ({filtered.length} records)</p>
             <p className="text-lg font-bold text-[#4169E1]">₹{total.toLocaleString()}</p>
           </div>
           <button onClick={() => setShowFilter(f => !f)}
-            className="p-3 rounded-xl border border-white/10 text-white/40 hover:text-white transition-colors">
+            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors">
             <Filter size={16} />
           </button>
           <button onClick={downloadCSV}
-            className="p-3 rounded-xl border border-white/10 text-white/40 hover:text-[#4169E1] hover:border-[#4169E1]/40 transition-colors">
+            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#4169E1] hover:border-[#4169E1]/40 transition-colors">
             <Download size={16} />
           </button>
         </div>
         {showFilter && (
-          <div className="bg-[#161a23] rounded-2xl border border-white/8 p-3 space-y-2">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Item">
-                <select className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: '#1a2030', padding: '8px 10px' }}>
-                  <option value="" style={{ background: '#1a2030' }}>All items</option>
-                  {inventoryMaster.map(i => <option key={i.id} value={i.id} style={{ background: '#1a2030' }}>{i.name}</option>)}
+                <select className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>All items</option>
+                  {inventoryMaster.map(i => <option key={i.id} value={i.id} style={{ background: 'var(--c-surface)' }}>{i.name}</option>)}
                 </select>
               </FRow>
               <FRow label="Plot">
-                <select className="finput text-xs" value={plotFilter} onChange={e => setPlotFilter(e.target.value)} style={{ background: '#1a2030', padding: '8px 10px' }}>
-                  <option value="" style={{ background: '#1a2030' }}>All plots</option>
-                  {plots.map(p => <option key={p.id} value={p.id} style={{ background: '#1a2030' }}>{p.name}</option>)}
+                <select className="finput text-xs" value={plotFilter} onChange={e => setPlotFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>All plots</option>
+                  {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
                 </select>
               </FRow>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Stage">
-                <select className="finput text-xs" value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={{ background: '#1a2030', padding: '8px 10px' }}>
-                  <option value="" style={{ background: '#1a2030' }}>All stages</option>
-                  <option value="active"      style={{ background: '#1a2030' }}>Active Cycle</option>
-                  <option value="preparation" style={{ background: '#1a2030' }}>Preparation</option>
-                  <option value="farm_wide"   style={{ background: '#1a2030' }}>Farm-wide</option>
+                <select className="finput text-xs" value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>All stages</option>
+                  <option value="active"      style={{ background: 'var(--c-surface)' }}>Active Cycle</option>
+                  <option value="preparation" style={{ background: 'var(--c-surface)' }}>Preparation</option>
+                  <option value="farm_wide"   style={{ background: 'var(--c-surface)' }}>Farm-wide</option>
                 </select>
               </FRow>
               <FRow label="From"><input type="date" className="finput text-xs" value={from} onChange={e => setFrom(e.target.value)} style={{ colorScheme: 'dark', padding: '8px 10px' }} /></FRow>
@@ -554,29 +554,29 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 space-y-2 pb-4">
-        {filtered.length === 0 && <p className="text-center text-white/30 text-sm py-8">No issue records found.</p>}
+        {filtered.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-8">No issue records found.</p>}
         {filtered.map(i => {
           const item  = inventoryMaster.find(x => x.id === i.itemId)
           const color = STAGE_COLOR[i.stage] || '#888'
           return (
-            <div key={i.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+            <div key={i.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold text-white">{item?.name || '—'}</p>
+                    <p className="text-sm font-semibold text-[var(--c-text)]">{item?.name || '—'}</p>
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
                       style={{ background: color + '20', color }}>
                       {STAGE_LABEL[i.stage] || i.stage}
                     </span>
                   </div>
-                  <p className="text-xs text-white/40 mt-0.5">{i.plotLabel || '—'}</p>
-                  <p className="text-[10px] text-white/25 mt-0.5">{i.date}</p>
-                  {i.purpose && <p className="text-[10px] text-white/35 mt-0.5 italic">{i.purpose}</p>}
+                  <p className="text-xs text-[var(--c-muted)] mt-0.5">{i.plotLabel || '—'}</p>
+                  <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{i.date}</p>
+                  {i.purpose && <p className="text-[10px] text-[var(--c-muted)] mt-0.5 italic">{i.purpose}</p>}
                 </div>
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-base font-bold text-white">₹{i.totalCost.toLocaleString()}</p>
-                  <p className="text-[10px] text-white/40">{i.qty} {item?.unit}</p>
-                  <p className="text-[10px] text-white/25">@ ₹{i.unitCost}/{item?.unit}</p>
+                  <p className="text-base font-bold text-[var(--c-text)]">₹{i.totalCost.toLocaleString()}</p>
+                  <p className="text-[10px] text-[var(--c-muted)]">{i.qty} {item?.unit}</p>
+                  <p className="text-[10px] text-[var(--c-faint)]">@ ₹{i.unitCost}/{item?.unit}</p>
                 </div>
               </div>
             </div>
@@ -592,7 +592,7 @@ function Chip({ active, onClick, children }) {
   return (
     <button onClick={onClick}
       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-        ${active ? 'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]' : 'border-white/10 text-white/40'}`}>
+        ${active ? 'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'}`}>
       {children}
     </button>
   )
@@ -601,11 +601,11 @@ function Chip({ active, onClick, children }) {
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>
-      <div className="w-full bg-[#161a23] rounded-t-3xl p-5 max-h-[92vh] overflow-y-auto border-t border-white/10"
+      <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[92vh] overflow-y-auto border-t border-[var(--c-border-md)]"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-white">{title}</h3>
-          <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18} /></button>
+          <h3 className="text-sm font-bold text-[var(--c-text)]">{title}</h3>
+          <button onClick={onClose} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={18} /></button>
         </div>
         {children}
       </div>
@@ -614,5 +614,5 @@ function Modal({ title, onClose, children }) {
 }
 
 function FRow({ label, children }) {
-  return <div><label className="text-xs font-medium text-white/50 block mb-1.5">{label}</label>{children}</div>
+  return <div><label className="text-xs font-medium text-[var(--c-sub)] block mb-1.5">{label}</label>{children}</div>
 }

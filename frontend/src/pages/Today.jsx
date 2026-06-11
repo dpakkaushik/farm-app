@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+﻿import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, MapPin, HardHat } from 'lucide-react'
 import { useAppStore } from '../store'
@@ -184,15 +184,15 @@ export default function Today() {
   const totalWorkers   = selWorkers.size + outsideLabour
 
   return (
-    <div className="h-full overflow-y-auto bg-[#0f1117] pb-6">
+    <div className="h-full overflow-y-auto bg-[var(--c-bg)] pb-6">
 
       {/* Header */}
       <div className="px-4 pt-4 pb-2 flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-white">
+          <h1 className="text-xl font-bold text-[var(--c-text)]">
             {greeting}, {profile?.full_name?.split(' ')[0] || 'there'} 👋
           </h1>
-          <p className="text-sm text-white/40">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
+          <p className="text-sm text-[var(--c-muted)]">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
         {isManager(profile) && (
           <button
@@ -212,7 +212,7 @@ export default function Today() {
           {/* Row 1 — Farm Activity */}
           {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0 || completedToday.length > 0) && (
             <div>
-              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1.5">
+              <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
                 Farm Activity
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -227,7 +227,7 @@ export default function Today() {
           {/* Row 2 — Manpower (only when workers are recorded) */}
           {(todayRegularCount > 0 || todayOutsideTotal > 0) && (
             <div>
-              <p className="text-[10px] font-bold text-white/25 uppercase tracking-widest mb-1.5">
+              <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
                 Manpower
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -290,27 +290,27 @@ export default function Today() {
         )}
 
         {/* Activity History */}
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--c-border)' }}>
           <button
             onClick={() => setShowHistory(h => !h)}
             className="w-full flex items-center justify-between px-4 py-3.5"
-            style={{ background: 'rgba(255,255,255,0.03)' }}>
+            style={{ background: 'var(--c-card)' }}>
             <div className="flex items-center gap-2">
-              <ClipboardList size={15} className="text-white/40" />
-              <span className="text-xs font-bold text-white/60 uppercase tracking-wide">Activity History</span>
+              <ClipboardList size={15} className="text-[var(--c-muted)]" />
+              <span className="text-xs font-bold text-[var(--c-sub)] uppercase tracking-wide">Activity History</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
                 style={{ background: '#1D9E7520', color: '#1D9E75' }}>
                 {activities.length} records
               </span>
             </div>
-            <ChevronRight size={14} className="text-white/30 transition-transform"
+            <ChevronRight size={14} className="text-[var(--c-faint)] transition-transform"
               style={{ transform: showHistory ? 'rotate(90deg)' : 'rotate(0deg)' }} />
           </button>
 
           {showHistory && (
-            <div className="divide-y" style={{ divideColor: 'rgba(255,255,255,0.05)' }}>
+            <div className="divide-y" style={{ divideColor: 'var(--c-border)' }}>
               {activities.length === 0 ? (
-                <p className="text-xs text-white/30 text-center py-6 italic">No activities logged yet</p>
+                <p className="text-xs text-[var(--c-faint)] text-center py-6 italic">No activities logged yet</p>
               ) : (
                 [...activities]
                   .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
@@ -319,14 +319,14 @@ export default function Today() {
                     const typeInfo = ACTIVITY_TYPES.find(t => t.value === a.type)
                     return (
                       <div key={a.id} className="flex items-center gap-3 px-4 py-3"
-                        style={{ background: 'rgba(255,255,255,0.015)' }}>
+                        style={{ background: 'var(--c-card)' }}>
                         <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0"
                           style={{ background: color + '20' }}>
                           {ACT_EMOJI[a.type] || '📋'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-white/80">{a.plotLabel || '—'}</span>
+                            <span className="text-xs font-bold text-[var(--c-text-80)]">{a.plotLabel || '—'}</span>
                             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
                               style={{ background: color + '20', color }}>
                               {typeInfo?.label || a.type}
@@ -343,10 +343,10 @@ export default function Today() {
                             )}
                           </div>
                           {a.notes
-                            ? <p className="text-[11px] text-white/40 mt-0.5 truncate">{a.notes}</p>
+                            ? <p className="text-[11px] text-[var(--c-muted)] mt-0.5 truncate">{a.notes}</p>
                             : null}
                         </div>
-                        <span className="text-[10px] text-white/25 shrink-0">{a.date}</span>
+                        <span className="text-[10px] text-[var(--c-faint)] shrink-0">{a.date}</span>
                       </div>
                     )
                   })
@@ -356,10 +356,10 @@ export default function Today() {
         </div>
 
         {cropCycles.filter(c => c.status === 'active').length === 0 && (
-          <div className="text-center py-16 text-white/20">
+          <div className="text-center py-16 text-[var(--c-faint)]">
             <p className="text-5xl mb-3">🌱</p>
             <p className="text-sm font-medium">No active crop cycles</p>
-            <p className="text-xs mt-1 text-white/15">Start a crop cycle to see scheduled tasks here</p>
+            <p className="text-xs mt-1 text-[var(--c-faint)]">Start a crop cycle to see scheduled tasks here</p>
           </div>
         )}
       </div>
@@ -370,12 +370,12 @@ export default function Today() {
           style={{ background: 'rgba(0,0,0,0.7)' }}
           onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="w-full max-w-lg rounded-t-2xl overflow-hidden"
-            style={{ background: '#161a23', maxHeight: '90vh', overflowY: 'auto' }}>
+            style={{ background: 'var(--c-nav)', maxHeight: '90vh', overflowY: 'auto' }}>
 
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/10">
-              <h2 className="text-base font-bold text-white">Log Activity</h2>
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[var(--c-border-md)]">
+              <h2 className="text-base font-bold text-[var(--c-text)]">Log Activity</h2>
               <button onClick={() => setShowModal(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-full text-white/40 hover:text-white hover:bg-white/10">
+                className="w-7 h-7 flex items-center justify-center rounded-full text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)]">
                 <X size={16} />
               </button>
             </div>
@@ -384,7 +384,7 @@ export default function Today() {
 
               {/* Plot selection */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">
+                <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
                   {actType === 'events' ? 'Tag (optional)' : 'Select Plots'}
                   {actType !== 'events' && (
                     <span className="text-[#1D9E75] ml-1">({selPlots.size} selected)</span>
@@ -412,9 +412,9 @@ export default function Today() {
                         }}
                           className="px-3 py-2 rounded-xl border text-xs font-semibold transition-all"
                           style={{
-                            background:  sel ? '#ec489920' : 'rgba(255,255,255,0.04)',
-                            borderColor: sel ? '#ec4899'   : 'rgba(255,255,255,0.1)',
-                            color:       sel ? '#ec4899'   : 'rgba(255,255,255,0.5)',
+                            background:  sel ? '#ec489920' : 'var(--c-card)',
+                            borderColor: sel ? '#ec4899'   : 'var(--c-border-md)',
+                            color:       sel ? '#ec4899'   : 'var(--c-sub)',
                           }}>
                           {p.label}
                         </button>
@@ -429,9 +429,9 @@ export default function Today() {
                         <button key={p.plotId} onClick={() => togglePlot(p.plotId)}
                           className="flex flex-col items-center px-3 py-2 rounded-xl border text-xs font-semibold transition-all"
                           style={{
-                            background:  sel ? '#1D9E7520' : 'rgba(255,255,255,0.04)',
-                            borderColor: sel ? '#1D9E75'   : 'rgba(255,255,255,0.1)',
-                            color:       sel ? '#1D9E75'   : 'rgba(255,255,255,0.5)',
+                            background:  sel ? '#1D9E7520' : 'var(--c-card)',
+                            borderColor: sel ? '#1D9E75'   : 'var(--c-border-md)',
+                            color:       sel ? '#1D9E75'   : 'var(--c-sub)',
                           }}>
                           <span className="text-sm font-bold">{p.label}</span>
                           <span className="text-[9px] font-normal mt-0.5 opacity-70">{p.crop}</span>
@@ -439,7 +439,7 @@ export default function Today() {
                       )
                     })}
                     {activePlots.length === 0 && (
-                      <p className="text-xs text-white/30 italic">No active crop cycles found</p>
+                      <p className="text-xs text-[var(--c-faint)] italic">No active crop cycles found</p>
                     )}
                   </div>
                 )}
@@ -447,24 +447,24 @@ export default function Today() {
 
               {/* Activity type */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">
+                <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
                   Activity Type
                 </label>
                 <div className="relative">
                   <select value={actType} onChange={e => setActType(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
-                    style={{ background: '#0f1117', color: '#fff', borderColor: 'rgba(255,255,255,0.12)' }}>
+                    style={{ background: 'var(--c-bg)', color: '#fff', borderColor: 'var(--c-border-md)' }}>
                     {ACTIVITY_TYPES.map(t => (
                       <option key={t.value} value={t.value}>{t.emoji}  {t.label}</option>
                     ))}
                   </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">▾</div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
                 </div>
               </div>
 
               {/* Named Workers — multiselect */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-1.5">
+                <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <Users size={12} style={{ color: '#6366f1' }} />
                     Named Workers
@@ -476,7 +476,7 @@ export default function Today() {
                   </span>
                 </label>
                 {allNamedWorkers.length === 0 ? (
-                  <p className="text-xs text-white/30 italic py-1">
+                  <p className="text-xs text-[var(--c-faint)] italic py-1">
                     No named workers added yet — go to Manpower → Master
                   </p>
                 ) : (
@@ -487,14 +487,14 @@ export default function Today() {
                         <button key={w.id} onClick={() => toggleWorker(w.id)}
                           className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl border text-xs font-semibold transition-all"
                           style={{
-                            background:  sel ? '#6366f120' : 'rgba(255,255,255,0.04)',
-                            borderColor: sel ? '#6366f1'   : 'rgba(255,255,255,0.1)',
-                            color:       sel ? '#6366f1'   : 'rgba(255,255,255,0.5)',
+                            background:  sel ? '#6366f120' : 'var(--c-card)',
+                            borderColor: sel ? '#6366f1'   : 'var(--c-border-md)',
+                            color:       sel ? '#6366f1'   : 'var(--c-sub)',
                           }}>
                           <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
                             style={{
-                              background: sel ? '#6366f140' : 'rgba(255,255,255,0.08)',
-                              color: sel ? '#6366f1' : 'rgba(255,255,255,0.4)',
+                              background: sel ? '#6366f140' : 'var(--c-ghost)',
+                              color: sel ? '#6366f1' : 'var(--c-muted)',
                             }}>
                             {w.name.charAt(0).toUpperCase()}
                           </span>
@@ -509,50 +509,50 @@ export default function Today() {
 
               {/* Outside Labour — headcount stepper */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-1.5">
+                <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-1.5">
                   <span className="flex items-center gap-1.5">
                     <HardHat size={12} style={{ color: '#f59e0b' }} />
                     Outside Labour
-                    <span className="font-normal normal-case text-white/30">(headcount)</span>
+                    <span className="font-normal normal-case text-[var(--c-faint)]">(headcount)</span>
                   </span>
                 </label>
                 <div className="flex items-center gap-0 rounded-xl border overflow-hidden w-40"
-                  style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                  style={{ borderColor: 'var(--c-border-md)' }}>
                   <button onClick={() => setOutsideLabour(n => Math.max(0, n - 1))}
-                    className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                    className="w-10 h-[46px] flex items-center justify-center text-[var(--c-sub)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)] transition-colors">
                     <ChevronDown size={16} />
                   </button>
-                  <span className="flex-1 text-center text-sm font-bold text-white">{outsideLabour}</span>
+                  <span className="flex-1 text-center text-sm font-bold text-[var(--c-text)]">{outsideLabour}</span>
                   <button onClick={() => setOutsideLabour(n => n + 1)}
-                    className="w-10 h-[46px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+                    className="w-10 h-[46px] flex items-center justify-center text-[var(--c-sub)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)] transition-colors">
                     <ChevronUp size={16} />
                   </button>
                 </div>
                 {totalWorkers > 0 && (
-                  <p className="text-[11px] text-white/40 mt-1.5">
+                  <p className="text-[11px] text-[var(--c-muted)] mt-1.5">
                     Total: {selWorkers.size} named + {outsideLabour} outside
-                    {' '}= <span className="text-white/60 font-semibold">{totalWorkers} workers</span>
+                    {' '}= <span className="text-[var(--c-sub)] font-semibold">{totalWorkers} workers</span>
                   </p>
                 )}
               </div>
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide block mb-2">
+                <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
                   Notes <span className="font-normal normal-case">(optional)</span>
                 </label>
                 <textarea value={actNotes} onChange={e => setActNotes(e.target.value)}
                   placeholder="What was done, any observations…"
                   rows={2}
                   className="w-full rounded-xl px-4 py-3 text-sm outline-none border resize-none"
-                  style={{ background: '#0f1117', color: '#fff', borderColor: 'rgba(255,255,255,0.12)' }} />
+                  style={{ background: 'var(--c-bg)', color: '#fff', borderColor: 'var(--c-border-md)' }} />
               </div>
 
               {/* Buttons */}
               <div className="flex gap-3 pt-1 pb-2">
                 <button onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 rounded-xl text-sm font-semibold border text-white/50 hover:text-white hover:border-white/30 transition-colors"
-                  style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold border text-[var(--c-sub)] hover:text-[var(--c-text)] hover:border-white/30 transition-colors"
+                  style={{ borderColor: 'var(--c-border-md)' }}>
                   Cancel
                 </button>
                 <button
@@ -592,8 +592,8 @@ function Section({ title, color, badge, children }) {
     <div>
       <div className="flex items-center gap-2 mb-2.5">
         <div className="w-1.5 h-4 rounded-full" style={{ background: color }} />
-        <p className="text-xs font-bold text-white uppercase tracking-wide">{title}</p>
-        {badge && <span className="text-[10px] text-white/30 ml-1">{badge}</span>}
+        <p className="text-xs font-bold text-[var(--c-text)] uppercase tracking-wide">{title}</p>
+        {badge && <span className="text-[10px] text-[var(--c-faint)] ml-1">{badge}</span>}
       </div>
       <div className="space-y-2">{children}</div>
     </div>
@@ -608,17 +608,17 @@ function ScheduledCard({ task, status, onDone }) {
   return (
     <div className={`rounded-2xl border p-3.5 transition-opacity ${isDone ? 'opacity-35' : ''}`}
       style={{
-        background:  isDone ? 'transparent' : isOverdue ? '#3b0f0f' : isToday ? '#0f1f1a' : 'rgba(255,255,255,0.03)',
-        borderColor: isDone ? 'rgba(255,255,255,0.05)' : isOverdue ? '#7f1d1d60' : isToday ? '#1D9E7530' : 'rgba(255,255,255,0.07)',
+        background:  isDone ? 'transparent' : isOverdue ? 'var(--c-card-danger)' : isToday ? 'var(--c-card-success)' : 'var(--c-card)',
+        borderColor: isDone ? 'var(--c-card)' : isOverdue ? '#7f1d1d60' : isToday ? '#1D9E7530' : 'var(--c-border)',
       }}>
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
-          style={{ background: isDone ? 'rgba(255,255,255,0.05)' : color + '22' }}>
+          style={{ background: isDone ? 'var(--c-card)' : color + '22' }}>
           {isDone ? '✓' : ACT_EMOJI[task.type] || '📋'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-white/80">{task.plotLabel}</span>
+            <span className="text-xs font-bold text-[var(--c-text-80)]">{task.plotLabel}</span>
             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
               style={{ background: color + '22', color }}>
               {ACTIVITY_TYPES.find(t => t.value === task.type)?.label || task.type}
@@ -627,17 +627,17 @@ function ScheduledCard({ task, status, onDone }) {
               <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
             )}
             {status === 'future' && (
-              <span className="text-[9px] text-white/30">in {task.daysUntil}d</span>
+              <span className="text-[9px] text-[var(--c-faint)]">in {task.daysUntil}d</span>
             )}
           </div>
-          <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-white/30 line-through' : 'text-white/75'}`}>
+          <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-[var(--c-faint)] line-through' : 'text-[var(--c-text-80)]'}`}>
             {task.label}
           </p>
-          <p className="text-[10px] text-white/30 mt-0.5">{task.cropName} · Day {task.day}</p>
+          <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{task.cropName} · Day {task.day}</p>
         </div>
         {(isToday || isOverdue) && onDone && (
           <button onClick={onDone}
-            className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors hover:bg-[#1D9E75] hover:text-white hover:border-[#1D9E75]"
+            className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors hover:bg-[#1D9E75] hover:text-[var(--c-text)] hover:border-[#1D9E75]"
             style={{ color: '#1D9E75', borderColor: '#1D9E7540', background: '#1D9E7510' }}>
             Done
           </button>
@@ -657,11 +657,11 @@ function LoggedPlotCard({ group }) {
   }, [permanentStaff, regularLabourers])
 
   return (
-    <div className="rounded-2xl border p-3.5" style={{ background: '#0d1825', borderColor: '#3b82f630' }}>
+    <div className="rounded-2xl border p-3.5" style={{ background: 'var(--c-card-info)', borderColor: '#3b82f630' }}>
       {/* Plot header */}
-      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-white/8">
+      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-[var(--c-border)]">
         <MapPin size={11} style={{ color: '#3b82f6' }} className="shrink-0" />
-        <span className="text-xs font-bold text-white/80 flex-1">{group.plotLabel}</span>
+        <span className="text-xs font-bold text-[var(--c-text-80)] flex-1">{group.plotLabel}</span>
         {group.activities.length > 1 && (
           <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
             style={{ background: '#3b82f620', color: '#3b82f6' }}>
@@ -690,7 +690,7 @@ function LoggedPlotCard({ group }) {
                     {typeInfo?.label || a.type}
                   </span>
                   {a.notes && (
-                    <span className="text-[10px] text-white/35 truncate max-w-[160px]">
+                    <span className="text-[10px] text-[var(--c-muted)] truncate max-w-[160px]">
                       · {a.notes}
                     </span>
                   )}

@@ -2,67 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ── Theme tokens ─────────────────────────────────────────────────────────── */
+:root, [data-theme="dark"] {
+  --c-bg:           #0f1117;
+  --c-nav:          #161a23;
+  --c-surface:      #1a2030;
+  --c-input:        #313d5e;
+  --c-card:         rgba(255,255,255,0.04);
+  --c-card-info:    #0d1825;
+  --c-card-danger:  #3b0f0f;
+  --c-card-success: #0f1f1a;
+  --c-ghost:        rgba(255,255,255,0.09);
+  --c-border:       rgba(255,255,255,0.07);
+  --c-border-md:    rgba(255,255,255,0.13);
+  --c-text:         #ffffff;
+  --c-text-80:      rgba(255,255,255,0.82);
+  --c-sub:          rgba(255,255,255,0.60);
+  --c-muted:        rgba(255,255,255,0.40);
+  --c-faint:        rgba(255,255,255,0.25);
   --primary: #1D9E75;
   --danger:  #E24B4A;
   --warning: #BA7517;
-}
-
-body { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color: #fff; }
-
-/* ── Dark inputs — prevent white-on-white on iOS/Android ── */
-input, textarea, select {
-  background-color: #1a2030;
-  color: #ffffff;
   color-scheme: dark;
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: rgba(255, 255, 255, 0.30);
+[data-theme="light"] {
+  --c-bg:           #f2f5ef;
+  --c-nav:          #ffffff;
+  --c-surface:      #ffffff;
+  --c-input:        #e8ede4;
+  --c-card:         #ffffff;
+  --c-card-info:    #eef4fb;
+  --c-card-danger:  #fef2f2;
+  --c-card-success: #f0fdf6;
+  --c-ghost:        rgba(0,0,0,0.05);
+  --c-border:       rgba(0,0,0,0.08);
+  --c-border-md:    rgba(0,0,0,0.14);
+  --c-text:         #1a2010;
+  --c-text-80:      #2d3d20;
+  --c-sub:          #4b5e3c;
+  --c-muted:        #728060;
+  --c-faint:        #9aab88;
+  --primary: #1D9E75;
+  --danger:  #E24B4A;
+  --warning: #BA7517;
+  color-scheme: light;
 }
 
-/* Override browser autofill (Chrome/Safari apply blue/white bg) */
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ── Inputs ───────────────────────────────────────────────────────────────── */
+input, textarea, select {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+  color-scheme: inherit;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--c-faint);
+}
+
+/* Autofill */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 textarea:-webkit-autofill,
-textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus,
-select:-webkit-autofill,
-select:-webkit-autofill:hover,
-select:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 1000px #1a2030 inset !important;
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px var(--c-surface) inset !important;
+  -webkit-text-fill-color: var(--c-text) !important;
+  caret-color: var(--c-text);
   transition: background-color 5000s ease-in-out 0s;
 }
 
-/* ── Global .finput used in modals across all pages ── */
+/* ── .finput ─────────────────────────────────────────────────────────────── */
 .finput {
   width: 100%;
-  background: #1a2030 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--c-input) !important;
+  border: 1px solid var(--c-border-md);
   border-radius: 12px;
   padding: 10px 14px;
-  color: #ffffff !important;
+  color: var(--c-text) !important;
   font-size: 14px;
   outline: none;
-  -webkit-text-fill-color: #ffffff;
+  -webkit-text-fill-color: var(--c-text);
 }
 
-.finput:focus {
-  border-color: #1D9E75;
-}
+.finput:focus { border-color: #1D9E75; }
 
 .finput::placeholder {
-  color: rgba(255, 255, 255, 0.30);
-  -webkit-text-fill-color: rgba(255, 255, 255, 0.30);
+  color: var(--c-faint);
+  -webkit-text-fill-color: var(--c-faint);
 }
 
-/* ── Scrollbar hide utility ── */
+/* ── Light mode card shadows ─────────────────────────────────────────────── */
+[data-theme="light"] .rounded-card,
+[data-theme="light"] .rounded-2xl,
+[data-theme="light"] .rounded-xl {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* ── Scrollbar hide ──────────────────────────────────────────────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* ── Map ── */
+/* ── Map ─────────────────────────────────────────────────────────────────── */
 .mapboxgl-ctrl-logo { display: none !important; }

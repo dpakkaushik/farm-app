@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+﻿import React, { useState } from 'react'
 import { CheckCircle, Camera } from 'lucide-react'
 import { farmApi } from '../api/client'
 
@@ -53,11 +53,11 @@ export default function Diary() {
 
   if (submitted) {
     return (
-      <div className="h-full flex flex-col items-center justify-center gap-4 bg-[#0f1117] p-8 text-center">
+      <div className="h-full flex flex-col items-center justify-center gap-4 bg-[var(--c-bg)] p-8 text-center">
         <CheckCircle size={56} className="text-[#1D9E75]" />
-        <h2 className="text-xl font-bold text-white">Diary Submitted!</h2>
+        <h2 className="text-xl font-bold text-[var(--c-text)]">Diary Submitted!</h2>
         <p className="text-sm text-white/50">Owner has been notified. See you tomorrow.</p>
-        <button onClick={() => setSubmitted(false)} className="mt-4 px-6 py-2.5 bg-white/10 rounded-xl text-sm text-white hover:bg-white/20 transition-colors">
+        <button onClick={() => setSubmitted(false)} className="mt-4 px-6 py-2.5 bg-white/10 rounded-xl text-sm text-[var(--c-text)] hover:bg-white/20 transition-colors">
           Submit Another
         </button>
       </div>
@@ -65,10 +65,10 @@ export default function Diary() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="h-full overflow-y-auto bg-[#0f1117] p-4 space-y-5 pb-24">
+    <form onSubmit={handleSubmit} className="h-full overflow-y-auto bg-[var(--c-bg)] p-4 space-y-5 pb-24">
       <div>
-        <h1 className="text-xl font-bold text-white">Daily Diary</h1>
-        <p className="text-sm text-white/40">{today}</p>
+        <h1 className="text-xl font-bold text-[var(--c-text)]">Daily Diary</h1>
+        <p className="text-sm text-[var(--c-muted)]">{today}</p>
       </div>
 
       {/* Plot selection */}
@@ -81,7 +81,7 @@ export default function Diary() {
               className={`py-3 rounded-xl text-sm font-medium border transition-colors ${
                 selectedPlots.includes(p)
                   ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
-                  : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30'
+                  : 'bg-white/5 border-white/10 text-[var(--c-sub)] hover:border-white/30'
               }`}
             >
               {p}
@@ -153,9 +153,9 @@ export default function Diary() {
           placeholder="What was done today? Any issues observed?"
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
         />
-        <label className="flex items-center gap-2 text-xs text-white/40 cursor-pointer hover:text-white/60 mt-2">
+        <label className="flex items-center gap-2 text-xs text-[var(--c-muted)] cursor-pointer hover:text-[var(--c-sub)] mt-2">
           <Camera size={14} /> Attach photo
           <input type="file" accept="image/*" capture="environment" className="hidden" />
         </label>
@@ -168,15 +168,15 @@ export default function Diary() {
           placeholder="What's the plan for tomorrow?"
           value={tomorrowPlan}
           onChange={e => setTomorrowPlan(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
         />
       </Section>
 
       {/* Submit */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#0f1117]/95 backdrop-blur-sm border-t border-white/8">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--c-bg)]/95 backdrop-blur-sm border-t border-white/8">
         <button
           type="submit" disabled={submitting || selectedPlots.length === 0}
-          className="w-full py-4 rounded-xl font-semibold text-sm bg-[#1D9E75] text-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#17a97e] transition-colors"
+          className="w-full py-4 rounded-xl font-semibold text-sm bg-[#1D9E75] text-[var(--c-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#17a97e] transition-colors"
         >
           {submitting ? 'Submitting…' : 'Submit Diary'}
         </button>
@@ -188,7 +188,7 @@ export default function Diary() {
 function Section({ title, children }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">{title}</h3>
+      <h3 className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wider mb-2">{title}</h3>
       {children}
     </div>
   )
@@ -197,8 +197,8 @@ function Section({ title, children }) {
 function LabelInput({ label, ...props }) {
   return (
     <div>
-      <label className="text-xs text-white/40 block mb-1">{label}</label>
-      <input {...props} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#1D9E75]" />
+      <label className="text-xs text-[var(--c-muted)] block mb-1">{label}</label>
+      <input {...props} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75]" />
     </div>
   )
 }

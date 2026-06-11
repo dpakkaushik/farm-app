@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus, Pencil, Wallet } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
 import { supabase } from '../lib/supabase'
@@ -23,15 +23,15 @@ const FARM_EMOJIS = [
 export default function Admin() {
   const [tab, setTab] = useState('Crops')
   return (
-    <div className="h-full flex flex-col bg-[#0f1117]">
+    <div className="h-full flex flex-col bg-[var(--c-bg)]">
       <div className="shrink-0 px-4 pt-4 pb-0">
-        <h2 className="text-lg font-bold text-white">Admin — Masters</h2>
-        <p className="text-xs text-white/40 mb-3">Manage crop types, cycles, inventory, labour</p>
-        <div className="flex gap-2 border-b border-white/8 overflow-x-auto no-scrollbar">
+        <h2 className="text-lg font-bold text-[var(--c-text)]">Admin — Masters</h2>
+        <p className="text-xs text-[var(--c-muted)] mb-3">Manage crop types, cycles, inventory, labour</p>
+        <div className="flex gap-2 border-b border-[var(--c-border)] overflow-x-auto no-scrollbar">
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors
-                ${tab === t ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-white/40'}`}>
+                ${tab === t ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
               {t}
             </button>
           ))}
@@ -119,7 +119,7 @@ function CropsMaster() {
       </button>
 
       {form !== null && (
-        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
           <FRow label="Crop name">
             <input className="finput" placeholder="e.g. Cotton"
@@ -133,19 +133,19 @@ function CropsMaster() {
                 return (
                   <button key={emoji} type="button"
                     onClick={() => !isUsed && setForm(p => ({ ...p, emoji }))}
-                    className={`text-lg p-1 rounded-lg border transition-all ${isSel ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : isUsed ? 'opacity-25 cursor-not-allowed border-transparent' : 'border-white/10 hover:border-white/30'}`}
+                    className={`text-lg p-1 rounded-lg border transition-all ${isSel ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : isUsed ? 'opacity-25 cursor-not-allowed border-transparent' : 'border-[var(--c-border-md)] hover:border-white/30'}`}
                     title={isUsed ? 'Already used by another crop' : emoji}>
                     {emoji}
                   </button>
                 )
               })}
             </div>
-            {form.emoji && <p className="text-[10px] text-white/40 mt-1">Selected: {form.emoji}</p>}
+            {form.emoji && <p className="text-[10px] text-[var(--c-muted)] mt-1">Selected: {form.emoji}</p>}
           </FRow>
           <FRow label="Season">
-            <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: '#1a2030' }}>
-              <option value="" style={{ background: '#1a2030' }}>Select…</option>
-              {SEASONS.map(s => <option key={s.value} value={s.value} style={{ background: '#1a2030' }}>{s.label}</option>)}
+            <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
+              {SEASONS.map(s => <option key={s.value} value={s.value} style={{ background: 'var(--c-surface)' }}>{s.label}</option>)}
             </select>
           </FRow>
           <div className="grid grid-cols-2 gap-2">
@@ -176,9 +176,9 @@ function CropsMaster() {
                 return (
                   <button key={color} type="button"
                     onClick={() => !isUsed && setForm(p => ({ ...p, color }))}
-                    className={`w-8 h-8 rounded-lg border-2 relative transition-all ${isSel ? 'border-white scale-110' : isUsed ? 'opacity-30 cursor-not-allowed border-transparent' : 'border-transparent hover:border-white/50'}`}
+                    className={`w-8 h-8 rounded-lg border-2 relative transition-all ${isSel ? 'border-white scale-110' : isUsed ? 'opacity-30 cursor-not-allowed border-transparent' : 'border-transparent hover:border-[var(--c-border)]0'}`}
                     style={{ background: color }} title={isUsed ? 'Used by another crop' : color}>
-                    {isUsed && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">✕</span>}
+                    {isUsed && <span className="absolute inset-0 flex items-center justify-center text-[var(--c-text)] text-xs font-bold">✕</span>}
                   </button>
                 )
               })}
@@ -186,16 +186,16 @@ function CropsMaster() {
             {form.color && (
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: form.color }} />
-                <span className="text-[10px] text-white/40">{form.color}</span>
+                <span className="text-[10px] text-[var(--c-muted)]">{form.color}</span>
               </div>
             )}
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Crop' : 'Save to Database'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
@@ -203,11 +203,11 @@ function CropsMaster() {
       {cropMaster.map(c => {
         const activeCycles = cropCycles.filter(cc => cc.cropId === c.id && cc.status === 'active').length
         return (
-          <div key={c.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center gap-3">
+          <div key={c.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: c.color }} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white">{c.emoji} {c.name}</p>
-              <p className="text-[10px] text-white/40">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
+              <p className="text-sm font-semibold text-[var(--c-text)]">{c.emoji} {c.name}</p>
+              <p className="text-[10px] text-[var(--c-muted)]">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
               {activeCycles > 0 && <p className="text-[10px] text-[#1D9E75] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -216,7 +216,7 @@ function CropsMaster() {
                 className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                 Edit
               </button>
-              <button onClick={() => handleDelete(c.id, c.name)} className="text-white/20 hover:text-[#E24B4A] shrink-0">
+              <button onClick={() => handleDelete(c.id, c.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A] shrink-0">
                 <Trash2 size={15} />
               </button>
             </div>
@@ -295,15 +295,15 @@ function InventoryMaster() {
       </button>
 
       {form !== null && (
-        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Item' : 'New Item'}</p>
           <FRow label="Name">
             <input className="finput" placeholder="e.g. DAP"
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
           </FRow>
           <FRow label="Category">
-            <select className="finput" value={form.category || ''} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ background: '#1a2030' }}>
-              {CATS.map(c => <option key={c} value={c} style={{ background: '#1a2030' }}>{CAT_LABEL[c]}</option>)}
+            <select className="finput" value={form.category || ''} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              {CATS.map(c => <option key={c} value={c} style={{ background: 'var(--c-surface)' }}>{CAT_LABEL[c]}</option>)}
             </select>
           </FRow>
           <div className="grid grid-cols-2 gap-2">
@@ -324,19 +324,19 @@ function InventoryMaster() {
           </div>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Item' : 'Save to Database'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
 
       {inventoryMaster.map(i => (
-        <div key={i.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center justify-between">
+        <div key={i.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-center justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">{i.name}</p>
-            <p className="text-[10px] text-white/40">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
+            <p className="text-sm font-semibold text-[var(--c-text)]">{i.name}</p>
+            <p className="text-[10px] text-[var(--c-muted)]">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
             <p className="text-[10px] text-[#1D9E75] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
           </div>
           <div className="flex items-center gap-2 ml-3 shrink-0">
@@ -345,7 +345,7 @@ function InventoryMaster() {
               className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
               Edit
             </button>
-            <button onClick={() => handleDelete(i.id, i.name)} className="text-white/20 hover:text-[#E24B4A]">
+            <button onClick={() => handleDelete(i.id, i.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
               <Trash2 size={15} />
             </button>
           </div>
@@ -489,10 +489,10 @@ function LabourMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       {/* Tab strip */}
-      <div className="flex gap-1 bg-[#161a23] rounded-xl p-1 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1 bg-[var(--c-nav)] rounded-xl p-1 overflow-x-auto no-scrollbar">
         {LABOUR_TABS.map(([k, lbl]) => (
           <button key={k} onClick={() => { setTab(k); setForm(null) }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${tab === k ? 'bg-[#1D9E75] text-white' : 'text-white/40'}`}>
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${tab === k ? 'bg-[#1D9E75] text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`}>
             {lbl}
           </button>
         ))}
@@ -500,13 +500,13 @@ function LabourMaster() {
 
       {/* ── Permanent Staff ── */}
       {tab === 'staff' && (<>
-        <p className="text-[11px] text-white/30 px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
+        <p className="text-[11px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
         <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Staff Member
         </button>
         {form !== null && (
-          <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
             <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Staff' : 'New Staff Member'}</p>
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Full name">
@@ -537,17 +537,17 @@ function LabourMaster() {
                 <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
               </FRow>
             </div>
-            <p className="text-[10px] text-white/30 px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
+            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
             <FRow label="Photo">
               <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
                 onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
             </FRow>
             <div className="flex gap-2">
               <button onClick={saveStaff} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                 {saving ? 'Saving…' : form.id ? 'Update' : 'Save to Database'}
               </button>
-              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
             </div>
           </div>
         )}
@@ -562,26 +562,26 @@ function LabourMaster() {
             ratePerDay={null} monthlySalary={s.monthlySalary}
           />
         ))}
-        {permanentStaff.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No permanent staff added yet</p>}
+        {permanentStaff.length === 0 && !form && <p className="text-xs text-[var(--c-faint)] text-center py-4">No permanent staff added yet</p>}
       </>)}
 
       {/* ── Regular Labour ── */}
       {tab === 'regular' && (<>
-        <p className="text-[11px] text-white/30 px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
+        <p className="text-[11px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
         <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Regular Labourer
         </button>
         {form !== null && (
-          <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
             <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Labourer' : 'New Regular Labourer'}</p>
             <FRow label="Full name">
               <input className="finput" placeholder="e.g. Ramesh Kumar"
                 value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
             </FRow>
             <FRow label="Kind of work">
-              <select className="finput" value={form.workType || ''} onChange={e => setForm(p => ({ ...p, workType: e.target.value }))} style={{ background: '#1a2030' }}>
-                {WORK_TYPES.map(w => <option key={w} value={w} style={{ background: '#1a2030' }}>{w}</option>)}
+              <select className="finput" value={form.workType || ''} onChange={e => setForm(p => ({ ...p, workType: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                {WORK_TYPES.map(w => <option key={w} value={w} style={{ background: 'var(--c-surface)' }}>{w}</option>)}
               </select>
             </FRow>
             <div className="grid grid-cols-2 gap-2">
@@ -598,17 +598,17 @@ function LabourMaster() {
               <input type="number" className="finput" placeholder="0"
                 value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
             </FRow>
-            <p className="text-[10px] text-white/30 px-0.5">Positive = farm owes them from last month. Negative = they owe farm.</p>
+            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Positive = farm owes them from last month. Negative = they owe farm.</p>
             <FRow label="Photo">
               <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
                 onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
             </FRow>
             <div className="flex gap-2">
               <button onClick={saveRegular} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                 {saving ? 'Saving…' : form.id ? 'Update Labourer' : 'Save to Database'}
               </button>
-              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
             </div>
           </div>
         )}
@@ -623,18 +623,18 @@ function LabourMaster() {
             ratePerDay={l.ratePerDay} monthlySalary={null}
           />
         ))}
-        {regularLabourers.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No regular labour added yet</p>}
+        {regularLabourers.length === 0 && !form && <p className="text-xs text-[var(--c-faint)] text-center py-4">No regular labour added yet</p>}
       </>)}
 
       {/* ── Contractual ── */}
       {tab === 'contractual' && (<>
-        <p className="text-[11px] text-white/30 px-1">Bulk workers called for busy periods — per day rate, count-based tracking in Today tab.</p>
+        <p className="text-[11px] text-[var(--c-faint)] px-1">Bulk workers called for busy periods — per day rate, count-based tracking in Today tab.</p>
         <button onClick={() => setForm({})}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Labour Category
         </button>
         {form !== null && (
-          <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
             <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Category' : 'New Category'}</p>
             <FRow label="Category name">
               <input className="finput" placeholder="e.g. Harvesting Labour"
@@ -646,34 +646,34 @@ function LabourMaster() {
             </FRow>
             <div className="flex gap-2">
               <button onClick={saveContractual} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                 {saving ? 'Saving…' : form.id ? 'Update Category' : 'Save to Database'}
               </button>
-              <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
             </div>
           </div>
         )}
         {contractualLabour.map(l => (
-          <div key={l.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 flex items-center justify-between">
+          <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">{l.name}</p>
-              <p className="text-[10px] text-white/40">₹{l.defaultRate}/day standard rate</p>
+              <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
+              <p className="text-[10px] text-[var(--c-muted)]">₹{l.defaultRate}/day standard rate</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={() => setForm({ id: l.id, name: l.name, defaultRate: l.defaultRate })}
                 className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">Edit</button>
-              <button onClick={() => handleDeleteContractual(l.id, l.name)} className="text-white/15 hover:text-[#E24B4A]"><Trash2 size={15} /></button>
+              <button onClick={() => handleDeleteContractual(l.id, l.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]"><Trash2 size={15} /></button>
             </div>
           </div>
         ))}
-        {contractualLabour.length === 0 && !form && <p className="text-xs text-white/20 text-center py-4">No categories added yet</p>}
+        {contractualLabour.length === 0 && !form && <p className="text-xs text-[var(--c-faint)] text-center py-4">No categories added yet</p>}
       </>)}
 
       {/* ── Advances ── */}
       {tab === 'advances' && (<>
-        <p className="text-[11px] text-white/30 px-1">Salary advances given to permanent staff or regular labour. Deducted at month-end salary.</p>
+        <p className="text-[11px] text-[var(--c-faint)] px-1">Salary advances given to permanent staff or regular labour. Deducted at month-end salary.</p>
         {allTracked.length === 0 ? (
-          <p className="text-xs text-white/20 text-center py-6">Add staff or regular labour first to record advances.</p>
+          <p className="text-xs text-[var(--c-faint)] text-center py-6">Add staff or regular labour first to record advances.</p>
         ) : (<>
           <button onClick={() => setAdvForm({ labourerId: '', amount: '', date: today, reason: '' })}
             className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#BA7517]/30 rounded-2xl text-xs text-[#BA7517] hover:border-[#BA7517]/60">
@@ -681,19 +681,19 @@ function LabourMaster() {
           </button>
 
           {advForm !== null && (
-            <div className="bg-[#161a23] rounded-2xl border border-[#BA7517]/30 p-4 space-y-3">
+            <div className="bg-[var(--c-nav)] rounded-2xl border border-[#BA7517]/30 p-4 space-y-3">
               <p className="text-xs font-bold text-[#BA7517]">New Salary Advance</p>
               <FRow label="Person">
-                <select className="finput" value={advForm.labourerId} onChange={e => setAdvForm(p => ({ ...p, labourerId: e.target.value }))} style={{ background: '#1a2030' }}>
-                  <option value="" style={{ background: '#1a2030' }}>Select…</option>
+                <select className="finput" value={advForm.labourerId} onChange={e => setAdvForm(p => ({ ...p, labourerId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
                   {permanentStaff.length > 0 && (
-                    <optgroup label="Permanent Staff" style={{ background: '#1a2030' }}>
-                      {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: '#1a2030' }}>{s.name}</option>)}
+                    <optgroup label="Permanent Staff" style={{ background: 'var(--c-surface)' }}>
+                      {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: 'var(--c-surface)' }}>{s.name}</option>)}
                     </optgroup>
                   )}
                   {regularLabourers.length > 0 && (
-                    <optgroup label="Regular Labour" style={{ background: '#1a2030' }}>
-                      {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: '#1a2030' }}>{l.name}</option>)}
+                    <optgroup label="Regular Labour" style={{ background: 'var(--c-surface)' }}>
+                      {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: 'var(--c-surface)' }}>{l.name}</option>)}
                     </optgroup>
                   )}
                 </select>
@@ -713,27 +713,27 @@ function LabourMaster() {
               </FRow>
               <div className="flex gap-2">
                 <button onClick={saveAdvance} disabled={saving || !advForm.labourerId || !advForm.amount}
-                  className="flex-1 py-2.5 bg-[#BA7517] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+                  className="flex-1 py-2.5 bg-[#BA7517] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                   {saving ? 'Saving…' : 'Record Advance'}
                 </button>
-                <button onClick={() => setAdvForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+                <button onClick={() => setAdvForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
               </div>
             </div>
           )}
 
           {advances.length === 0 ? (
-            <p className="text-xs text-white/20 text-center py-4">No pending advances</p>
+            <p className="text-xs text-[var(--c-faint)] text-center py-4">No pending advances</p>
           ) : (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">Pending Recovery</p>
+              <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Pending Recovery</p>
               {advances.map(adv => {
                 const person = allTracked.find(p => p.id === adv.labourerId)
                 return (
-                  <div key={adv.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+                  <div key={adv.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-white">{person?.name || '—'}</p>
-                        <p className="text-[10px] text-white/40">{adv.date}{adv.reason ? ` · ${adv.reason}` : ''}</p>
+                        <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name || '—'}</p>
+                        <p className="text-[10px] text-[var(--c-muted)]">{adv.date}{adv.reason ? ` · ${adv.reason}` : ''}</p>
                       </div>
                       <p className="text-base font-bold text-[#BA7517]">₹{adv.amount}</p>
                     </div>
@@ -865,10 +865,10 @@ function AttendanceRegularize() {
 
   if (permanentStaff.length === 0) return (
     <div className="p-4 pt-0">
-      <div className="rounded-2xl border border-white/8 p-6 text-center">
+      <div className="rounded-2xl border border-[var(--c-border)] p-6 text-center">
         <p className="text-2xl mb-2">📅</p>
-        <p className="text-sm font-semibold text-white/60">No permanent staff added</p>
-        <p className="text-xs text-white/30 mt-1">Add staff in the Staff tab first</p>
+        <p className="text-sm font-semibold text-[var(--c-sub)]">No permanent staff added</p>
+        <p className="text-xs text-[var(--c-faint)] mt-1">Add staff in the Staff tab first</p>
       </div>
       <Style />
     </div>
@@ -876,15 +876,15 @@ function AttendanceRegularize() {
 
   return (
     <div className="p-4 pt-0 space-y-3 pb-6">
-      <div className="bg-[#1a1e2a] rounded-2xl p-2.5 text-[10px] text-white/35 leading-relaxed">
-        Staff: <span className="text-white/60">6 days/week (Sunday off) · 10 paid leaves/year · Public holidays paid</span>
+      <div className="bg-[var(--c-nav)] rounded-2xl p-2.5 text-[10px] text-[var(--c-muted)] leading-relaxed">
+        Staff: <span className="text-[var(--c-sub)]">6 days/week (Sunday off) · 10 paid leaves/year · Public holidays paid</span>
         &nbsp;·&nbsp;Regular labour: salary = days present × daily rate only
       </div>
 
       {/* Staff selector */}
       {permanentStaff.length > 1 && (
-        <select className="finput" value={staffId || ''} onChange={e => setStaffId(e.target.value)} style={{ background: '#1a2030' }}>
-          {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: '#1a2030' }}>{s.name} — {s.designation || 'Staff'}</option>)}
+        <select className="finput" value={staffId || ''} onChange={e => setStaffId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
+          {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: 'var(--c-surface)' }}>{s.name} — {s.designation || 'Staff'}</option>)}
         </select>
       )}
       {permanentStaff.length === 1 && (
@@ -893,26 +893,26 @@ function AttendanceRegularize() {
             {staff?.name?.charAt(0)}
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">{staff?.name}</p>
-            <p className="text-[10px] text-white/40">{staff?.designation} · ₹{staff?.monthlySalary}/mo</p>
+            <p className="text-sm font-semibold text-[var(--c-text)]">{staff?.name}</p>
+            <p className="text-[10px] text-[var(--c-muted)]">{staff?.designation} · ₹{staff?.monthlySalary}/mo</p>
           </div>
         </div>
       )}
 
       {/* Month navigation */}
-      <div className="flex items-center justify-between bg-[#161a23] rounded-2xl px-4 py-3">
-        <button onClick={prevMonth} className="text-white/50 hover:text-white px-2 py-1 rounded-lg hover:bg-white/8 text-lg">‹</button>
-        <p className="text-sm font-bold text-white">{MONTH_NAMES[month - 1]} {year}</p>
-        <button onClick={nextMonth} className="text-white/50 hover:text-white px-2 py-1 rounded-lg hover:bg-white/8 text-lg">›</button>
+      <div className="flex items-center justify-between bg-[var(--c-nav)] rounded-2xl px-4 py-3">
+        <button onClick={prevMonth} className="text-[var(--c-sub)] hover:text-[var(--c-text)] px-2 py-1 rounded-lg hover:bg-[var(--c-ghost)] text-lg">‹</button>
+        <p className="text-sm font-bold text-[var(--c-text)]">{MONTH_NAMES[month - 1]} {year}</p>
+        <button onClick={nextMonth} className="text-[var(--c-sub)] hover:text-[var(--c-text)] px-2 py-1 rounded-lg hover:bg-[var(--c-ghost)] text-lg">›</button>
       </div>
 
       {/* Calendar */}
-      <div className="bg-[#161a23] rounded-2xl overflow-hidden">
+      <div className="bg-[var(--c-nav)] rounded-2xl overflow-hidden">
         {/* Day headers */}
-        <div className="grid grid-cols-7 border-b border-white/6">
+        <div className="grid grid-cols-7 border-b border-[var(--c-border)]">
           {DAY_LABELS.map((d, i) => (
             <div key={d} className="text-center py-2 text-[10px] font-bold"
-              style={{ color: i === 0 ? '#E24B4A80' : 'rgba(255,255,255,0.30)' }}>{d}</div>
+              style={{ color: i === 0 ? '#E24B4A80' : 'var(--c-faint)' }}>{d}</div>
           ))}
         </div>
         {/* Cells */}
@@ -928,7 +928,7 @@ function AttendanceRegularize() {
                 className="aspect-square flex flex-col items-center justify-center gap-0.5 border border-white/[0.04] transition-opacity disabled:cursor-default"
                 style={{ background: style ? style.bg + '30' : 'transparent', opacity: cell.isFuture ? 0.35 : 1 }}>
                 <span className="text-[10px] font-semibold leading-none"
-                  style={{ color: cell.isSun ? '#E24B4A60' : style ? style.bg : 'rgba(255,255,255,0.55)' }}>
+                  style={{ color: cell.isSun ? '#E24B4A60' : style ? style.bg : 'var(--c-sub)' }}>
                   {cell.d}
                 </span>
                 {style && style.label && (
@@ -941,7 +941,7 @@ function AttendanceRegularize() {
                   <span className="text-[7px] text-[#7B2D8B] leading-none">PH</span>
                 )}
                 {isToday && !style && (
-                  <div className="w-1 h-1 rounded-full bg-white/40 mt-0.5" />
+                  <div className="w-1 h-1 rounded-full bg-[var(--c-card)]0 mt-0.5" />
                 )}
               </button>
             )
@@ -959,17 +959,17 @@ function AttendanceRegularize() {
           { label: 'Absent',     val: stats.absent,    color: '#E24B4A' },
           { label: 'Working Days', val: workingDays,   color: '#888' },
         ].map(({ label, val, color }) => (
-          <div key={label} className="bg-[#161a23] rounded-xl p-3 text-center border border-white/6">
+          <div key={label} className="bg-[var(--c-nav)] rounded-xl p-3 text-center border border-[var(--c-border)]">
             <p className="text-lg font-bold" style={{ color }}>{val}</p>
-            <p className="text-[10px] text-white/35 mt-0.5">{label}</p>
+            <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{label}</p>
           </div>
         ))}
       </div>
       {estSalary !== null && (
-        <div className="bg-[#1a2030] rounded-2xl p-4 flex items-center justify-between border border-white/8">
+        <div className="bg-[var(--c-surface)] rounded-2xl p-4 flex items-center justify-between border border-[var(--c-border)]">
           <div>
-            <p className="text-xs text-white/40">Estimated salary · {paidDays.toFixed(1)} paid days / {workingDays} working</p>
-            <p className="text-[10px] text-white/25 mt-0.5">= ₹{staff?.monthlySalary} × {paidDays.toFixed(1)}/{workingDays}</p>
+            <p className="text-xs text-[var(--c-muted)]">Estimated salary · {paidDays.toFixed(1)} paid days / {workingDays} working</p>
+            <p className="text-[10px] text-[var(--c-faint)] mt-0.5">= ₹{staff?.monthlySalary} × {paidDays.toFixed(1)}/{workingDays}</p>
           </div>
           <p className="text-xl font-bold text-[#1D9E75]">₹{estSalary.toLocaleString('en-IN')}</p>
         </div>
@@ -983,23 +983,23 @@ function AttendanceRegularize() {
               style={{ background: cfg.bg + '30', color: cfg.bg, border: `1px solid ${cfg.bg}60` }}>
               {cfg.label}
             </div>
-            <span className="text-[10px] text-white/30 capitalize">{s.replace('_', ' ')}</span>
+            <span className="text-[10px] text-[var(--c-faint)] capitalize">{s.replace('_', ' ')}</span>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-white/20 text-center">Tap a day to cycle: P → H → L → A → clear</p>
+      <p className="text-[10px] text-[var(--c-faint)] text-center">Tap a day to cycle: P → H → L → A → clear</p>
 
       {/* Public Holidays */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide">Public Holidays</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Public Holidays</p>
           <button onClick={() => setHForm({ date: '', name: '' })}
             className="text-[10px] text-[#7B2D8B] px-2 py-1 border border-[#7B2D8B]/30 rounded-lg hover:bg-[#7B2D8B]/10">
             + Add
           </button>
         </div>
         {hForm && (
-          <div className="bg-[#161a23] rounded-2xl border border-[#7B2D8B]/30 p-4 space-y-3 mb-2">
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#7B2D8B]/30 p-4 space-y-3 mb-2">
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Date">
                 <input type="date" className="finput" value={hForm.date} onChange={e => setHForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
@@ -1010,23 +1010,23 @@ function AttendanceRegularize() {
             </div>
             <div className="flex gap-2">
               <button onClick={handleAddHoliday} disabled={hSaving || !hForm.date || !hForm.name}
-                className="flex-1 py-2.5 text-xs font-bold text-white rounded-xl disabled:opacity-40"
+                className="flex-1 py-2.5 text-xs font-bold text-[var(--c-text)] rounded-xl disabled:opacity-40"
                 style={{ background: '#7B2D8B' }}>
                 {hSaving ? 'Saving…' : 'Add Holiday'}
               </button>
-              <button onClick={() => setHForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+              <button onClick={() => setHForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
             </div>
           </div>
         )}
         {publicHolidays.length === 0
-          ? <p className="text-[10px] text-white/20 text-center py-2">No public holidays added</p>
+          ? <p className="text-[10px] text-[var(--c-faint)] text-center py-2">No public holidays added</p>
           : publicHolidays.map(h => (
-            <div key={h.id} className="flex items-center justify-between py-2 border-b border-white/5">
+            <div key={h.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)]">
               <div>
-                <p className="text-xs font-semibold text-white">{h.name}</p>
+                <p className="text-xs font-semibold text-[var(--c-text)]">{h.name}</p>
                 <p className="text-[10px] text-[#7B2D8B]">{h.date}</p>
               </div>
-              <button onClick={() => deletePublicHoliday(h.id)} className="text-white/20 hover:text-[#E24B4A]"><Trash2 size={13} /></button>
+              <button onClick={() => deletePublicHoliday(h.id)} className="text-[var(--c-faint)] hover:text-[#E24B4A]"><Trash2 size={13} /></button>
             </div>
           ))
         }
@@ -1098,13 +1098,13 @@ function PlotsMaster() {
         <input type="number" step="any" placeholder="Latitude (28.xxx)"
           value={form?.[latKey] || ''}
           onChange={e => f(latKey, e.target.value)}
-          className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#1D9E75]" />
+          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]" />
       </div>
       <div className="flex-1">
         <input type="number" step="any" placeholder="Longitude (80.xxx)"
           value={form?.[lngKey] || ''}
           onChange={e => f(lngKey, e.target.value)}
-          className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#1D9E75]" />
+          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]" />
       </div>
     </div>
   )
@@ -1117,7 +1117,7 @@ function PlotsMaster() {
       </button>
 
       {form !== null && (
-        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Plot' : 'New Plot'}</p>
 
           <div className="grid grid-cols-2 gap-2">
@@ -1133,20 +1133,20 @@ function PlotsMaster() {
 
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Soil type">
-              <select className="finput" value={form.soil_type || ''} onChange={e => f('soil_type', e.target.value)} style={{ background: '#1a2030' }}>
-                {SOIL_TYPES.map(s => <option key={s} value={s} style={{ background: '#1a2030' }}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              <select className="finput" value={form.soil_type || ''} onChange={e => f('soil_type', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                {SOIL_TYPES.map(s => <option key={s} value={s} style={{ background: 'var(--c-surface)' }}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
               </select>
             </FRow>
             <FRow label="Water source">
-              <select className="finput" value={form.water_source || ''} onChange={e => f('water_source', e.target.value)} style={{ background: '#1a2030' }}>
-                {WATER_SRCS.map(w => <option key={w} value={w} style={{ background: '#1a2030' }}>{w.charAt(0).toUpperCase()+w.slice(1)}</option>)}
+              <select className="finput" value={form.water_source || ''} onChange={e => f('water_source', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                {WATER_SRCS.map(w => <option key={w} value={w} style={{ background: 'var(--c-surface)' }}>{w.charAt(0).toUpperCase()+w.slice(1)}</option>)}
               </select>
             </FRow>
           </div>
 
-          <div className="border-t border-white/8 pt-3">
-            <p className="text-[10px] text-white/40 mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
-            <div className="grid grid-cols-2 gap-[2px] text-[9px] text-white/30 px-7 mb-1">
+          <div className="border-t border-[var(--c-border)] pt-3">
+            <p className="text-[10px] text-[var(--c-muted)] mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
+            <div className="grid grid-cols-2 gap-[2px] text-[9px] text-[var(--c-faint)] px-7 mb-1">
               <span>Latitude</span><span>Longitude</span>
             </div>
             <div className="space-y-2">
@@ -1162,10 +1162,10 @@ function PlotsMaster() {
 
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Plot' : 'Save to Database'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
@@ -1174,14 +1174,14 @@ function PlotsMaster() {
         const hasPoints = plot.point_a_lat && plot.point_a_lng
         const activeCycles = cropCycles.filter(c => c.plotId === plot.id && c.status === 'active').length
         return (
-          <div key={plot.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4">
+          <div key={plot.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">{plot.name}</p>
+                <p className="text-sm font-semibold text-[var(--c-text)]">{plot.name}</p>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  <span className="text-[10px] text-white/40">{plot.area_acres} acres</span>
-                  {plot.soil_type   && <span className="text-[10px] text-white/30">{plot.soil_type}</span>}
-                  {plot.water_source && <span className="text-[10px] text-white/30">{plot.water_source}</span>}
+                  <span className="text-[10px] text-[var(--c-muted)]">{plot.area_acres} acres</span>
+                  {plot.soil_type   && <span className="text-[10px] text-[var(--c-faint)]">{plot.soil_type}</span>}
+                  {plot.water_source && <span className="text-[10px] text-[var(--c-faint)]">{plot.water_source}</span>}
                 </div>
                 {hasPoints ? (
                   <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
@@ -1208,7 +1208,7 @@ function PlotsMaster() {
                 })} className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                   Edit
                 </button>
-                <button onClick={() => handleDelete(plot.id, plot.name)} className="text-white/20 hover:text-[#E24B4A]">
+                <button onClick={() => handleDelete(plot.id, plot.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
                   <Trash2 size={15} />
                 </button>
               </div>
@@ -1298,7 +1298,7 @@ function UsersMaster() {
       </button>
 
       {form !== null && (
-        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">New User</p>
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Full name">
@@ -1323,11 +1323,11 @@ function UsersMaster() {
               {ROLES.map(r => (
                 <button key={r.value} type="button"
                   onClick={() => setForm(p => ({ ...p, role: r.value }))}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${form.role === r.value ? 'border-[#1D9E75]/60 bg-[#1D9E75]/10' : 'border-white/8 bg-white/4'}`}>
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${form.role === r.value ? 'border-[#1D9E75]/60 bg-[#1D9E75]/10' : 'border-[var(--c-border)] bg-[var(--c-card)]'}`}>
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
                   <div>
-                    <p className="text-xs font-semibold text-white">{r.label}</p>
-                    <p className="text-[10px] text-white/35">{r.desc}</p>
+                    <p className="text-xs font-semibold text-[var(--c-text)]">{r.label}</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">{r.desc}</p>
                   </div>
                   {form.role === r.value && <span className="ml-auto text-[#1D9E75] text-xs">✓</span>}
                 </button>
@@ -1336,10 +1336,10 @@ function UsersMaster() {
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Creating…' : 'Create User'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
@@ -1347,27 +1347,27 @@ function UsersMaster() {
       {users.map(user => {
         const isSelf = user.id === me?.id
         return (
-          <div key={user.id} className={`bg-[#161a23] rounded-2xl border p-4 ${user.is_active ? 'border-white/8' : 'border-white/4 opacity-50'}`}>
+          <div key={user.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${user.is_active ? 'border-[var(--c-border)]' : 'border-white/4 opacity-50'}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-white">{user.full_name}</p>
+                  <p className="text-sm font-semibold text-[var(--c-text)]">{user.full_name}</p>
                   <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded border" style={roleStyle(user.role)}>
                     {ROLES.find(r => r.value === user.role)?.label}
                   </span>
                   {!user.is_active && <span className="text-[9px] text-[#E24B4A] bg-[#E24B4A]/10 px-1.5 py-0.5 rounded">Inactive</span>}
-                  {isSelf && <span className="text-[9px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded">You</span>}
+                  {isSelf && <span className="text-[9px] text-[var(--c-faint)] bg-[var(--c-card)] px-1.5 py-0.5 rounded">You</span>}
                 </div>
-                <p className="text-[10px] text-white/40 mt-0.5">{user.email}</p>
-                {user.phone && <p className="text-[10px] text-white/30">{user.phone}</p>}
+                <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{user.email}</p>
+                {user.phone && <p className="text-[10px] text-[var(--c-faint)]">{user.phone}</p>}
               </div>
               {!isSelf && (
                 <div className="flex items-center gap-2 shrink-0">
                   <select value={user.role}
                     onChange={e => changeRole(user.id, e.target.value)}
-                    className="text-[10px] bg-white/8 border border-white/12 rounded-lg px-1.5 py-1 text-white focus:outline-none"
-                    style={{ background: '#1a2030' }}>
-                    {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: '#1a2030' }}>{r.label}</option>)}
+                    className="text-[10px] bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-lg px-1.5 py-1 text-[var(--c-text)] focus:outline-none"
+                    style={{ background: 'var(--c-surface)' }}>
+                    {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: 'var(--c-surface)' }}>{r.label}</option>)}
                   </select>
                   {user.is_active ? (
                     <button onClick={() => handleDeactivate(user)}
@@ -1387,7 +1387,7 @@ function UsersMaster() {
         )
       })}
 
-      {users.length === 0 && <p className="text-xs text-white/30 text-center py-6">No users yet.</p>}
+      {users.length === 0 && <p className="text-xs text-[var(--c-faint)] text-center py-6">No users yet.</p>}
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
@@ -1398,15 +1398,15 @@ function UsersMaster() {
 // ── Person Card (Staff + Regular Labour) ─────────────────────────────────────
 function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDelete, subLabel, ratePerDay, monthlySalary }) {
   return (
-    <div className="bg-[#161a23] rounded-2xl border border-white/8 overflow-hidden">
+    <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
       {/* Main row */}
       <div className="p-4 flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-white">{person.name}</p>
-          <p className="text-[10px] text-white/40 mt-0.5">{subLabel}</p>
+          <p className="text-sm font-bold text-[var(--c-text)]">{person.name}</p>
+          <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{subLabel}</p>
           {person.phone && (
             <a href={`tel:${person.phone}`}
-              className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold rounded-lg px-2 py-0.5 border transition-colors hover:bg-white/8"
+              className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold rounded-lg px-2 py-0.5 border transition-colors hover:bg-[var(--c-ghost)]"
               style={{ color: accentColor, borderColor: accentColor + '40' }}>
               📞 {person.phone}
             </a>
@@ -1421,23 +1421,23 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
         <div className="shrink-0">
           {person.photoUrl
             ? <img src={person.photoUrl} alt={person.name}
-                className="w-16 h-16 rounded-xl object-cover border border-white/10" />
+                className="w-16 h-16 rounded-xl object-cover border border-[var(--c-border-md)]" />
             : <BlankFace color={accentColor} />
           }
         </div>
       </div>
       {/* Action bar */}
-      <div className="flex border-t border-white/6 divide-x divide-white/6">
+      <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
         <button onClick={onToggleLog}
-          className={`flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors ${isLogOpen ? 'text-[#BA7517] bg-[#BA7517]/8' : 'text-white/35 hover:text-white/70'}`}>
+          className={`flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors ${isLogOpen ? 'text-[#BA7517] bg-[#BA7517]/8' : 'text-[var(--c-muted)] hover:text-[var(--c-sub)]'}`}>
           📋 Log
         </button>
         <button onClick={onEdit}
-          className="flex-1 py-2.5 text-[10px] font-semibold text-white/35 hover:text-[#1D9E75] flex items-center justify-center gap-1 transition-colors">
+          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] flex items-center justify-center gap-1 transition-colors">
           ✏️ Edit
         </button>
         <button onClick={onDelete}
-          className="flex-1 py-2.5 text-[10px] font-semibold text-white/35 hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
+          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
           🗑 Delete
         </button>
       </div>
@@ -1451,7 +1451,7 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
 
 function BlankFace({ color }) {
   return (
-    <div className="w-16 h-16 rounded-xl border border-white/10 flex items-center justify-center"
+    <div className="w-16 h-16 rounded-xl border border-[var(--c-border-md)] flex items-center justify-center"
       style={{ background: color + '12' }}>
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
         stroke={color} strokeWidth="1.2" strokeLinecap="round" opacity="0.4">
@@ -1500,15 +1500,15 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
     })
   }, [personId])
 
-  if (!rows) return <div className="px-4 pb-3 text-[10px] text-white/30">Loading…</div>
+  if (!rows) return <div className="px-4 pb-3 text-[10px] text-[var(--c-faint)]">Loading…</div>
 
   const monthKeys = Object.keys(rows.months).sort().reverse()
 
   return (
-    <div className="border-t border-white/6 px-4 pb-4 pt-3 space-y-2">
-      <p className="text-[10px] font-bold text-white/30 uppercase tracking-wide">Salary Log — Last 6 Months</p>
+    <div className="border-t border-[var(--c-border)] px-4 pb-4 pt-3 space-y-2">
+      <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-wide">Salary Log — Last 6 Months</p>
       {monthKeys.length === 0 && (
-        <p className="text-[10px] text-white/20 italic">No attendance recorded yet</p>
+        <p className="text-[10px] text-[var(--c-faint)] italic">No attendance recorded yet</p>
       )}
       {monthKeys.map(ym => {
         const { present, half, absent } = rows.months[ym]
@@ -1527,8 +1527,8 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
           <div key={ym} className="bg-white/[0.04] rounded-xl px-3 py-2.5">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold text-white">{label}</p>
-                <p className="text-[10px] text-white/40 mt-0.5">
+                <p className="text-xs font-semibold text-[var(--c-text)]">{label}</p>
+                <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
                   {present}P · {half}H · {absent}A · {paidDays} paid days
                 </p>
                 {advance > 0 && (
@@ -1539,7 +1539,7 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-sm font-bold text-[#1D9E75]">₹{earned.toLocaleString()}</p>
                   {advance > 0 && (
-                    <p className="text-[10px] text-white/40">Net ₹{net.toLocaleString()}</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">Net ₹{net.toLocaleString()}</p>
                   )}
                 </div>
               )}
@@ -1553,29 +1553,29 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const FRow = ({ label, children }) => (
-  <div><label className="text-xs font-medium text-white/50 block mb-1.5">{label}</label>{children}</div>
+  <div><label className="text-xs font-medium text-[var(--c-sub)] block mb-1.5">{label}</label>{children}</div>
 )
 
 function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 px-4 pb-6 sm:pb-0">
-      <div className="bg-[#1a1f2e] rounded-2xl border border-white/12 p-5 w-full max-w-sm space-y-4 shadow-2xl">
+      <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border-md)] p-5 w-full max-w-sm space-y-4 shadow-2xl">
         <div className="flex items-start gap-3">
           <div className="shrink-0 w-10 h-10 rounded-full bg-[#E24B4A]/15 flex items-center justify-center">
             <AlertTriangle size={18} className="text-[#E24B4A]" />
           </div>
           <div className="flex-1 pt-0.5">
-            <p className="text-sm font-bold text-white">{title}</p>
-            <p className="text-xs text-white/50 mt-1 leading-relaxed">{message}</p>
+            <p className="text-sm font-bold text-[var(--c-text)]">{title}</p>
+            <p className="text-xs text-[var(--c-sub)] mt-1 leading-relaxed">{message}</p>
           </div>
         </div>
         <div className="flex gap-2">
           <button onClick={onCancel}
-            className="flex-1 py-3 bg-white/8 text-white/70 text-xs font-semibold rounded-xl hover:bg-white/12 transition-colors">
+            className="flex-1 py-3 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs font-semibold rounded-xl hover:bg-white/12 transition-colors">
             Cancel
           </button>
           <button onClick={onConfirm}
-            className="flex-1 py-3 bg-[#E24B4A] text-white text-xs font-bold rounded-xl hover:bg-[#cc3938] transition-colors">
+            className="flex-1 py-3 bg-[#E24B4A] text-[var(--c-text)] text-xs font-bold rounded-xl hover:bg-[#cc3938] transition-colors">
             {confirmLabel}
           </button>
         </div>
@@ -1588,7 +1588,7 @@ function Toast({ msg, type = 'success' }) {
   const bg   = type === 'warn' ? '#BA7517' : '#1D9E75'
   const Icon = type === 'warn' ? AlertTriangle : CheckCircle2
   return (
-    <div className="fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2"
+    <div className="fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2"
       style={{ background: bg }}>
       <Icon size={16} /> {msg}
     </div>
@@ -1596,7 +1596,7 @@ function Toast({ msg, type = 'success' }) {
 }
 
 const Style = () => (
-  <style>{`.finput{width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 14px;color:white;font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
+  <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
 )
 
 // ── Cycles Master — start / view crop cycles ───────────────────────────────────
@@ -1670,17 +1670,17 @@ function CyclesMaster() {
       </button>
 
       {form !== null && (
-        <div className="bg-[#161a23] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">New Crop Cycle</p>
 
           <FRow label="Plot (empty plots only)">
-            <select className="finput" value={form.plotId || ''} onChange={e => setForm(p => ({ ...p, plotId: e.target.value }))} style={{ background: '#1a2030' }}>
-              <option value="" style={{ background: '#1a2030' }}>Select plot…</option>
+            <select className="finput" value={form.plotId || ''} onChange={e => setForm(p => ({ ...p, plotId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <option value="" style={{ background: 'var(--c-surface)' }}>Select plot…</option>
               {availablePlots.map(p => (
-                <option key={p.id} value={p.id} style={{ background: '#1a2030' }}>{p.name}</option>
+                <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>
               ))}
               {availablePlots.length === 0 && (
-                <option disabled style={{ background: '#1a2030' }}>All plots have active cycles</option>
+                <option disabled style={{ background: 'var(--c-surface)' }}>All plots have active cycles</option>
               )}
             </select>
             {availablePlots.length === 0 && (
@@ -1689,10 +1689,10 @@ function CyclesMaster() {
           </FRow>
 
           <FRow label="Crop">
-            <select className="finput" value={form.cropId || ''} onChange={e => setForm(p => ({ ...p, cropId: e.target.value }))} style={{ background: '#1a2030' }}>
-              <option value="" style={{ background: '#1a2030' }}>Select crop…</option>
+            <select className="finput" value={form.cropId || ''} onChange={e => setForm(p => ({ ...p, cropId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <option value="" style={{ background: 'var(--c-surface)' }}>Select crop…</option>
               {cropMaster.map(c => (
-                <option key={c.id} value={c.id} style={{ background: '#1a2030' }}>{c.emoji} {c.name} ({c.duration_days} days)</option>
+                <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.emoji} {c.name} ({c.duration_days} days)</option>
               ))}
             </select>
           </FRow>
@@ -1702,10 +1702,10 @@ function CyclesMaster() {
               <input type="date" className="finput" value={form.sowDate || ''} onChange={e => setForm(p => ({ ...p, sowDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
             </FRow>
             <FRow label="Season">
-              <select className="finput" value={form.season || ''} onChange={e => setForm(p => ({ ...p, season: e.target.value }))} style={{ background: '#1a2030' }}>
-                <option value="" style={{ background: '#1a2030' }}>Select…</option>
+              <select className="finput" value={form.season || ''} onChange={e => setForm(p => ({ ...p, season: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
                 {['kharif_2025','rabi_2025','kharif_2026','rabi_2026','zaid_2026','kharif_2027','rabi_2027'].map(s => (
-                  <option key={s} value={s} style={{ background: '#1a2030' }}>{s}</option>
+                  <option key={s} value={s} style={{ background: 'var(--c-surface)' }}>{s}</option>
                 ))}
               </select>
             </FRow>
@@ -1721,8 +1721,8 @@ function CyclesMaster() {
             const harv = new Date(form.sowDate)
             harv.setDate(harv.getDate() + crop.duration_days)
             return (
-              <div className="bg-white/5 rounded-xl px-3 py-2 text-xs text-white/50">
-                Expected harvest: <span className="text-white font-semibold">{harv.toISOString().slice(0, 10)}</span>
+              <div className="bg-[var(--c-card)] rounded-xl px-3 py-2 text-xs text-[var(--c-sub)]">
+                Expected harvest: <span className="text-[var(--c-text)] font-semibold">{harv.toISOString().slice(0, 10)}</span>
                 {' '}(day {crop.duration_days})
               </div>
             )
@@ -1730,17 +1730,17 @@ function CyclesMaster() {
 
           <div className="flex gap-2">
             <button onClick={save} disabled={saving || availablePlots.length === 0}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Starting…' : 'Start Cycle'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-white/8 text-white/60 text-xs rounded-xl">Cancel</button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
 
       {activeCycles.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Active Cycles ({activeCycles.length})</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Active Cycles ({activeCycles.length})</p>
           {activeCycles.map(c => {
             const crop = cropMaster.find(cr => cr.id === c.cropId)
             const now  = new Date(); now.setHours(0,0,0,0)
@@ -1748,15 +1748,15 @@ function CyclesMaster() {
             const days = Math.floor((now - sow) / 86400000)
             const left = Math.max(0, (crop?.duration_days || 120) - days)
             return (
-              <div key={c.id} className="bg-[#161a23] rounded-2xl border border-white/8 p-4 mb-2 flex items-center gap-3">
+              <div key={c.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 mb-2 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-base"
                   style={{ background: crop?.color || '#1D9E7520' }}>
                   {crop?.emoji || '🌱'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
-                  <p className="text-[10px] text-white/40">Sown {c.sowDate} · Day {days} · {left}d left</p>
-                  <p className="text-[10px] text-white/30">{c.season}</p>
+                  <p className="text-sm font-semibold text-[var(--c-text)]">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
+                  <p className="text-[10px] text-[var(--c-muted)]">Sown {c.sowDate} · Day {days} · {left}d left</p>
+                  <p className="text-[10px] text-[var(--c-faint)]">{c.season}</p>
                 </div>
                 <button onClick={() => handleEndCycle(c)}
                   className="shrink-0 px-2 py-1.5 text-[10px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10 transition-colors">
@@ -1770,13 +1770,13 @@ function CyclesMaster() {
 
       {inactiveCycles.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-white/40 uppercase tracking-wide mb-2">Past Cycles ({inactiveCycles.length})</p>
+          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Past Cycles ({inactiveCycles.length})</p>
           {inactiveCycles.map(c => {
             const crop = cropMaster.find(cr => cr.id === c.cropId)
             return (
-              <div key={c.id} className="bg-[#161a23]/60 rounded-2xl border border-white/5 p-3 mb-1.5 opacity-60">
-                <p className="text-xs font-semibold text-white">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
-                <p className="text-[10px] text-white/40">{c.sowDate} · {c.status} · {c.season}</p>
+              <div key={c.id} className="bg-[var(--c-nav)]/60 rounded-2xl border border-[var(--c-border)] p-3 mb-1.5 opacity-60">
+                <p className="text-xs font-semibold text-[var(--c-text)]">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
+                <p className="text-[10px] text-[var(--c-muted)]">{c.sowDate} · {c.status} · {c.season}</p>
               </div>
             )
           })}
