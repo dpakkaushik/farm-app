@@ -760,11 +760,11 @@ function LabourLogs({ labourLogs, permanentStaff, regularLabourers }) {
       .select('labour_master_id, status')
       .gte('attendance_date', month + '-01')
       .lte('attendance_date', month + '-31')
-      .in('status', ['present', 'half_day'])
       .then(({ data }) => {
         const counts = {}
         ;(data || []).forEach(r => {
-          counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + (r.status === 'present' ? 1 : 0.5)
+          const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
+          if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
         })
         setAtt(counts)
       })
@@ -855,11 +855,11 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       .select('labour_master_id, status')
       .gte('attendance_date', month + '-01')
       .lte('attendance_date', month + '-31')
-      .in('status', ['present', 'half_day'])
       .then(({ data }) => {
         const counts = {}
         ;(data || []).forEach(r => {
-          counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + (r.status === 'present' ? 1 : 0.5)
+          const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
+          if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
         })
         setAtt(counts)
       })
