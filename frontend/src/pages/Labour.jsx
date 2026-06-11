@@ -340,7 +340,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             </select>
           </FRow>
 
-          {/* Regular vs Contractual toggle — Contractual first */}
+          {/* Worker Type toggle */}
           <div>
             <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Worker Type</p>
             <div className="flex gap-2">
@@ -358,16 +358,36 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             </div>
           </div>
 
-          {/* Contractual: worker count */}
-          {wForm.workerType === 'contractual' && (
+          {/* Contract Type — always second, for both worker types */}
+          <FRow label="Contract Type">
+            <div className="grid grid-cols-3 gap-1.5">
+              {CONTRACT_TYPES.map(ct => (
+                <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value, selectedWorkers: new Set(), contractQty: '', rate: '' }))}
+                  className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
+                  style={{
+                    background:  wForm.contractType === ct.value ? '#1D9E7520' : 'var(--c-card)',
+                    borderColor: wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-border-md)',
+                    color:       wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-sub)',
+                  }}>
+                  {ct.emoji}<br/>{ct.label}
+                </button>
+              ))}
+            </div>
+          </FRow>
+
+          {/* Contractual: worker count (after contract type) */}
+          {wForm.workerType === 'contractual' && wForm.contractType && (
             <FRow label="No. of Workers">
               <input type="number" className="finput" placeholder="0" min="1"
                 value={wForm.workerCount} onChange={e => setWForm(p => ({ ...p, workerCount: e.target.value }))} />
             </FRow>
           )}
 
-          {/* Regular: select named workers (present only) */}
-          {wForm.workerType === 'regular' && (() => {
+          {/* Regular: worker chips — only shown after contract type is picked */}
+          {wForm.workerType === 'regular' && !wForm.contractType && (
+            <p className="text-xs text-[var(--c-faint)] text-center py-1">Select a contract type above to pick workers.</p>
+          )}
+          {wForm.workerType === 'regular' && wForm.contractType && (() => {
             const presentWorkers = [
               ...permanentStaff.map(s  => ({ ...s, tag: '🏢', rate: s.ratePerDay || 0 })),
               ...regularLabourers.map(l => ({ ...l, tag: '👷', rate: l.ratePerDay || 0 })),
@@ -378,11 +398,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             if (presentWorkers.length === 0) return (
               <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
             )
-            const isContractual = wForm.contractType && wForm.contractType !== 'per_day'
+            const singleSelect = wForm.contractType !== 'per_day'
             return (
               <div key="chips">
                 <p className="text-[10px] text-[var(--c-muted)] mb-1.5">
-                  {isContractual ? 'Select Worker (one at a time — enter their own qty)' : 'Select Workers (present today)'}
+                  {singleSelect ? 'Select Worker (one at a time)' : 'Select Workers (present today · multi-select)'}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {presentWorkers.map(w => {
@@ -390,7 +410,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                     return (
                       <button key={w.id}
                         onClick={() => setWForm(p => {
-                          if (isContractual) {
+                          if (singleSelect) {
                             return { ...p, selectedWorkers: new Set([w.id]), contractQty: '', rate: '' }
                           }
                           const s = new Set(p.selectedWorkers)
@@ -413,24 +433,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             )
           })()}
 
-          {/* Contract Type — shown for both worker types */}
-          <FRow label="Contract Type">
-            <div className="grid grid-cols-3 gap-1.5">
-              {CONTRACT_TYPES.map(ct => (
-                <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value, contractQty: '', rate: '' }))}
-                  className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
-                  style={{
-                    background:  wForm.contractType === ct.value ? '#1D9E7520' : 'var(--c-card)',
-                    borderColor: wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-border-md)',
-                    color:       wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-sub)',
-                  }}>
-                  {ct.emoji}<br/>{ct.label}
-                </button>
-              ))}
-            </div>
-          </FRow>
-
-          {/* Per Day + Regular: rate is auto from master — no input needed */}
+          {/* Per Day + Regular: rate info */}
           {wForm.workerType === 'regular' && wForm.contractType === 'per_day' && (
             <div className="bg-[#1D9E75]/8 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
               <p className="text-[10px] text-[#1D9E75]">✓ Rate pulled from each worker's master record (daily_base_rate)</p>
