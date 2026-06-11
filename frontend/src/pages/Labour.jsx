@@ -130,31 +130,28 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           }
           showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
         } else {
-          const qty       = parseFloat(wForm.contractQty)
-          const rate      = parseFloat(wForm.rate)
+          const qty    = parseFloat(wForm.contractQty)
+          const rate   = parseFloat(wForm.rate)
           if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
-          const total     = qty * rate
-          const perWorker = total / wForm.selectedWorkers.size
-          for (const wid of wForm.selectedWorkers) {
-            const person = allNamed.find(p => p.id === wid)
-            if (!person) continue
-            await logLabour({
-              labourType:     'regular',
-              labourMasterId: person.id,
-              labourName:     person.name,
-              plotId:         cycle?.plotId || null,
-              cropCycleId:    wForm.cycleId || null,
-              date:           wForm.date,
-              workers:        1,
-              ratePerDay:     rate,
-              totalCost:      perWorker,
-              purpose:        workType?.label || 'Work',
-              workTypeId:     wForm.workTypeId,
-              contractType:   wForm.contractType,
-              contractQty:    qty,
-            })
-          }
-          showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
+          const [wid]  = wForm.selectedWorkers
+          const person = allNamed.find(p => p.id === wid)
+          if (!person) return showToast('Select a worker', 'warn')
+          await logLabour({
+            labourType:     'regular',
+            labourMasterId: person.id,
+            labourName:     person.name,
+            plotId:         cycle?.plotId || null,
+            cropCycleId:    wForm.cycleId || null,
+            date:           wForm.date,
+            workers:        1,
+            ratePerDay:     rate,
+            totalCost:      qty * rate,
+            purpose:        workType?.label || 'Work',
+            workTypeId:     wForm.workTypeId,
+            contractType:   wForm.contractType,
+            contractQty:    qty,
+          })
+          showToast('Work logged ✓')
         }
       } else {
         const workers = parseFloat(wForm.workerCount) || 0
@@ -381,15 +378,21 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             if (presentWorkers.length === 0) return (
               <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
             )
+            const isContractual = wForm.contractType && wForm.contractType !== 'per_day'
             return (
               <div key="chips">
-                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Select Workers (present today)</p>
+                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">
+                  {isContractual ? 'Select Worker (one at a time — enter their own qty)' : 'Select Workers (present today)'}
+                </p>
                 <div className="flex flex-wrap gap-1.5">
                   {presentWorkers.map(w => {
                     const sel = wForm.selectedWorkers.has(w.id)
                     return (
                       <button key={w.id}
                         onClick={() => setWForm(p => {
+                          if (isContractual) {
+                            return { ...p, selectedWorkers: new Set([w.id]), contractQty: '', rate: '' }
+                          }
                           const s = new Set(p.selectedWorkers)
                           sel ? s.delete(w.id) : s.add(w.id)
                           return { ...p, selectedWorkers: s }
