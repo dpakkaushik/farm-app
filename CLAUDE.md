@@ -4,6 +4,12 @@
 
 ---
 
+## 0. Development Rules
+
+- **After every code change, always commit and push to GitHub** (`git add` → `git commit` → `git push origin master`). Vercel deploys automatically on every push. Never leave changes uncommitted.
+
+---
+
 ## 1. Project Vision
 
 A farm management system for **medium-sized farm owners (50–100 acres)** who do not live on the farm but want real-time visibility into all farm operations remotely.
