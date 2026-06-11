@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect, useMemo } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../store'
@@ -58,6 +58,89 @@ export default function Labour() {
   )
 }
 
+// ── Worker attendance calendar ────────────────────────────────────────────────
+const ATT_STYLE = {
+  present:  { bg: '#1D9E7520', border: '#1D9E75', color: '#1D9E75' },
+  half_day: { bg: '#BA751720', border: '#BA7517', color: '#BA7517' },
+  absent:   { bg: '#E24B4A20', border: '#E24B4A', color: '#E24B4A' },
+}
+
+function WorkerCalendar({ salary = {}, selMonth, setSelMonth }) {
+  const { attByDate = {}, attPay = 0, contractPay = 0, total = 0 } = salary
+  const y = selMonth.getFullYear()
+  const m = selMonth.getMonth()
+  const daysInMonth = new Date(y, m + 1, 0).getDate()
+  const firstOffset = (new Date(y, m, 1).getDay() + 6) % 7
+  const monthLabel  = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
+  const cells = [
+    ...Array(firstOffset).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const d   = i + 1
+      const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+      return { d, status: attByDate[key] }
+    }),
+  ]
+  return (
+    <div className="mt-2 border-t border-[var(--c-border)] pt-2.5 space-y-2">
+      {/* Month nav */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => setSelMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1))}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">◀</button>
+        <p className="text-[11px] font-bold text-[var(--c-text)]">{monthLabel}</p>
+        <button onClick={() => setSelMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1))}
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">▶</button>
+      </div>
+      {/* Day-of-week headers */}
+      <div className="grid grid-cols-7">
+        {['M','T','W','T','F','S','S'].map((d,i) => (
+          <p key={i} className="text-center text-[9px] font-bold text-[var(--c-faint)]">{d}</p>
+        ))}
+      </div>
+      {/* Day grid */}
+      <div className="grid grid-cols-7 gap-y-1">
+        {cells.map((cell, i) => {
+          if (!cell) return <div key={i} />
+          const s = ATT_STYLE[cell.status]
+          return (
+            <div key={i} className="flex justify-center">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold border"
+                style={s
+                  ? { background: s.bg, borderColor: s.border, color: s.color }
+                  : { background: 'transparent', borderColor: 'transparent', color: 'var(--c-faint)' }}>
+                {cell.d}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {/* Legend */}
+      <div className="flex gap-3 justify-center">
+        {[['#1D9E75','Present'],['#BA7517','Half Day'],['#E24B4A','Absent']].map(([c,l]) => (
+          <div key={l} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full" style={{ background: c }}/>
+            <p className="text-[8px] text-[var(--c-faint)]">{l}</p>
+          </div>
+        ))}
+      </div>
+      {/* Salary breakdown */}
+      <div className="flex items-center justify-between bg-[var(--c-card)] rounded-xl px-3 py-2.5">
+        <div className="text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Attendance</p>
+          <p className="text-xs font-bold text-[var(--c-text)]">₹{attPay.toLocaleString('en-IN')}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Contractual</p>
+          <p className="text-xs font-bold text-[var(--c-text)]">₹{contractPay.toLocaleString('en-IN')}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Total</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{total.toLocaleString('en-IN')}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Today: attendance + task log ──────────────────────────────────────────────
 const EMPTY_WFORM = { workTypeId: '', workerType: 'contractual', selectedWorkers: new Set(), workerCount: '', contractType: '', contractQty: '', rate: '', cycleId: '', date: TODAY_STR }
 
@@ -70,6 +153,10 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
   const [showLogModal,  setShowLogModal] = useState(null)
   const [wForm,         setWForm]        = useState(EMPTY_WFORM)
   const [saving,        setSaving]       = useState(false)
+  const [selMonth,      setSelMonth]     = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
+  const [monthAtt,      setMonthAtt]     = useState([])
+  const [monthLogs,     setMonthLogs]    = useState([])
+  const [expandedWorker,setExpandedWorker] = useState(null)
 
   // Auto-switch if selected tab becomes empty after load
   useEffect(() => {
@@ -86,6 +173,33 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         setLoadingAtt(false)
       })
   }, [])
+
+  useEffect(() => {
+    const y = selMonth.getFullYear(), m = selMonth.getMonth()
+    const start = `${y}-${String(m+1).padStart(2,'0')}-01`
+    const end   = `${y}-${String(m+1).padStart(2,'0')}-${String(new Date(y,m+1,0).getDate()).padStart(2,'0')}`
+    Promise.all([
+      supabase.from('attendance').select('*').gte('attendance_date', start).lte('attendance_date', end),
+      supabase.from('labour_logs').select('*').gte('activity_date', start).lte('activity_date', end),
+    ]).then(([{ data: a }, { data: l }]) => {
+      setMonthAtt(a || [])
+      setMonthLogs(l || [])
+    })
+  }, [selMonth])
+
+  const workerSalary = useMemo(() => {
+    const all = [...permanentStaff, ...regularLabourers]
+    return Object.fromEntries(all.map(w => {
+      const attRecs     = monthAtt.filter(a => a.labour_master_id === w.id)
+      const attPay      = w.ratePerDay
+        ? attRecs.reduce((s, a) => s + (a.status === 'present' ? w.ratePerDay : a.status === 'half_day' ? w.ratePerDay / 2 : 0), 0)
+        : (w.monthlySalary || 0)
+      const contractPay = monthLogs.filter(l => l.labour_master_id === w.id)
+        .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
+      const attByDate   = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
+      return [w.id, { attPay, contractPay, total: attPay + contractPay, attByDate }]
+    }))
+  }, [monthAtt, monthLogs, permanentStaff, regularLabourers])
 
   const markAttendance = async (labourId, status) => {
     if (attendance[labourId]?.status === status) return
@@ -249,7 +363,10 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       </div>
                   }
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
+                      <p className="text-sm font-bold text-[#1D9E75]">₹{(workerSalary[l.id]?.total || 0).toLocaleString('en-IN')}</p>
+                    </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <p className="text-[10px] text-[var(--c-muted)]">{attTab === 'staff' ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo` : `${l.workType} · ₹${l.ratePerDay}/day`}</p>
                       {l.phone && (
@@ -261,6 +378,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       )}
                     </div>
                   </div>
+                  <button onClick={() => setExpandedWorker(expandedWorker === l.id ? null : l.id)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border transition-all hover:bg-[var(--c-ghost)]"
+                    style={{ borderColor: 'var(--c-border-md)', color: 'var(--c-muted)' }}>
+                    <span style={{ display: 'inline-block', transition: 'transform 0.2s', transform: expandedWorker === l.id ? 'rotate(180deg)' : 'rotate(0deg)', fontSize: 10 }}>▼</span>
+                  </button>
                   {status && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
                       ${status === 'present'  ? 'bg-[#1D9E75]/20 text-[#1D9E75]'
@@ -296,6 +418,9 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                     className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
                     📋 Assign / Log Task
                   </button>
+                )}
+                {expandedWorker === l.id && (
+                  <WorkerCalendar salary={workerSalary[l.id]} selMonth={selMonth} setSelMonth={setSelMonth} />
                 )}
               </div>
             )
