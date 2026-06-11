@@ -130,26 +130,31 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           }
           showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
         } else {
-          const qty  = parseFloat(wForm.contractQty)
-          const rate = parseFloat(wForm.rate)
+          const qty       = parseFloat(wForm.contractQty)
+          const rate      = parseFloat(wForm.rate)
           if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
-          const names = [...wForm.selectedWorkers]
-            .map(wid => allNamed.find(p => p.id === wid)?.name).filter(Boolean).join(', ')
-          await logLabour({
-            labourType:     'regular',
-            labourName:     names,
-            plotId:         cycle?.plotId || null,
-            cropCycleId:    wForm.cycleId || null,
-            date:           wForm.date,
-            workers:        wForm.selectedWorkers.size,
-            ratePerDay:     rate,
-            totalCost:      qty * rate,
-            purpose:        workType?.label || 'Work',
-            workTypeId:     wForm.workTypeId,
-            contractType:   wForm.contractType,
-            contractQty:    qty,
-          })
-          showToast('Work logged ✓')
+          const total     = qty * rate
+          const perWorker = total / wForm.selectedWorkers.size
+          for (const wid of wForm.selectedWorkers) {
+            const person = allNamed.find(p => p.id === wid)
+            if (!person) continue
+            await logLabour({
+              labourType:     'regular',
+              labourMasterId: person.id,
+              labourName:     person.name,
+              plotId:         cycle?.plotId || null,
+              cropCycleId:    wForm.cycleId || null,
+              date:           wForm.date,
+              workers:        1,
+              ratePerDay:     rate,
+              totalCost:      perWorker,
+              purpose:        workType?.label || 'Work',
+              workTypeId:     wForm.workTypeId,
+              contractType:   wForm.contractType,
+              contractQty:    qty,
+            })
+          }
+          showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
         }
       } else {
         const workers = parseFloat(wForm.workerCount) || 0
