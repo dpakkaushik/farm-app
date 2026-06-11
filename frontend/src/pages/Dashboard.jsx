@@ -190,7 +190,7 @@ export default function Dashboard() {
           <p className="text-sm text-white/40">{format(now, 'EEEE, d MMMM yyyy')} · {d.total_acres} acres total</p>
         </div>
         <a
-          href="intent://open#Intent;package=com.gcmob;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.gcmob;end"
+          href="intent://open#Intent;package=com.mm.android.direct.g_CMOB_XU;S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.mm.android.direct.g_CMOB_XU;end"
           className="flex items-center gap-1.5 bg-[#E24B4A]/15 border border-[#E24B4A]/30 rounded-xl px-3 py-2 active:scale-95 transition-transform shrink-0"
         >
           <span className="relative flex h-2 w-2">
