@@ -18,7 +18,7 @@ const CONTRACT_TYPES = [
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance } = useAppStore()
   const permanentStaff    = allStaff.filter(s => s.isActive !== false)
   const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
@@ -35,7 +35,7 @@ export default function Labour() {
         <h2 className="text-lg font-bold text-[var(--c-text)]">Manpower</h2>
         <p className="text-xs text-[var(--c-muted)] mb-3">Attendance · Work logs · Payments</p>
         <div className="flex gap-1 border-b border-[var(--c-border)]">
-          {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['summary','📊 Summary']].map(([k, lbl]) => (
+          {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['salary','💰 Salary']].map(([k, lbl]) => (
             <button key={k} onClick={() => setSubTab(k)}
               className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors
                 ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
@@ -46,9 +46,9 @@ export default function Labour() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'attendance' && <LabourToday   permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
-        {subTab === 'logs'    && <LabourLogs    labourLogs={labourLogs} />}
-        {subTab === 'summary' && <LabourSummary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} />}
+        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
+        {subTab === 'logs'    && <LabourLogs labourLogs={labourLogs} permanentStaff={permanentStaff} regularLabourers={regularLabourers} />}
+        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} />}
       </div>
 
       {toast && (
@@ -751,40 +751,9 @@ function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, 
 }
 
 // ── Labour Logs ───────────────────────────────────────────────────────────────
-function LabourLogs({ labourLogs }) {
-  const total = labourLogs.reduce((s, l) => s + (l.totalCost || 0), 0)
-  return (
-    <div className="p-4 space-y-3 pb-4">
-      <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-2xl px-4 py-3">
-        <p className="text-xs text-[var(--c-sub)]">Total Labour Cost (all time)</p>
-        <p className="text-2xl font-bold text-[#BA7517]">₹{total.toLocaleString()}</p>
-      </div>
-      {labourLogs.map(l => (
-        <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[var(--c-text)]">{l.labourName}</p>
-              <p className="text-xs text-[var(--c-muted)] mt-0.5">{l.plotLabel || 'Farm-wide'}</p>
-              <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{l.date}</p>
-              {l.purpose && <p className="text-xs text-[var(--c-sub)] mt-1 italic">{l.purpose}</p>}
-            </div>
-            <div className="text-right">
-              <p className="text-base font-bold text-[var(--c-text)]">₹{(l.totalCost || 0).toLocaleString()}</p>
-              {l.workers > 1 && <p className="text-[10px] text-[var(--c-muted)]">{l.workers} workers</p>}
-              {l.ratePerDay > 0 && <p className="text-[10px] text-[var(--c-faint)]">₹{l.ratePerDay}/day</p>}
-            </div>
-          </div>
-        </div>
-      ))}
-      {labourLogs.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-8">No labour logs yet.</p>}
-    </div>
-  )
-}
-
-// ── Labour Summary ────────────────────────────────────────────────────────────
-function LabourSummary({ regularLabourers, labourLogs }) {
-  const [month,      setMonth]     = useState(new Date().toISOString().slice(0, 7))
-  const [attendance, setAttendance] = useState({})
+function LabourLogs({ labourLogs, permanentStaff, regularLabourers }) {
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
+  const [att,   setAtt]   = useState({})
 
   useEffect(() => {
     supabase.from('attendance')
@@ -797,95 +766,262 @@ function LabourSummary({ regularLabourers, labourLogs }) {
         ;(data || []).forEach(r => {
           counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + (r.status === 'present' ? 1 : 0.5)
         })
-        setAttendance(counts)
+        setAtt(counts)
       })
   }, [month])
 
-  const monthLogs       = labourLogs.filter(l => l.date?.startsWith(month))
-  const contractualLogs = monthLogs.filter(l => !regularLabourers.some(r => r.name === l.labourName))
-  const regularEarned   = regularLabourers.reduce((s, l) => s + (attendance[l.id] || 0) * l.ratePerDay, 0)
-  const contractualCost = contractualLogs.reduce((s, l) => s + (l.totalCost || 0), 0)
-  const grandTotal      = regularEarned + contractualCost
+  const now           = new Date(month + '-01')
+  const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const filtered      = labourLogs.filter(l => l.date?.startsWith(month))
+
+  // Staff Salary: prorated monthly salary based on attendance days
+  const staffSalary = permanentStaff.reduce((sum, s) => {
+    const days    = att[s.id] || 0
+    const daily   = s.monthlySalary ? s.monthlySalary / daysInMonth : (s.ratePerDay || 0)
+    return sum + Math.round(days * daily)
+  }, 0)
+
+  // Regular labour: attendance pay + any logs tied to them
+  const regularAttPay = regularLabourers.reduce((sum, l) => {
+    return sum + Math.round((att[l.id] || 0) * (l.ratePerDay || 0))
+  }, 0)
+  const regularLogPay = filtered
+    .filter(l => l.labourMasterId && regularLabourers.some(r => r.id === l.labourMasterId))
+    .reduce((sum, l) => sum + (l.totalCost || 0), 0)
+  const regularTotal  = regularAttPay + regularLogPay
+
+  // Contractual: logs with no master ID (pure daily hire)
+  const contractualTotal = filtered
+    .filter(l => !l.labourMasterId)
+    .reduce((sum, l) => sum + (l.totalCost || 0), 0)
 
   return (
-    <div className="p-4 space-y-4 pb-6">
-      <div className="flex items-center gap-3">
-        <p className="text-sm font-bold text-[var(--c-text)] flex-1">Monthly Summary</p>
+    <div className="p-4 space-y-3 pb-6">
+      {/* Month filter + summary blocks */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Monthly Summary</p>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-          className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-sm text-[var(--c-text)] outline-none"
+          className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
+          style={{ colorScheme: 'dark' }} />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3 text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-1">Staff Salary</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{staffSalary.toLocaleString('en-IN')}</p>
+        </div>
+        <div className="bg-[#1D9E75]/6 border border-[#1D9E75]/15 rounded-xl p-3 text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-1">Regular Labour</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{regularTotal.toLocaleString('en-IN')}</p>
+        </div>
+        <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl p-3 text-center">
+          <p className="text-[9px] text-[var(--c-muted)] mb-1">Contractual</p>
+          <p className="text-sm font-bold text-[#BA7517]">₹{contractualTotal.toLocaleString('en-IN')}</p>
+        </div>
+      </div>
+
+      {/* Log entries for selected month */}
+      {filtered.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-6">No logs for this month.</p>}
+      {filtered.map(l => (
+        <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-semibold text-[var(--c-text)]">{l.labourName}</p>
+              <p className="text-xs text-[var(--c-muted)] mt-0.5">{l.plotLabel || 'Farm-wide'}</p>
+              <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{l.date}</p>
+              {l.purpose && <p className="text-xs text-[var(--c-sub)] mt-1 italic">{l.purpose}</p>}
+            </div>
+            <div className="text-right">
+              <p className="text-base font-bold text-[var(--c-text)]">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
+              {l.workers > 1 && <p className="text-[10px] text-[var(--c-muted)]">{l.workers} workers</p>}
+              {l.ratePerDay > 0 && <p className="text-[10px] text-[var(--c-faint)]">₹{l.ratePerDay}/day</p>}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Labour Salary tab ─────────────────────────────────────────────────────────
+function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, showToast }) {
+  const [month,   setMonth]   = useState(new Date().toISOString().slice(0, 7))
+  const [att,     setAtt]     = useState({})
+  const [modal,   setModal]   = useState(null)  // { worker, type: 'salary'|'advance' }
+  const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '' })
+  const [saving,  setSaving]  = useState(false)
+
+  useEffect(() => {
+    supabase.from('attendance')
+      .select('labour_master_id, status')
+      .gte('attendance_date', month + '-01')
+      .lte('attendance_date', month + '-31')
+      .in('status', ['present', 'half_day'])
+      .then(({ data }) => {
+        const counts = {}
+        ;(data || []).forEach(r => {
+          counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + (r.status === 'present' ? 1 : 0.5)
+        })
+        setAtt(counts)
+      })
+  }, [month])
+
+  const daysInMonth = new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).getDate()
+  const allWorkers  = [
+    ...permanentStaff.map(s => ({ ...s, workerType: 'staff' })),
+    ...regularLabourers.map(l => ({ ...l, workerType: 'regular' })),
+  ]
+
+  const monthPayments = salaryPayments.filter(p => p.month === month)
+  const monthAdvances = advances.filter(a => a.date?.startsWith(month))
+
+  const openPayModal = (worker, type) => {
+    setModal({ worker, type })
+    setForm({ amount: '', date: new Date().toISOString().slice(0,10), notes: '' })
+  }
+
+  const submitPayment = async () => {
+    if (!form.amount || isNaN(form.amount)) return
+    setSaving(true)
+    try {
+      if (modal.type === 'advance') {
+        await addAdvance({ labourerId: modal.worker.id, date: form.date, amount: form.amount, reason: form.notes })
+        showToast(`Advance recorded for ${modal.worker.name}`)
+      } else {
+        await addSalaryPayment({ labourerId: modal.worker.id, date: form.date, amount: form.amount, type: 'salary', notes: form.notes, month })
+        showToast(`Salary payment recorded for ${modal.worker.name}`)
+      }
+      setModal(null)
+    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
+    setSaving(false)
+  }
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      {/* Month filter */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Salary &amp; Advances</p>
+        <input type="month" value={month} onChange={e => setMonth(e.target.value)}
+          className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
           style={{ colorScheme: 'dark' }} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-[var(--c-muted)] mb-1">Regular</p>
-          <p className="text-base font-bold text-[#1D9E75]">₹{regularEarned.toLocaleString()}</p>
-        </div>
-        <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl p-3 text-center">
-          <p className="text-[10px] text-[var(--c-muted)] mb-1">Contractual</p>
-          <p className="text-base font-bold text-[#BA7517]">₹{contractualCost.toLocaleString()}</p>
-        </div>
-        <div className="bg-[var(--c-card)] border border-[var(--c-border-md)] rounded-xl p-3 text-center">
-          <p className="text-[10px] text-[var(--c-muted)] mb-1">Total</p>
-          <p className="text-base font-bold text-[var(--c-text)]">₹{grandTotal.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {regularLabourers.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Labourer Breakdown</p>
-          {regularLabourers.map(l => {
-            const days    = attendance[l.id] || 0
-            const earned  = days * l.ratePerDay
-            const paid    = monthLogs.filter(log => log.labourName === l.name).reduce((s, log) => s + (log.totalCost || 0), 0)
-            const balance = earned - paid
-            return (
-              <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 mb-2">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-[#1D9E75]/15 flex items-center justify-center text-sm font-bold text-[#1D9E75]">
-                    {l.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
-                    <p className="text-[10px] text-[var(--c-muted)]">{l.workType} · ₹{l.ratePerDay}/day</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-[var(--c-card)] rounded-xl py-2">
-                    <p className="text-[10px] text-[var(--c-muted)]">Days</p>
-                    <p className="text-sm font-bold text-[var(--c-text)]">{days}</p>
-                  </div>
-                  <div className="bg-[#1D9E75]/10 rounded-xl py-2">
-                    <p className="text-[10px] text-[var(--c-muted)]">Earned</p>
-                    <p className="text-sm font-bold text-[#1D9E75]">₹{earned.toLocaleString()}</p>
-                  </div>
-                  <div className={`rounded-xl py-2 ${balance > 0 ? 'bg-[#E24B4A]/10' : 'bg-[var(--c-card)]'}`}>
-                    <p className="text-[10px] text-[var(--c-muted)]">Balance</p>
-                    <p className={`text-sm font-bold ${balance > 0 ? 'text-[#E24B4A]' : 'text-[var(--c-muted)]'}`}>
-                      ₹{balance.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                {days === 0 && <p className="text-[10px] text-[var(--c-faint)] text-center mt-2 italic">No attendance this month</p>}
-              </div>
-            )
-          })}
-        </div>
+      {allWorkers.length === 0 && (
+        <p className="text-center text-[var(--c-faint)] text-sm py-8">No staff or labourers added yet.</p>
       )}
 
-      {contractualLogs.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Contractual Logs ({contractualLogs.length})</p>
-          {contractualLogs.map(l => (
-            <div key={l.id} className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] p-3 mb-1.5 flex items-center justify-between">
+      {allWorkers.map(w => {
+        const days         = att[w.id] || 0
+        const dailyRate    = w.workerType === 'staff'
+          ? (w.monthlySalary ? w.monthlySalary / daysInMonth : (w.ratePerDay || 0))
+          : (w.ratePerDay || 0)
+        const earned       = Math.round(days * dailyRate)
+        const contractPay  = labourLogs.filter(l => l.labourMasterId === w.id && l.date?.startsWith(month)).reduce((s, l) => s + (l.totalCost || 0), 0)
+        const advTotal     = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)].reduce((s, a) => s + a.amount, 0)
+        const paidThisMonth= monthPayments.filter(p => p.labourerId === w.id && p.type === 'salary').reduce((s, p) => s + p.amount, 0)
+        const opening      = w.openingBalance || 0
+        const balance      = opening + earned + contractPay - advTotal - paidThisMonth
+
+        return (
+          <div key={w.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
+            {/* Header */}
+            <div className="px-4 pt-3 pb-2 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
-                <p className="text-[10px] text-[var(--c-muted)]">{l.plotLabel || 'Farm-wide'} · {l.date}</p>
-                {l.purpose && <p className="text-[10px] text-[var(--c-faint)] italic">{l.purpose}</p>}
+                <p className="text-sm font-bold text-[var(--c-text)]">{w.name}</p>
+                <p className="text-[10px] text-[var(--c-muted)]">
+                  {w.workerType === 'staff' ? `Staff · ₹${w.monthlySalary?.toLocaleString('en-IN')}/mo` : `Regular · ₹${w.ratePerDay}/day`}
+                  {days > 0 && ` · ${days} days`}
+                </p>
               </div>
-              <p className="text-sm font-bold text-[#BA7517]">₹{(l.totalCost || 0).toLocaleString()}</p>
+              <div className="text-right">
+                <p className="text-[9px] text-[var(--c-muted)]">Balance</p>
+                <p className={`text-base font-bold ${balance > 0 ? 'text-[#E24B4A]' : balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
+                  {balance >= 0 ? '₹' : '-₹'}{Math.abs(balance).toLocaleString('en-IN')}
+                </p>
+              </div>
             </div>
-          ))}
+
+            {/* Salary breakdown grid */}
+            <div className="grid grid-cols-4 gap-px bg-[var(--c-border)] border-t border-[var(--c-border)]">
+              {[
+                ['Opening', opening, opening > 0 ? '#E24B4A' : 'var(--c-muted)'],
+                ['Earned',  earned + contractPay, '#1D9E75'],
+                ['Advance', advTotal, advTotal > 0 ? '#BA7517' : 'var(--c-muted)'],
+                ['Paid',    paidThisMonth, paidThisMonth > 0 ? '#1D9E75' : 'var(--c-muted)'],
+              ].map(([label, val, color]) => (
+                <div key={label} className="bg-[var(--c-nav)] py-2.5 text-center">
+                  <p className="text-[9px] text-[var(--c-faint)] mb-0.5">{label}</p>
+                  <p className="text-xs font-bold" style={{ color }}>₹{val.toLocaleString('en-IN')}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Payment history for this month */}
+            {monthPayments.filter(p => p.labourerId === w.id).length > 0 && (
+              <div className="px-3 py-2 border-t border-[var(--c-border)] space-y-1">
+                {monthPayments.filter(p => p.labourerId === w.id).map(p => (
+                  <div key={p.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px]">{p.type === 'salary' ? '💵' : '⬆️'}</span>
+                      <p className="text-[10px] text-[var(--c-muted)]">{p.type === 'salary' ? 'Salary paid' : 'Advance'} · {p.date}</p>
+                      {p.notes && <p className="text-[9px] text-[var(--c-faint)] italic">{p.notes}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-bold text-[#1D9E75]">₹{p.amount.toLocaleString('en-IN')}</p>
+                      <button onClick={() => deleteSalaryPayment(p.id)}
+                        className="text-[var(--c-faint)] hover:text-[#E24B4A] text-xs leading-none">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
+              <button onClick={() => openPayModal(w, 'salary')}
+                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] transition-colors">
+                💵 Pay Salary
+              </button>
+              <button onClick={() => openPayModal(w, 'advance')}
+                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] transition-colors">
+                ⬆️ Give Advance
+              </button>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Payment modal */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={() => setModal(null)}>
+          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 border-t border-[var(--c-border-md)] space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--c-text)]">
+                  {modal.type === 'salary' ? '💵 Pay Salary' : '⬆️ Give Advance'}
+                </h3>
+                <p className="text-xs text-[var(--c-muted)]">{modal.worker.name}</p>
+              </div>
+              <button onClick={() => setModal(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={18}/></button>
+            </div>
+            <FRow label="Amount (₹)">
+              <input type="number" className="finput" placeholder="Enter amount" value={form.amount}
+                onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+            </FRow>
+            <FRow label="Date">
+              <input type="date" className="finput" value={form.date}
+                onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
+            </FRow>
+            <FRow label="Notes (optional)">
+              <input className="finput" placeholder={modal.type === 'advance' ? 'Reason for advance' : 'Payment notes'} value={form.notes}
+                onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+            </FRow>
+            <button onClick={submitPayment} disabled={saving || !form.amount}
+              className="w-full py-3 text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40"
+              style={{ background: modal.type === 'salary' ? '#1D9E75' : '#BA7517' }}>
+              {saving ? 'Saving…' : modal.type === 'salary' ? 'Record Payment' : 'Record Advance'}
+            </button>
+            <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
+          </div>
         </div>
       )}
     </div>

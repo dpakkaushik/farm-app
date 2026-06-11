@@ -162,6 +162,18 @@ function mapAdvance(a) {
   }
 }
 
+function mapSalaryPayment(p) {
+  return {
+    id:           p.id,
+    labourerId:   p.labourer_id,
+    date:         p.payment_date,
+    amount:       Number(p.amount),
+    type:         p.payment_type || 'salary',
+    notes:        p.notes || '',
+    month:        p.payment_month || '',
+  }
+}
+
 function mapLabourLog(l) {
   return {
     id:           l.id,
@@ -215,6 +227,7 @@ const useAppStore = create((set, get) => ({
   mediaItems:        [],
   todayAttendance:   {},   // { [labourerId]: { id, status } }
   advances:          [],   // salary_advances rows
+  salaryPayments:    [],   // salary_payments rows
   loading:           false,
   initialized:       false,
 
@@ -236,6 +249,7 @@ const useAppStore = create((set, get) => ({
         { data: mediaRaw },
         { data: attendanceRaw },
         { data: advancesRaw },
+        { data: salaryPaymentsRaw },
         { data: workTypesRaw },
         { data: activityTypesRaw },
       ] = await Promise.all([
@@ -267,6 +281,7 @@ const useAppStore = create((set, get) => ({
           .select('*')
           .eq('is_recovered', false)
           .order('advance_date', { ascending: false }),
+        supabase.from('salary_payments').select('*').order('payment_date', { ascending: false }),
         supabase.from('work_types').select('*').eq('is_active', true).order('name'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order'),
       ])
@@ -295,6 +310,7 @@ const useAppStore = create((set, get) => ({
           (attendanceRaw || []).map(a => [a.labour_master_id, { id: a.id, status: a.status }])
         ),
         advances:          (advancesRaw || []).map(mapAdvance),
+        salaryPayments:    (salaryPaymentsRaw || []).map(mapSalaryPayment),
         workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
         activityTypes:     (activityTypesRaw || []).map(a => ({ id: a.id, name: a.name, label: a.label, emoji: a.emoji, isSystem: a.is_system })),
         loading:           false,
@@ -549,6 +565,26 @@ const useAppStore = create((set, get) => ({
       .eq('id', id)
     if (error) throw error
     set(s => ({ advances: s.advances.filter(a => a.id !== id) }))
+  },
+
+  // ── Salary payments ─────────────────────────────────────────────────────────
+  addSalaryPayment: async (p) => {
+    const { data, error } = await supabase.from('salary_payments').insert({
+      labourer_id:   p.labourerId,
+      payment_date:  p.date,
+      amount:        parseFloat(p.amount),
+      payment_type:  p.type || 'salary',
+      notes:         p.notes || null,
+      payment_month: p.month || null,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ salaryPayments: [mapSalaryPayment(data), ...s.salaryPayments] }))
+  },
+
+  deleteSalaryPayment: async (id) => {
+    const { error } = await supabase.from('salary_payments').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ salaryPayments: s.salaryPayments.filter(p => p.id !== id) }))
   },
 
   // ── Staff attendance calendar ────────────────────────────────────────────────
