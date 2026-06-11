@@ -99,7 +99,8 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
   }
 
   const submitWork = async () => {
-    if (!wForm.workTypeId) return showToast('Select a work type', 'warn')
+    if (!wForm.workTypeId)   return showToast('Select a work type', 'warn')
+    if (!wForm.contractType) return showToast('Select contract type', 'warn')
     const cycle    = cropCycles.find(c => c.id === wForm.cycleId)
     const workType = activityTypes.find(a => a.name === wForm.workTypeId)
     setSaving(true)
@@ -107,32 +108,54 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       if (wForm.workerType === 'regular') {
         if (!wForm.selectedWorkers.size) return showToast('Select at least one worker', 'warn')
         const allNamed = [...permanentStaff, ...regularLabourers]
-        for (const wid of wForm.selectedWorkers) {
-          const person = allNamed.find(p => p.id === wid)
-          if (!person) continue
+        if (wForm.contractType === 'per_day') {
+          for (const wid of wForm.selectedWorkers) {
+            const person = allNamed.find(p => p.id === wid)
+            if (!person) continue
+            await logLabour({
+              labourType:     'regular',
+              labourMasterId: person.id,
+              labourName:     person.name,
+              plotId:         cycle?.plotId || null,
+              cropCycleId:    wForm.cycleId || null,
+              date:           wForm.date,
+              workers:        1,
+              ratePerDay:     person.ratePerDay || 0,
+              totalCost:      person.ratePerDay || 0,
+              purpose:        workType?.label || 'Work',
+              workTypeId:     wForm.workTypeId,
+              contractType:   'per_day',
+              contractQty:    1,
+            })
+          }
+          showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
+        } else {
+          const qty  = parseFloat(wForm.contractQty)
+          const rate = parseFloat(wForm.rate)
+          if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
+          const names = [...wForm.selectedWorkers]
+            .map(wid => allNamed.find(p => p.id === wid)?.name).filter(Boolean).join(', ')
           await logLabour({
             labourType:     'regular',
-            labourMasterId: person.id,
-            labourName:     person.name,
+            labourName:     names,
             plotId:         cycle?.plotId || null,
             cropCycleId:    wForm.cycleId || null,
             date:           wForm.date,
-            workers:        1,
-            ratePerDay:     person.ratePerDay || 0,
-            totalCost:      person.ratePerDay || 0,
+            workers:        wForm.selectedWorkers.size,
+            ratePerDay:     rate,
+            totalCost:      qty * rate,
             purpose:        workType?.label || 'Work',
             workTypeId:     wForm.workTypeId,
-            contractType:   'per_day',
-            contractQty:    1,
+            contractType:   wForm.contractType,
+            contractQty:    qty,
           })
+          showToast('Work logged ✓')
         }
-        showToast(`Logged ${wForm.selectedWorkers.size} worker${wForm.selectedWorkers.size > 1 ? 's' : ''} ✓`)
       } else {
-        const workers  = parseFloat(wForm.workerCount) || 0
-        const qty      = parseFloat(wForm.contractQty)
-        const rate     = parseFloat(wForm.rate)
-        if (!wForm.contractType) return showToast('Select contract type', 'warn')
-        if (!qty || !rate)       return showToast('Fill quantity and rate', 'warn')
+        const workers = parseFloat(wForm.workerCount) || 0
+        const qty     = parseFloat(wForm.contractQty)
+        const rate    = parseFloat(wForm.rate)
+        if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
         await logLabour({
           labourType:   'contractual',
           labourName:   workType?.label || 'Contractual',
@@ -315,12 +338,12 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             </select>
           </FRow>
 
-          {/* Regular vs Contractual toggle */}
+          {/* Regular vs Contractual toggle — Contractual first */}
           <div>
             <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Worker Type</p>
             <div className="flex gap-2">
-              {[['regular','👤 Regular'],['contractual','🏗️ Contractual']].map(([v,lbl]) => (
-                <button key={v} onClick={() => setWForm(p => ({ ...p, workerType: v, selectedWorkers: new Set() }))}
+              {[['contractual','🏗️ Contractual'],['regular','👤 Regular']].map(([v,lbl]) => (
+                <button key={v} onClick={() => setWForm(p => ({ ...p, workerType: v, selectedWorkers: new Set(), contractType: '', contractQty: '', rate: '' }))}
                   className="flex-1 py-2 text-xs font-bold rounded-xl border transition-all"
                   style={{
                     background:  wForm.workerType === v ? '#1D9E7522' : 'var(--c-card)',
@@ -333,7 +356,15 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             </div>
           </div>
 
-          {/* Regular: select named workers */}
+          {/* Contractual: worker count */}
+          {wForm.workerType === 'contractual' && (
+            <FRow label="No. of Workers">
+              <input type="number" className="finput" placeholder="0" min="1"
+                value={wForm.workerCount} onChange={e => setWForm(p => ({ ...p, workerCount: e.target.value }))} />
+            </FRow>
+          )}
+
+          {/* Regular: select named workers (present only) */}
           {wForm.workerType === 'regular' && (() => {
             const presentWorkers = [
               ...permanentStaff.map(s  => ({ ...s, tag: '🏢', rate: s.ratePerDay || 0 })),
@@ -343,11 +374,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
               return att?.status === 'present' || att?.status === 'half_day'
             })
             if (presentWorkers.length === 0) return (
-              <p className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
+              <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
             )
             return (
-              <div>
-                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Select Workers (present today · ₹/day from master)</p>
+              <div key="chips">
+                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Select Workers (present today)</p>
                 <div className="flex flex-wrap gap-1.5">
                   {presentWorkers.map(w => {
                     const sel = wForm.selectedWorkers.has(w.id)
@@ -365,7 +396,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                           color:       sel ? '#1D9E75'   : 'var(--c-sub)',
                         }}>
                         {w.tag} {w.name}
-                        <span className="text-[9px] opacity-60 ml-0.5">₹{w.rate}</span>
+                        <span className="text-[9px] opacity-60 ml-0.5">₹{w.rate}/day</span>
                       </button>
                     )
                   })}
@@ -374,33 +405,38 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             )
           })()}
 
-          {/* Contractual: count + contract type + qty + rate */}
-          {wForm.workerType === 'contractual' && (<>
-            <FRow label="No. of Workers">
-              <input type="number" className="finput" placeholder="0" min="1"
-                value={wForm.workerCount} onChange={e => setWForm(p => ({ ...p, workerCount: e.target.value }))} />
-            </FRow>
-            <FRow label="Contract Type">
-              <div className="grid grid-cols-3 gap-1.5">
-                {CONTRACT_TYPES.map(ct => (
-                  <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value }))}
-                    className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
-                    style={{
-                      background:  wForm.contractType === ct.value ? '#1D9E7520' : 'var(--c-card)',
-                      borderColor: wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-border-md)',
-                      color:       wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-sub)',
-                    }}>
-                    {ct.emoji}<br/>{ct.label}
-                  </button>
-                ))}
-              </div>
-            </FRow>
-            {wForm.contractType && (() => {
-              const ct = CONTRACT_TYPES.find(c => c.value === wForm.contractType)
-              return (
+          {/* Contract Type — shown for both worker types */}
+          <FRow label="Contract Type">
+            <div className="grid grid-cols-3 gap-1.5">
+              {CONTRACT_TYPES.map(ct => (
+                <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value, contractQty: '', rate: '' }))}
+                  className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
+                  style={{
+                    background:  wForm.contractType === ct.value ? '#1D9E7520' : 'var(--c-card)',
+                    borderColor: wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-border-md)',
+                    color:       wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-sub)',
+                  }}>
+                  {ct.emoji}<br/>{ct.label}
+                </button>
+              ))}
+            </div>
+          </FRow>
+
+          {/* Per Day + Regular: rate is auto from master — no input needed */}
+          {wForm.workerType === 'regular' && wForm.contractType === 'per_day' && (
+            <div className="bg-[#1D9E75]/8 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+              <p className="text-[10px] text-[#1D9E75]">✓ Rate pulled from each worker's master record (daily_base_rate)</p>
+            </div>
+          )}
+
+          {/* Qty + Rate — for contractual (all types) or regular (non-per_day) */}
+          {wForm.contractType && (wForm.workerType === 'contractual' || wForm.contractType !== 'per_day') && (() => {
+            const ct = CONTRACT_TYPES.find(c => c.value === wForm.contractType)
+            return (
+              <>
                 <div className="grid grid-cols-2 gap-2">
                   <FRow label={`Qty (${ct.unit})`}>
-                    <input type="number" className="finput" placeholder={`e.g. 4`} min="0"
+                    <input type="number" className="finput" placeholder="e.g. 4" min="0"
                       value={wForm.contractQty} onChange={e => setWForm(p => ({ ...p, contractQty: e.target.value }))} />
                   </FRow>
                   <FRow label={`Rate / ${ct.unit} (₹)`}>
@@ -408,15 +444,15 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                       value={wForm.rate} onChange={e => setWForm(p => ({ ...p, rate: e.target.value }))} />
                   </FRow>
                 </div>
-              )
-            })()}
-            {wForm.contractQty && wForm.rate && (
-              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/25 rounded-xl px-3 py-2 flex items-center justify-between">
-                <p className="text-[10px] text-[var(--c-muted)]">{wForm.contractQty} × ₹{wForm.rate}</p>
-                <p className="text-sm font-bold text-[#1D9E75]">₹{(parseFloat(wForm.contractQty) * parseFloat(wForm.rate)).toLocaleString('en-IN')}</p>
-              </div>
-            )}
-          </>)}
+                {wForm.contractQty && wForm.rate && (
+                  <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/25 rounded-xl px-3 py-2 flex items-center justify-between">
+                    <p className="text-[10px] text-[var(--c-muted)]">{wForm.contractQty} × ₹{wForm.rate}</p>
+                    <p className="text-sm font-bold text-[#1D9E75]">₹{(parseFloat(wForm.contractQty) * parseFloat(wForm.rate)).toLocaleString('en-IN')}</p>
+                  </div>
+                )}
+              </>
+            )
+          })()}
 
           {/* Common: plot + date */}
           <div className="grid grid-cols-2 gap-2">
