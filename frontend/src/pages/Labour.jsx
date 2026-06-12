@@ -850,6 +850,27 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
   const [modal,   setModal]   = useState(null)
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
   const [saving,  setSaving]  = useState(false)
+  const [ledger,  setLedger]  = useState(null)   // { worker, entries, loading }
+
+  const openLedger = async (worker) => {
+    setLedger({ worker, entries: [], loading: true })
+    const [{ data: allPayments }, { data: allAdvances }] = await Promise.all([
+      supabase.from('salary_payments').select('*').eq('labourer_id', worker.id).order('payment_date', { ascending: true }),
+      supabase.from('salary_advances').select('*').eq('labourer_id', worker.id).order('advance_date', { ascending: true }),
+    ])
+    const entries = []
+    let running = worker.openingBalance || 0
+    entries.push({ date: '—', label: 'Opening Balance', debit: null, credit: null, balance: running, type: 'opening' })
+    const events = [
+      ...(allPayments || []).map(p => ({ date: p.payment_date, label: `Salary paid${p.notes ? ' · ' + p.notes : ''}`, credit: Number(p.amount_paid), debit: null, givenBy: p.given_by, mode: p.payment_mode, type: 'payment' })),
+      ...(allAdvances || []).map(a => ({ date: a.advance_date, label: `Advance${a.reason ? ' · ' + a.reason : ''}`, debit: Number(a.amount), credit: null, givenBy: a.given_by, mode: a.payment_mode, recovered: a.is_recovered, type: 'advance' })),
+    ].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    for (const e of events) {
+      running = running + (e.credit || 0) - (e.debit || 0)
+      entries.push({ ...e, balance: running })
+    }
+    setLedger({ worker, entries, loading: false })
+  }
 
   const daysInMonth = new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).getDate()
   const allWorkers  = [
@@ -981,8 +1002,6 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <p className="text-[11px] font-bold text-[#1D9E75]">₹{p.amount.toLocaleString('en-IN')}</p>
-                      <button onClick={() => deleteSalaryPayment(p.id)}
-                        className="text-[var(--c-faint)] hover:text-[#E24B4A] text-xs leading-none">✕</button>
                     </div>
                   </div>
                 ))}
@@ -1034,10 +1053,62 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] transition-colors">
                 ⬆️ Give Advance
               </button>
+              <button onClick={() => openLedger(w)}
+                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#6366f1] transition-colors">
+                📒 History
+              </button>
             </div>
           </div>
         )
       })}
+
+      {/* Ledger overlay */}
+      {ledger && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[var(--c-bg)]">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-nav)]">
+            <div>
+              <h2 className="text-sm font-bold text-[var(--c-text)]">📒 {ledger.worker.name}</h2>
+              <p className="text-[10px] text-[var(--c-muted)]">
+                {ledger.worker.workerType === 'staff' ? `Staff · ₹${ledger.worker.monthlySalary?.toLocaleString('en-IN')}/mo` : `Regular · ₹${ledger.worker.ratePerDay}/day`}
+              </p>
+            </div>
+            <button onClick={() => setLedger(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={20}/></button>
+          </div>
+
+          {ledger.loading ? (
+            <div className="flex-1 flex items-center justify-center text-[var(--c-muted)] text-sm">Loading…</div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_2fr_auto_auto_auto] gap-x-3 px-4 py-2 border-b border-[var(--c-border)] sticky top-0 bg-[var(--c-nav)]">
+                {['Date', 'Description', 'Debit', 'Credit', 'Balance'].map(h => (
+                  <p key={h} className="text-[9px] font-bold text-[var(--c-faint)] uppercase tracking-wide text-right first:text-left">{h}</p>
+                ))}
+              </div>
+              {/* Rows */}
+              {ledger.entries.map((e, i) => (
+                <div key={i} className={`grid grid-cols-[1fr_2fr_auto_auto_auto] gap-x-3 px-4 py-2.5 border-b border-[var(--c-border)] ${e.type === 'opening' ? 'bg-[var(--c-nav)]' : ''}`}>
+                  <p className="text-[10px] text-[var(--c-muted)]">{e.date}</p>
+                  <div>
+                    <p className="text-[10px] text-[var(--c-text)]">{e.label}</p>
+                    {e.givenBy && <p className="text-[9px] text-[var(--c-faint)]">By {e.givenBy}{e.mode && e.mode !== 'cash' ? ` · ${e.mode === 'upi' ? 'UPI' : 'Bank'}` : ''}</p>}
+                    {e.recovered === true && <p className="text-[9px] text-[#1D9E75]">✓ Recovered</p>}
+                  </div>
+                  <p className="text-[10px] font-semibold text-[#E24B4A] text-right">{e.debit ? `₹${e.debit.toLocaleString('en-IN')}` : '—'}</p>
+                  <p className="text-[10px] font-semibold text-[#1D9E75] text-right">{e.credit ? `₹${e.credit.toLocaleString('en-IN')}` : '—'}</p>
+                  <p className={`text-[10px] font-bold text-right ${e.balance > 0 ? 'text-[#E24B4A]' : e.balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
+                    {e.balance >= 0 ? '₹' : '-₹'}{Math.abs(e.balance).toLocaleString('en-IN')}
+                  </p>
+                </div>
+              ))}
+              {ledger.entries.length <= 1 && (
+                <p className="text-center text-[var(--c-muted)] text-xs py-10">No transactions yet</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Payment modal */}
       {modal && (
