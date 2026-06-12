@@ -170,10 +170,10 @@ function mapSalaryPayment(p) {
     id:            p.id,
     labourerId:    p.labourer_id,
     date:          p.payment_date,
-    amount:        Number(p.amount),
-    type:          p.payment_type || 'salary',
+    amount:        Number(p.amount_paid),
+    type:          'salary',
     notes:         p.notes || '',
-    month:         p.payment_month || '',
+    month:         p.payment_month ? String(p.payment_month).slice(0, 7) : '',
     givenBy:       p.given_by || '',
     paymentMode:   p.payment_mode || 'cash',
     attachmentUrl: p.attachment_url || null,
@@ -581,13 +581,13 @@ const useAppStore = create((set, get) => ({
     const { data, error } = await supabase.from('salary_payments').insert({
       labourer_id:    p.labourerId,
       payment_date:   p.date,
-      amount:         parseFloat(p.amount),
-      payment_type:   p.type || 'salary',
+      amount_paid:    parseFloat(p.amount),
       notes:          p.notes || null,
-      payment_month:  p.month || null,
+      payment_month:  p.month ? p.month + '-01' : null,
       given_by:       p.givenBy || null,
       payment_mode:   p.paymentMode || 'cash',
       attachment_url: p.attachmentUrl || null,
+      status:         'paid',
     }).select().single()
     if (error) throw error
     set(s => ({ salaryPayments: [mapSalaryPayment(data), ...s.salaryPayments] }))
