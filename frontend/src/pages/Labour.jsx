@@ -1045,6 +1045,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
 
             {/* Action buttons */}
             <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
+              <button onClick={() => openLedger(w)}
+                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#6366f1] transition-colors">
+                📒 History
+              </button>
               <button onClick={() => openPayModal(w, 'salary')}
                 className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] transition-colors">
                 💵 Pay Salary
@@ -1052,10 +1056,6 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
               <button onClick={() => openPayModal(w, 'advance')}
                 className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] transition-colors">
                 ⬆️ Give Advance
-              </button>
-              <button onClick={() => openLedger(w)}
-                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#6366f1] transition-colors">
-                📒 History
               </button>
             </div>
           </div>
@@ -1066,14 +1066,32 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       {ledger && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[var(--c-bg)]">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-nav)]">
-            <div>
-              <h2 className="text-sm font-bold text-[var(--c-text)]">📒 {ledger.worker.name}</h2>
-              <p className="text-[10px] text-[var(--c-muted)]">
-                {ledger.worker.workerType === 'staff' ? `Staff · ₹${ledger.worker.monthlySalary?.toLocaleString('en-IN')}/mo` : `Regular · ₹${ledger.worker.ratePerDay}/day`}
-              </p>
+          <div className="px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-nav)]">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-sm font-bold text-[var(--c-text)]">📒 {ledger.worker.name}</h2>
+                <p className="text-[10px] text-[var(--c-muted)]">
+                  {ledger.worker.workerType === 'staff' ? `Staff · ₹${ledger.worker.monthlySalary?.toLocaleString('en-IN')}/mo` : `Regular · ₹${ledger.worker.ratePerDay}/day`}
+                </p>
+              </div>
+              <button onClick={() => setLedger(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={20}/></button>
             </div>
-            <button onClick={() => setLedger(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={20}/></button>
+            {!ledger.loading && (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['Total Paid', ledger.entries.reduce((s, e) => s + (e.credit || 0), 0), '#1D9E75'],
+                  ['Total Advance', ledger.entries.reduce((s, e) => s + (e.debit || 0), 0), '#BA7517'],
+                  ['Current Balance', ledger.entries.length ? ledger.entries[ledger.entries.length - 1].balance : 0, null],
+                ].map(([label, val, color]) => (
+                  <div key={label} className="bg-[var(--c-input)] rounded-xl py-2 text-center">
+                    <p className="text-[9px] text-[var(--c-faint)] mb-0.5">{label}</p>
+                    <p className="text-xs font-bold" style={{ color: color || (val > 0 ? '#E24B4A' : val < 0 ? '#BA7517' : 'var(--c-muted)') }}>
+                      {val >= 0 ? '₹' : '-₹'}{Math.abs(val).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {ledger.loading ? (
