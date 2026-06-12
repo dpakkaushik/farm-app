@@ -29,16 +29,15 @@ export default function Labour() {
   const [logMonthAtt, setLogMonthAtt] = useState({})
 
   useEffect(() => {
+    const d    = new Date(logMonth + '-01')
     const from = logMonth + '-01'
-    const to   = logMonth + '-31'
-    supabase.from('attendance')
-      .select('labour_master_id, status')
+    const to   = `${logMonth}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
+    supabase.from('attendance').select('*')
       .gte('attendance_date', from)
       .lte('attendance_date', to)
-      .then(({ data, error }) => {
-        if (error || !data) return
+      .then(({ data }) => {
         const counts = {}
-        data.forEach(r => {
+        ;(data || []).forEach(r => {
           const add = r.status === 'present' ? 1 : r.status === 'half_day' ? 0.5 : 0
           if (add) counts[r.labour_master_id] = (counts[r.labour_master_id] || 0) + add
         })
