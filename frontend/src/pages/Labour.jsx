@@ -847,8 +847,8 @@ function LabourLogs({ labourLogs, permanentStaff, regularLabourers, month, setMo
 
 // ── Labour Salary tab ─────────────────────────────────────────────────────────
 function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, showToast, month, setMonth, att }) {
-  const [modal,   setModal]   = useState(null)  // { worker, type: 'salary'|'advance' }
-  const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '' })
+  const [modal,   setModal]   = useState(null)
+  const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
   const [saving,  setSaving]  = useState(false)
 
   const daysInMonth = new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).getDate()
@@ -862,18 +862,29 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
 
   const openPayModal = (worker, type) => {
     setModal({ worker, type })
-    setForm({ amount: '', date: new Date().toISOString().slice(0,10), notes: '' })
+    setForm({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
+  }
+
+  const uploadAttachment = async (file) => {
+    const path = `salary-payments/${Date.now()}_${file.name}`
+    const { error } = await supabase.storage.from('farm-photos').upload(path, file)
+    if (error) throw error
+    const { data } = supabase.storage.from('farm-photos').getPublicUrl(path)
+    return data.publicUrl
   }
 
   const submitPayment = async () => {
     if (!form.amount || isNaN(form.amount)) return
     setSaving(true)
     try {
+      let attachmentUrl = null
+      if (form.attachment) attachmentUrl = await uploadAttachment(form.attachment)
+      const common = { labourerId: modal.worker.id, date: form.date, amount: form.amount, notes: form.notes, givenBy: form.givenBy, paymentMode: form.paymentMode, attachmentUrl }
       if (modal.type === 'advance') {
-        await addAdvance({ labourerId: modal.worker.id, date: form.date, amount: form.amount, reason: form.notes })
+        await addAdvance({ ...common, reason: form.notes })
         showToast(`Advance recorded for ${modal.worker.name}`)
       } else {
-        await addSalaryPayment({ labourerId: modal.worker.id, date: form.date, amount: form.amount, type: 'salary', notes: form.notes, month })
+        await addSalaryPayment({ ...common, type: 'salary', month })
         showToast(`Salary payment recorded for ${modal.worker.name}`)
       }
       setModal(null)
@@ -943,18 +954,70 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
 
             {/* Payment history for this month */}
             {monthPayments.filter(p => p.labourerId === w.id).length > 0 && (
-              <div className="px-3 py-2 border-t border-[var(--c-border)] space-y-1">
+              <div className="px-3 py-2 border-t border-[var(--c-border)] space-y-1.5">
                 {monthPayments.filter(p => p.labourerId === w.id).map(p => (
-                  <div key={p.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px]">{p.type === 'salary' ? '💵' : '⬆️'}</span>
-                      <p className="text-[10px] text-[var(--c-muted)]">{p.type === 'salary' ? 'Salary paid' : 'Advance'} · {p.date}</p>
-                      {p.notes && <p className="text-[9px] text-[var(--c-faint)] italic">{p.notes}</p>}
+                  <div key={p.id} className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="text-[10px] mt-0.5">{p.type === 'salary' ? '💵' : '⬆️'}</span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-[var(--c-muted)]">
+                          {p.type === 'salary' ? 'Salary paid' : 'Advance'} · {p.date}
+                          {p.paymentMode && p.paymentMode !== 'cash' && (
+                            <span className="ml-1 text-[9px] text-[var(--c-faint)]">
+                              · {p.paymentMode === 'upi' ? '📱 UPI' : '🏦 Bank'}
+                            </span>
+                          )}
+                        </p>
+                        {(p.givenBy || p.notes) && (
+                          <p className="text-[9px] text-[var(--c-faint)] italic truncate">
+                            {p.givenBy ? `By ${p.givenBy}` : ''}{p.givenBy && p.notes ? ' · ' : ''}{p.notes || ''}
+                          </p>
+                        )}
+                        {p.attachmentUrl && (
+                          <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-[9px] text-[#1D9E75]">📎 View proof</a>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <p className="text-[11px] font-bold text-[#1D9E75]">₹{p.amount.toLocaleString('en-IN')}</p>
                       <button onClick={() => deleteSalaryPayment(p.id)}
                         className="text-[var(--c-faint)] hover:text-[#E24B4A] text-xs leading-none">✕</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Advance history for this month */}
+            {monthAdvances.filter(a => a.labourerId === w.id).length > 0 && (
+              <div className="px-3 py-2 border-t border-[var(--c-border)] space-y-1.5">
+                {monthAdvances.filter(a => a.labourerId === w.id).map(a => (
+                  <div key={a.id} className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 min-w-0">
+                      <span className="text-[10px] mt-0.5">⬆️</span>
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-[var(--c-muted)]">
+                          Advance · {a.date}
+                          {a.paymentMode && a.paymentMode !== 'cash' && (
+                            <span className="ml-1 text-[9px] text-[var(--c-faint)]">
+                              · {a.paymentMode === 'upi' ? '📱 UPI' : '🏦 Bank'}
+                            </span>
+                          )}
+                        </p>
+                        {(a.givenBy || a.reason) && (
+                          <p className="text-[9px] text-[var(--c-faint)] italic truncate">
+                            {a.givenBy ? `By ${a.givenBy}` : ''}{a.givenBy && a.reason ? ' · ' : ''}{a.reason || ''}
+                          </p>
+                        )}
+                        {a.attachmentUrl && (
+                          <a href={a.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-[9px] text-[#1D9E75]">📎 View proof</a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <p className="text-[11px] font-bold text-[#BA7517]">₹{a.amount.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 ))}
@@ -1000,6 +1063,28 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             <FRow label="Notes (optional)">
               <input className="finput" placeholder={modal.type === 'advance' ? 'Reason for advance' : 'Payment notes'} value={form.notes}
                 onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
+            </FRow>
+            <FRow label="Given By">
+              <input className="finput" placeholder="Name of person giving payment" value={form.givenBy}
+                onChange={e => setForm(p => ({ ...p, givenBy: e.target.value }))} />
+            </FRow>
+            <FRow label="Payment Mode">
+              <div className="flex gap-2">
+                {['cash', 'upi', 'bank_transfer'].map(mode => (
+                  <button key={mode} onClick={() => setForm(p => ({ ...p, paymentMode: mode }))}
+                    className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors"
+                    style={{ background: form.paymentMode === mode ? (modal.type === 'salary' ? '#1D9E75' : '#BA7517') : 'var(--c-input)', borderColor: form.paymentMode === mode ? 'transparent' : 'var(--c-border-md)', color: form.paymentMode === mode ? '#fff' : 'var(--c-muted)' }}>
+                    {mode === 'cash' ? '💵 Cash' : mode === 'upi' ? '📱 UPI' : '🏦 Bank'}
+                  </button>
+                ))}
+              </div>
+            </FRow>
+            <FRow label="Attachment (optional)">
+              <label className="finput flex items-center gap-2 cursor-pointer" style={{ padding: '8px 14px' }}>
+                <span className="text-[var(--c-muted)]">{form.attachment ? form.attachment.name : '📎 Tap to attach proof (photo/PDF)'}</span>
+                <input type="file" accept="image/*,application/pdf" className="hidden"
+                  onChange={e => setForm(p => ({ ...p, attachment: e.target.files[0] || null }))} />
+              </label>
             </FRow>
             <button onClick={submitPayment} disabled={saving || !form.amount}
               className="w-full py-3 text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40"

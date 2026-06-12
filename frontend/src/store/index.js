@@ -152,25 +152,31 @@ function mapRegularLabourer(l) {
 
 function mapAdvance(a) {
   return {
-    id:            a.id,
-    labourerId:    a.labourer_id,
-    date:          a.advance_date,
-    amount:        Number(a.amount),
-    reason:        a.reason || '',
-    isRecovered:   a.is_recovered,
-    recoveryMonth: a.recovery_month || null,
+    id:             a.id,
+    labourerId:     a.labourer_id,
+    date:           a.advance_date,
+    amount:         Number(a.amount),
+    reason:         a.reason || '',
+    isRecovered:    a.is_recovered,
+    recoveryMonth:  a.recovery_month || null,
+    givenBy:        a.given_by || '',
+    paymentMode:    a.payment_mode || 'cash',
+    attachmentUrl:  a.attachment_url || null,
   }
 }
 
 function mapSalaryPayment(p) {
   return {
-    id:           p.id,
-    labourerId:   p.labourer_id,
-    date:         p.payment_date,
-    amount:       Number(p.amount),
-    type:         p.payment_type || 'salary',
-    notes:        p.notes || '',
-    month:        p.payment_month || '',
+    id:            p.id,
+    labourerId:    p.labourer_id,
+    date:          p.payment_date,
+    amount:        Number(p.amount),
+    type:          p.payment_type || 'salary',
+    notes:         p.notes || '',
+    month:         p.payment_month || '',
+    givenBy:       p.given_by || '',
+    paymentMode:   p.payment_mode || 'cash',
+    attachmentUrl: p.attachment_url || null,
   }
 }
 
@@ -550,10 +556,13 @@ const useAppStore = create((set, get) => ({
   // ── Salary advances ─────────────────────────────────────────────────────────
   addAdvance: async (adv) => {
     const { data, error } = await supabase.from('salary_advances').insert({
-      labourer_id:  adv.labourerId,
-      advance_date: adv.date,
-      amount:       parseFloat(adv.amount),
-      reason:       adv.reason || null,
+      labourer_id:     adv.labourerId,
+      advance_date:    adv.date,
+      amount:          parseFloat(adv.amount),
+      reason:          adv.reason || null,
+      given_by:        adv.givenBy || null,
+      payment_mode:    adv.paymentMode || 'cash',
+      attachment_url:  adv.attachmentUrl || null,
     }).select().single()
     if (error) throw error
     set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
@@ -570,12 +579,15 @@ const useAppStore = create((set, get) => ({
   // ── Salary payments ─────────────────────────────────────────────────────────
   addSalaryPayment: async (p) => {
     const { data, error } = await supabase.from('salary_payments').insert({
-      labourer_id:   p.labourerId,
-      payment_date:  p.date,
-      amount:        parseFloat(p.amount),
-      payment_type:  p.type || 'salary',
-      notes:         p.notes || null,
-      payment_month: p.month || null,
+      labourer_id:    p.labourerId,
+      payment_date:   p.date,
+      amount:         parseFloat(p.amount),
+      payment_type:   p.type || 'salary',
+      notes:          p.notes || null,
+      payment_month:  p.month || null,
+      given_by:       p.givenBy || null,
+      payment_mode:   p.paymentMode || 'cash',
+      attachment_url: p.attachmentUrl || null,
     }).select().single()
     if (error) throw error
     set(s => ({ salaryPayments: [mapSalaryPayment(data), ...s.salaryPayments] }))
