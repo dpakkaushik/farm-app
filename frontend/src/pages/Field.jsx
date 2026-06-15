@@ -83,6 +83,15 @@ function createHatchCanvas() {
   return canvas
 }
 
+function getCentroid(feature) {
+  const coords = feature?.geometry?.coordinates?.[0]
+  if (!coords || coords.length < 2) return null
+  const n = coords.length - 1
+  let x = 0, y = 0
+  for (let i = 0; i < n; i++) { x += coords[i][0]; y += coords[i][1] }
+  return [x / n, y / n]
+}
+
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
 function getWeatherEmoji(code) {
@@ -115,6 +124,7 @@ export default function Field() {
   const mapContainer = useRef(null)
   const map          = useRef(null)
   const saveTimer    = useRef(null)
+  const markersRef   = useRef([])
 
   const { zoom, center, bearing, pitch, setMapState, overlay, setOverlay } = useMapStore()
   const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
@@ -337,12 +347,15 @@ export default function Field() {
       clearTimeout(saveTimer.current)
       saveTimer.current = setTimeout(() => farmApi.saveMapState?.('demo', state)?.catch?.(()=>{}), 1000)
     })
-    return () => { clearTimeout(saveTimer.current); map.current?.remove(); map.current = null }
+    return () => { clearTimeout(saveTimer.current); markersRef.current.forEach(m => m.remove()); map.current?.remove(); map.current = null }
   }, [])
 
-  // Refresh map polygons whenever live data changes
+  // Refresh map polygons + labels whenever live data changes
   useEffect(() => {
-    if (map.current?.getSource('plots')) refreshPlotLayers(livePlots)
+    if (map.current?.getSource('plots')) {
+      refreshPlotLayers(livePlots)
+      refreshLabels(livePlots)
+    }
   }, [livePlots])
 
   const addPlotLayers = () => {
@@ -361,15 +374,7 @@ export default function Field() {
       filter: ['==', ['get', 'is_mixed'], true],
       paint:  { 'fill-pattern': 'mixed-hatch' },
     })
-    map.current.addLayer({ id:'plot-label',   type:'symbol', source:'plots',
-      layout:{
-        'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],],
-        'text-size':11, 'text-anchor':'center',
-        'text-font':['Open Sans Regular'],
-        'text-allow-overlap':true, 'text-ignore-placement':true,
-      },
-      paint:{ 'text-color':'#fff', 'text-halo-color':'#000', 'text-halo-width':1.2 },
-    })
+    // labels rendered as HTML markers — no glyph server dependency
     map.current.on('click', 'plot-fill', (e) => {
       const raw = e.features[0]?.properties?.__raw
       if (raw) setSelectedPlot(JSON.parse(raw))
@@ -377,6 +382,26 @@ export default function Field() {
     map.current.on('mouseenter', 'plot-fill', () => { map.current.getCanvas().style.cursor = 'pointer' })
     map.current.on('mouseleave', 'plot-fill', () => { map.current.getCanvas().style.cursor = '' })
     refreshPlotLayers(livePlots)
+    refreshLabels(livePlots)
+  }
+
+  const refreshLabels = (plotData) => {
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
+    if (!map.current) return
+    plotData.forEach(p => {
+      if (!p.geo_polygon) return
+      const center = getCentroid(p.geo_polygon)
+      if (!center) return
+      const el = document.createElement('div')
+      el.style.pointerEvents = 'none'
+      el.style.textAlign = 'center'
+      el.innerHTML = `<div style="background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 6px;border:1px solid rgba(255,255,255,0.18);white-space:nowrap"><span style="color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;display:block;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,1)">${p.label}</span>${p.sub_label ? `<span style="color:rgba(255,255,255,0.82);font-size:10px;font-family:system-ui,sans-serif;display:block;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,1)">${p.sub_label}</span>` : ''}</div>`
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat(center)
+        .addTo(map.current)
+      markersRef.current.push(marker)
+    })
   }
 
   const refreshPlotLayers = (plotData) => {
