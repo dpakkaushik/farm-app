@@ -271,9 +271,9 @@ export default function Inventory() {
             </div>
 
             {/* Plot picker */}
-            <FRow label="Issue to Plot">
+            <FRow label="Issue To">
               <select className="finput" value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
-                <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide (no plot)</option>
+                <option value="" style={{ background: 'var(--c-surface)' }}>General Use</option>
                 {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
               </select>
             </FRow>

@@ -213,6 +213,8 @@ function mapMachinery(m) {
     requiresDiesel: m.requires_diesel || false,
     status:         m.status || 'in_use',
     purchaseDate:   m.purchase_date || null,
+    purchasePrice:  m.purchase_price ? Number(m.purchase_price) : null,
+    photoUrl:       m.photo_url || null,
     notes:          m.notes || '',
     isActive:       m.is_active !== false,
     disposalType:   m.disposal_type || null,
@@ -234,6 +236,7 @@ function mapFarmAsset(a) {
     purchaseDate:  a.purchase_date || null,
     purchasePrice: a.purchase_price ? Number(a.purchase_price) : null,
     currentValue:  a.current_value ? Number(a.current_value) : null,
+    photoUrl:      a.photo_url || null,
     location:      a.location || '',
     notes:         a.notes || '',
     isActive:      a.is_active !== false,
@@ -256,11 +259,13 @@ function mapLivestock(l) {
     breed:         l.breed || '',
     gender:        l.gender || '',
     dob:           l.dob || null,
-    purchaseDate:  l.purchase_date || null,
-    purchasePrice: l.purchase_price ? Number(l.purchase_price) : null,
-    healthStatus:  l.health_status || 'healthy',
-    isActive:      l.is_active !== false,
-    notes:         l.notes || '',
+    purchaseDate:    l.purchase_date || null,
+    purchasePrice:   l.purchase_price ? Number(l.purchase_price) : null,
+    photoUrl:        l.photo_url || null,
+    acquisitionType: l.acquisition_type || 'purchased',
+    healthStatus:    l.health_status || 'healthy',
+    isActive:        l.is_active !== false,
+    notes:           l.notes || '',
   }
 }
 
@@ -951,6 +956,78 @@ const useAppStore = create((set, get) => ({
         l.id === log.livestockId ? { ...l, currentCount: newCount } : l
       ),
     }))
+  },
+
+  addMachinery: async (data) => {
+    const { data: row, error } = await supabase.from('machinery_master').insert({
+      name:            data.name,
+      machinery_type:  data.type,
+      make:            data.make || null,
+      model:           data.model || null,
+      quantity:        parseInt(data.quantity) || 1,
+      requires_diesel: data.requiresDiesel || false,
+      status:          'in_use',
+      purchase_date:   data.purchaseDate || null,
+      purchase_price:  data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      notes:           data.notes || null,
+      is_active:       true,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ machineryMaster: [...s.machineryMaster, mapMachinery(row)] }))
+  },
+
+  addFarmAsset: async (data) => {
+    const { data: row, error } = await supabase.from('farm_assets').insert({
+      name:           data.name,
+      category:       data.category,
+      quantity:       parseInt(data.quantity) || 1,
+      status:         'in_use',
+      purchase_date:  data.purchaseDate || null,
+      purchase_price: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      notes:          data.notes || null,
+      is_active:      true,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ farmAssets: [...s.farmAssets, mapFarmAsset(row)] }))
+  },
+
+  addLivestock: async (data) => {
+    const { data: row, error } = await supabase.from('livestock_master').insert({
+      tag_id:           data.tagId || `lv-${Date.now()}`,
+      name:             data.name,
+      animal_type:      data.species,
+      species:          data.species,
+      breed:            data.breed || null,
+      gender:           data.gender || null,
+      dob:              data.dob || null,
+      tracking_mode:    data.trackingMode || 'individual',
+      current_count:    data.trackingMode === 'count' ? (parseInt(data.currentCount) || 0) : null,
+      acquisition_type: data.acquisitionType || 'purchased',
+      purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
+      purchase_price:   data.acquisitionType !== 'born' ? (data.purchasePrice ? parseFloat(data.purchasePrice) : null) : null,
+      health_status:    'healthy',
+      is_active:        true,
+      notes:            data.notes || null,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ livestockMaster: [...s.livestockMaster, mapLivestock(row)] }))
+  },
+
+  updateAssetPhoto: async (table, id, photoUrl) => {
+    const { error } = await supabase.from(table).update({ photo_url: photoUrl }).eq('id', id)
+    if (error) throw error
+    const KEY = { machinery_master: 'machineryMaster', farm_assets: 'farmAssets', livestock_master: 'livestockMaster' }
+    const k = KEY[table]
+    if (k) set(s => ({ [k]: s[k].map(a => a.id === id ? { ...a, photoUrl } : a) }))
+  },
+
+  updateAssetPrice: async (table, id, price) => {
+    const parsed = price ? parseFloat(price) : null
+    const { error } = await supabase.from(table).update({ purchase_price: parsed }).eq('id', id)
+    if (error) throw error
+    const KEY = { machinery_master: 'machineryMaster', farm_assets: 'farmAssets', livestock_master: 'livestockMaster' }
+    const k = KEY[table]
+    if (k) set(s => ({ [k]: s[k].map(a => a.id === id ? { ...a, purchasePrice: parsed } : a) }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────
