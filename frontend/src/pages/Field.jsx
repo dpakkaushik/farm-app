@@ -26,8 +26,16 @@ const FARM_BOUNDARY_COORDS = [
   [80.482547, 28.504776],
 ]
 
-// ── Build GeoJSON polygon from 4 DB point columns (A→B→C→D→A) ────────────────
+// ── Build GeoJSON polygon — prefers stored geo_polygon, falls back to 4-point cols ─
 function buildPolygonFromPoints(p) {
+  // Use stored geo_polygon (drawn on map) if available
+  if (p.geo_polygon) {
+    const g = p.geo_polygon
+    if (g.type === 'Feature')  return g
+    if (g.type === 'Polygon')  return { type: 'Feature', geometry: g }
+    if (g.geometry)            return { type: 'Feature', geometry: g.geometry }
+  }
+  // Fall back to individual point columns
   const pts = [
     [parseFloat(p.point_a_lng), parseFloat(p.point_a_lat)],
     [parseFloat(p.point_b_lng), parseFloat(p.point_b_lat)],
@@ -233,7 +241,9 @@ export default function Field() {
         id:              p.id,
         cycle_id:        primary.cycleId,
         label:           p.name,
-        sub_label:       isMixed ? cycleData.map(c => c.cropEmoji).join('') : (subLabel || ''),
+        sub_label:       isMixed
+          ? cycleData.map(c => c.cropEmoji).join('')
+          : `${primary.cropEmoji} ${primary.cropName.split(' ')[0]}`,
         crop_emoji:      primary.cropEmoji,
         acres,
         geo_polygon:     geoPolygon,
@@ -352,7 +362,7 @@ export default function Field() {
       paint:  { 'fill-pattern': 'mixed-hatch' },
     })
     map.current.addLayer({ id:'plot-label',   type:'symbol', source:'plots',
-      layout:{ 'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':false },
+      layout:{ 'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':true, 'text-ignore-placement':true },
       paint:{ 'text-color':'#fff', 'text-halo-color':'#000', 'text-halo-width':1.2 },
     })
     map.current.on('click', 'plot-fill', (e) => {
