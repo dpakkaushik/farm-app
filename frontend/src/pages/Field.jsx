@@ -53,7 +53,27 @@ function hexToRgba(hex, alpha) {
 }
 
 const getFillColor    = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(0,0,0,0)' : hexToRgba(p.crop_color, 0.55)
-const getOutlineColor = (p) => (!p.current_crop || p.stage === 'fallow') ? 'rgba(200,200,200,0.45)' : p.health_status === 'concern' ? '#E24B4A' : p.stage === 'harvest_ready' ? '#ffffff' : hexToRgba(p.crop_color, 0.9)
+const getOutlineColor = (p) => {
+  if (!p.current_crop || p.stage === 'fallow') return 'rgba(200,200,200,0.45)'
+  if (p.isMixed)                               return 'rgba(255,255,255,0.95)'
+  if (p.health_status === 'concern')           return '#E24B4A'
+  if (p.stage === 'harvest_ready')             return '#ffffff'
+  return hexToRgba(p.crop_color, 0.9)
+}
+
+function createHatchCanvas() {
+  const size   = 12
+  const canvas = document.createElement('canvas')
+  canvas.width = size; canvas.height = size
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, size, size)
+  ctx.strokeStyle = 'rgba(255,255,255,0.65)'
+  ctx.lineWidth   = 2
+  for (let i = -size; i <= 2 * size; i += 6) {
+    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + size, size); ctx.stroke()
+  }
+  return canvas
+}
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
@@ -131,79 +151,107 @@ export default function Field() {
     return plots.map(p => {
       const geoPolygon = buildPolygonFromPoints(p)
       if (!geoPolygon) return null
-      const cycle = cropCycles.find(c => c.status === 'active' && c.plotId === p.id)
 
-      const todayActs  = activities.filter(a => a.date === todayStr && (a.plotId === p.id || (cycle && a.cropCycleId === cycle.id)))
-      const todayType  = todayActs[0]?.type || null
-      const todayNote  = todayActs[0]?.notes || null
-      const subLabel   = todayType ? todayType.charAt(0).toUpperCase() + todayType.slice(1) : null
+      const activeCycles = cropCycles.filter(c => c.status === 'active' && c.plotId === p.id)
+      const todayActs    = activities.filter(a =>
+        a.date === todayStr &&
+        (a.plotId === p.id || activeCycles.some(c => a.cropCycleId === c.id))
+      )
+      const todayType = todayActs[0]?.type || null
+      const todayNote = todayActs[0]?.notes || null
+      const subLabel  = todayType ? todayType.charAt(0).toUpperCase() + todayType.slice(1) : null
 
-      if (!cycle) {
+      if (activeCycles.length === 0) {
         return {
-          id:            p.id,
-          label:         p.name || '',
-          sub_label:     subLabel || '',
-          acres:         Number(p.area_acres) || 0,
-          geo_polygon:   geoPolygon,
-          stage:         'fallow',
-          health_status: 'fallow',
-          current_crop:  null,
-          crop_color:    null,
-          days_since_sow: null, days_to_harvest: null,
-          season_cost: 0, progress_pct: 0,
-          today_task: subLabel || null, today_note: todayNote,
-          next_task: null, last_task: null,
+          id: p.id, label: p.name || '', sub_label: subLabel || '',
+          acres: Number(p.area_acres) || 0, geo_polygon: geoPolygon,
+          stage: 'fallow', health_status: 'fallow', current_crop: null, crop_color: null,
+          isMixed: false, mixedCycles: [],
+          days_since_sow: null, days_to_harvest: null, season_cost: 0, progress_pct: 0,
+          today_task: subLabel || null, today_note: todayNote, next_task: null, last_task: null,
         }
       }
 
-      const crop         = cropMaster.find(c => c.id === cycle.cropId)
-      const sowDate      = new Date(cycle.sowDate); sowDate.setHours(0,0,0,0)
-      const daysSinceSow = Math.floor((today - sowDate) / 86400000)
-      const totalDays    = crop?.duration_days || 120
-      const daysToHarvest = Math.max(0, totalDays - daysSinceSow)
+      // Per-cycle computed data
+      const cycleData = activeCycles.map(cycle => {
+        const crop         = cropMaster.find(c => c.id === cycle.cropId)
+        const sowDate      = new Date(cycle.sowDate); sowDate.setHours(0, 0, 0, 0)
+        const daysSinceSow = Math.floor((today - sowDate) / 86400000)
+        const totalDays    = crop?.duration_days || 120
+        const windowOpenDay = totalDays - (crop?.harvest_window_days || 14)
+        const daysToWindow  = Math.max(0, windowOpenDay - daysSinceSow)
+        const isReady       = daysToWindow === 0
+        const progressPct   = Math.min(100, Math.round(daysSinceSow / totalDays * 100))
+        const acres         = cycle.acres || Number(p.area_acres) || 0
+        const inputCost     = issues.filter(i => i.cropCycleId === cycle.id).reduce((s, i) => s + (i.totalCost || 0), 0)
+        const lCost         = labourLogs.filter(l => l.cropCycleId === cycle.id).reduce((s, l) => s + (l.totalCost || 0), 0)
+        return {
+          cycleId:     cycle.id,
+          cropId:      cycle.cropId,
+          cropName:    crop?.name || 'Unknown',
+          cropEmoji:   crop?.emoji || '🌾',
+          cropColor:   crop?.color || '#1D9E75',
+          sowDate:     cycle.sowDate,
+          daysSinceSow,
+          totalDays,
+          windowOpenDay,
+          daysToWindow,
+          isReady,
+          progressPct,
+          acres,
+          seasonCost:  inputCost + lCost,
+          estYield:    crop ? Math.round(acres * (crop.yieldPerAcre || 0)) : 0,
+          estRevenue:  crop ? Math.round(acres * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0)) : 0,
+        }
+      })
+
+      const isMixed  = cycleData.length > 1
+      // Primary = longest-duration crop (sugarcane takes precedence over mustard)
+      const primary  = cycleData.reduce((a, b) => (a.totalDays >= b.totalDays ? a : b))
+      const acres    = Number(p.area_acres) || 0
 
       let stage = 'growing'
-      if (daysToHarvest <= 0)       stage = 'harvest_ready'
-      else if (daysToHarvest <= 10) stage = 'pre_harvest'
-      const progress_pct = Math.min(100, Math.round((daysSinceSow / totalDays) * 100))
+      if (primary.isReady)                  stage = 'harvest_ready'
+      else if (primary.daysToWindow <= 14)  stage = 'pre_harvest'
+      if (isMixed)                          stage = 'mixed'
 
-      const inputCost   = issues.filter(i => i.cropCycleId === cycle.id).reduce((s, i) => s + (i.totalCost || 0), 0)
-      const lCost       = labourLogs.filter(l => l.cropCycleId === cycle.id).reduce((s, l) => s + (l.totalCost || 0), 0)
-      const season_cost = inputCost + lCost
+      const totalCost  = cycleData.reduce((s, c) => s + c.seasonCost, 0)
+      const totalYield = cycleData.reduce((s, c) => s + c.estYield, 0)
+      const totalRev   = cycleData.reduce((s, c) => s + c.estRevenue, 0)
 
-      const cycleActs = activities.filter(a => a.cropCycleId === cycle.id)
+      const allCycleIds = activeCycles.map(c => c.id)
+      const cycleActs   = activities
+        .filter(a => allCycleIds.includes(a.cropCycleId))
         .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-      const lastAct   = cycleActs[0]
+      const lastAct  = cycleActs[0]
       const last_task = lastAct ? {
         label:    lastAct.notes || lastAct.type,
         days_ago: Math.max(0, Math.floor((today - new Date(lastAct.date)) / 86400000)),
       } : null
 
-      const acres      = cycle.acres || Number(p.area_acres) || 0
-      const estYield   = crop ? Math.round(acres * (crop.yieldPerAcre || 0)) : 0
-      const estRevenue = crop ? Math.round(estYield * (crop.pricePerQtl || 0)) : 0
-
       return {
-        id:             p.id,
-        cycle_id:       cycle.id,
-        label:          p.name,
-        sub_label:      subLabel || '',
-        crop_emoji:     crop?.emoji || '',
+        id:              p.id,
+        cycle_id:        primary.cycleId,
+        label:           p.name,
+        sub_label:       isMixed ? cycleData.map(c => c.cropEmoji).join('') : (subLabel || ''),
+        crop_emoji:      primary.cropEmoji,
         acres,
-        geo_polygon:    geoPolygon,
+        geo_polygon:     geoPolygon,
         stage,
-        health_status:  'good',
-        current_crop:   crop?.name || 'Unknown',
-        crop_color:     crop?.color || '#1D9E75',
-        days_since_sow: daysSinceSow,
-        days_to_harvest: daysToHarvest,
-        season_cost,
-        progress_pct,
-        est_yield_qtl:  estYield,
-        est_revenue:    estRevenue,
-        today_task:     subLabel || null,
-        today_note:     todayNote,
-        next_task:      null,
+        health_status:   'good',
+        current_crop:    isMixed ? cycleData.map(c => c.cropName).join(' + ') : primary.cropName,
+        crop_color:      primary.cropColor,
+        isMixed,
+        mixedCycles:     cycleData,
+        days_since_sow:  primary.daysSinceSow,
+        days_to_harvest: primary.daysToWindow,
+        season_cost:     totalCost,
+        progress_pct:    primary.progressPct,
+        est_yield_qtl:   totalYield,
+        est_revenue:     totalRev,
+        today_task:      subLabel || null,
+        today_note:      todayNote,
+        next_task:       null,
         last_task,
       }
     }).filter(Boolean)
@@ -213,16 +261,22 @@ export default function Field() {
   const cropSummary = useMemo(() => {
     const groups = {}
     livePlots.forEach(p => {
-      if (!p.current_crop || p.stage === 'empty' || p.stage === 'fallow') return
-      const key = p.current_crop
-      if (!groups[key]) groups[key] = { crop: key, acres: 0, daysToHarvest: null, estYield: 0, estRevenue: 0 }
-      groups[key].acres      += p.acres
-      groups[key].estYield   += p.est_yield_qtl || 0
-      groups[key].estRevenue += p.est_revenue   || 0
-      if (p.days_to_harvest != null) {
-        if (groups[key].daysToHarvest === null || p.days_to_harvest < groups[key].daysToHarvest)
-          groups[key].daysToHarvest = p.days_to_harvest
-      }
+      if (!p.current_crop || p.stage === 'fallow') return
+
+      const entries = p.isMixed && p.mixedCycles?.length
+        ? p.mixedCycles.map(c => ({ name: c.cropName, yield: c.estYield, rev: c.estRevenue, dtw: c.daysToWindow }))
+        : [{ name: p.current_crop, yield: p.est_yield_qtl || 0, rev: p.est_revenue || 0, dtw: p.days_to_harvest }]
+
+      entries.forEach(e => {
+        if (!groups[e.name]) groups[e.name] = { crop: e.name, acres: 0, daysToHarvest: null, estYield: 0, estRevenue: 0 }
+        groups[e.name].acres      += p.acres
+        groups[e.name].estYield   += e.yield
+        groups[e.name].estRevenue += e.rev
+        if (e.dtw != null) {
+          if (groups[e.name].daysToHarvest === null || e.dtw < groups[e.name].daysToHarvest)
+            groups[e.name].daysToHarvest = e.dtw
+        }
+      })
     })
     return Object.values(groups).sort((a, b) => b.acres - a.acres)
   }, [livePlots])
@@ -230,13 +284,16 @@ export default function Field() {
   const stageLegend = useMemo(() => {
     const seen  = new Set()
     const items = []
+    let hasMixed = false
     livePlots.forEach(p => {
+      if (p.isMixed) { hasMixed = true; return }
       if (p.current_crop && !seen.has(p.current_crop)) {
         seen.add(p.current_crop)
-        items.push({ label: p.current_crop, color: hexToRgba(p.crop_color || '#1D9E75', 0.55) })
+        items.push({ label: p.current_crop, color: hexToRgba(p.crop_color || '#1D9E75', 0.55), isMixed: false })
       }
     })
-    items.push({ label: 'Fallow / Empty', color: 'rgba(136,135,128,0.30)' })
+    if (hasMixed) items.push({ label: 'Mixed Crop', color: null, isMixed: true })
+    items.push({ label: 'Fallow / Empty', color: 'rgba(136,135,128,0.30)', isMixed: false })
     return items
   }, [livePlots])
 
@@ -288,6 +345,12 @@ export default function Field() {
     map.current.addSource('plots', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'plot-fill',    type:'fill',   source:'plots', paint:{ 'fill-color':['get','color'], 'fill-opacity':1 } })
     map.current.addLayer({ id:'plot-outline', type:'line',   source:'plots', paint:{ 'line-color':['get','outline'], 'line-width':1.8, 'line-opacity':0.95 } })
+    // Diagonal stripe overlay for mixed-crop plots
+    map.current.addImage('mixed-hatch', createHatchCanvas())
+    map.current.addLayer({ id:'plot-hatch', type:'fill', source:'plots',
+      filter: ['==', ['get', 'is_mixed'], true],
+      paint:  { 'fill-pattern': 'mixed-hatch' },
+    })
     map.current.addLayer({ id:'plot-label',   type:'symbol', source:'plots',
       layout:{ 'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':false },
       paint:{ 'text-color':'#fff', 'text-halo-color':'#000', 'text-halo-width':1.2 },
@@ -311,6 +374,7 @@ export default function Field() {
         emoji:      p.crop_emoji || '',
         color:      getFillColor(p),
         outline:    getOutlineColor(p),
+        is_mixed:   p.isMixed || false,
         __raw:      JSON.stringify(p),
       },
     }))
@@ -517,9 +581,14 @@ export default function Field() {
       {/* Legend */}
       <div className="absolute bottom-10 left-3 bg-black/60 backdrop-blur-sm rounded-xl p-3 text-xs space-y-1.5">
         <p className="text-white/40 text-[10px] uppercase tracking-wide mb-1.5">Crop</p>
-        {stageLegend.map(({ label, color }) => (
+        {stageLegend.map(({ label, color, isMixed }) => (
           <div key={label} className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-sm inline-block border border-white/20" style={{ background: color }}/>
+            {isMixed ? (
+              <span className="w-3 h-3 rounded-sm inline-block border border-white/30 shrink-0"
+                style={{ background: 'repeating-linear-gradient(-45deg,rgba(255,255,255,0.35),rgba(255,255,255,0.35) 1.5px,rgba(255,255,255,0.08) 1.5px,rgba(255,255,255,0.08) 5px)' }}/>
+            ) : (
+              <span className="w-3 h-3 rounded-sm inline-block border border-white/20 shrink-0" style={{ background: color }}/>
+            )}
             <span className="text-white/80">{label}</span>
           </div>
         ))}
@@ -579,10 +648,11 @@ function PlotDetailPanel({ plot, onClose }) {
   const props = { plot: localPlot, onClose, onEdit: () => setEditing(true),
     onLogActivity: () => setShowLog(true), onIssueInput: () => setShowIssue(true) }
 
-  const { stage } = localPlot
+  const { stage, isMixed } = localPlot
   if (stage === 'empty')         return <EmptyPlotPanel    {...props} />
-  if (stage === 'harvest_ready') return <HarvestReadyPanel {...props} />
   if (stage === 'fallow')        return <FallowPanel       {...props} />
+  if (isMixed)                   return <MixedCropPanel    {...props} />
+  if (stage === 'harvest_ready') return <HarvestReadyPanel {...props} />
   return <ActiveCropPanel {...props} />
 }
 
@@ -702,6 +772,52 @@ function ActiveCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput })
             Prepare
           </button>
         )}
+      </div>
+    </PanelShell>
+  )
+}
+
+function MixedCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput }) {
+  const navigate = useNavigate()
+  return (
+    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
+          <p className="text-sm text-white/50">{plot.acres} ac</p>
+        </div>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 text-white/70 border border-white/20">🔀 Mixed Crop</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {plot.mixedCycles?.map(c => (
+          <div key={c.cycleId} className={`rounded-xl p-3 border ${c.isReady ? 'bg-[#1D9E75]/15 border-[#1D9E75]/35' : 'bg-white/5 border-white/10'}`}>
+            <p className="text-base mb-1">{c.cropEmoji}</p>
+            <p className="text-xs font-bold text-white leading-tight">{c.cropName}</p>
+            <p className="text-[10px] text-white/45 mt-1">Day {c.daysSinceSow}</p>
+            <div className="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full rounded-full" style={{ width: `${c.progressPct}%`, background: c.cropColor }}/>
+            </div>
+            {c.isReady
+              ? <p className="text-[10px] text-[#1D9E75] font-semibold mt-1.5">🎯 Ready</p>
+              : <p className="text-[10px] text-white/40 mt-1.5">{c.daysToWindow}d to harvest</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <Stat label="Season cost"  value={`₹${(plot.season_cost || 0).toLocaleString()}`}/>
+        <Stat label="Est. yield"   value={`${plot.est_yield_qtl || 0} qtl`}/>
+      </div>
+
+      <div className="flex gap-2">
+        {isManager(useAuthStore.getState().profile) && <>
+          <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Log Activity</button>
+          <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Issue Inputs</button>
+        </>}
+        <button onClick={() => navigate('/harvest')} className="flex-1 py-2.5 text-xs font-medium rounded-xl text-[#1D9E75] border border-[#1D9E75]/30 bg-[#1D9E75]/10 hover:bg-[#1D9E75]/20 transition-colors">
+          → Harvest
+        </button>
       </div>
     </PanelShell>
   )

@@ -14,6 +14,7 @@ function mapCrop(c, templates = []) {
     season_type:         c.season_type || null,
     pricePerQtl:         Number(c.price_per_qtl) || 0,
     yieldPerAcre:        Number(c.yield_per_acre) || 0,
+    ratoonCropId:        c.ratoon_crop_id || null,
     activities:   templates
       .filter(t => t.crop_id === c.id)
       .sort((a, b) => a.day_offset - b.day_offset)
@@ -23,15 +24,16 @@ function mapCrop(c, templates = []) {
 
 function mapCycle(c) {
   return {
-    id:         c.id,
-    plotId:     c.plot_id,
-    plotLabel:  c.plots?.name || '',
-    cropId:     c.crop_id,
-    sowDate:    c.sow_date,
-    harvestDate: c.expected_harvest_end || null,
-    status:     c.status,
-    acres:      Number(c.plots?.area_acres) || 0,
-    season:     c.season,
+    id:            c.id,
+    plotId:        c.plot_id,
+    plotLabel:     c.plots?.name || '',
+    cropId:        c.crop_id,
+    sowDate:       c.sow_date,
+    harvestDate:   c.expected_harvest_end || null,
+    status:        c.status,
+    acres:         Number(c.plots?.area_acres) || 0,
+    season:        c.season,
+    parentCycleId: c.parent_cycle_id || null,
   }
 }
 
@@ -1146,6 +1148,7 @@ const useAppStore = create((set, get) => ({
       expected_harvest_end: cycle.harvestDate || null,
       status:               'active',
       budget:               cycle.budget || null,
+      parent_cycle_id:      cycle.parentCycleId || null,
     }).select('*, plots(name, area_acres), crops(name, color, icon)').single()
     if (error) throw error
 
