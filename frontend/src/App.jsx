@@ -3,27 +3,21 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin } from './store/auth'
 import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, Wheat, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon, Wrench } from 'lucide-react'
-import Field     from './pages/Field'
-import Today     from './pages/Today'
-import Inventory from './pages/Inventory'
-import Harvest   from './pages/Harvest'
-import Dashboard from './pages/Dashboard'
-import Admin     from './pages/Admin'
-import Media     from './pages/Media'
-import Labour    from './pages/Labour'
-import Assets    from './pages/Assets'
-import Login     from './pages/Login'
+import { Map, ListChecks, Package, BarChart3, Users, Settings, LogOut, Sun, Moon } from 'lucide-react'
+import Field         from './pages/Field'
+import Today         from './pages/Today'
+import Labour        from './pages/Labour'
+import Admin         from './pages/Admin'
+import Login         from './pages/Login'
+import ResourcesPage from './pages/ResourcesPage'
+import ReportsPage   from './pages/ReportsPage'
 
 const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
   { to: '/today',     label: 'Today',     Icon: ListChecks },
-  { to: '/inventory', label: 'Inventory', Icon: Package    },
-  { to: '/assets',    label: 'Assets',    Icon: Wrench     },
-  { to: '/labour',    label: 'Manpower',  Icon: Users      },
-  { to: '/harvest',   label: 'Harvest',   Icon: Wheat      },
-  { to: '/media',     label: 'Media',     Icon: Camera     },
-  { to: '/owner',     label: 'Owner',     Icon: BarChart3  },
+  { to: '/resources', label: 'Resources', Icon: Package    },
+  { to: '/labour',    label: 'People',    Icon: Users      },
+  { to: '/reports',   label: 'Reports',   Icon: BarChart3  },
 ]
 
 function LoadingScreen() {
@@ -53,11 +47,13 @@ export default function App() {
     setMediaUnread(Math.max(0, mediaItems.length - seen))
   }, [mediaItems])
 
+  const handleMediaViewed = () => {
+    localStorage.setItem('mediaSeenCount', String(mediaItems.length))
+    setMediaUnread(0)
+  }
+
   useEffect(() => {
-    if (location.pathname === '/media') {
-      localStorage.setItem('mediaSeenCount', String(mediaItems.length))
-      setMediaUnread(0)
-    }
+    if (location.pathname === '/resources') handleMediaViewed()
   }, [location.pathname])
 
   if (loading) return <LoadingScreen />
@@ -98,18 +94,21 @@ export default function App() {
 
       <main className="flex-1 overflow-hidden min-h-0">
         <Routes>
-          <Route path="/"          element={<Navigate to="/field" replace />} />
-          <Route path="/field"     element={<Field />} />
-          <Route path="/today"     element={<Today />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/assets"    element={<Assets />} />
-          <Route path="/labour"    element={<Labour />} />
-          <Route path="/harvest"   element={<Harvest />} />
-          <Route path="/owner"     element={<Dashboard />} />
-          <Route path="/media"     element={<Media />} />
-          <Route path="/admin"     element={admin ? <Admin /> : <Navigate to="/field" replace />} />
-          <Route path="/dashboard" element={<Navigate to="/owner" replace />} />
-          <Route path="/diary"     element={<Navigate to="/today" replace />} />
+          <Route path="/"           element={<Navigate to="/field" replace />} />
+          <Route path="/field"      element={<Field />} />
+          <Route path="/today"      element={<Today />} />
+          <Route path="/resources"  element={<ResourcesPage mediaUnread={mediaUnread} onMediaViewed={handleMediaViewed} />} />
+          <Route path="/labour"     element={<Labour />} />
+          <Route path="/reports"    element={<ReportsPage />} />
+          <Route path="/admin"      element={admin ? <Admin /> : <Navigate to="/field" replace />} />
+          {/* legacy redirects */}
+          <Route path="/inventory"  element={<Navigate to="/resources" replace />} />
+          <Route path="/assets"     element={<Navigate to="/resources" replace />} />
+          <Route path="/media"      element={<Navigate to="/resources" replace />} />
+          <Route path="/harvest"    element={<Navigate to="/reports" replace />} />
+          <Route path="/owner"      element={<Navigate to="/reports" replace />} />
+          <Route path="/dashboard"  element={<Navigate to="/reports" replace />} />
+          <Route path="/diary"      element={<Navigate to="/today" replace />} />
         </Routes>
       </main>
 
@@ -122,7 +121,7 @@ export default function App() {
                 style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
                 <div className="relative">
                   <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
-                  {to === '/media' && mediaUnread > 0 && (
+                  {to === '/resources' && mediaUnread > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
                       {mediaUnread > 9 ? '9+' : mediaUnread}
                     </span>
