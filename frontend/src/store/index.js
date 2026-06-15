@@ -200,6 +200,83 @@ function mapLabourLog(l) {
   }
 }
 
+function mapMachinery(m) {
+  return {
+    id:             m.id,
+    displayId:      m.display_id || '',
+    name:           m.name,
+    type:           m.machinery_type || '',
+    make:           m.make || '',
+    model:          m.model || '',
+    regNo:          m.registration_no || '',
+    quantity:       Number(m.quantity) || 1,
+    requiresDiesel: m.requires_diesel || false,
+    status:         m.status || 'in_use',
+    purchaseDate:   m.purchase_date || null,
+    notes:          m.notes || '',
+    isActive:       m.is_active !== false,
+    disposalType:   m.disposal_type || null,
+    disposalDate:   m.disposal_date || null,
+    disposalAmount: m.disposal_amount ? Number(m.disposal_amount) : null,
+    disposalBuyer:  m.disposal_buyer || null,
+    disposalNotes:  m.disposal_notes || null,
+  }
+}
+
+function mapFarmAsset(a) {
+  return {
+    id:            a.id,
+    displayId:     a.display_id || '',
+    name:          a.name,
+    category:      a.category || '',
+    quantity:      Number(a.quantity) || 1,
+    status:        a.status || 'in_use',
+    purchaseDate:  a.purchase_date || null,
+    purchasePrice: a.purchase_price ? Number(a.purchase_price) : null,
+    currentValue:  a.current_value ? Number(a.current_value) : null,
+    location:      a.location || '',
+    notes:         a.notes || '',
+    isActive:      a.is_active !== false,
+    disposalType:   a.disposal_type || null,
+    disposalDate:   a.disposal_date || null,
+    disposalAmount: a.disposal_amount ? Number(a.disposal_amount) : null,
+    disposalBuyer:  a.disposal_buyer || null,
+    disposalNotes:  a.disposal_notes || null,
+  }
+}
+
+function mapLivestock(l) {
+  return {
+    id:            l.id,
+    tagId:         l.tag_id || '',
+    name:          l.name || '',
+    species:       l.species || l.animal_type || '',
+    trackingMode:  l.tracking_mode || 'individual',
+    currentCount:  l.current_count != null ? Number(l.current_count) : null,
+    breed:         l.breed || '',
+    gender:        l.gender || '',
+    dob:           l.dob || null,
+    purchaseDate:  l.purchase_date || null,
+    purchasePrice: l.purchase_price ? Number(l.purchase_price) : null,
+    healthStatus:  l.health_status || 'healthy',
+    isActive:      l.is_active !== false,
+    notes:         l.notes || '',
+  }
+}
+
+function mapCountLog(l) {
+  return {
+    id:           l.id,
+    livestockId:  l.livestock_id,
+    date:         l.log_date,
+    changeType:   l.change_type,
+    reason:       l.reason,
+    quantity:     Number(l.quantity),
+    notes:        l.notes || '',
+    addedBy:      l.added_by || '',
+  }
+}
+
 // ── Map store (persisted separately for map state) ────────────────────────────
 const useMapStore = create(
   (set) => ({
@@ -234,6 +311,10 @@ const useAppStore = create((set, get) => ({
   todayAttendance:   {},   // { [labourerId]: { id, status } }
   advances:          [],   // salary_advances rows
   salaryPayments:    [],   // salary_payments rows
+  machineryMaster:   [],
+  farmAssets:        [],
+  livestockMaster:   [],
+  livestockCountLogs: [],
   loading:           false,
   initialized:       false,
 
@@ -258,6 +339,10 @@ const useAppStore = create((set, get) => ({
         { data: salaryPaymentsRaw },
         { data: workTypesRaw },
         { data: activityTypesRaw },
+        { data: machineryRaw },
+        { data: farmAssetsRaw },
+        { data: livestockRaw },
+        { data: countLogsRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -290,6 +375,10 @@ const useAppStore = create((set, get) => ({
         supabase.from('salary_payments').select('*').order('payment_date', { ascending: false }),
         supabase.from('work_types').select('*').eq('is_active', true).order('name'),
         supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order'),
+        supabase.from('machinery_master').select('*').eq('is_active', true).order('display_id'),
+        supabase.from('farm_assets').select('*').eq('is_active', true).order('display_id'),
+        supabase.from('livestock_master').select('*').eq('is_active', true).order('name'),
+        supabase.from('livestock_count_logs').select('*').order('log_date', { ascending: false }),
       ])
 
       const tpl = templates || []
@@ -319,6 +408,10 @@ const useAppStore = create((set, get) => ({
         salaryPayments:    (salaryPaymentsRaw || []).map(mapSalaryPayment),
         workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
         activityTypes:     (activityTypesRaw || []).map(a => ({ id: a.id, name: a.name, label: a.label, emoji: a.emoji, isSystem: a.is_system })),
+        machineryMaster:    (machineryRaw || []).map(mapMachinery),
+        farmAssets:         (farmAssetsRaw || []).map(mapFarmAsset),
+        livestockMaster:    (livestockRaw || []).map(mapLivestock),
+        livestockCountLogs: (countLogsRaw || []).map(mapCountLog),
         loading:           false,
         initialized:       true,
       })
@@ -737,6 +830,7 @@ const useAppStore = create((set, get) => ({
       unit_cost_at_issue: wac,
       total_cost:         totalCost,
       purpose:            issue.purpose || null,
+      machinery_id:       issue.machineryId || null,
     }).select('*, plots(name), crop_cycles(season, plots(name))').single()
     if (error) throw error
 
@@ -798,6 +892,65 @@ const useAppStore = create((set, get) => ({
     const { error } = await supabase.from('activity_types').update({ is_active: false }).eq('id', id)
     if (error) throw error
     set(s => ({ activityTypes: s.activityTypes.filter(a => a.id !== id) }))
+  },
+
+  // ── Assets & Machinery ──────────────────────────────────────────────────────
+  disposeMachinery: async (id, disposal) => {
+    const { error } = await supabase.from('machinery_master').update({
+      status:          disposal.type === 'sold' ? 'sold' : 'disposed',
+      is_active:       false,
+      disposal_type:   disposal.type,
+      disposal_date:   disposal.date,
+      disposal_amount: disposal.amount ? parseFloat(disposal.amount) : null,
+      disposal_buyer:  disposal.buyer || null,
+      disposal_notes:  disposal.notes || null,
+    }).eq('id', id)
+    if (error) throw error
+    set(s => ({ machineryMaster: s.machineryMaster.filter(m => m.id !== id) }))
+  },
+
+  disposeFarmAsset: async (id, disposal) => {
+    const { error } = await supabase.from('farm_assets').update({
+      status:          disposal.type === 'sold' ? 'sold' : 'disposed',
+      is_active:       false,
+      disposal_type:   disposal.type,
+      disposal_date:   disposal.date,
+      disposal_amount: disposal.amount ? parseFloat(disposal.amount) : null,
+      disposal_buyer:  disposal.buyer || null,
+      disposal_notes:  disposal.notes || null,
+    }).eq('id', id)
+    if (error) throw error
+    set(s => ({ farmAssets: s.farmAssets.filter(a => a.id !== id) }))
+  },
+
+  addLivestockCountLog: async (log) => {
+    const { data, error } = await supabase.from('livestock_count_logs').insert({
+      livestock_id: log.livestockId,
+      log_date:     log.date,
+      change_type:  log.changeType,
+      reason:       log.reason,
+      quantity:     log.quantity,
+      notes:        log.notes || null,
+      added_by:     log.addedBy || null,
+    }).select().single()
+    if (error) throw error
+
+    const delta = log.changeType === 'add' ? log.quantity : -log.quantity
+    await supabase.from('livestock_master')
+      .update({ current_count: supabase.rpc ? undefined : undefined })
+      .eq('id', log.livestockId)
+
+    // Update current_count via raw SQL increment
+    const animal = get().livestockMaster.find(l => l.id === log.livestockId)
+    const newCount = Math.max(0, (animal?.currentCount || 0) + delta)
+    await supabase.from('livestock_master').update({ current_count: newCount }).eq('id', log.livestockId)
+
+    set(s => ({
+      livestockCountLogs: [mapCountLog(data), ...s.livestockCountLogs],
+      livestockMaster: s.livestockMaster.map(l =>
+        l.id === log.livestockId ? { ...l, currentCount: newCount } : l
+      ),
+    }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────

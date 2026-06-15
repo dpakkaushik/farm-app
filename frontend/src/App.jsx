@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin } from './store/auth'
 import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, Wheat, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon } from 'lucide-react'
+import { Map, ListChecks, Package, Wheat, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon, Wrench } from 'lucide-react'
 import Field     from './pages/Field'
 import Today     from './pages/Today'
 import Inventory from './pages/Inventory'
@@ -12,12 +12,14 @@ import Dashboard from './pages/Dashboard'
 import Admin     from './pages/Admin'
 import Media     from './pages/Media'
 import Labour    from './pages/Labour'
+import Assets    from './pages/Assets'
 import Login     from './pages/Login'
 
 const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
   { to: '/today',     label: 'Today',     Icon: ListChecks },
   { to: '/inventory', label: 'Inventory', Icon: Package    },
+  { to: '/assets',    label: 'Assets',    Icon: Wrench     },
   { to: '/labour',    label: 'Manpower',  Icon: Users      },
   { to: '/harvest',   label: 'Harvest',   Icon: Wheat      },
   { to: '/media',     label: 'Media',     Icon: Camera     },
@@ -100,6 +102,7 @@ export default function App() {
           <Route path="/field"     element={<Field />} />
           <Route path="/today"     element={<Today />} />
           <Route path="/inventory" element={<Inventory />} />
+          <Route path="/assets"    element={<Assets />} />
           <Route path="/labour"    element={<Labour />} />
           <Route path="/harvest"   element={<Harvest />} />
           <Route path="/owner"     element={<Dashboard />} />

@@ -19,6 +19,7 @@ const TABS = [
 export default function Inventory() {
   const {
     inventoryMaster, purchases, issues, plots, cropCycles, cropMaster,
+    machineryMaster,
     recordPurchase, issueItem,
   } = useAppStore()
 
@@ -52,7 +53,7 @@ export default function Inventory() {
     }
   }
   const openIssue = async (item) => {
-    setForm({ qty: '', purpose: '', plotId: '', date: TODAY_STR })
+    setForm({ qty: '', purpose: '', plotId: '', date: TODAY_STR, machineryId: '' })
     setModal('issue')
     // Fetch live stock from DB
     const { data } = await supabase.from('inventory_items')
@@ -111,6 +112,7 @@ export default function Inventory() {
       await issueItem({
         itemId: selected.id, plotId: form.plotId || null,
         date: form.date, qty: issueQty, purpose: form.purpose || '',
+        machineryId: form.machineryId || null,
       })
       showToast(`Issued ${issueQty} ${selected.unit} of ${selected.name}`)
       setModal(null)
@@ -275,6 +277,20 @@ export default function Inventory() {
                 {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
               </select>
             </FRow>
+
+            {/* Machine picker — shown only for fuel items */}
+            {selected.category === 'fuel' && (
+              <FRow label="Machine (for diesel tracking)">
+                <select className="finput" value={form.machineryId || ''} onChange={e => f('machineryId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>No machine / general</option>
+                  {(machineryMaster || []).filter(m => m.requiresDiesel).map(m => (
+                    <option key={m.id} value={m.id} style={{ background: 'var(--c-surface)' }}>
+                      {m.displayId} · {m.name}{m.regNo ? ` (${m.regNo})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </FRow>
+            )}
 
             {/* Show cycle info (read-only) */}
             {form.plotId && (
