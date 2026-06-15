@@ -175,9 +175,11 @@ export default function Field() {
         a.date === todayStr &&
         (a.plotId === p.id || activeCycles.some(c => a.cropCycleId === c.id))
       )
-      const todayType = todayActs[0]?.type || null
-      const todayNote = todayActs[0]?.notes || null
-      const subLabel  = todayType ? todayType.charAt(0).toUpperCase() + todayType.slice(1) : null
+      const todayNote   = todayActs[0]?.notes || null
+      const uniqueTypes = [...new Set(todayActs.map(a => a.type).filter(Boolean))]
+      const subLabel    = uniqueTypes.length > 0
+        ? uniqueTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' + ')
+        : null
 
       if (activeCycles.length === 0) {
         return {
@@ -251,9 +253,7 @@ export default function Field() {
         id:              p.id,
         cycle_id:        primary.cycleId,
         label:           p.name,
-        sub_label:       isMixed
-          ? cycleData.map(c => c.cropName.split(' ')[0]).join('/')
-          : (subLabel || primary.cropName.split(' ')[0]),
+        sub_label:       subLabel || '',
         crop_emoji:      primary.cropEmoji,
         acres,
         geo_polygon:     geoPolygon,
