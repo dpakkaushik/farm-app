@@ -651,8 +651,9 @@ export default function Assets() {
     try {
       const ext  = file.name.split('.').pop()
       const path = `asset_photos/${pendingPhoto.table}/${pendingPhoto.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('farm-photos').upload(path, file, { upsert: true })
-      if (upErr) throw upErr
+      const { error: upErr } = await supabase.storage.from('farm-photos').upload(path, file)
+      if (upErr) throw new Error(`Storage: ${upErr.message} (status ${upErr.statusCode})`)
+
       const { data: { publicUrl } } = supabase.storage.from('farm-photos').getPublicUrl(path)
       await updateAssetPhoto(pendingPhoto.table, pendingPhoto.id, publicUrl)
       showToast('Photo updated')
