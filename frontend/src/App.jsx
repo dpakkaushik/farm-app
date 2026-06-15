@@ -3,11 +3,12 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin } from './store/auth'
 import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, BarChart3, Users, Settings, LogOut, Sun, Moon } from 'lucide-react'
+import { Map, ListChecks, Package, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon } from 'lucide-react'
 import Field         from './pages/Field'
 import Today         from './pages/Today'
 import Labour        from './pages/Labour'
 import Admin         from './pages/Admin'
+import Media         from './pages/Media'
 import Login         from './pages/Login'
 import ResourcesPage from './pages/ResourcesPage'
 import ReportsPage   from './pages/ReportsPage'
@@ -18,6 +19,7 @@ const NAV = [
   { to: '/resources', label: 'Resources', Icon: Package    },
   { to: '/labour',    label: 'People',    Icon: Users      },
   { to: '/reports',   label: 'Reports',   Icon: BarChart3  },
+  { to: '/media',     label: 'Media',     Icon: Camera     },
 ]
 
 function LoadingScreen() {
@@ -53,7 +55,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (location.pathname === '/resources') handleMediaViewed()
+    if (location.pathname === '/media') handleMediaViewed()
   }, [location.pathname])
 
   if (loading) return <LoadingScreen />
@@ -97,14 +99,14 @@ export default function App() {
           <Route path="/"           element={<Navigate to="/field" replace />} />
           <Route path="/field"      element={<Field />} />
           <Route path="/today"      element={<Today />} />
-          <Route path="/resources"  element={<ResourcesPage mediaUnread={mediaUnread} onMediaViewed={handleMediaViewed} />} />
+          <Route path="/resources"  element={<ResourcesPage />} />
           <Route path="/labour"     element={<Labour />} />
           <Route path="/reports"    element={<ReportsPage />} />
           <Route path="/admin"      element={admin ? <Admin /> : <Navigate to="/field" replace />} />
           {/* legacy redirects */}
           <Route path="/inventory"  element={<Navigate to="/resources" replace />} />
           <Route path="/assets"     element={<Navigate to="/resources" replace />} />
-          <Route path="/media"      element={<Navigate to="/resources" replace />} />
+          <Route path="/media"      element={<Media />} />
           <Route path="/harvest"    element={<Navigate to="/reports" replace />} />
           <Route path="/owner"      element={<Navigate to="/reports" replace />} />
           <Route path="/dashboard"  element={<Navigate to="/reports" replace />} />
@@ -121,7 +123,7 @@ export default function App() {
                 style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
                 <div className="relative">
                   <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
-                  {to === '/resources' && mediaUnread > 0 && (
+                  {to === '/media' && mediaUnread > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
                       {mediaUnread > 9 ? '9+' : mediaUnread}
                     </span>
