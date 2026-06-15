@@ -1030,6 +1030,58 @@ const useAppStore = create((set, get) => ({
     if (k) set(s => ({ [k]: s[k].map(a => a.id === id ? { ...a, purchasePrice: parsed } : a) }))
   },
 
+  updateMachinery: async (id, data) => {
+    const payload = {
+      name:             data.name,
+      machinery_type:   data.type,
+      make:             data.make || null,
+      model:            data.model || null,
+      quantity:         parseInt(data.quantity) || 1,
+      requires_diesel:  data.requiresDiesel || false,
+      status:           data.status || 'in_use',
+      purchase_date:    data.purchaseDate || null,
+      purchase_price:   data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      notes:            data.notes || null,
+    }
+    const { error } = await supabase.from('machinery_master').update(payload).eq('id', id)
+    if (error) throw error
+    set(s => ({ machineryMaster: s.machineryMaster.map(m => m.id === id ? { ...m, name: payload.name, type: payload.machinery_type, make: payload.make, quantity: payload.quantity, requiresDiesel: payload.requires_diesel, status: payload.status, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : m) }))
+  },
+
+  updateFarmAsset: async (id, data) => {
+    const payload = {
+      name:           data.name,
+      category:       data.category,
+      quantity:       parseInt(data.quantity) || 1,
+      status:         data.status || 'in_use',
+      purchase_date:  data.purchaseDate || null,
+      purchase_price: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      notes:          data.notes || null,
+    }
+    const { error } = await supabase.from('farm_assets').update(payload).eq('id', id)
+    if (error) throw error
+    set(s => ({ farmAssets: s.farmAssets.map(a => a.id === id ? { ...a, name: payload.name, category: payload.category, quantity: payload.quantity, status: payload.status, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : a) }))
+  },
+
+  updateLivestock: async (id, data) => {
+    const payload = {
+      name:             data.name,
+      species:          data.species,
+      animal_type:      data.species,
+      gender:           data.gender || null,
+      breed:            data.breed || null,
+      dob:              data.dob || null,
+      health_status:    data.healthStatus || 'healthy',
+      acquisition_type: data.acquisitionType || 'purchased',
+      purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
+      purchase_price:   data.acquisitionType !== 'born' && data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      notes:            data.notes || null,
+    }
+    const { error } = await supabase.from('livestock_master').update(payload).eq('id', id)
+    if (error) throw error
+    set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : l) }))
+  },
+
   // ── Activity log ────────────────────────────────────────────────────────────
   logActivity: async (act) => {
     const isEvent = act.type === 'events'
