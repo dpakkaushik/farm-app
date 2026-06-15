@@ -242,8 +242,8 @@ export default function Field() {
         cycle_id:        primary.cycleId,
         label:           p.name,
         sub_label:       isMixed
-          ? cycleData.map(c => c.cropEmoji).join('')
-          : `${primary.cropEmoji} ${primary.cropName.split(' ')[0]}`,
+          ? cycleData.map(c => c.cropName.split(' ')[0]).join('/')
+          : (subLabel || primary.cropName.split(' ')[0]),
         crop_emoji:      primary.cropEmoji,
         acres,
         geo_polygon:     geoPolygon,
@@ -362,7 +362,12 @@ export default function Field() {
       paint:  { 'fill-pattern': 'mixed-hatch' },
     })
     map.current.addLayer({ id:'plot-label',   type:'symbol', source:'plots',
-      layout:{ 'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],], 'text-size':11, 'text-anchor':'center', 'text-allow-overlap':true, 'text-ignore-placement':true },
+      layout:{
+        'text-field':['concat',['get','label'],['case',['!=',['get','crop_short'],''],['concat','\n',['get','crop_short']],''],],
+        'text-size':11, 'text-anchor':'center',
+        'text-font':['Open Sans Regular'],
+        'text-allow-overlap':true, 'text-ignore-placement':true,
+      },
       paint:{ 'text-color':'#fff', 'text-halo-color':'#000', 'text-halo-width':1.2 },
     })
     map.current.on('click', 'plot-fill', (e) => {
