@@ -4,6 +4,8 @@ import { AlertTriangle, TrendingUp, Package, CalendarDays, Leaf, ChevronDown, Ch
 import { farmApi } from '../api/client'
 import { format } from 'date-fns'
 import { useAuthStore } from '../store/auth'
+import { useAppStore } from '../store'
+import { supabase } from '../lib/supabase'
 
 const FARM_ID = import.meta.env.VITE_FARM_ID || 'demo'
 
@@ -176,6 +178,7 @@ export default function Dashboard() {
   }, [])
 
   const { profile } = useAuthStore()
+  const { harvestSessions, sales, partners } = useAppStore()
   const d = data || DEMO
   const hour = now.getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -396,6 +399,72 @@ export default function Dashboard() {
           ))}
         </div>
       </Card>
+
+      {/* Mill Payments (Cane) — live data */}
+      <MillPaymentsCard harvestSessions={harvestSessions} sales={sales} partners={partners} />
+    </div>
+  )
+}
+
+function MillPaymentsCard({ harvestSessions, sales, partners }) {
+  const getUrl = (path) =>
+    path ? supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl : null
+
+  const partnerRows = partners
+    .map(partner => {
+      const sessions = harvestSessions.filter(s => s.partnerId === partner.id)
+      if (!sessions.length) return null
+      const rows = sessions.map(s => ({ session: s, sale: sales.find(sl => sl.sessionId === s.id) }))
+      const totalPending = rows
+        .filter(r => r.sale?.paymentStatus !== 'paid')
+        .reduce((n, r) => n + (r.sale?.grossAmount || 0), 0)
+      return { partner, rows, totalPending }
+    })
+    .filter(Boolean)
+
+  if (!partnerRows.length) return (
+    <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] p-4">
+      <h3 className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wider mb-2">Mill Payments (Cane)</h3>
+      <p className="text-xs text-[var(--c-faint)]">No cane supply entries yet.</p>
+    </div>
+  )
+
+  return (
+    <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] p-4">
+      <h3 className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wider mb-3">Mill Payments (Cane)</h3>
+      <div className="space-y-4">
+        {partnerRows.map(({ partner, rows, totalPending }) => (
+          <div key={partner.id} className="rounded-xl border border-[var(--c-border)] overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 bg-[var(--c-ghost)]">
+              <p className="text-xs font-semibold text-[var(--c-text)]">{partner.name}</p>
+              {totalPending > 0 && (
+                <span className="text-[10px] font-bold text-[#BA7517]">₹{totalPending.toLocaleString('en-IN')} due</span>
+              )}
+            </div>
+            {rows.map(({ session, sale }) => {
+              const isPaid = sale?.paymentStatus === 'paid'
+              const parchiUrl = getUrl(session.parchiAttachmentPath)
+              const receiptUrl = getUrl(sale?.paymentAttachmentPath)
+              return (
+                <div key={session.id} className="flex items-center gap-2 px-3 py-2.5 border-t border-[var(--c-border)] text-xs">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[var(--c-text)] font-medium">{session.parchiNumber || '—'}</p>
+                    <p className="text-[10px] text-[var(--c-faint)]">{session.date?.slice(5).replace('-', ' ')} · {session.qtyQtl?.toFixed(1)} qtl</p>
+                  </div>
+                  <p className="text-[var(--c-muted)] font-medium shrink-0">₹{sale?.grossAmount?.toLocaleString('en-IN') || '—'}</p>
+                  <span className={`text-[10px] font-bold shrink-0 ${isPaid ? 'text-[#1D9E75]' : 'text-[#BA7517]'}`}>
+                    {isPaid ? 'Paid' : 'Pending'}
+                  </span>
+                  <div className="flex gap-1.5 shrink-0">
+                    {parchiUrl && <a href={parchiUrl} target="_blank" rel="noreferrer" className="text-[11px]">📄</a>}
+                    {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-[11px]">🧾</a>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

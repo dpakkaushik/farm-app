@@ -42,12 +42,14 @@ function mapCycle(c) {
 
 function mapSession(s) {
   return {
-    id:           s.id,
-    cycleId:      s.crop_cycle_id,
-    date:         s.harvest_date,
-    qtyQtl:       Number(s.quantity_kg) / 100,
-    parchiNumber: s.parchi_number || null,
-    notes:        s.notes || null,
+    id:                   s.id,
+    cycleId:              s.crop_cycle_id,
+    date:                 s.harvest_date,
+    qtyQtl:               Number(s.quantity_kg) / 100,
+    parchiNumber:         s.parchi_number || null,
+    notes:                s.notes || null,
+    partnerId:            s.partner_id || null,
+    parchiAttachmentPath: s.parchi_attachment_path || null,
   }
 }
 
@@ -55,18 +57,28 @@ function mapSale(s) {
   const gross      = Number(s.total_revenue) || 0
   const deductions = Number(s.deductions)    || 0
   return {
-    id:             s.id,
-    sessionId:      s.harvest_id,
-    date:           s.sale_date,
-    buyerName:      s.buyer_name || '',
-    ratePerQtl:     Number(s.rate_per_unit) || 0,
-    grossAmount:    gross,
+    id:                    s.id,
+    sessionId:             s.harvest_id,
+    date:                  s.sale_date,
+    buyerName:             s.buyer_name || '',
+    buyerId:               s.buyer_id || null,
+    ratePerQtl:            Number(s.rate_per_unit) || 0,
+    grossAmount:           gross,
     deductions,
-    deductionsNote: s.deductions_note || null,
-    netAmount:      gross - deductions,
-    paymentStatus:  s.payment_status || 'pending',
-    paymentDate:    s.payment_date || null,
+    deductionsNote:        s.deductions_note || null,
+    netAmount:             gross - deductions,
+    paymentStatus:         s.payment_status || 'pending',
+    paymentDate:           s.payment_date || null,
+    paymentAttachmentPath: s.payment_attachment_path || null,
   }
+}
+
+function mapBuyer(b) {
+  return { id: b.id, name: b.name, address: b.address || '', type: b.type || 'mill', isActive: b.is_active }
+}
+
+function mapPartner(p) {
+  return { id: p.id, name: p.name, isActive: p.is_active }
 }
 
 function mapItem(i) {
@@ -346,6 +358,8 @@ const useAppStore = create((set, get) => ({
   cropCycles:        [],
   harvestSessions:   [],
   sales:             [],
+  buyers:            [],
+  partners:          [],
   scrapSales:        [],
   sprayReminders:    [],
   mediaItems:        [],
@@ -386,6 +400,8 @@ const useAppStore = create((set, get) => ({
         { data: countLogsRaw },
         { data: harvestSessionsRaw },
         { data: salesRaw },
+        { data: buyersRaw },
+        { data: partnersRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -424,6 +440,8 @@ const useAppStore = create((set, get) => ({
         supabase.from('livestock_count_logs').select('*').order('log_date', { ascending: false }),
         supabase.from('harvest_sessions').select('*').order('harvest_date'),
         supabase.from('sales').select('*').order('sale_date'),
+        supabase.from('buyers').select('*').eq('is_active', true).order('name'),
+        supabase.from('partners').select('*').eq('is_active', true).order('name'),
       ])
 
       const tpl = templates || []
@@ -459,6 +477,8 @@ const useAppStore = create((set, get) => ({
         livestockCountLogs: (countLogsRaw || []).map(mapCountLog),
         harvestSessions:    (harvestSessionsRaw || []).map(mapSession),
         sales:              (salesRaw || []).map(mapSale),
+        buyers:             (buyersRaw || []).map(mapBuyer),
+        partners:           (partnersRaw || []).map(mapPartner),
         loading:           false,
         initialized:       true,
       })
@@ -1205,34 +1225,72 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Crop cycles ─────────────────────────────────────────────────────────────
-  addCaneSupply: async (cycleId, { date, qtyQtl, parchiNumber, notes, sap, millName }) => {
+  addCaneSupply: async (cycleId, { date, qtyQtl, parchiNumber, notes, sap, buyerId, partnerId, parchiAttachmentPath }) => {
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
     const gross  = Math.round(parseFloat(qtyQtl) * parseFloat(sap))
     const { data: session, error: e1 } = await supabase
       .from('harvest_sessions')
-      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null })
+      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
       .select().single()
     if (e1) throw e1
     const { data: sale, error: e2 } = await supabase
       .from('sales')
-      .insert({ harvest_id: session.id, sale_date: date, buyer_name: millName || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
+      .insert({ harvest_id: session.id, sale_date: date, buyer_id: buyerId || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
       .select().single()
     if (e2) throw e2
     set(s => ({ harvestSessions: [...s.harvestSessions, mapSession(session)], sales: [...s.sales, mapSale(sale)] }))
   },
 
-  markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote }) => {
+  markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
     const ded = parseFloat(deductions) || 0
     const { error } = await supabase.from('sales')
-      .update({ payment_status: 'paid', payment_date: paymentDate, deductions: ded, deductions_note: deductionsNote || null })
+      .update({ payment_status: 'paid', payment_date: paymentDate, deductions: ded, deductions_note: deductionsNote || null, payment_attachment_path: paymentAttachmentPath || null })
       .eq('id', saleId)
     if (error) throw error
     set(s => ({
       sales: s.sales.map(sale => {
         if (sale.id !== saleId) return sale
-        return { ...sale, paymentStatus: 'paid', paymentDate, deductions: ded, deductionsNote: deductionsNote || null, netAmount: sale.grossAmount - ded }
+        return { ...sale, paymentStatus: 'paid', paymentDate, deductions: ded, deductionsNote: deductionsNote || null, netAmount: sale.grossAmount - ded, paymentAttachmentPath: paymentAttachmentPath || null }
       }),
     }))
+  },
+
+  closeCaneHarvest: async (cycleId, confirmedParchiNos) => {
+    const { harvestSessions, updateCropCycle } = get()
+    const loggedNos = harvestSessions
+      .filter(s => s.cycleId === cycleId && s.parchiNumber)
+      .map(s => s.parchiNumber.trim())
+    const confirmedSet = new Set(confirmedParchiNos.map(n => n.trim()))
+    const loggedSet    = new Set(loggedNos)
+    const missing = loggedNos.filter(n => !confirmedSet.has(n))
+    const extra   = confirmedParchiNos.map(n => n.trim()).filter(n => !loggedSet.has(n))
+    if (missing.length || extra.length) return { ok: false, missing, extra }
+    const today = new Date().toISOString().slice(0, 10)
+    await updateCropCycle(cycleId, { status: 'harvested', actualHarvestDate: today })
+    return { ok: true }
+  },
+
+  addBuyer: async ({ name, address, contact, type }) => {
+    const { data, error } = await supabase.from('buyers')
+      .insert({ name, address: address || null, contact: contact || null, type: type || 'mill' })
+      .select().single()
+    if (error) throw error
+    set(s => ({ buyers: [...s.buyers, mapBuyer(data)].sort((a, b) => a.name.localeCompare(b.name)) }))
+    return data
+  },
+
+  updateBuyer: async (id, { name, address, contact, type }) => {
+    const { error } = await supabase.from('buyers')
+      .update({ name, address: address || null, contact: contact || null, type: type || 'mill' })
+      .eq('id', id)
+    if (error) throw error
+    set(s => ({ buyers: s.buyers.map(b => b.id === id ? { ...b, name, address: address || '', type: type || 'mill' } : b) }))
+  },
+
+  updatePartner: async (id, { name }) => {
+    const { error } = await supabase.from('partners').update({ name }).eq('id', id)
+    if (error) throw error
+    set(s => ({ partners: s.partners.map(p => p.id === id ? { ...p, name } : p) }))
   },
 
   updateCaneMillInfo: async (cycleId, { millName, growerCode }) => {

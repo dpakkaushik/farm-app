@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 
-const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users']
+const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
 const PALETTE_COLORS = [
   '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
@@ -45,6 +45,8 @@ export default function Admin() {
         {tab === 'Activity'  && <ActivityTypesMaster />}
         {tab === 'Plots'     && <PlotsMaster />}
         {tab === 'Users'     && <UsersMaster />}
+        {tab === 'Buyers'    && <BuyersMaster />}
+        {tab === 'Partners'  && <PartnersMaster />}
       </div>
     </div>
   )
@@ -1751,6 +1753,159 @@ function Toast({ msg, type = 'success' }) {
 const Style = () => (
   <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
 )
+
+// ── Buyers Master ─────────────────────────────────────────────────────────────
+const BUYER_TYPES = ['mill', 'local', 'other']
+
+function BuyersMaster() {
+  const { buyers, addBuyer, updateBuyer } = useAppStore()
+  const [form,   setForm]   = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [toast,  setToast]  = useState(null)
+
+  const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
+
+  const blank = () => ({ name: '', address: '', contact: '', type: 'mill' })
+
+  const save = async () => {
+    if (!form.name.trim()) return showToast('Buyer name is required', 'warn')
+    setSaving(true)
+    try {
+      if (form.id) {
+        await updateBuyer(form.id, form)
+        showToast('Buyer updated ✓')
+      } else {
+        await addBuyer(form)
+        showToast('Buyer added ✓')
+      }
+      setForm(null)
+    } catch (e) { showToast(e.message, 'warn') }
+    setSaving(false)
+  }
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      <button onClick={() => setForm(blank())}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        <Plus size={14} /> Add Buyer / Mill
+      </button>
+
+      {form !== null && (
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Buyer' : 'New Buyer'}</p>
+          <FRow label="Name">
+            <input className="finput" placeholder="Mill or buyer name"
+              value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+          </FRow>
+          <div className="grid grid-cols-2 gap-2">
+            <FRow label="Address">
+              <input className="finput" placeholder="Location"
+                value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+            </FRow>
+            <FRow label="Contact">
+              <input className="finput" placeholder="Phone / contact"
+                value={form.contact || ''} onChange={e => setForm(p => ({ ...p, contact: e.target.value }))} />
+            </FRow>
+          </div>
+          <FRow label="Type">
+            <select className="finput" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              {BUYER_TYPES.map(t => <option key={t} value={t} style={{ background: 'var(--c-surface)' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+            </select>
+          </FRow>
+          <div className="flex gap-2">
+            <button onClick={save} disabled={saving}
+              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              {saving ? 'Saving…' : form.id ? 'Update' : 'Add Buyer'}
+            </button>
+            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {buyers.map(b => (
+        <div key={b.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-[var(--c-text)]">{b.name}</p>
+              <span className="text-[9px] px-1.5 py-0.5 rounded border border-[#1D9E75]/30 text-[#1D9E75]">{b.type}</span>
+            </div>
+            {b.address && <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{b.address}</p>}
+          </div>
+          <button onClick={() => setForm({ id: b.id, name: b.name, address: b.address, contact: b.contact || '', type: b.type })}
+            className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 shrink-0">
+            Edit
+          </button>
+        </div>
+      ))}
+
+      {buyers.length === 0 && <p className="text-xs text-[var(--c-faint)] text-center py-6">No buyers yet.</p>}
+      {toast && <Toast msg={toast.m} type={toast.type} />}
+      <Style />
+    </div>
+  )
+}
+
+// ── Partners Master ────────────────────────────────────────────────────────────
+function PartnersMaster() {
+  const { partners, updatePartner } = useAppStore()
+  // editRow: { id, name } when editing, null otherwise
+  const [editRow, setEditRow] = useState(null)
+  const [saving,  setSaving]  = useState(false)
+  const [toast,   setToast]   = useState(null)
+
+  const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
+
+  const save = async () => {
+    if (!editRow.name.trim()) return showToast('Name cannot be empty', 'warn')
+    setSaving(true)
+    try {
+      await updatePartner(editRow.id, { name: editRow.name.trim() })
+      showToast('Partner updated ✓')
+      setEditRow(null)
+    } catch (e) { showToast(e.message, 'warn') }
+    setSaving(false)
+  }
+
+  return (
+    <div className="p-4 space-y-3 pb-6">
+      <p className="text-xs text-[var(--c-muted)] bg-[var(--c-card)] rounded-xl px-3 py-2">
+        Partners are pre-seeded family members. You can edit names but not add or remove.
+      </p>
+
+      {partners.map(p => (
+        <div key={p.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
+          {editRow?.id === p.id ? (
+            <div className="space-y-2">
+              <input className="finput" value={editRow.name}
+                onChange={e => setEditRow(r => ({ ...r, name: e.target.value }))}
+                autoFocus />
+              <div className="flex gap-2">
+                <button onClick={save} disabled={saving}
+                  className="flex-1 py-2 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button onClick={() => setEditRow(null)}
+                  className="px-4 py-2 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-[var(--c-text)]">{p.name}</p>
+              <button onClick={() => setEditRow({ id: p.id, name: p.name })}
+                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10">
+                Edit
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {partners.length === 0 && <p className="text-xs text-[var(--c-faint)] text-center py-6">No partners loaded.</p>}
+      {toast && <Toast msg={toast.m} type={toast.type} />}
+      <Style />
+    </div>
+  )
+}
 
 // ── Cycles Master — start / view crop cycles ───────────────────────────────────
 function CyclesMaster() {

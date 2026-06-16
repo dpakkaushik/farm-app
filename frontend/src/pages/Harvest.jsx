@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { CheckCircle2, X, Plus, AlertTriangle, Pencil, Building2 } from 'lucide-react'
 import { useAppStore } from '../store'
+import { supabase } from '../lib/supabase'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -13,12 +14,23 @@ function computeSeason(sowDateStr) {
   return `rabi_${year - 1}`
 }
 
+const uploadFile = async (file, folder, entityId) => {
+  const ext  = file.name.split('.').pop().toLowerCase()
+  const path = `${folder}/${entityId}/${Date.now()}.${ext}`
+  const { error } = await supabase.storage.from('farm-photos').upload(path, file)
+  if (error) throw error
+  return path
+}
+
+const attachmentUrl = (path) =>
+  path ? supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl : null
+
 export default function Harvest() {
   const {
     cropCycles, cropMaster, plots,
     updateCropCycle, addCropCycle,
-    harvestSessions, sales,
-    addCaneSupply, markCanePayment, updateCaneMillInfo,
+    harvestSessions, sales, buyers, partners,
+    addCaneSupply, markCanePayment, updateCaneMillInfo, closeCaneHarvest,
   } = useAppStore()
 
   const [modal,       setModal]       = useState(null)
@@ -30,6 +42,11 @@ export default function Harvest() {
   const [payModal,    setPayModal]    = useState(null)
   const [millModal,   setMillModal]   = useState(null)
   const [millForm,    setMillForm]    = useState({})
+  const [parchiFile,  setParchiFile]  = useState(null)
+  const [payFile,     setPayFile]     = useState(null)
+  const [closeModal,  setCloseModal]  = useState(null)
+  const [closeInput,  setCloseInput]  = useState('')
+  const [closeError,  setCloseError]  = useState(null)
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500) }
@@ -51,6 +68,9 @@ export default function Harvest() {
     if (!sale || sale.paymentStatus === 'paid') return 0
     return Math.max(0, Math.floor((new Date() - new Date(sale.date)) / 86400000) - 14)
   }
+
+  const partnerName = (partnerId) => partners.find(p => p.id === partnerId)?.name || null
+  const buyerName   = (buyerId)   => buyers.find(b => b.id === buyerId)?.name || null
 
   // ── Non-cane harvest handlers ────────────────────────────────────────────────
   const openRecord = (cycle) => {
@@ -117,34 +137,53 @@ export default function Harvest() {
   const openSupplyModal = (cycle) => {
     const crop = cropMaster.find(c => c.id === cycle.cropId)
     setSupplyModal(cycle)
-    setForm({ date: new Date().toISOString().slice(0, 10), parchiNumber: '', qtyQtl: '', sap: String(crop?.pricePerQtl || ''), notes: '' })
+    setParchiFile(null)
+    setForm({
+      date: new Date().toISOString().slice(0, 10),
+      parchiNumber: '', qtyQtl: '',
+      sap: String(crop?.pricePerQtl || ''),
+      notes: '', partnerId: '', buyerId: '',
+    })
   }
 
   const confirmAddSupply = async () => {
-    if (!form.qtyQtl || !supplyModal || saving) return
+    if (!form.qtyQtl || !form.partnerId || !form.buyerId || !supplyModal || saving) return
     setSaving(true)
     try {
+      let parchiAttachmentPath = null
+      if (parchiFile) {
+        parchiAttachmentPath = await uploadFile(parchiFile, 'parchi', supplyModal.id)
+      }
       await addCaneSupply(supplyModal.id, {
         date: form.date, qtyQtl: parseFloat(form.qtyQtl),
         parchiNumber: form.parchiNumber || null, notes: form.notes || null,
-        sap: parseFloat(form.sap) || 0, millName: supplyModal.millName || null,
+        sap: parseFloat(form.sap) || 0,
+        partnerId: form.partnerId, buyerId: form.buyerId,
+        parchiAttachmentPath,
       })
       showToast(`Supply logged — ${form.qtyQtl} qtl`)
       setSupplyModal(null)
     } finally { setSaving(false) }
   }
 
-  const openPayModal = (supply, sale) =>
+  const openPayModal = (supply, sale) => {
+    setPayFile(null)
     setPayModal({ supply, sale, ded: '', dedNote: '', date: new Date().toISOString().slice(0, 10) })
+  }
 
   const confirmPayment = async () => {
     if (!payModal?.sale || saving) return
     setSaving(true)
     try {
+      let paymentAttachmentPath = null
+      if (payFile) {
+        paymentAttachmentPath = await uploadFile(payFile, 'payment', payModal.sale.id)
+      }
       await markCanePayment(payModal.sale.id, {
         paymentDate: payModal.date,
         deductions: parseFloat(payModal.ded) || 0,
         deductionsNote: payModal.dedNote || null,
+        paymentAttachmentPath,
       })
       showToast('Payment recorded')
       setPayModal(null)
@@ -163,6 +202,32 @@ export default function Harvest() {
       await updateCaneMillInfo(millModal.id, { millName: millForm.millName, growerCode: millForm.growerCode })
       showToast('Mill info saved')
       setMillModal(null)
+    } finally { setSaving(false) }
+  }
+
+  const openCloseModal = (cycle) => {
+    setCloseModal(cycle)
+    setCloseInput('')
+    setCloseError(null)
+  }
+
+  const confirmClose = async () => {
+    if (!closeModal || saving) return
+    const nos = closeInput.split(',').map(n => n.trim()).filter(Boolean)
+    if (!nos.length) { setCloseError('Enter at least one parchi number'); return }
+    setSaving(true)
+    setCloseError(null)
+    try {
+      const result = await closeCaneHarvest(closeModal.id, nos)
+      if (!result.ok) {
+        const parts = []
+        if (result.missing?.length) parts.push(`Logged but not entered: ${result.missing.join(', ')}`)
+        if (result.extra?.length)   parts.push(`Entered but not logged: ${result.extra.join(', ')}`)
+        setCloseError(parts.join(' | '))
+      } else {
+        showToast('Harvest closed — plot is now empty')
+        setCloseModal(null)
+      }
     } finally { setSaving(false) }
   }
 
@@ -234,13 +299,17 @@ export default function Harvest() {
                       <span>Parchi</span><span>Date</span><span>Qtl</span><span>Status</span>
                     </div>
                     {supplies.map(supply => {
-                      const sale   = sessionSale(supply.id)
+                      const sale    = sessionSale(supply.id)
                       const overdue = supplyOverdueDays(sale)
                       const isPaid  = sale?.paymentStatus === 'paid'
+                      const pName   = partnerName(supply.partnerId)
                       return (
                         <button key={supply.id} onClick={() => openPayModal(supply, sale)}
                           className="w-full grid grid-cols-4 px-2 py-2.5 border-t border-[var(--c-border)] text-left hover:bg-[var(--c-ghost)] transition-colors">
-                          <span className="text-xs text-[var(--c-text)] font-medium">{supply.parchiNumber || '—'}</span>
+                          <span className="text-xs text-[var(--c-text)] font-medium leading-tight">
+                            {supply.parchiNumber || '—'}
+                            {pName && <span className="block text-[9px] text-[var(--c-faint)] font-normal">{pName}</span>}
+                          </span>
                           <span className="text-xs text-[var(--c-muted)]">{supply.date?.slice(5).replace('-', ' ')}</span>
                           <span className="text-xs text-[var(--c-text)]">{supply.qtyQtl.toFixed(1)}</span>
                           <span className={`text-[10px] font-semibold ${isPaid ? 'text-[#1D9E75]' : overdue > 0 ? 'text-[#E24B4A]' : 'text-[#BA7517]'}`}>
@@ -269,10 +338,18 @@ export default function Harvest() {
                   </div>
                 )}
 
-                <button onClick={() => openSupplyModal(cycle)}
-                  className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40">
-                  <Plus size={11} className="inline mr-1"/>Log Supply (Parchi)
-                </button>
+                <div className="space-y-2">
+                  <button onClick={() => openSupplyModal(cycle)}
+                    className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40">
+                    <Plus size={11} className="inline mr-1"/>Log Supply (Parchi)
+                  </button>
+                  {supplies.length > 0 && (
+                    <button onClick={() => openCloseModal(cycle)}
+                      className="w-full py-2.5 text-xs font-bold rounded-xl border border-[#BA7517]/40 text-[#BA7517]">
+                      Close Harvest — Verify &amp; Lock
+                    </button>
+                  )}
+                </div>
               </div>
             )
           }
@@ -488,8 +565,22 @@ export default function Harvest() {
             <div className="space-y-3">
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Supply date</label>
                 <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Parchi No. (optional)</label>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Parchi No.</label>
                 <input placeholder="e.g. P-001" value={form.parchiNumber} onChange={e => f('parchiNumber', e.target.value)} className="finput"/></div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Partner <span className="text-[#E24B4A]">*</span></label>
+                <select className="finput" value={form.partnerId} onChange={e => f('partnerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>Select partner…</option>
+                  {partners.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Mill / Buyer <span className="text-[#E24B4A]">*</span></label>
+                <select className="finput" value={form.buyerId} onChange={e => f('buyerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>Select mill…</option>
+                  {buyers.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--c-surface)' }}>{b.name}</option>)}
+                </select>
+              </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Quantity (quintals)</label>
                 <input type="number" placeholder="e.g. 120" value={form.qtyQtl} onChange={e => f('qtyQtl', e.target.value)} className="finput"/></div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">SAP rate ₹/qtl</label>
@@ -500,9 +591,15 @@ export default function Harvest() {
                   <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(parseFloat(form.qtyQtl) * parseFloat(form.sap)).toLocaleString('en-IN')}</p>
                 </div>
               )}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Parchi attachment (optional)</label>
+                <input type="file" accept="image/*,application/pdf"
+                  onChange={e => setParchiFile(e.target.files[0] || null)}
+                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+              </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
                 <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
-              <button onClick={confirmAddSupply} disabled={saving || !form.qtyQtl}
+              <button onClick={confirmAddSupply} disabled={saving || !form.qtyQtl || !form.partnerId || !form.buyerId}
                 className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Log Supply'}
               </button>
@@ -523,6 +620,8 @@ export default function Harvest() {
               <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 space-y-1">
                 {[
                   ['Parchi No.', payModal.supply.parchiNumber || '—'],
+                  ['Partner', partnerName(payModal.supply.partnerId) || '—'],
+                  ['Mill', payModal.sale?.buyerId ? (buyerName(payModal.sale.buyerId) || payModal.sale.buyerName) : (payModal.sale?.buyerName || '—')],
                   ['Supply Date', payModal.supply.date],
                   ['Quantity', `${payModal.supply.qtyQtl.toFixed(1)} qtl`],
                   ['Gross (at SAP)', `₹${payModal.sale?.grossAmount?.toLocaleString('en-IN') || '—'}`],
@@ -532,6 +631,10 @@ export default function Harvest() {
                     <span className="text-[var(--c-text)] font-medium">{val}</span>
                   </div>
                 ))}
+                {payModal.supply.parchiAttachmentPath && (
+                  <a href={attachmentUrl(payModal.supply.parchiAttachmentPath)} target="_blank" rel="noreferrer"
+                    className="text-[10px] text-[#1D9E75] underline">📄 View Parchi</a>
+                )}
               </div>
 
               {payModal.sale?.paymentStatus === 'paid' ? (
@@ -545,6 +648,10 @@ export default function Harvest() {
                     </p>
                   )}
                   <p className="text-sm font-bold text-[#1D9E75] mt-1">Net: ₹{payModal.sale.netAmount?.toLocaleString('en-IN')}</p>
+                  {payModal.sale.paymentAttachmentPath && (
+                    <a href={attachmentUrl(payModal.sale.paymentAttachmentPath)} target="_blank" rel="noreferrer"
+                      className="text-[10px] text-[#1D9E75] underline mt-1 block">🧾 View Receipt</a>
+                  )}
                 </div>
               ) : (
                 <>
@@ -562,6 +669,12 @@ export default function Harvest() {
                       </p>
                     </div>
                   )}
+                  <div>
+                    <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt (optional)</label>
+                    <input type="file" accept="image/*,application/pdf"
+                      onChange={e => setPayFile(e.target.files[0] || null)}
+                      className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                  </div>
                   <button onClick={confirmPayment} disabled={saving}
                     className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                     {saving ? 'Saving…' : 'Mark as Paid'}
@@ -590,6 +703,45 @@ export default function Harvest() {
                 className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Save Mill Info'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Harvest Modal */}
+      {closeModal && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setCloseModal(null)}>
+          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--c-text)]">Close Harvest — {closeModal.plotLabel}</h3>
+              <button onClick={() => !saving && setCloseModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
+            </div>
+            <div className="space-y-3">
+              <div className="bg-[#BA7517]/10 border border-[#BA7517]/30 rounded-xl px-3 py-2.5">
+                <p className="text-xs text-[#BA7517] font-semibold mb-1">Parchi numbers logged:</p>
+                <p className="text-xs text-[var(--c-text)]">
+                  {cycleSupplies(closeModal.id).map(s => s.parchiNumber).filter(Boolean).join(', ') || '(none with parchi numbers)'}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Enter all parchi numbers (comma separated)</label>
+                <textarea className="finput" rows={3} placeholder="P-001, P-002, P-003"
+                  value={closeInput} onChange={e => setCloseInput(e.target.value)}
+                  style={{ resize: 'vertical' }}/>
+              </div>
+              {closeError && (
+                <div className="bg-[#E24B4A]/10 border border-[#E24B4A]/30 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <AlertTriangle size={14} className="text-[#E24B4A] shrink-0 mt-0.5"/>
+                  <p className="text-xs text-[#E24B4A]">{closeError}</p>
+                </div>
+              )}
+              <button onClick={confirmClose} disabled={saving || !closeInput.trim()}
+                className="w-full py-3 bg-[#BA7517] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                {saving ? 'Verifying…' : 'Verify &amp; Close Harvest'}
+              </button>
+              <p className="text-[10px] text-[var(--c-faint)] text-center">
+                After closing, no more supplies can be logged for this plot.
+              </p>
             </div>
           </div>
         </div>
