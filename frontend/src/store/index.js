@@ -1112,21 +1112,45 @@ const useAppStore = create((set, get) => ({
 
   // Creates one activity record per plot
   logActivities: async (plotIds, actData) => {
-    const { cropCycles } = get()
-    const today    = new Date().toISOString().slice(0, 10)
-    const isEvent  = actData.type === 'events'
-    const rows  = plotIds.map(plotId => {
+    const { cropCycles, plots } = get()
+    const today      = new Date().toISOString().slice(0, 10)
+    const isEvent    = actData.type === 'events'
+    const n          = plotIds.length
+    const totalOut   = actData.outsideLabourCount || 0
+    const namedCount = (actData.regularWorkerIds || []).length
+
+    // Distribute outside labour proportionally by plot area (total must equal totalOut).
+    // Uses largest-remainder method so rounding never drifts.
+    let outsidePerPlot = plotIds.map(() => 0)
+    if (totalOut > 0 && n > 0) {
+      const areas = plotIds.map(id => {
+        if (id === '__all__') return 1
+        return Number(plots.find(p => p.id === id)?.area_acres) || 1
+      })
+      const totalArea = areas.reduce((s, a) => s + a, 0)
+      const exact  = areas.map(a => totalOut * a / totalArea)
+      const floors = exact.map(v => Math.floor(v))
+      let rem = totalOut - floors.reduce((s, v) => s + v, 0)
+      exact.map((v, i) => ({ i, f: v - floors[i] }))
+           .sort((a, b) => b.f - a.f)
+           .slice(0, rem)
+           .forEach(({ i }) => floors[i]++)
+      outsidePerPlot = floors
+    }
+
+    const rows = plotIds.map((plotId, idx) => {
       const cycle   = cropCycles.find(c => c.plotId === plotId && c.status === 'active')
-      if (!cycle && !isEvent) return null   // events don't need a cycle
+      if (!cycle && !isEvent) return null
+      const outside = outsidePerPlot[idx]
       return {
         cycle_id:             cycle?.id || null,
         plot_id:              plotId === '__all__' ? null : plotId,
         activity_type:        actData.type,
         activity_name:        actData.notes || actData.type,
         actual_date:          actData.date || today,
-        worker_count:         actData.workers         || 0,
-        regular_worker_ids:   actData.regularWorkerIds   || [],
-        outside_labour_count: actData.outsideLabourCount || 0,
+        worker_count:         namedCount + outside,
+        regular_worker_ids:   actData.regularWorkerIds || [],
+        outside_labour_count: outside,
         status:               'done',
         notes:                actData.notes || null,
       }
