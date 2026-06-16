@@ -15,6 +15,7 @@ function mapCrop(c, templates = []) {
     pricePerQtl:         Number(c.price_per_qtl) || 0,
     yieldPerAcre:        Number(c.yield_per_acre) || 0,
     ratoonCropId:        c.ratoon_crop_id || null,
+    varietyCategory:     c.variety_category || null,
     activities:   templates
       .filter(t => t.crop_id === c.id)
       .sort((a, b) => a.day_offset - b.day_offset)
@@ -34,6 +35,37 @@ function mapCycle(c) {
     acres:         Number(c.plots?.area_acres) || 0,
     season:        c.season,
     parentCycleId: c.parent_cycle_id || null,
+    millName:      c.mill_name   || null,
+    growerCode:    c.grower_code || null,
+  }
+}
+
+function mapSession(s) {
+  return {
+    id:           s.id,
+    cycleId:      s.crop_cycle_id,
+    date:         s.harvest_date,
+    qtyQtl:       Number(s.quantity_kg) / 100,
+    parchiNumber: s.parchi_number || null,
+    notes:        s.notes || null,
+  }
+}
+
+function mapSale(s) {
+  const gross      = Number(s.total_revenue) || 0
+  const deductions = Number(s.deductions)    || 0
+  return {
+    id:             s.id,
+    sessionId:      s.harvest_id,
+    date:           s.sale_date,
+    buyerName:      s.buyer_name || '',
+    ratePerQtl:     Number(s.rate_per_unit) || 0,
+    grossAmount:    gross,
+    deductions,
+    deductionsNote: s.deductions_note || null,
+    netAmount:      gross - deductions,
+    paymentStatus:  s.payment_status || 'pending',
+    paymentDate:    s.payment_date || null,
   }
 }
 
@@ -312,6 +344,8 @@ const useAppStore = create((set, get) => ({
   labourLogs:        [],
   activities:        [],
   cropCycles:        [],
+  harvestSessions:   [],
+  sales:             [],
   scrapSales:        [],
   sprayReminders:    [],
   mediaItems:        [],
@@ -350,6 +384,8 @@ const useAppStore = create((set, get) => ({
         { data: farmAssetsRaw },
         { data: livestockRaw },
         { data: countLogsRaw },
+        { data: harvestSessionsRaw },
+        { data: salesRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -386,6 +422,8 @@ const useAppStore = create((set, get) => ({
         supabase.from('farm_assets').select('*').eq('is_active', true).order('display_id'),
         supabase.from('livestock_master').select('*').eq('is_active', true).order('name'),
         supabase.from('livestock_count_logs').select('*').order('log_date', { ascending: false }),
+        supabase.from('harvest_sessions').select('*').order('harvest_date'),
+        supabase.from('sales').select('*').order('sale_date'),
       ])
 
       const tpl = templates || []
@@ -419,6 +457,8 @@ const useAppStore = create((set, get) => ({
         farmAssets:         (farmAssetsRaw || []).map(mapFarmAsset),
         livestockMaster:    (livestockRaw || []).map(mapLivestock),
         livestockCountLogs: (countLogsRaw || []).map(mapCountLog),
+        harvestSessions:    (harvestSessionsRaw || []).map(mapSession),
+        sales:              (salesRaw || []).map(mapSale),
         loading:           false,
         initialized:       true,
       })
@@ -439,6 +479,7 @@ const useAppStore = create((set, get) => ({
       price_per_qtl:       parseFloat(crop.pricePerQtl) || null,
       yield_per_acre:      parseFloat(crop.yieldPerAcre) || null,
       season_type:         crop.season_type || null,
+      variety_category:    crop.varietyCategory || null,
     }).select().single()
     if (error) throw error
     set(s => ({ cropMaster: [...s.cropMaster, mapCrop(data)] }))
@@ -455,6 +496,7 @@ const useAppStore = create((set, get) => ({
       season_type:         data.season_type || null,
       price_per_qtl:       parseFloat(data.pricePerQtl) || null,
       yield_per_acre:      parseFloat(data.yieldPerAcre) || null,
+      variety_category:    data.varietyCategory || null,
     }).eq('id', id)
     if (error) throw error
     set(s => ({ cropMaster: s.cropMaster.map(c => c.id === id ? { ...c, ...data } : c) }))
@@ -1163,6 +1205,44 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Crop cycles ─────────────────────────────────────────────────────────────
+  addCaneSupply: async (cycleId, { date, qtyQtl, parchiNumber, notes, sap, millName }) => {
+    const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
+    const gross  = Math.round(parseFloat(qtyQtl) * parseFloat(sap))
+    const { data: session, error: e1 } = await supabase
+      .from('harvest_sessions')
+      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null })
+      .select().single()
+    if (e1) throw e1
+    const { data: sale, error: e2 } = await supabase
+      .from('sales')
+      .insert({ harvest_id: session.id, sale_date: date, buyer_name: millName || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
+      .select().single()
+    if (e2) throw e2
+    set(s => ({ harvestSessions: [...s.harvestSessions, mapSession(session)], sales: [...s.sales, mapSale(sale)] }))
+  },
+
+  markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote }) => {
+    const ded = parseFloat(deductions) || 0
+    const { error } = await supabase.from('sales')
+      .update({ payment_status: 'paid', payment_date: paymentDate, deductions: ded, deductions_note: deductionsNote || null })
+      .eq('id', saleId)
+    if (error) throw error
+    set(s => ({
+      sales: s.sales.map(sale => {
+        if (sale.id !== saleId) return sale
+        return { ...sale, paymentStatus: 'paid', paymentDate, deductions: ded, deductionsNote: deductionsNote || null, netAmount: sale.grossAmount - ded }
+      }),
+    }))
+  },
+
+  updateCaneMillInfo: async (cycleId, { millName, growerCode }) => {
+    const { error } = await supabase.from('crop_cycles')
+      .update({ mill_name: millName || null, grower_code: growerCode || null })
+      .eq('id', cycleId)
+    if (error) throw error
+    set(s => ({ cropCycles: s.cropCycles.map(c => c.id === cycleId ? { ...c, millName: millName || null, growerCode: growerCode || null } : c) }))
+  },
+
   addCropCycle: async (cycle) => {
     const { data, error } = await supabase.from('crop_cycles').insert({
       plot_id:              cycle.plotId,

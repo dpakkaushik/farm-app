@@ -169,6 +169,15 @@ function CropsMaster() {
                 value={form.pricePerQtl || ''} onChange={e => setForm(p => ({ ...p, pricePerQtl: e.target.value }))} />
             </FRow>
           </div>
+          <FRow label="Variety (sugarcane only)">
+            <select className="finput" style={{ background: '#1a2030' }}
+              value={form.varietyCategory || ''} onChange={e => setForm(p => ({ ...p, varietyCategory: e.target.value || null }))}>
+              <option value="" style={{ background: '#1a2030' }}>— None / Other crop —</option>
+              <option value="early"  style={{ background: '#1a2030' }}>Early Maturing (SAP ₹400/qtl)</option>
+              <option value="common" style={{ background: '#1a2030' }}>Common Variety (SAP ₹390/qtl)</option>
+              <option value="late"   style={{ background: '#1a2030' }}>Late Maturing (SAP ₹390/qtl)</option>
+            </select>
+          </FRow>
           <FRow label="Map colour">
             <div className="flex flex-wrap gap-2 mt-0.5">
               {PALETTE_COLORS.map(color => {
@@ -213,7 +222,7 @@ function CropsMaster() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl })}
+                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null })}
                 className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                 Edit
               </button>
