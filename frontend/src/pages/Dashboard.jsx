@@ -234,7 +234,7 @@ export default function Dashboard() {
     .filter(c => !caneSessionCycleIds.has(c.id))
     .reduce((n, c) => {
       const crop = cropMaster.find(cr => cr.id === c.cropId)
-      return n + (crop ? (c.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) / 100 : 0)
+      return n + (crop ? (c.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) : 0)
     }, 0)
 
   const totalExpectedRevenue = caneGrossTotal + otherEstRev
@@ -499,7 +499,7 @@ export default function Dashboard() {
                       .flatMap(s => sales.filter(sl => sl.sessionId === s.id))
                       .reduce((n, s) => n + s.grossAmount, 0)
                   } else {
-                    cycleRev = crop ? (cycle.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) / 100 : 0
+                    cycleRev = crop ? (cycle.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) : 0
                   }
 
                   const netPL = cycleRev - exp.total
