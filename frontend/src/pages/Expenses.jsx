@@ -17,6 +17,14 @@ const EXPENSE_CATS = [
   ['other',          '📦', 'Other'],
 ]
 
+const EXPENSE_TYPES = [
+  { key: 'livestock',      emoji: '🐄', label: 'Livestock',      attributedTo: 'livestock', cats: ['feed', 'veterinary', 'livestock_care'] },
+  { key: 'crop_field',     emoji: '🌾', label: 'Crop / Field',   attributedTo: 'general',   cats: ['maintenance', 'utilities'] },
+  { key: 'infrastructure', emoji: '🏗', label: 'Infrastructure', attributedTo: 'asset',     cats: ['infrastructure', 'maintenance'] },
+  { key: 'admin',          emoji: '📋', label: 'Administrative', attributedTo: 'general',   cats: ['administrative', 'event'] },
+  { key: 'other',          emoji: '📦', label: 'Other',          attributedTo: 'general',   cats: ['other'] },
+]
+
 const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 
 const fmt  = n => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—'
@@ -85,7 +93,7 @@ async function uploadAttachment(file) {
 function AddExpenseModal({ animals, onClose }) {
   const addFarmExpense = useAppStore(s => s.addFarmExpense)
   const [form, setForm] = useState({
-    expenseDate: TODAY, category: '', amount: '', description: '',
+    expenseDate: TODAY, expenseType: '', category: '', amount: '', description: '',
     attributedTo: 'general', livestockId: '', paymentMode: 'cash', paidTo: '', notes: '',
   })
   const [attachPath, setAttachPath] = useState(null)
@@ -93,6 +101,16 @@ function AddExpenseModal({ animals, onClose }) {
   const [saving, setSaving] = useState(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  function selectType(typeKey) {
+    const t = EXPENSE_TYPES.find(t => t.key === typeKey)
+    setForm(f => ({ ...f, expenseType: typeKey, attributedTo: t.attributedTo, category: '' }))
+  }
+
+  const activeType   = EXPENSE_TYPES.find(t => t.key === form.expenseType)
+  const visibleCats  = activeType
+    ? EXPENSE_CATS.filter(([v]) => activeType.cats.includes(v))
+    : []
 
   async function handleUpload(file) {
     if (!file) return
@@ -103,9 +121,9 @@ function AddExpenseModal({ animals, onClose }) {
   }
 
   async function save() {
-    if (!form.category || !form.amount || !form.description) {
-      return alert('Fill category, amount and description')
-    }
+    if (!form.expenseType)  return alert('Select an expense type')
+    if (!form.category)     return alert('Select a category')
+    if (!form.amount || !form.description) return alert('Fill amount and description')
     setSaving(true)
     try {
       await addFarmExpense({ ...form, amount: parseFloat(form.amount), attachmentPath: attachPath })
@@ -121,21 +139,54 @@ function AddExpenseModal({ animals, onClose }) {
           onChange={e => set('expenseDate', e.target.value)} />
       </FRow>
 
-      <FRow label="Category">
+      {/* Step 1: Expense Type */}
+      <FRow label="Expense Type">
         <div className="grid grid-cols-3 gap-1.5">
-          {EXPENSE_CATS.map(([v, emoji, label]) => (
-            <button key={v} onClick={() => set('category', v)}
-              className="py-2 rounded-xl text-xs font-medium transition-colors"
+          {EXPENSE_TYPES.map(({ key, emoji, label }) => (
+            <button key={key} onClick={() => selectType(key)}
+              className="py-2.5 rounded-xl text-xs font-semibold transition-colors flex flex-col items-center gap-0.5"
               style={{
-                background: form.category === v ? '#1D9E75' : 'var(--c-ghost)',
-                color: form.category === v ? '#fff' : 'var(--c-muted)',
-                border: `1px solid ${form.category === v ? '#1D9E75' : 'var(--c-border)'}`,
+                background: form.expenseType === key ? '#1D9E75' : 'var(--c-ghost)',
+                color:      form.expenseType === key ? '#fff'     : 'var(--c-muted)',
+                border:     `1px solid ${form.expenseType === key ? '#1D9E75' : 'var(--c-border)'}`,
               }}>
-              {emoji} {label}
+              <span className="text-base">{emoji}</span>
+              <span>{label}</span>
             </button>
           ))}
         </div>
       </FRow>
+
+      {/* Step 2: Category — filtered by type */}
+      {visibleCats.length > 0 && (
+        <FRow label="Category">
+          <div className="grid grid-cols-3 gap-1.5">
+            {visibleCats.map(([v, emoji, label]) => (
+              <button key={v} onClick={() => set('category', v)}
+                className="py-2 rounded-xl text-xs font-medium transition-colors"
+                style={{
+                  background: form.category === v ? '#1D9E75' : 'var(--c-ghost)',
+                  color:      form.category === v ? '#fff'     : 'var(--c-muted)',
+                  border:     `1px solid ${form.category === v ? '#1D9E75' : 'var(--c-border)'}`,
+                }}>
+                {emoji} {label}
+              </button>
+            ))}
+          </div>
+        </FRow>
+      )}
+
+      {/* Step 3: Animal selector — only for livestock type */}
+      {form.expenseType === 'livestock' && animals.length > 0 && (
+        <FRow label="Animal (optional)">
+          <select className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
+            <option value="">— Any / Whole Herd —</option>
+            {animals.filter(a => a.status === 'active').map(a => (
+              <option key={a.id} value={a.id}>{a.name || a.tagId} ({a.species})</option>
+            ))}
+          </select>
+        </FRow>
+      )}
 
       <FRow label="Amount (₹)">
         <input type="number" className={inp} placeholder="0" value={form.amount}
@@ -146,29 +197,6 @@ function AddExpenseModal({ animals, onClose }) {
         <input type="text" className={inp} placeholder="What was this expense for?"
           value={form.description} onChange={e => set('description', e.target.value)} />
       </FRow>
-
-      <FRow label="Attributed To">
-        <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-          {[['general', 'General'], ['livestock', 'Livestock'], ['asset', 'Asset']].map(([v, l]) => (
-            <button key={v} onClick={() => set('attributedTo', v)}
-              className="flex-1 py-2 text-xs font-semibold transition-colors"
-              style={{ background: form.attributedTo === v ? '#1D9E75' : 'var(--c-ghost)', color: form.attributedTo === v ? '#fff' : 'var(--c-muted)' }}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </FRow>
-
-      {form.attributedTo === 'livestock' && animals.length > 0 && (
-        <FRow label="Animal (optional)">
-          <select className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
-            <option value="">— Any / Herd —</option>
-            {animals.filter(a => a.status === 'active').map(a => (
-              <option key={a.id} value={a.id}>{a.name || a.tagId} ({a.species})</option>
-            ))}
-          </select>
-        </FRow>
-      )}
 
       <FRow label="Paid To (optional)">
         <input type="text" className={inp} placeholder="Vendor / person name"
@@ -182,8 +210,8 @@ function AddExpenseModal({ animals, onClose }) {
               className="flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-colors"
               style={{
                 background: form.paymentMode === m ? '#1D9E75' : 'var(--c-ghost)',
-                color: form.paymentMode === m ? '#fff' : 'var(--c-muted)',
-                border: `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                color:      form.paymentMode === m ? '#fff'     : 'var(--c-muted)',
+                border:     `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
               }}>
               {m}
             </button>
@@ -209,8 +237,8 @@ function AddExpenseModal({ animals, onClose }) {
 
 export default function Expenses() {
   const { farmExpenses, livestockMaster, deleteFarmExpense } = useAppStore(s => ({
-    farmExpenses:   s.farmExpenses,
-    livestockMaster: s.livestockMaster,
+    farmExpenses:      s.farmExpenses,
+    livestockMaster:   s.livestockMaster,
     deleteFarmExpense: s.deleteFarmExpense,
   }))
   const [filterCat, setFilterCat] = useState('all')
@@ -222,7 +250,7 @@ export default function Expenses() {
 
   const total = filtered.reduce((s, e) => s + e.amount, 0)
 
-  const catInfo  = cat  => EXPENSE_CATS.find(([v]) => v === cat) || ['other', '📦', cat]
+  const catInfo    = cat => EXPENSE_CATS.find(([v]) => v === cat) || ['other', '📦', cat]
   const animalName = id => {
     if (!id) return null
     const a = livestockMaster.find(a => a.id === id)
@@ -259,11 +287,11 @@ export default function Expenses() {
             style={{ background: filterCat === 'all' ? '#1D9E75' : 'var(--c-ghost)', color: filterCat === 'all' ? '#fff' : 'var(--c-muted)' }}>
             All
           </button>
-          {EXPENSE_CATS.map(([v, emoji]) => (
+          {EXPENSE_CATS.map(([v, emoji, label]) => (
             <button key={v} onClick={() => setFilterCat(v)}
               className="shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold"
               style={{ background: filterCat === v ? '#1D9E75' : 'var(--c-ghost)', color: filterCat === v ? '#fff' : 'var(--c-muted)' }}>
-              {emoji}
+              {emoji} {label}
             </button>
           ))}
         </div>

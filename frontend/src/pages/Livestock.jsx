@@ -319,7 +319,7 @@ function FinanceTab({ animals }) {
     livestockRevenue:      s.livestockRevenue,
     deleteLivestockRevenue: s.deleteLivestockRevenue,
   }))
-  const [sub, setSub]           = useState('expenses')
+  const [sub, setSub]           = useState('revenue')
   const [showRevenue, setShowRevenue] = useState(false)
 
   // Only livestock-attributed expenses
@@ -360,15 +360,15 @@ function FinanceTab({ animals }) {
 
       {/* Sub-tab toggle */}
       <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-        <button onClick={() => setSub('expenses')}
-          className="flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-1"
-          style={{ background: sub === 'expenses' ? '#E24B4A' : 'var(--c-ghost)', color: sub === 'expenses' ? '#fff' : 'var(--c-muted)' }}>
-          <TrendingDown size={13} /> Expenses
-        </button>
         <button onClick={() => setSub('revenue')}
           className="flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-1"
           style={{ background: sub === 'revenue' ? '#1D9E75' : 'var(--c-ghost)', color: sub === 'revenue' ? '#fff' : 'var(--c-muted)' }}>
           <TrendingUp size={13} /> Revenue
+        </button>
+        <button onClick={() => setSub('expenses')}
+          className="flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-1"
+          style={{ background: sub === 'expenses' ? '#E24B4A' : 'var(--c-ghost)', color: sub === 'expenses' ? '#fff' : 'var(--c-muted)' }}>
+          <TrendingDown size={13} /> Expenses
         </button>
       </div>
 
