@@ -897,7 +897,6 @@ const useAppStore = create((set, get) => ({
       quantity:           issue.qty,
       cost_per_unit:      wac,
       unit_cost_at_issue: wac,
-      total_cost:         totalCost,
       purpose:            issue.purpose || null,
       machinery_id:       issue.machineryId || null,
     }).select('*, plots(name), crop_cycles(season, plots(name))').single()
