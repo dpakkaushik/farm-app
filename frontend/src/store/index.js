@@ -914,6 +914,34 @@ const useAppStore = create((set, get) => ({
     }))
   },
 
+  deletePurchase: async (id) => {
+    const purchase = get().purchases.find(p => p.id === id)
+    if (!purchase) return
+    const { error } = await supabase.from('inventory_purchases').delete().eq('id', id)
+    if (error) throw error
+    const { data: item } = await supabase.from('inventory_items').select('current_stock').eq('id', purchase.itemId).single()
+    set(s => ({
+      purchases: s.purchases.filter(p => p.id !== id),
+      inventoryMaster: s.inventoryMaster.map(i =>
+        i.id === purchase.itemId ? { ...i, currentStock: parseFloat(item?.current_stock ?? 0) } : i
+      ),
+    }))
+  },
+
+  deleteIssue: async (id) => {
+    const issue = get().issues.find(i => i.id === id)
+    if (!issue) return
+    const { error } = await supabase.from('inventory_issues').delete().eq('id', id)
+    if (error) throw error
+    const { data: item } = await supabase.from('inventory_items').select('current_stock').eq('id', issue.itemId).single()
+    set(s => ({
+      issues: s.issues.filter(i => i.id !== id),
+      inventoryMaster: s.inventoryMaster.map(i =>
+        i.id === issue.itemId ? { ...i, currentStock: parseFloat(item?.current_stock ?? 0) } : i
+      ),
+    }))
+  },
+
   // ── Labour log ──────────────────────────────────────────────────────────────
   logLabour: async (log) => {
     const { data, error } = await supabase.from('labour_logs').insert({
@@ -1004,20 +1032,29 @@ const useAppStore = create((set, get) => ({
     }).select().single()
     if (error) throw error
 
-    const delta = log.changeType === 'add' ? log.quantity : -log.quantity
-    await supabase.from('livestock_master')
-      .update({ current_count: supabase.rpc ? undefined : undefined })
-      .eq('id', log.livestockId)
-
-    // Update current_count via raw SQL increment
+    const ADDITIVE = new Set(['add', 'opening_balance', 'birth', 'transfer_in'])
+    const delta = ADDITIVE.has(log.changeType) ? log.quantity : -log.quantity
     const animal = get().livestockMaster.find(l => l.id === log.livestockId)
     const newCount = Math.max(0, (animal?.currentCount || 0) + delta)
-    await supabase.from('livestock_master').update({ current_count: newCount }).eq('id', log.livestockId)
 
     set(s => ({
       livestockCountLogs: [mapCountLog(data), ...s.livestockCountLogs],
       livestockMaster: s.livestockMaster.map(l =>
         l.id === log.livestockId ? { ...l, currentCount: newCount } : l
+      ),
+    }))
+  },
+
+  deleteLivestockLog: async (id) => {
+    const log = get().livestockCountLogs.find(l => l.id === id)
+    if (!log) return
+    const { error } = await supabase.from('livestock_count_logs').delete().eq('id', id)
+    if (error) throw error
+    const { data: master } = await supabase.from('livestock_master').select('current_count').eq('id', log.livestockId).single()
+    set(s => ({
+      livestockCountLogs: s.livestockCountLogs.filter(l => l.id !== id),
+      livestockMaster: s.livestockMaster.map(l =>
+        l.id === log.livestockId ? { ...l, currentCount: master?.current_count || 0 } : l
       ),
     }))
   },
@@ -1056,6 +1093,7 @@ const useAppStore = create((set, get) => ({
   },
 
   addLivestock: async (data) => {
+    const initialCount = data.trackingMode === 'count' ? (parseInt(data.currentCount) || 0) : 0
     const { data: row, error } = await supabase.from('livestock_master').insert({
       tag_id:           data.tagId || `lv-${Date.now()}`,
       name:             data.name,
@@ -1065,7 +1103,7 @@ const useAppStore = create((set, get) => ({
       gender:           data.gender || null,
       dob:              data.dob || null,
       tracking_mode:    data.trackingMode || 'individual',
-      current_count:    data.trackingMode === 'count' ? (parseInt(data.currentCount) || 0) : null,
+      current_count:    0,
       acquisition_type: data.acquisitionType || 'purchased',
       purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
       purchase_price:   data.acquisitionType !== 'born' ? (data.purchasePrice ? parseFloat(data.purchasePrice) : null) : null,
@@ -1074,7 +1112,19 @@ const useAppStore = create((set, get) => ({
       notes:            data.notes || null,
     }).select().single()
     if (error) throw error
-    set(s => ({ livestockMaster: [...s.livestockMaster, mapLivestock(row)] }))
+
+    if (data.trackingMode === 'count' && initialCount > 0) {
+      await supabase.from('livestock_count_logs').insert({
+        livestock_id: row.id,
+        log_date:     data.purchaseDate || new Date().toISOString().split('T')[0],
+        change_type:  'opening_balance',
+        reason:       'Opening balance',
+        quantity:     initialCount,
+        notes:        'Initial count at setup',
+      })
+    }
+
+    set(s => ({ livestockMaster: [...s.livestockMaster, mapLivestock({ ...row, current_count: initialCount })] }))
   },
 
   updateAssetPhoto: async (table, id, photoUrl) => {
