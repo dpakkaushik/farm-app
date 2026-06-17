@@ -311,7 +311,45 @@ function mapLivestock(l) {
     acquisitionType: l.acquisition_type || 'purchased',
     healthStatus:    l.health_status || 'healthy',
     isActive:        l.is_active !== false,
+    status:          l.status || 'active',
+    soldDate:        l.sold_date || null,
     notes:           l.notes || '',
+  }
+}
+
+function mapFarmExpense(r) {
+  return {
+    id:             r.id,
+    expenseDate:    r.expense_date,
+    category:       r.category,
+    amount:         Number(r.amount),
+    description:    r.description,
+    attributedTo:   r.attributed_to || 'general',
+    livestockId:    r.livestock_id || null,
+    paymentMode:    r.payment_mode || null,
+    paidTo:         r.paid_to || null,
+    attachmentPath: r.attachment_path || null,
+    notes:          r.notes || null,
+    createdAt:      r.created_at,
+  }
+}
+
+function mapLivestockRevenue(r) {
+  return {
+    id:             r.id,
+    livestockId:    r.livestock_id || null,
+    revenueDate:    r.revenue_date,
+    revenueType:    r.revenue_type,
+    quantity:       r.quantity ? Number(r.quantity) : null,
+    unit:           r.unit || null,
+    ratePerUnit:    r.rate_per_unit ? Number(r.rate_per_unit) : null,
+    amount:         Number(r.amount),
+    buyerName:      r.buyer_name || null,
+    paymentMode:    r.payment_mode || null,
+    attachmentPath: r.attachment_path || null,
+    notes:          r.notes || null,
+    isSale:         r.is_sale || false,
+    createdAt:      r.created_at,
   }
 }
 
@@ -370,6 +408,8 @@ const useAppStore = create((set, get) => ({
   farmAssets:        [],
   livestockMaster:   [],
   livestockCountLogs: [],
+  farmExpenses:      [],
+  livestockRevenue:  [],
   loading:           false,
   initialized:       false,
 
@@ -402,6 +442,8 @@ const useAppStore = create((set, get) => ({
         { data: salesRaw },
         { data: buyersRaw },
         { data: partnersRaw },
+        { data: farmExpensesRaw },
+        { data: livestockRevenueRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -442,6 +484,8 @@ const useAppStore = create((set, get) => ({
         supabase.from('sales').select('*').order('sale_date'),
         supabase.from('buyers').select('*').eq('is_active', true).order('name'),
         supabase.from('partners').select('*').eq('is_active', true).order('name'),
+        supabase.from('farm_expenses').select('*').order('expense_date', { ascending: false }),
+        supabase.from('livestock_revenue').select('*').order('revenue_date', { ascending: false }),
       ])
 
       const tpl = templates || []
@@ -479,6 +523,8 @@ const useAppStore = create((set, get) => ({
         sales:              (salesRaw || []).map(mapSale),
         buyers:             (buyersRaw || []).map(mapBuyer),
         partners:           (partnersRaw || []).map(mapPartner),
+        farmExpenses:       (farmExpensesRaw || []).map(mapFarmExpense),
+        livestockRevenue:   (livestockRevenueRaw || []).map(mapLivestockRevenue),
         loading:           false,
         initialized:       true,
       })
@@ -1193,6 +1239,74 @@ const useAppStore = create((set, get) => ({
     const { error } = await supabase.from('livestock_master').update(payload).eq('id', id)
     if (error) throw error
     set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : l) }))
+  },
+
+  // ── Farm Expenses ────────────────────────────────────────────────────────────
+  addFarmExpense: async (exp) => {
+    const { data, error } = await supabase.from('farm_expenses').insert({
+      expense_date:   exp.expenseDate,
+      category:       exp.category,
+      amount:         exp.amount,
+      description:    exp.description,
+      attributed_to:  exp.attributedTo || 'general',
+      livestock_id:   exp.livestockId || null,
+      payment_mode:   exp.paymentMode || null,
+      paid_to:        exp.paidTo || null,
+      attachment_path: exp.attachmentPath || null,
+      notes:          exp.notes || null,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ farmExpenses: [mapFarmExpense(data), ...s.farmExpenses] }))
+    return data
+  },
+
+  deleteFarmExpense: async (id) => {
+    const { error } = await supabase.from('farm_expenses').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ farmExpenses: s.farmExpenses.filter(e => e.id !== id) }))
+  },
+
+  // ── Livestock Revenue ────────────────────────────────────────────────────────
+  addLivestockRevenue: async (rev) => {
+    const { data, error } = await supabase.from('livestock_revenue').insert({
+      livestock_id:   rev.livestockId || null,
+      revenue_date:   rev.revenueDate,
+      revenue_type:   rev.revenueType,
+      quantity:       rev.quantity || null,
+      unit:           rev.unit || null,
+      rate_per_unit:  rev.ratePerUnit || null,
+      amount:         rev.amount,
+      buyer_name:     rev.buyerName || null,
+      payment_mode:   rev.paymentMode || null,
+      attachment_path: rev.attachmentPath || null,
+      notes:          rev.notes || null,
+      is_sale:        rev.isSale || false,
+    }).select().single()
+    if (error) throw error
+
+    if (rev.isSale && rev.livestockId) {
+      const today = new Date().toISOString().slice(0, 10)
+      await supabase.from('livestock_master')
+        .update({ status: 'sold', sold_date: rev.revenueDate || today, is_active: false })
+        .eq('id', rev.livestockId)
+      set(s => ({
+        livestockRevenue: [mapLivestockRevenue(data), ...s.livestockRevenue],
+        livestockMaster: s.livestockMaster.map(l =>
+          l.id === rev.livestockId
+            ? { ...l, status: 'sold', soldDate: rev.revenueDate || today, isActive: false }
+            : l
+        ),
+      }))
+    } else {
+      set(s => ({ livestockRevenue: [mapLivestockRevenue(data), ...s.livestockRevenue] }))
+    }
+    return data
+  },
+
+  deleteLivestockRevenue: async (id) => {
+    const { error } = await supabase.from('livestock_revenue').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ livestockRevenue: s.livestockRevenue.filter(r => r.id !== id) }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────
