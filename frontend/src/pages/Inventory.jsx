@@ -11,9 +11,9 @@ const CAT_LABEL = { seed: 'Seeds', fertilizer: 'Fertilizers', chemical: 'Chemica
 const CAT_EMOJI = { seed: '🌾', fertilizer: '🧪', chemical: '🧴', fuel: '⛽', other: '📦' }
 
 const TABS = [
-  { key: 'items',    label: 'Items',     Icon: Package  },
-  { key: 'purchase', label: 'Purchases', Icon: Receipt  },
-  { key: 'issue',    label: 'Issues',    Icon: FileText },
+  { key: 'items',    label: 'Current Stock', Icon: Package  },
+  { key: 'purchase', label: 'Purchases',     Icon: Receipt  },
+  { key: 'issue',    label: 'Issues',        Icon: FileText },
 ]
 
 export default function Inventory() {
@@ -53,7 +53,7 @@ export default function Inventory() {
     }
   }
   const openIssue = async (item) => {
-    setForm({ qty: '', purpose: '', plotId: '', date: TODAY_STR, machineryId: '' })
+    setForm({ qty: '', purpose: '', plotIds: [], date: TODAY_STR, machineryId: '' })
     setModal('issue')
     // Fetch live stock from DB
     const { data } = await supabase.from('inventory_items')
@@ -64,14 +64,18 @@ export default function Inventory() {
     )
   }
 
-  // ── Issue: derive active cycle from selected plot ──────────────────────────
-  const activeCycleForPlot = form.plotId
-    ? cropCycles.find(c => c.plotId === form.plotId && c.status === 'active')
-    : null
-  const issueStage = !form.plotId ? 'farm_wide' : activeCycleForPlot ? 'active' : 'preparation'
-  const issueQty      = parseFloat(form.qty) || 0
-  const stockAfter    = (selected?.currentStock || 0) - issueQty
-  const qtyOverStock  = issueQty > (selected?.currentStock || 0)
+  // ── Issue: multi-plot split by area ────────────────────────────────────────
+  const issueQty         = parseFloat(form.qty) || 0
+  const stockAfter       = (selected?.currentStock || 0) - issueQty
+  const qtyOverStock     = issueQty > (selected?.currentStock || 0)
+  const selectedPlotObjs = plots.filter(p => (form.plotIds || []).includes(p.id))
+  const totalArea        = selectedPlotObjs.reduce((s, p) => s + (Number(p.area_acres) || 1), 0)
+  const plotSplit        = selectedPlotObjs.map(p => {
+    const area    = Number(p.area_acres) || 1
+    const splitQty = totalArea > 0 ? Math.round(issueQty * (area / totalArea) * 100) / 100 : issueQty
+    const cycle   = cropCycles.find(c => c.plotId === p.id && c.status === 'active')
+    return { plot: p, area, splitQty, cycle, stage: cycle ? 'active' : 'preparation' }
+  })
   const newWACPreview = (() => {
     if (!form.qty || !form.unitPrice || !selected) return null
     const qty = parseFloat(form.qty), price = parseFloat(form.unitPrice)
@@ -109,11 +113,13 @@ export default function Inventory() {
     if (qtyOverStock) return showToast(`Only ${selected.currentStock} ${selected.unit} in stock`, 'warn')
     setSaving(true)
     try {
-      await issueItem({
-        itemId: selected.id, plotId: form.plotId || null,
-        date: form.date, qty: issueQty, purpose: form.purpose || '',
-        machineryId: form.machineryId || null,
-      })
+      if (selectedPlotObjs.length === 0) {
+        await issueItem({ itemId: selected.id, plotId: null, date: form.date, qty: issueQty, purpose: form.purpose || '', machineryId: form.machineryId || null })
+      } else {
+        for (const { plot, splitQty } of plotSplit) {
+          await issueItem({ itemId: selected.id, plotId: plot.id, date: form.date, qty: splitQty, purpose: form.purpose || '', machineryId: form.machineryId || null })
+        }
+      }
       showToast(`Issued ${issueQty} ${selected.unit} of ${selected.name}`)
       setModal(null)
     } catch (e) { showToast('Save failed: ' + e.message, 'warn') }
@@ -139,6 +145,14 @@ export default function Inventory() {
       {/* ── ITEMS ── */}
       {tab === 'items' && (
         <div className="flex-1 flex flex-col min-h-0">
+          <div className="px-4 pt-3 pb-1 shrink-0">
+            <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
+              <p className="text-xs text-[var(--c-sub)]">Total stock value ({inventoryMaster.length} items)</p>
+              <p className="text-lg font-bold text-[#1D9E75]">
+                ₹{(inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0) / 1000).toFixed(1)}K
+              </p>
+            </div>
+          </div>
           <div className="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar shrink-0 bg-[var(--c-nav)]">
             <Chip active={catFilter === 'all'} onClick={() => setCat('all')}>All</Chip>
             {CATS.map(c => (
@@ -270,12 +284,28 @@ export default function Inventory() {
               {' '}· WAC: <span className="font-bold text-[var(--c-text)]">₹{selected.costPerUnit}/{selected.unit}</span>
             </div>
 
-            {/* Plot picker */}
-            <FRow label="Issue To">
-              <select className="finput" value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
-                <option value="" style={{ background: 'var(--c-surface)' }}>General Use</option>
-                {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
-              </select>
+            {/* Multi-plot chip picker */}
+            <FRow label="Issue To (tap to select plots)">
+              <div className="flex flex-wrap gap-2">
+                {plots.map(p => {
+                  const sel = (form.plotIds || []).includes(p.id)
+                  return (
+                    <button key={p.id} type="button"
+                      onClick={() => {
+                        const curr = form.plotIds || []
+                        f('plotIds', sel ? curr.filter(id => id !== p.id) : [...curr, p.id])
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        sel ? 'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'
+                      }`}>
+                      {p.name}{p.area_acres ? ` · ${p.area_acres}ac` : ''}
+                    </button>
+                  )
+                })}
+              </div>
+              {(form.plotIds || []).length === 0 && (
+                <p className="text-[10px] text-[var(--c-faint)] mt-1.5">No plots selected — will be recorded as General Use</p>
+              )}
             </FRow>
 
             {/* Machine picker — shown only for fuel items */}
@@ -292,26 +322,26 @@ export default function Inventory() {
               </FRow>
             )}
 
-            {/* Show cycle info (read-only) */}
-            {form.plotId && (
-              <div className={`rounded-xl px-3 py-2 text-xs border ${
-                issueStage === 'active' ? 'bg-[#1D9E75]/10 border-[#1D9E75]/30'
-                : 'bg-[#BA7517]/10 border-[#BA7517]/30'}`}>
-                {issueStage === 'active' ? (
-                  <>
-                    <p className="font-semibold" style={{ color: '#1D9E75' }}>Active cycle found</p>
-                    <p className="text-[var(--c-sub)] mt-0.5">
-                      {cropMaster.find(c => c.id === activeCycleForPlot?.cropId)?.name || '—'}
-                      {' '}· Sown {activeCycleForPlot?.sowDate} · {activeCycleForPlot?.season}
-                    </p>
-                    <p className="text-[var(--c-faint)] mt-0.5 text-[10px]">Cost will be attributed to this cycle.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-semibold text-[#BA7517]">No active cycle — Preparation stage</p>
-                    <p className="text-[var(--c-muted)] mt-0.5 text-[10px]">Cost will be auto-linked to the next cycle started for this plot.</p>
-                  </>
-                )}
+            {/* Per-plot cycle status */}
+            {selectedPlotObjs.length > 0 && (
+              <div className="space-y-1.5">
+                {plotSplit.map(({ plot, area, cycle, stage }) => (
+                  <div key={plot.id} className={`rounded-xl px-3 py-2 text-xs border ${stage === 'active' ? 'bg-[#1D9E75]/10 border-[#1D9E75]/30' : 'bg-[#BA7517]/10 border-[#BA7517]/30'}`}>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold" style={{ color: stage === 'active' ? '#1D9E75' : '#BA7517' }}>
+                        {plot.name} · {area}ac
+                      </p>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: (stage === 'active' ? '#1D9E75' : '#BA7517') + '25', color: stage === 'active' ? '#1D9E75' : '#BA7517' }}>
+                        {stage === 'active' ? 'Active cycle' : 'Preparation'}
+                      </span>
+                    </div>
+                    {cycle && (
+                      <p className="text-[var(--c-sub)] mt-0.5 text-[10px]">
+                        {cropMaster.find(c => c.id === cycle.cropId)?.name || '—'} · Sown {cycle.sowDate}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -332,9 +362,17 @@ export default function Inventory() {
             </FRow>
 
             {issueQty > 0 && !qtyOverStock && (
-              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2 flex items-center justify-between">
-                <p className="text-xs text-[var(--c-sub)]">Cost ({issueQty} × ₹{selected.costPerUnit})</p>
-                <p className="text-base font-bold text-[#1D9E75]">₹{(issueQty * selected.costPerUnit).toLocaleString()}</p>
+              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2 space-y-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--c-sub)]">Total cost ({issueQty} × ₹{selected.costPerUnit})</p>
+                  <p className="text-base font-bold text-[#1D9E75]">₹{(issueQty * selected.costPerUnit).toLocaleString()}</p>
+                </div>
+                {selectedPlotObjs.length > 1 && plotSplit.map(({ plot, splitQty }) => (
+                  <div key={plot.id} className="flex items-center justify-between">
+                    <p className="text-[10px] text-[var(--c-muted)]">{plot.name} ({plot.area_acres}ac)</p>
+                    <p className="text-[10px] font-semibold text-[var(--c-text)]">{splitQty} {selected.unit} · ₹{Math.round(splitQty * selected.costPerUnit).toLocaleString()}</p>
+                  </div>
+                ))}
               </div>
             )}
 
