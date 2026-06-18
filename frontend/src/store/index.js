@@ -410,6 +410,18 @@ const useAppStore = create((set, get) => ({
   livestockCountLogs: [],
   farmExpenses:      [],
   livestockRevenue:  [],
+  // ── Ledger (lazy-loaded on /ledger page) ──────────────────────────────────
+  vendors:           [],
+  vendorPayments:    [],
+  ownerCashEntries:  [],
+  expensePayments:   [],
+  cashBook:          [],
+  vendorBalances:    [],
+  incomeLedger:      [],
+  expenseLedger:     [],
+  monthlySummary:    [],
+  livestockPnl:      [],
+  cropPnl:           [],
   loading:           false,
   initialized:       false,
 
@@ -1580,6 +1592,150 @@ const useAppStore = create((set, get) => ({
     }).select().single()
     if (error) throw error
     set(s => ({ mediaItems: [{ ...item, id: data.id }, ...s.mediaItems] }))
+  },
+
+  // ── Ledger ──────────────────────────────────────────────────────────────────
+
+  loadLedgerData: async () => {
+    const [
+      { data: vendorsRaw },
+      { data: vendorPaymentsRaw },
+      { data: ownerCashRaw },
+      { data: expPaymentsRaw },
+      { data: cashBookRaw },
+      { data: vendorBalancesRaw },
+      { data: incomeRaw },
+      { data: expenseRaw },
+      { data: monthlyRaw },
+      { data: livestockPnlRaw },
+      { data: cropPnlRaw },
+    ] = await Promise.all([
+      supabase.from('vendors').select('*').order('name'),
+      supabase.from('vendor_payments').select('*, vendors(name)').order('payment_date', { ascending: false }),
+      supabase.from('owner_cash_entries').select('*').order('entry_date'),
+      supabase.from('expense_payments').select('*').order('payment_date', { ascending: false }),
+      supabase.from('v_cash_book').select('*'),
+      supabase.from('v_vendor_balances').select('*'),
+      supabase.from('v_income_ledger').select('*').order('entry_date', { ascending: false }),
+      supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false }),
+      supabase.from('v_monthly_summary').select('*'),
+      supabase.from('v_livestock_pnl').select('*'),
+      supabase.from('v_crop_pnl').select('*'),
+    ])
+    set({
+      vendors:          vendorsRaw          || [],
+      vendorPayments:   vendorPaymentsRaw   || [],
+      ownerCashEntries: ownerCashRaw        || [],
+      expensePayments:  expPaymentsRaw      || [],
+      cashBook:         cashBookRaw         || [],
+      vendorBalances:   vendorBalancesRaw   || [],
+      incomeLedger:     incomeRaw           || [],
+      expenseLedger:    expenseRaw          || [],
+      monthlySummary:   monthlyRaw          || [],
+      livestockPnl:     livestockPnlRaw     || [],
+      cropPnl:          cropPnlRaw          || [],
+    })
+  },
+
+  addVendor: async (vendor) => {
+    const { data, error } = await supabase.from('vendors').insert({
+      name:        vendor.name,
+      category:    vendor.category || 'other',
+      phone:       vendor.phone    || null,
+      address:     vendor.address  || null,
+      credit_days: parseInt(vendor.credit_days) || 0,
+    }).select().single()
+    if (error) throw error
+    set(s => ({ vendors: [...s.vendors, data].sort((a,b) => a.name.localeCompare(b.name)) }))
+    return data
+  },
+
+  addOwnerCashEntry: async (entry) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase.from('owner_cash_entries').insert({
+      entry_date: entry.entry_date,
+      amount:     parseFloat(entry.amount),
+      direction:  entry.direction,
+      entry_type: entry.entry_type || 'owner_capital',
+      notes:      entry.notes || null,
+      created_by: user?.id || null,
+    }).select().single()
+    if (error) throw error
+    const { data: cb } = await supabase.from('v_cash_book').select('*')
+    set(s => ({
+      ownerCashEntries: [...s.ownerCashEntries, data],
+      cashBook: cb || [],
+    }))
+    return data
+  },
+
+  addVendorPayment: async (payment) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: cashEntry, error: ce } = await supabase.from('owner_cash_entries').insert({
+      entry_date: payment.payment_date,
+      amount:     parseFloat(payment.amount),
+      direction:  'out',
+      entry_type: 'vendor_payment',
+      notes:      payment.notes || `Paid to ${payment.vendorName || 'Vendor'}`,
+      created_by: user?.id || null,
+    }).select().single()
+    if (ce) throw ce
+    const { data, error } = await supabase.from('vendor_payments').insert({
+      vendor_id:     payment.vendor_id,
+      payment_date:  payment.payment_date,
+      amount:        parseFloat(payment.amount),
+      payment_mode:  payment.payment_mode || 'cash',
+      notes:         payment.notes || null,
+      cash_entry_id: cashEntry.id,
+      created_by:    user?.id || null,
+    }).select('*, vendors(name)').single()
+    if (error) throw error
+    const [{ data: balances }, { data: cb }] = await Promise.all([
+      supabase.from('v_vendor_balances').select('*'),
+      supabase.from('v_cash_book').select('*'),
+    ])
+    set(s => ({
+      vendorPayments:   [data, ...s.vendorPayments],
+      ownerCashEntries: [...s.ownerCashEntries, cashEntry],
+      vendorBalances:   balances || [],
+      cashBook:         cb       || [],
+    }))
+    return data
+  },
+
+  addExpensePayment: async (payment) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: cashEntry, error: ce } = await supabase.from('owner_cash_entries').insert({
+      entry_date: payment.payment_date,
+      amount:     parseFloat(payment.amount),
+      direction:  'out',
+      entry_type: 'expense_payment',
+      notes:      payment.notes || 'Expense Payment',
+      created_by: user?.id || null,
+    }).select().single()
+    if (ce) throw ce
+    const { data, error } = await supabase.from('expense_payments').insert({
+      payment_date:  payment.payment_date,
+      amount:        parseFloat(payment.amount),
+      expense_type:  payment.expense_type,
+      reference_id:  payment.reference_id || null,
+      payment_mode:  payment.payment_mode || 'cash',
+      cash_entry_id: cashEntry.id,
+      notes:         payment.notes || null,
+      created_by:    user?.id || null,
+    }).select().single()
+    if (error) throw error
+    const [{ data: el }, { data: cb }] = await Promise.all([
+      supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false }),
+      supabase.from('v_cash_book').select('*'),
+    ])
+    set(s => ({
+      expensePayments:  [data, ...s.expensePayments],
+      ownerCashEntries: [...s.ownerCashEntries, cashEntry],
+      expenseLedger:    el || [],
+      cashBook:         cb || [],
+    }))
+    return data
   },
 }))
 

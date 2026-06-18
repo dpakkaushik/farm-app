@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin } from './store/auth'
 import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon, Bird } from 'lucide-react'
+import { Map, ListChecks, Package, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon, Bird, BookOpen } from 'lucide-react'
 import Field         from './pages/Field'
 import Today         from './pages/Today'
 import Labour        from './pages/Labour'
@@ -13,6 +13,7 @@ import Login         from './pages/Login'
 import ResourcesPage from './pages/ResourcesPage'
 import ReportsPage   from './pages/ReportsPage'
 import Livestock     from './pages/Livestock'
+import LedgerPage    from './pages/LedgerPage'
 
 const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
@@ -20,6 +21,7 @@ const NAV = [
   { to: '/resources', label: 'Resources', Icon: Package    },
   { to: '/labour',    label: 'People',    Icon: Users      },
   { to: '/livestock', label: 'Livestock', Icon: Bird       },
+  { to: '/ledger',    label: 'Ledger',    Icon: BookOpen   },
   { to: '/reports',   label: 'Reports',   Icon: BarChart3  },
   { to: '/media',     label: 'Media',     Icon: Camera     },
 ]
@@ -105,6 +107,7 @@ export default function App() {
           <Route path="/labour"     element={<Labour />} />
           <Route path="/reports"    element={<ReportsPage />} />
           <Route path="/livestock"  element={<Livestock />} />
+          <Route path="/ledger"     element={<LedgerPage />} />
           <Route path="/admin"      element={admin ? <Admin /> : <Navigate to="/field" replace />} />
           {/* legacy redirects */}
           <Route path="/inventory"  element={<Navigate to="/resources" replace />} />
