@@ -96,7 +96,7 @@ function mapSale(s) {
 }
 
 function mapBuyer(b) {
-  return { id: b.id, name: b.name, address: b.address || '', type: b.type || 'mill', isActive: b.is_active }
+  return { id: b.id, name: b.name, address: b.address || '', contact: b.contact || '', type: b.type || 'trader', buys: b.buys || [], isActive: b.is_active }
 }
 
 function mapPartner(p) {
@@ -1534,21 +1534,21 @@ const useAppStore = create((set, get) => ({
     return { ok: true }
   },
 
-  addBuyer: async ({ name, address, contact, type }) => {
+  addBuyer: async ({ name, address, contact, type, buys }) => {
     const { data, error } = await supabase.from('buyers')
-      .insert({ name, address: address || null, contact: contact || null, type: type || 'mill' })
+      .insert({ name, address: address || null, contact: contact || null, type: type || 'trader', buys: buys || [] })
       .select().single()
     if (error) throw error
     set(s => ({ buyers: [...s.buyers, mapBuyer(data)].sort((a, b) => a.name.localeCompare(b.name)) }))
     return data
   },
 
-  updateBuyer: async (id, { name, address, contact, type }) => {
+  updateBuyer: async (id, { name, address, contact, type, buys }) => {
     const { error } = await supabase.from('buyers')
-      .update({ name, address: address || null, contact: contact || null, type: type || 'mill' })
+      .update({ name, address: address || null, contact: contact || null, type: type || 'trader', buys: buys || [] })
       .eq('id', id)
     if (error) throw error
-    set(s => ({ buyers: s.buyers.map(b => b.id === id ? { ...b, name, address: address || '', type: type || 'mill' } : b) }))
+    set(s => ({ buyers: s.buyers.map(b => b.id === id ? { ...b, name, address: address || '', contact: contact || '', type: type || 'trader', buys: buys || [] } : b) }))
   },
 
   updatePartner: async (id, { name }) => {

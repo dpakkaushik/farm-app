@@ -1833,20 +1833,47 @@ const Style = () => (
 )
 
 // ── Buyers Master ─────────────────────────────────────────────────────────────
-const BUYER_TYPES = ['mill', 'local', 'other']
+const BUYER_CATEGORIES = [
+  { key: 'sugarcane',  label: 'Sugarcane',    emoji: '🎋' },
+  { key: 'wheat',      label: 'Wheat',         emoji: '🌾' },
+  { key: 'paddy',      label: 'Paddy / Rice',  emoji: '🍚' },
+  { key: 'maize',      label: 'Maize',         emoji: '🌽' },
+  { key: 'bhoosa',     label: 'Bhoosa',        emoji: '🌿' },
+  { key: 'dairy',      label: 'Dairy / Milk',  emoji: '🥛' },
+  { key: 'mustard',    label: 'Mustard',       emoji: '🌻' },
+  { key: 'vegetables', label: 'Vegetables',    emoji: '🥦' },
+  { key: 'general',    label: 'General',       emoji: '🏪' },
+]
+
+const BUYER_ENTITY_TYPES = [
+  { value: 'mill',        label: 'Sugar / Oil Mill' },
+  { value: 'trader',      label: 'Trader / Arhatiya' },
+  { value: 'cooperative', label: 'Cooperative / Society' },
+  { value: 'dairy',       label: 'Dairy / Cooperative' },
+  { value: 'mandi',       label: 'Mandi / Market' },
+  { value: 'direct',      label: 'Direct / Retailer' },
+  { value: 'other',       label: 'Other' },
+]
 
 function BuyersMaster() {
   const { buyers, addBuyer, updateBuyer } = useAppStore()
-  const [form,   setForm]   = useState(null)
-  const [saving, setSaving] = useState(false)
-  const [toast,  setToast]  = useState(null)
+  const [form,      setForm]      = useState(null)
+  const [filter,    setFilter]    = useState('all')
+  const [saving,    setSaving]    = useState(false)
+  const [toast,     setToast]     = useState(null)
 
   const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
 
-  const blank = () => ({ name: '', address: '', contact: '', type: 'mill' })
+  const blank = () => ({ name: '', address: '', contact: '', type: 'trader', buys: [] })
+
+  const toggleBuys = key => setForm(p => ({
+    ...p,
+    buys: p.buys.includes(key) ? p.buys.filter(k => k !== key) : [...p.buys, key]
+  }))
 
   const save = async () => {
     if (!form.name.trim()) return showToast('Buyer name is required', 'warn')
+    if (!form.buys.length) return showToast('Select at least one product category', 'warn')
     setSaving(true)
     try {
       if (form.id) {
@@ -1861,62 +1888,109 @@ function BuyersMaster() {
     setSaving(false)
   }
 
+  const visible = filter === 'all'
+    ? buyers
+    : buyers.filter(b => b.buys.includes(filter))
+
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm(blank())}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
-        <Plus size={14} /> Add Buyer / Mill
+        <Plus size={14} /> Add Buyer
       </button>
+
+      {/* filter pills */}
+      <div className="flex gap-1.5 flex-wrap">
+        <button onClick={() => setFilter('all')}
+          className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === 'all' ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/50'}`}>
+          All
+        </button>
+        {BUYER_CATEGORIES.map(cat => (
+          <button key={cat.key} onClick={() => setFilter(cat.key)}
+            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === cat.key ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/50'}`}>
+            {cat.emoji} {cat.label}
+          </button>
+        ))}
+      </div>
 
       {form !== null && (
         <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Buyer' : 'New Buyer'}</p>
           <FRow label="Name">
-            <input className="finput" placeholder="Mill or buyer name"
+            <input className="finput" placeholder="Buyer / mill name"
               value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
           </FRow>
           <div className="grid grid-cols-2 gap-2">
-            <FRow label="Address">
-              <input className="finput" placeholder="Location"
-                value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
-            </FRow>
             <FRow label="Contact">
-              <input className="finput" placeholder="Phone / contact"
-                value={form.contact || ''} onChange={e => setForm(p => ({ ...p, contact: e.target.value }))} />
+              <input className="finput" placeholder="Phone"
+                value={form.contact} onChange={e => setForm(p => ({ ...p, contact: e.target.value }))} />
+            </FRow>
+            <FRow label="Entity type">
+              <select className="finput" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                {BUYER_ENTITY_TYPES.map(t => <option key={t.value} value={t.value} style={{ background: 'var(--c-surface)' }}>{t.label}</option>)}
+              </select>
             </FRow>
           </div>
-          <FRow label="Type">
-            <select className="finput" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
-              {BUYER_TYPES.map(t => <option key={t} value={t} style={{ background: 'var(--c-surface)' }}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-            </select>
+          <FRow label="Address">
+            <input className="finput" placeholder="Location / village"
+              value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} />
+          </FRow>
+          <FRow label="Buys (what they purchase)">
+            <div className="flex flex-wrap gap-1.5 mt-0.5">
+              {BUYER_CATEGORIES.map(cat => {
+                const sel = form.buys.includes(cat.key)
+                return (
+                  <button key={cat.key} type="button" onClick={() => toggleBuys(cat.key)}
+                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${sel ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/40'}`}>
+                    {cat.emoji} {cat.label}
+                  </button>
+                )
+              })}
+            </div>
+            {!form.buys.length && <p className="text-[9px] text-[#BA7517] mt-1">Select at least one product category</p>}
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
-              {saving ? 'Saving…' : form.id ? 'Update' : 'Add Buyer'}
+              {saving ? 'Saving…' : form.id ? 'Update Buyer' : 'Add Buyer'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
       )}
 
-      {buyers.map(b => (
-        <div key={b.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+      {visible.map(b => {
+        const cats = BUYER_CATEGORIES.filter(c => b.buys.includes(c.key))
+        const entityLabel = BUYER_ENTITY_TYPES.find(t => t.value === b.type)?.label || b.type
+        return (
+          <div key={b.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--c-text)]">{b.name}</p>
-              <span className="text-[9px] px-1.5 py-0.5 rounded border border-[#1D9E75]/30 text-[#1D9E75]">{b.type}</span>
+              <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{entityLabel}{b.address ? ` · ${b.address}` : ''}</p>
+              {b.contact && <p className="text-[10px] text-[var(--c-faint)]">{b.contact}</p>}
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {cats.length ? cats.map(c => (
+                  <span key={c.key} className="text-[9px] px-1.5 py-0.5 rounded-full border border-[#1D9E75]/30 text-[#1D9E75] bg-[#1D9E75]/08">
+                    {c.emoji} {c.label}
+                  </span>
+                )) : (
+                  <span className="text-[9px] text-[var(--c-faint)]">No categories set</span>
+                )}
+              </div>
             </div>
-            {b.address && <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{b.address}</p>}
+            <button onClick={() => setForm({ id: b.id, name: b.name, address: b.address, contact: b.contact, type: b.type, buys: b.buys })}
+              className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 shrink-0">
+              Edit
+            </button>
           </div>
-          <button onClick={() => setForm({ id: b.id, name: b.name, address: b.address, contact: b.contact || '', type: b.type })}
-            className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 shrink-0">
-            Edit
-          </button>
-        </div>
-      ))}
+        )
+      })}
 
-      {buyers.length === 0 && <p className="text-xs text-[var(--c-faint)] text-center py-6">No buyers yet.</p>}
+      {visible.length === 0 && (
+        <p className="text-xs text-[var(--c-faint)] text-center py-6">
+          {filter === 'all' ? 'No buyers yet.' : `No buyers tagged as "${BUYER_CATEGORIES.find(c => c.key === filter)?.label}".`}
+        </p>
+      )}
       {toast && <Toast msg={toast.m} type={toast.type} />}
       <Style />
     </div>
