@@ -20,6 +20,16 @@ const FARM_EMOJIS = [
   '🍓','🫐','🍑','🍎','🍒','🌊','🪨','🧺','🪺',
 ]
 
+const CROP_NAME_LIST = [
+  'Wheat', 'Paddy', 'Chaini Paddy', 'Sugarcane', 'Sugarcane Ratoon',
+  'Mustard', 'Maize', 'Cotton', 'Soybean', 'Potato', 'Onion', 'Tomato',
+  'Garlic', 'Chilli', 'Sunflower', 'Groundnut', 'Gram (Chickpea)',
+  'Lentil (Masoor)', 'Green Gram (Moong)', 'Black Gram (Urad)',
+  'Pigeon Pea (Arhar)', 'Pearl Millet (Bajra)', 'Sorghum (Jowar)',
+  'Barley', 'Banana', 'Mango', 'Guava', 'Turmeric', 'Ginger',
+  'Cauliflower', 'Cabbage', 'Brinjal', 'Bitter Gourd', 'Bottle Gourd',
+]
+
 export default function Admin() {
   const [tab, setTab] = useState('Crops')
   return (
@@ -56,6 +66,7 @@ export default function Admin() {
 function CropsMaster() {
   const { cropMaster, cropCycles, addCrop, updateCrop, deleteCrop } = useAppStore()
   const [form, setForm]     = useState(null)
+  const [enterCustom, setEnterCustom] = useState(false)
   const [saving, setSaving] = useState(false)
   const [toast, setToast]   = useState(null)
   const [toastType, setToastType] = useState('success')
@@ -116,7 +127,7 @@ function CropsMaster() {
 
   return (
     <div className="p-4 space-y-3 pb-6">
-      <button onClick={() => setForm({})}
+      <button onClick={() => { setEnterCustom(false); setForm({}) }}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
         <Plus size={14} /> Add Crop to Master
       </button>
@@ -124,9 +135,35 @@ function CropsMaster() {
       {form !== null && (
         <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
-          <FRow label="Crop name">
-            <input className="finput" placeholder="e.g. Cotton"
-              value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
+          <FRow label="Crop">
+            <select
+              className="finput"
+              style={{ background: 'var(--c-surface)' }}
+              value={enterCustom ? '__custom__' : (form.name || '')}
+              onChange={e => {
+                if (e.target.value === '__custom__') {
+                  setEnterCustom(true)
+                  setForm(p => ({ ...p, name: '' }))
+                } else {
+                  setEnterCustom(false)
+                  setForm(p => ({ ...p, name: e.target.value }))
+                }
+              }}>
+              <option value="">Select crop…</option>
+              {CROP_NAME_LIST.map(n => <option key={n} value={n} style={{ background: 'var(--c-surface)' }}>{n}</option>)}
+              <option value="__custom__" style={{ background: 'var(--c-surface)' }}>＋ Not in list — add name below</option>
+            </select>
+            {enterCustom && (
+              <input
+                className="finput mt-1.5"
+                placeholder="Type exact crop name (e.g. Bajra)"
+                value={form.name || ''}
+                onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              />
+            )}
+            <p className="text-[9px] text-[#BA7517] mt-1">
+              Names are case-sensitive and must use Title Case — "Wheat" not "wheat" or "WHEAT". Custom names must match exactly throughout the app.
+            </p>
           </FRow>
           <FRow label="Crop Icon">
             <div className="flex flex-wrap gap-1.5 mt-0.5">
@@ -171,15 +208,17 @@ function CropsMaster() {
                 value={form.pricePerQtl || ''} onChange={e => setForm(p => ({ ...p, pricePerQtl: e.target.value }))} />
             </FRow>
           </div>
-          <FRow label="Variety (sugarcane only)">
-            <select className="finput" style={{ background: '#1a2030' }}
-              value={form.varietyCategory || ''} onChange={e => setForm(p => ({ ...p, varietyCategory: e.target.value || null }))}>
-              <option value="" style={{ background: '#1a2030' }}>— None / Other crop —</option>
-              <option value="early"  style={{ background: '#1a2030' }}>Early Maturing (SAP ₹400/qtl)</option>
-              <option value="common" style={{ background: '#1a2030' }}>Common Variety (SAP ₹390/qtl)</option>
-              <option value="late"   style={{ background: '#1a2030' }}>Late Maturing (SAP ₹390/qtl)</option>
-            </select>
-          </FRow>
+          {(form.name || '').toLowerCase().includes('sugarcane') && (
+            <FRow label="Sugarcane variety">
+              <select className="finput" style={{ background: 'var(--c-surface)' }}
+                value={form.varietyCategory || ''} onChange={e => setForm(p => ({ ...p, varietyCategory: e.target.value || null }))}>
+                <option value="" style={{ background: 'var(--c-surface)' }}>Select variety…</option>
+                <option value="early"  style={{ background: 'var(--c-surface)' }}>Early Maturing (SAP ₹400/qtl)</option>
+                <option value="common" style={{ background: 'var(--c-surface)' }}>Common Variety (SAP ₹390/qtl)</option>
+                <option value="late"   style={{ background: 'var(--c-surface)' }}>Late Maturing (SAP ₹390/qtl)</option>
+              </select>
+            </FRow>
+          )}
           <FRow label="Map colour">
             <div className="flex flex-wrap gap-2 mt-0.5">
               {PALETTE_COLORS.map(color => {
@@ -214,19 +253,23 @@ function CropsMaster() {
             </div>
             <p className="text-[9px] text-[var(--c-faint)]">e.g. Bhoosa from Wheat, Husk from Rice — tracked automatically when harvest is recorded</p>
             {(form.residuals || []).map((r, i) => (
-              <div key={i} className="flex gap-1.5 items-start">
-                <input className="finput flex-1" placeholder="Name (e.g. Bhoosa)"
-                  value={r.name} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, name: e.target.value } : x) }))} />
-                <select className="finput w-20" style={{ background: 'var(--c-surface)' }}
-                  value={r.unit} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, unit: e.target.value } : x) }))}>
-                  {['quintal','kg','bag','trolley','litre','bundle'].map(u => <option key={u} value={u} style={{ background: 'var(--c-surface)' }}>{u}</option>)}
-                </select>
-                <input type="number" className="finput w-16" placeholder="Qty/ac"
-                  value={r.qty_per_acre} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, qty_per_acre: e.target.value } : x) }))} />
-                <input type="number" className="finput w-16" placeholder="₹/unit"
-                  value={r.expected_rate} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, expected_rate: e.target.value } : x) }))} />
-                <button type="button" onClick={() => setForm(p => ({ ...p, residuals: p.residuals.filter((_, j) => j !== i) }))}
-                  className="text-[var(--c-faint)] hover:text-[#E24B4A] pt-2">✕</button>
+              <div key={i} className="bg-[var(--c-surface)] rounded-xl border border-[var(--c-border)] p-2.5 space-y-1.5">
+                <div className="flex gap-1.5 items-center">
+                  <input className="finput flex-1" placeholder="Name (e.g. Bhoosa)"
+                    value={r.name} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, name: e.target.value } : x) }))} />
+                  <button type="button" onClick={() => setForm(p => ({ ...p, residuals: p.residuals.filter((_, j) => j !== i) }))}
+                    className="text-[var(--c-faint)] hover:text-[#E24B4A] shrink-0">✕</button>
+                </div>
+                <div className="flex gap-1.5 items-center">
+                  <select className="finput flex-1" style={{ background: 'var(--c-surface)' }}
+                    value={r.unit} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, unit: e.target.value } : x) }))}>
+                    {['quintal','kg','bag','trolley','litre','bundle'].map(u => <option key={u} value={u} style={{ background: 'var(--c-surface)' }}>{u}</option>)}
+                  </select>
+                  <input type="number" className="finput w-20" placeholder="Qty/ac"
+                    value={r.qty_per_acre} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, qty_per_acre: e.target.value } : x) }))} />
+                  <input type="number" className="finput w-20" placeholder="₹/unit"
+                    value={r.expected_rate} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, expected_rate: e.target.value } : x) }))} />
+                </div>
               </div>
             ))}
             {(form.residuals || []).length > 0 && (
@@ -256,7 +299,10 @@ function CropsMaster() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null, residuals: c.residuals || [] })}
+                onClick={() => {
+                  setEnterCustom(!CROP_NAME_LIST.includes(c.name))
+                  setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null, residuals: c.residuals || [] })
+                }}
                 className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                 Edit
               </button>
