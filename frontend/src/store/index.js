@@ -16,10 +16,32 @@ function mapCrop(c, templates = []) {
     yieldPerAcre:        Number(c.yield_per_acre) || 0,
     ratoonCropId:        c.ratoon_crop_id || null,
     varietyCategory:     c.variety_category || null,
+    residuals:           Array.isArray(c.residuals) ? c.residuals : [],
     activities:   templates
       .filter(t => t.crop_id === c.id)
       .sort((a, b) => a.day_offset - b.day_offset)
       .map(t => ({ day: t.day_offset, type: t.activity_type, label: t.label, inputs: [] })),
+  }
+}
+
+function mapResidual(r) {
+  return {
+    id:               r.id,
+    cropCycleId:      r.crop_cycle_id,
+    harvestSessionId: r.harvest_session_id,
+    productName:      r.product_name,
+    quantity:         Number(r.quantity) || 0,
+    unit:             r.unit || 'quintal',
+    expectedRate:     r.expected_rate ? Number(r.expected_rate) : null,
+    expectedRevenue:  r.expected_revenue ? Number(r.expected_revenue) : null,
+    status:           r.status || 'open',
+    saleDate:         r.sale_date || null,
+    buyerName:        r.buyer_name || null,
+    actualRate:       r.actual_rate ? Number(r.actual_rate) : null,
+    actualRevenue:    r.actual_revenue ? Number(r.actual_revenue) : null,
+    paymentStatus:    r.payment_status || 'pending',
+    notes:            r.notes || null,
+    createdAt:        r.created_at,
   }
 }
 
@@ -410,6 +432,7 @@ const useAppStore = create((set, get) => ({
   livestockCountLogs: [],
   farmExpenses:      [],
   livestockRevenue:  [],
+  cropResiduals:     [],
   // ── Ledger (lazy-loaded on /ledger page) ──────────────────────────────────
   vendors:           [],
   vendorPayments:    [],
@@ -456,6 +479,7 @@ const useAppStore = create((set, get) => ({
         { data: partnersRaw },
         { data: farmExpensesRaw },
         { data: livestockRevenueRaw },
+        { data: cropResidualsRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').order('name'),
         supabase.from('crops').select('*').order('name'),
@@ -498,6 +522,7 @@ const useAppStore = create((set, get) => ({
         supabase.from('partners').select('*').eq('is_active', true).order('name'),
         supabase.from('farm_expenses').select('*').order('expense_date', { ascending: false }),
         supabase.from('livestock_revenue').select('*').order('revenue_date', { ascending: false }),
+        supabase.from('crop_residuals').select('*').order('created_at', { ascending: false }),
       ])
 
       const tpl = templates || []
@@ -537,6 +562,7 @@ const useAppStore = create((set, get) => ({
         partners:           (partnersRaw || []).map(mapPartner),
         farmExpenses:       (farmExpensesRaw || []).map(mapFarmExpense),
         livestockRevenue:   (livestockRevenueRaw || []).map(mapLivestockRevenue),
+        cropResiduals:      (cropResidualsRaw || []).map(mapResidual),
         loading:           false,
         initialized:       true,
       })
@@ -558,6 +584,7 @@ const useAppStore = create((set, get) => ({
       yield_per_acre:      parseFloat(crop.yieldPerAcre) || null,
       season_type:         crop.season_type || null,
       variety_category:    crop.varietyCategory || null,
+      residuals:           crop.residuals || [],
     }).select().single()
     if (error) throw error
     set(s => ({ cropMaster: [...s.cropMaster, mapCrop(data)] }))
@@ -575,9 +602,71 @@ const useAppStore = create((set, get) => ({
       price_per_qtl:       parseFloat(data.pricePerQtl) || null,
       yield_per_acre:      parseFloat(data.yieldPerAcre) || null,
       variety_category:    data.varietyCategory || null,
+      residuals:           data.residuals || [],
     }).eq('id', id)
     if (error) throw error
     set(s => ({ cropMaster: s.cropMaster.map(c => c.id === id ? { ...c, ...data } : c) }))
+  },
+
+  // ── Harvest sessions (non-cane crops) ──────────────────────────────────────
+  addHarvestSession: async (cycleId, { date, qtyQtl, notes }) => {
+    const { cropMaster, cropCycles } = get()
+    const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
+    const { data: session, error } = await supabase
+      .from('harvest_sessions')
+      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, notes: notes || null })
+      .select().single()
+    if (error) throw error
+
+    // Auto-create residual entries from crop template
+    const cycle = cropCycles.find(c => c.id === cycleId)
+    const crop  = cropMaster.find(c => c.id === cycle?.cropId)
+    const residualDefs = crop?.residuals || []
+    const acres = cycle?.acres || 0
+
+    let newResiduals = []
+    if (residualDefs.length > 0 && acres > 0) {
+      const residualRows = residualDefs.map(r => ({
+        crop_cycle_id:      cycleId,
+        harvest_session_id: session.id,
+        product_name:       r.name,
+        quantity:           parseFloat(r.qty_per_acre) * acres,
+        unit:               r.unit || 'quintal',
+        expected_rate:      parseFloat(r.expected_rate) || null,
+        expected_revenue:   parseFloat(r.qty_per_acre) * acres * (parseFloat(r.expected_rate) || 0) || null,
+        status:             'open',
+      }))
+      const { data: inserted } = await supabase.from('crop_residuals').insert(residualRows).select()
+      newResiduals = (inserted || []).map(mapResidual)
+    }
+
+    set(s => ({
+      harvestSessions: [...s.harvestSessions, mapSession(session)],
+      cropResiduals:   [...s.cropResiduals, ...newResiduals],
+    }))
+    return { session: mapSession(session), residuals: newResiduals }
+  },
+
+  // ── Residual sale recording ─────────────────────────────────────────────────
+  recordResidualSale: async (id, { actualRate, buyerName, saleDate, paymentStatus, notes }) => {
+    const qty = get().cropResiduals.find(r => r.id === id)?.quantity || 0
+    const actualRevenue = parseFloat(actualRate) * qty
+    const { error } = await supabase.from('crop_residuals').update({
+      status:         'sold',
+      sale_date:      saleDate,
+      buyer_name:     buyerName || null,
+      actual_rate:    parseFloat(actualRate),
+      actual_revenue: actualRevenue,
+      payment_status: paymentStatus || 'pending',
+      notes:          notes || null,
+    }).eq('id', id)
+    if (error) throw error
+    set(s => ({
+      cropResiduals: s.cropResiduals.map(r => r.id !== id ? r : {
+        ...r, status: 'sold', saleDate, buyerName: buyerName || null,
+        actualRate: parseFloat(actualRate), actualRevenue, paymentStatus: paymentStatus || 'pending', notes: notes || null,
+      }),
+    }))
   },
 
   deleteCrop: async (id) => {

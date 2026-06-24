@@ -202,6 +202,38 @@ function CropsMaster() {
               </div>
             )}
           </FRow>
+          {/* Residuals section */}
+          <div className="border-t border-[var(--c-border)] pt-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-[var(--c-text)]">By-products / Residuals</p>
+              <button type="button"
+                onClick={() => setForm(p => ({ ...p, residuals: [...(p.residuals || []), { name: '', unit: 'quintal', qty_per_acre: '', expected_rate: '' }] }))}
+                className="text-[10px] text-[#1D9E75] border border-[#1D9E75]/40 px-2 py-0.5 rounded-lg hover:bg-[#1D9E75]/10">
+                + Add Residual
+              </button>
+            </div>
+            <p className="text-[9px] text-[var(--c-faint)]">e.g. Bhoosa from Wheat, Husk from Rice — tracked automatically when harvest is recorded</p>
+            {(form.residuals || []).map((r, i) => (
+              <div key={i} className="flex gap-1.5 items-start">
+                <input className="finput flex-1" placeholder="Name (e.g. Bhoosa)"
+                  value={r.name} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, name: e.target.value } : x) }))} />
+                <select className="finput w-20" style={{ background: 'var(--c-surface)' }}
+                  value={r.unit} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, unit: e.target.value } : x) }))}>
+                  {['quintal','kg','bag','trolley','litre','bundle'].map(u => <option key={u} value={u} style={{ background: 'var(--c-surface)' }}>{u}</option>)}
+                </select>
+                <input type="number" className="finput w-16" placeholder="Qty/ac"
+                  value={r.qty_per_acre} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, qty_per_acre: e.target.value } : x) }))} />
+                <input type="number" className="finput w-16" placeholder="₹/unit"
+                  value={r.expected_rate} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, expected_rate: e.target.value } : x) }))} />
+                <button type="button" onClick={() => setForm(p => ({ ...p, residuals: p.residuals.filter((_, j) => j !== i) }))}
+                  className="text-[var(--c-faint)] hover:text-[#E24B4A] pt-2">✕</button>
+              </div>
+            ))}
+            {(form.residuals || []).length > 0 && (
+              <p className="text-[9px] text-[var(--c-faint)]">Qty/ac × plot acres = auto quantity at harvest time</p>
+            )}
+          </div>
+
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
               className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
@@ -224,7 +256,7 @@ function CropsMaster() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null })}
+                onClick={() => setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null, residuals: c.residuals || [] })}
                 className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
                 Edit
               </button>

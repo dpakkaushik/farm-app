@@ -381,24 +381,142 @@ function CashBookTab({ cashBook, onAdd }) {
 }
 
 // ── Tab: Income Ledger ────────────────────────────────────────────────────────
-function IncomeTab({ incomeLedger }) {
+function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
+  const [saleForm, setSaleForm] = useState(null) // { id, productName, quantity, unit, expectedRate }
+  const [saving, setSaving]     = useState(false)
+  const [saleData, setSaleData] = useState({ actualRate: '', buyerName: '', saleDate: new Date().toISOString().slice(0, 10), paymentStatus: 'pending', notes: '' })
+
   const totalIncome    = incomeLedger.reduce((s, r) => s + Number(r.amount || 0), 0)
   const livestockTotal = incomeLedger.filter(r => r.source_type === 'livestock').reduce((s, r) => s + Number(r.amount || 0), 0)
   const cropTotal      = incomeLedger.filter(r => r.source_type === 'crop').reduce((s, r) => s + Number(r.amount || 0), 0)
+  const residualTotal  = incomeLedger.filter(r => r.source_type === 'crop_residual').reduce((s, r) => s + Number(r.amount || 0), 0)
+  const openResiduals  = cropResiduals.filter(r => r.status === 'open')
   const sorted = [...incomeLedger].sort((a, b) => new Date(b.entry_date) - new Date(a.entry_date))
+
+  const openForm = (r) => {
+    setSaleForm(r)
+    setSaleData({ actualRate: r.expectedRate || '', buyerName: '', saleDate: new Date().toISOString().slice(0, 10), paymentStatus: 'pending', notes: '' })
+  }
+
+  const submitSale = async () => {
+    if (!saleData.actualRate || !saleData.saleDate) return
+    setSaving(true)
+    try {
+      await onRecordSale(saleForm.id, saleData)
+      setSaleForm(null)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const sourceBadge = (type) => {
+    if (type === 'livestock')     return { bg: 'rgba(29,158,117,0.12)',  color: '#1D9E75',  label: 'Livestock' }
+    if (type === 'crop_residual') return { bg: 'rgba(139,92,246,0.12)',  color: '#7c3aed',  label: 'Residual'  }
+    return                               { bg: 'rgba(186,117,23,0.12)',  color: '#BA7517',  label: 'Crop'      }
+  }
 
   return (
     <div className="flex flex-col gap-3 pt-3">
-      <div className="grid grid-cols-3 gap-2">
-        <MetricCard label="Total Revenue" value={fmt(totalIncome)} color="#1D9E75" />
-        <MetricCard label="Livestock"     value={fmt(livestockTotal)} color="#1D9E75" />
-        <MetricCard label="Crops"         value={fmt(cropTotal)} color="#BA7517" />
+      <div className="grid grid-cols-2 gap-2">
+        <MetricCard label="Total Revenue"   value={fmt(totalIncome)}    color="#1D9E75" />
+        <MetricCard label="Livestock"       value={fmt(livestockTotal)} color="#1D9E75" />
+        <MetricCard label="Crop Sales"      value={fmt(cropTotal)}      color="#BA7517" />
+        <MetricCard label="Residuals Sold"  value={fmt(residualTotal)}  color="#7c3aed" />
       </div>
+
+      {/* Open residuals alert */}
+      {openResiduals.length > 0 && (
+        <Card>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle size={14} color="#BA7517" />
+            <p className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
+              Open Residuals — Pending Sale ({openResiduals.length})
+            </p>
+          </div>
+          <div className="space-y-2">
+            {openResiduals.map(r => (
+              <div key={r.id} className="rounded-xl p-3 flex items-center justify-between gap-2"
+                style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>{r.productName}</p>
+                  <p className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                    {r.quantity} {r.unit}
+                    {r.expectedRevenue > 0 && ` · Est. ${fmt(r.expectedRevenue)}`}
+                  </p>
+                </div>
+                <button onClick={() => openForm(r)}
+                  className="shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-lg"
+                  style={{ background: '#1D9E75', color: '#fff' }}>
+                  Record Sale
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Record sale modal */}
+      {saleForm && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          <div className="w-full rounded-t-3xl p-5 space-y-3" style={{ background: 'var(--c-card)', border: '0.5px solid var(--c-border)' }}>
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>Record Sale — {saleForm.productName}</p>
+              <button onClick={() => setSaleForm(null)} style={{ color: 'var(--c-faint)' }}><X size={18} /></button>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--c-faint)' }}>
+              Qty: {saleForm.quantity} {saleForm.unit}
+              {saleForm.expectedRate > 0 && ` · Expected rate: ₹${saleForm.expectedRate}/${saleForm.unit}`}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-[10px] mb-1" style={{ color: 'var(--c-faint)' }}>Actual Rate (₹/{saleForm.unit})*</p>
+                <input type="number" className="finput w-full" placeholder="e.g. 48"
+                  value={saleData.actualRate} onChange={e => setSaleData(p => ({ ...p, actualRate: e.target.value }))} />
+              </div>
+              <div>
+                <p className="text-[10px] mb-1" style={{ color: 'var(--c-faint)' }}>Sale Date*</p>
+                <input type="date" className="finput w-full"
+                  value={saleData.saleDate} onChange={e => setSaleData(p => ({ ...p, saleDate: e.target.value }))} />
+              </div>
+            </div>
+            {saleData.actualRate > 0 && (
+              <p className="text-xs font-bold" style={{ color: '#1D9E75' }}>
+                Total: {fmt(parseFloat(saleData.actualRate) * saleForm.quantity)}
+              </p>
+            )}
+            <div>
+              <p className="text-[10px] mb-1" style={{ color: 'var(--c-faint)' }}>Buyer Name</p>
+              <input className="finput w-full" placeholder="e.g. Ramu Kaka"
+                value={saleData.buyerName} onChange={e => setSaleData(p => ({ ...p, buyerName: e.target.value }))} />
+            </div>
+            <div>
+              <p className="text-[10px] mb-1" style={{ color: 'var(--c-faint)' }}>Payment Status</p>
+              <div className="flex gap-2">
+                {['pending','received'].map(s => (
+                  <button key={s} onClick={() => setSaleData(p => ({ ...p, paymentStatus: s }))}
+                    className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors"
+                    style={{
+                      background: saleData.paymentStatus === s ? '#1D9E75' : 'var(--c-ghost)',
+                      color:      saleData.paymentStatus === s ? '#fff'    : 'var(--c-muted)',
+                    }}>
+                    {s === 'pending' ? 'Cash Pending' : 'Cash Received'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={submitSale} disabled={saving || !saleData.actualRate || !saleData.saleDate}
+              className="w-full py-3 rounded-xl text-xs font-bold disabled:opacity-40"
+              style={{ background: '#1D9E75', color: '#fff' }}>
+              {saving ? 'Saving…' : 'Record Sale'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <Card>
           <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            No income entries yet. Revenue from livestock sales, milk, and crop sales will appear here.
+            No income entries yet. Revenue from livestock, crop sales, and residuals will appear here.
           </div>
         </Card>
       ) : (
@@ -415,32 +533,32 @@ function IncomeTab({ incomeLedger }) {
               </tr>
             </thead>
             <tbody>
-              {sorted.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                  <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>
-                    {fmtDate(row.entry_date)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"
-                      style={{
-                        background: row.source_type === 'livestock' ? 'rgba(29,158,117,0.12)' : 'rgba(186,117,23,0.12)',
-                        color:      row.source_type === 'livestock' ? '#1D9E75' : '#BA7517',
-                      }}>
-                      {row.source_type === 'livestock' ? 'Livestock' : 'Crop'}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
-                    <div>{row.description}</div>
-                    {row.buyer_name && (
-                      <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{row.buyer_name}</div>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 font-bold" style={{ color: '#1D9E75' }}>{fmt(row.amount)}</td>
-                  <td className="px-3 py-2 text-[10px]" style={{ color: 'var(--c-faint)' }}>
-                    {row.payment_mode || '—'}
-                  </td>
-                </tr>
-              ))}
+              {sorted.map((row, i) => {
+                const badge = sourceBadge(row.source_type)
+                return (
+                  <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>
+                      {fmtDate(row.entry_date)}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold"
+                        style={{ background: badge.bg, color: badge.color }}>
+                        {badge.label}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                      <div>{row.description}</div>
+                      {row.buyer_name && (
+                        <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{row.buyer_name}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 font-bold" style={{ color: '#1D9E75' }}>{fmt(row.amount)}</td>
+                    <td className="px-3 py-2 text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                      {row.payment_mode || '—'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </Card>
@@ -899,6 +1017,7 @@ export default function LedgerPage() {
   const {
     vendors, vendorBalances, cashBook,
     incomeLedger, expenseLedger, monthlySummary, livestockPnl, cropPnl,
+    cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
   } = useAppStore()
 
@@ -972,7 +1091,7 @@ export default function LedgerPage() {
             onAdd={() => setShowAddCash(true)}
           />
         )}
-        {tab === 'income'   && <IncomeTab incomeLedger={incomeLedger} />}
+        {tab === 'income'   && <IncomeTab incomeLedger={incomeLedger} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />}
         {tab === 'vendors'  && (
           <VendorTab
             vendors={vendors}
