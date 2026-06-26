@@ -634,7 +634,6 @@ function LabourMaster() {
   const [toast, setToast]         = useState(null)
   const [confirm, setConfirm]     = useState(null)
   const [holidayEdit, setHolidayEdit] = useState(null)   // null | string value being edited
-  const [rateEdit,    setRateEdit]    = useState(null)   // null | string value being edited
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
   const today = new Date().toISOString().slice(0, 10)
@@ -743,14 +742,6 @@ function LabourMaster() {
     setHolidayEdit(null)
     showToast('Holidays updated ✓')
   }
-  const saveRate = () => {
-    const n = parseFloat(rateEdit)
-    if (isNaN(n) || n <= 0) { showToast('Enter a valid number'); return }
-    setManpowerSettings({ ...manpowerSettings, workerDailyRate: n })
-    setRateEdit(null)
-    showToast('Daily rate updated ✓')
-  }
-
   return (
     <div className="p-4 space-y-3 pb-6">
 
@@ -855,25 +846,6 @@ function LabourMaster() {
       {/* ── Regular Labour ── */}
       {tab === 'regular' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
-        <div className="flex items-center justify-between bg-[var(--c-nav)] border border-[var(--c-border)] rounded-2xl px-4 py-2.5">
-          <div>
-            <p className="text-[10px] text-[var(--c-faint)]">Daily rate — all regular workers</p>
-            {rateEdit !== null
-              ? <div className="flex items-center gap-2 mt-1">
-                  <input type="number" min="1" autoFocus className="finput w-24 text-sm py-1"
-                    value={rateEdit} onChange={e => setRateEdit(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') saveRate(); if (e.key === 'Escape') setRateEdit(null) }} />
-                  <button onClick={saveRate} className="px-3 py-1 bg-[#1D9E75] text-white text-xs font-bold rounded-lg">Save</button>
-                  <button onClick={() => setRateEdit(null)} className="px-2 py-1 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
-                </div>
-              : <p className="text-sm font-bold text-[var(--c-text)] mt-0.5">₹{manpowerSettings.workerDailyRate} / day</p>
-            }
-          </div>
-          {rateEdit === null && (
-            <button onClick={() => setRateEdit(String(manpowerSettings.workerDailyRate))}
-              className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">Edit</button>
-          )}
-        </div>
         <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Regular Labourer
@@ -1124,10 +1096,10 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
     estSalary  = Math.round(person.monthlySalary * effectivePaid / workingDays)
     salaryNote = `₹${person.monthlySalary} × ${effectivePaid.toFixed(1)}/${workingDays} days · ${freeHolidays} free holidays/mo`
   } else if (!isStaffPerson) {
-    const rate     = manpowerSettings.workerDailyRate
+    const rate     = person?.ratePerDay || 0
     const paidDays = stats.present + stats.half_day * 0.5
     estSalary  = Math.round(paidDays * rate)
-    salaryNote = `${paidDays.toFixed(1)} days × ₹${rate}/day`
+    salaryNote = rate ? `${paidDays.toFixed(1)} days × ₹${rate}/day` : 'Set rate/day on worker profile'
   }
 
   const handleDayTap = async (cell) => {
@@ -1196,7 +1168,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
           <div>
             <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name}</p>
             <p className="text-[10px] text-[var(--c-muted)]">
-              {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${manpowerSettings.staffMonthlyHolidays} holidays/mo` : `${person?.workType} · ₹${manpowerSettings.workerDailyRate}/day`}
+              {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${manpowerSettings.staffMonthlyHolidays} holidays/mo` : `${person?.workType} · ₹${person?.ratePerDay || '—'}/day`}
             </p>
           </div>
         </div>
