@@ -31,51 +31,78 @@ export default function Harvest() {
     updateCropCycle, addCropCycle,
     harvestSessions, sales, buyers, partners,
     addCaneSupply, markCanePayment, updateCaneMillInfo, closeCaneHarvest,
+    addHarvestSession, addCropSale, markCropSalePayment,
+    cropResiduals, recordResidualSale,
   } = useAppStore()
 
-  const [modal,       setModal]       = useState(null)
-  const [selected,    setSelected]    = useState(null)
-  const [form,        setForm]        = useState({})
-  const [toast,       setToast]       = useState(null)
-  const [saving,      setSaving]      = useState(false)
-  const [supplyModal, setSupplyModal] = useState(null)
-  const [payModal,    setPayModal]    = useState(null)
-  const [millModal,   setMillModal]   = useState(null)
-  const [millForm,    setMillForm]    = useState({})
-  const [parchiFile,  setParchiFile]  = useState(null)
-  const [payFile,     setPayFile]     = useState(null)
-  const [closeModal,  setCloseModal]  = useState(null)
-  const [closeInput,  setCloseInput]  = useState('')
-  const [closeError,  setCloseError]  = useState(null)
+  // ── Shared state ─────────────────────────────────────────────────────────────
+  const [modal,        setModal]        = useState(null)
+  const [selected,     setSelected]     = useState(null)
+  const [form,         setForm]         = useState({})
+  const [toast,        setToast]        = useState(null)
+  const [saving,       setSaving]       = useState(false)
+
+  // ── Cane-specific modals ──────────────────────────────────────────────────────
+  const [supplyModal,  setSupplyModal]  = useState(null)
+  const [payModal,     setPayModal]     = useState(null)
+  const [millModal,    setMillModal]    = useState(null)
+  const [millForm,     setMillForm]     = useState({})
+  const [parchiFile,   setParchiFile]   = useState(null)
+  const [payFile,      setPayFile]      = useState(null)
+  const [closeModal,   setCloseModal]   = useState(null)
+  const [closeInput,   setCloseInput]   = useState('')
+  const [closeError,   setCloseError]   = useState(null)
+
+  // ── Non-cane open-sale modals ─────────────────────────────────────────────────
+  const [saleModal,    setSaleModal]    = useState(null)   // { cycle, session }
+  const [cropPayModal, setCropPayModal] = useState(null)   // { cycle, session, sale, date, ded, dedNote }
+  const [cropPayFile,  setCropPayFile]  = useState(null)
+  const [residualModal,setResidualModal]= useState(null)   // residual object
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500) }
 
-  const active    = cropCycles.filter(c => c.status === 'active')
-  const harvested = cropCycles.filter(c => c.status === 'harvested').slice(0, 10)
-
+  // ── Derived data ──────────────────────────────────────────────────────────────
   const isCane = (cycle) => {
     const name = (cropMaster.find(c => c.id === cycle.cropId)?.name || '').toLowerCase()
     return name.includes('sugarcane') || name.includes('ganna') || name.includes('cane')
   }
 
-  const cycleSupplies = (cycleId) =>
-    [...harvestSessions].filter(s => s.cycleId === cycleId).sort((a, b) => a.date.localeCompare(b.date))
+  const getSession     = (cycleId)   => harvestSessions.find(s => s.cycleId === cycleId)
+  const getSale        = (sessionId) => sessionId ? sales.find(s => s.sessionId === sessionId) : null
+  const getCycleResids = (cycleId)   => cropResiduals.filter(r => r.cropCycleId === cycleId)
 
-  const sessionSale = (sessionId) => sales.find(s => s.sessionId === sessionId)
+  const active          = cropCycles.filter(c => c.status === 'active')
+  const harvestedNonCane = cropCycles.filter(c => c.status === 'harvested' && !isCane(c))
 
-  const supplyOverdueDays = (sale) => {
+  // Open = harvested but crop sale not yet paid
+  const openSales = harvestedNonCane.filter(c => {
+    const sess = getSession(c.id)
+    const sale = getSale(sess?.id)
+    return !sale || sale.paymentStatus !== 'paid'
+  })
+
+  // Past = crop sale paid
+  const pastHarvests = harvestedNonCane.filter(c => {
+    const sess = getSession(c.id)
+    const sale = getSale(sess?.id)
+    return sale?.paymentStatus === 'paid'
+  }).slice(0, 20)
+
+  // Cane helpers
+  const cycleSupplies     = (cycleId)   => [...harvestSessions].filter(s => s.cycleId === cycleId).sort((a, b) => a.date.localeCompare(b.date))
+  const sessionSale       = (sessionId) => sales.find(s => s.sessionId === sessionId)
+  const supplyOverdueDays = (sale)      => {
     if (!sale || sale.paymentStatus === 'paid') return 0
     return Math.max(0, Math.floor((new Date() - new Date(sale.date)) / 86400000) - 14)
   }
+  const partnerName = (id) => partners.find(p => p.id === id)?.name || null
+  const buyerName   = (id) => buyers.find(b => b.id === id)?.name   || null
 
-  const partnerName = (partnerId) => partners.find(p => p.id === partnerId)?.name || null
-  const buyerName   = (buyerId)   => buyers.find(b => b.id === buyerId)?.name || null
-
-  // ── Non-cane harvest handlers ────────────────────────────────────────────────
+  // ── Non-cane harvest record ───────────────────────────────────────────────────
   const openRecord = (cycle) => {
     setSelected(cycle)
-    setForm({ date: new Date().toISOString().slice(0, 10), qtyPerAcre: '', quality: 'A', buyer: '', rate: '' })
+    setForm({ date: new Date().toISOString().slice(0, 10), qtyPerAcre: '', quality: 'A', notes: '' })
     setModal('record')
   }
 
@@ -83,9 +110,15 @@ export default function Harvest() {
     if (!form.qtyPerAcre || !selected || saving) return
     setSaving(true)
     try {
-      const crop     = cropMaster.find(c => c.id === selected.cropId)
-      const totalQtl = (parseFloat(form.qtyPerAcre) * selected.acres).toFixed(1)
-      const revenue  = form.rate ? (parseFloat(totalQtl) * parseFloat(form.rate)).toFixed(0) : 0
+      const crop    = cropMaster.find(c => c.id === selected.cropId)
+      const qtyQtl  = parseFloat((parseFloat(form.qtyPerAcre) * selected.acres).toFixed(1))
+
+      await addHarvestSession(selected.id, {
+        date:    form.date,
+        qtyQtl,
+        quality: form.quality,
+        notes:   form.notes || null,
+      })
 
       if (crop?.ratoonCropId) {
         const ratoonCrop = cropMaster.find(c => c.id === crop.ratoonCropId)
@@ -98,17 +131,15 @@ export default function Harvest() {
         })
       }
 
-      await updateCropCycle(selected.id, {
-        status: 'harvested', actualHarvestDate: form.date,
-        harvestQtl: totalQtl, revenue: parseFloat(revenue),
-        quality: form.quality, buyer: form.buyer,
-      })
+      await updateCropCycle(selected.id, { status: 'harvested', actualHarvestDate: form.date })
 
-      showToast(`Harvest recorded — ${totalQtl} qtl${crop?.ratoonCropId ? ' · Ratoon started' : ''}`)
+      const residualCount = (crop?.residuals || []).length
+      showToast(`Harvest recorded — ${qtyQtl} qtl${residualCount > 0 ? ` · ${residualCount} residual${residualCount !== 1 ? 's' : ''} created` : ''}${crop?.ratoonCropId ? ' · Ratoon started' : ''}`)
       setModal(null)
     } finally { setSaving(false) }
   }
 
+  // ── New cycle ─────────────────────────────────────────────────────────────────
   const openNewCycle = () => {
     setForm({ plotId: '', cropId: '', sowDate: new Date().toISOString().slice(0, 10) })
     setModal('newCycle')
@@ -133,17 +164,83 @@ export default function Harvest() {
     } finally { setSaving(false) }
   }
 
-  // ── Cane supply handlers ─────────────────────────────────────────────────────
+  // ── Record sale (non-cane) ────────────────────────────────────────────────────
+  const openSaleModal = (cycle, session) => {
+    setSaleModal({ cycle, session })
+    setForm({ date: new Date().toISOString().slice(0, 10), buyer: '', buyerId: '', rate: '' })
+  }
+
+  const confirmSale = async () => {
+    if (!saleModal || !form.buyer || !form.rate || saving) return
+    setSaving(true)
+    try {
+      await addCropSale(saleModal.session.id, {
+        date:       form.date,
+        buyerName:  form.buyer,
+        buyerId:    form.buyerId || null,
+        qtyQtl:     saleModal.session.qtyQtl,
+        ratePerQtl: parseFloat(form.rate),
+      })
+      showToast('Sale recorded — awaiting payment')
+      setSaleModal(null)
+    } finally { setSaving(false) }
+  }
+
+  // ── Mark payment (non-cane) ───────────────────────────────────────────────────
+  const openCropPayModal = (cycle, session, sale) => {
+    setCropPayFile(null)
+    setCropPayModal({ cycle, session, sale, date: new Date().toISOString().slice(0, 10), ded: '', dedNote: '' })
+  }
+
+  const confirmCropPayment = async () => {
+    if (!cropPayModal?.sale || !cropPayFile || saving) return
+    setSaving(true)
+    try {
+      const attachmentPath = await uploadFile(cropPayFile, 'payment', cropPayModal.sale.id)
+      await markCropSalePayment(cropPayModal.sale.id, {
+        paymentDate:           cropPayModal.date,
+        deductions:            parseFloat(cropPayModal.ded) || 0,
+        deductionsNote:        cropPayModal.dedNote || null,
+        paymentAttachmentPath: attachmentPath,
+      })
+      showToast('Payment confirmed — harvest complete ✓')
+      setCropPayModal(null)
+    } finally { setSaving(false) }
+  }
+
+  // ── Residual sale ─────────────────────────────────────────────────────────────
+  const openResidualModal = (residual) => {
+    setResidualModal(residual)
+    setForm({
+      date:          new Date().toISOString().slice(0, 10),
+      buyerName:     '',
+      actualRate:    residual.expectedRate ? String(residual.expectedRate) : '',
+      paymentStatus: 'pending',
+    })
+  }
+
+  const confirmResidualSale = async () => {
+    if (!residualModal || !form.actualRate || saving) return
+    setSaving(true)
+    try {
+      await recordResidualSale(residualModal.id, {
+        actualRate:    parseFloat(form.actualRate),
+        buyerName:     form.buyerName || null,
+        saleDate:      form.date,
+        paymentStatus: form.paymentStatus,
+        notes:         null,
+      })
+      showToast('Residual sale recorded')
+      setResidualModal(null)
+    } finally { setSaving(false) }
+  }
+
+  // ── Cane supply handlers (unchanged) ─────────────────────────────────────────
   const openSupplyModal = (cycle) => {
     const crop = cropMaster.find(c => c.id === cycle.cropId)
     setSupplyModal(cycle)
     setParchiFile(null)
-    setForm({
-      date: new Date().toISOString().slice(0, 10),
-      parchiNumber: '', qtyQtl: '',
-      sap: String(crop?.pricePerQtl || ''),
-      notes: '', partnerId: '', buyerId: '',
-    })
+    setForm({ date: new Date().toISOString().slice(0, 10), parchiNumber: '', qtyQtl: '', sap: String(crop?.pricePerQtl || ''), notes: '', partnerId: '', buyerId: '' })
   }
 
   const confirmAddSupply = async () => {
@@ -151,15 +248,12 @@ export default function Harvest() {
     setSaving(true)
     try {
       let parchiAttachmentPath = null
-      if (parchiFile) {
-        parchiAttachmentPath = await uploadFile(parchiFile, 'parchi', supplyModal.id)
-      }
+      if (parchiFile) parchiAttachmentPath = await uploadFile(parchiFile, 'parchi', supplyModal.id)
       await addCaneSupply(supplyModal.id, {
         date: form.date, qtyQtl: parseFloat(form.qtyQtl),
         parchiNumber: form.parchiNumber || null, notes: form.notes || null,
         sap: parseFloat(form.sap) || 0,
-        partnerId: form.partnerId, buyerId: form.buyerId,
-        parchiAttachmentPath,
+        partnerId: form.partnerId, buyerId: form.buyerId, parchiAttachmentPath,
       })
       showToast(`Supply logged — ${form.qtyQtl} qtl`)
       setSupplyModal(null)
@@ -176,47 +270,27 @@ export default function Harvest() {
     setSaving(true)
     try {
       let paymentAttachmentPath = null
-      if (payFile) {
-        paymentAttachmentPath = await uploadFile(payFile, 'payment', payModal.sale.id)
-      }
-      await markCanePayment(payModal.sale.id, {
-        paymentDate: payModal.date,
-        deductions: parseFloat(payModal.ded) || 0,
-        deductionsNote: payModal.dedNote || null,
-        paymentAttachmentPath,
-      })
+      if (payFile) paymentAttachmentPath = await uploadFile(payFile, 'payment', payModal.sale.id)
+      await markCanePayment(payModal.sale.id, { paymentDate: payModal.date, deductions: parseFloat(payModal.ded) || 0, deductionsNote: payModal.dedNote || null, paymentAttachmentPath })
       showToast('Payment recorded')
       setPayModal(null)
     } finally { setSaving(false) }
   }
 
-  const openMillModal = (cycle) => {
-    setMillModal(cycle)
-    setMillForm({ millName: cycle.millName || '', growerCode: cycle.growerCode || '' })
-  }
-
-  const confirmMillInfo = async () => {
+  const openMillModal    = (cycle) => { setMillModal(cycle); setMillForm({ millName: cycle.millName || '', growerCode: cycle.growerCode || '' }) }
+  const confirmMillInfo  = async () => {
     if (!millModal || saving) return
     setSaving(true)
-    try {
-      await updateCaneMillInfo(millModal.id, { millName: millForm.millName, growerCode: millForm.growerCode })
-      showToast('Mill info saved')
-      setMillModal(null)
-    } finally { setSaving(false) }
+    try { await updateCaneMillInfo(millModal.id, { millName: millForm.millName, growerCode: millForm.growerCode }); showToast('Mill info saved'); setMillModal(null) }
+    finally { setSaving(false) }
   }
 
-  const openCloseModal = (cycle) => {
-    setCloseModal(cycle)
-    setCloseInput('')
-    setCloseError(null)
-  }
-
-  const confirmClose = async () => {
+  const openCloseModal = (cycle) => { setCloseModal(cycle); setCloseInput(''); setCloseError(null) }
+  const confirmClose   = async () => {
     if (!closeModal || saving) return
     const nos = closeInput.split(',').map(n => n.trim()).filter(Boolean)
     if (!nos.length) { setCloseError('Enter at least one parchi number'); return }
-    setSaving(true)
-    setCloseError(null)
+    setSaving(true); setCloseError(null)
     try {
       const result = await closeCaneHarvest(closeModal.id, nos)
       if (!result.ok) {
@@ -224,22 +298,47 @@ export default function Harvest() {
         if (result.missing?.length) parts.push(`Logged but not entered: ${result.missing.join(', ')}`)
         if (result.extra?.length)   parts.push(`Entered but not logged: ${result.extra.join(', ')}`)
         setCloseError(parts.join(' | '))
-      } else {
-        showToast('Harvest closed — plot is now empty')
-        setCloseModal(null)
-      }
+      } else { showToast('Harvest closed — plot is now empty'); setCloseModal(null) }
     } finally { setSaving(false) }
   }
 
   const selectedPlotForNew = plots.find(p => p.id === form.plotId)
   const newPlotHasActive   = form.plotId ? cropCycles.some(c => c.plotId === form.plotId && c.status === 'active') : false
 
+  // ── Render helpers ────────────────────────────────────────────────────────────
+  const ResidualRow = ({ r }) => (
+    <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-[var(--c-ghost)] rounded-xl">
+      <div>
+        <p className="text-xs font-medium text-[var(--c-text)]">{r.productName}</p>
+        <p className="text-[10px] text-[var(--c-faint)]">
+          {r.quantity.toFixed(1)} {r.unit}
+          {r.expectedRate > 0 && ` · Est. ₹${r.expectedRate}/${r.unit}`}
+        </p>
+      </div>
+      {r.status === 'open' ? (
+        <button onClick={() => openResidualModal(r)}
+          className="text-[10px] px-2.5 py-1 rounded-lg bg-[#1D9E75]/15 text-[#1D9E75] font-semibold border border-[#1D9E75]/30">
+          Sell
+        </button>
+      ) : (
+        <div className="text-right">
+          <p className="text-[10px] font-semibold text-[#1D9E75]">₹{r.actualRevenue?.toLocaleString('en-IN')}</p>
+          <p className="text-[9px] text-[var(--c-faint)]">{r.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}</p>
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className="h-full flex flex-col bg-[var(--c-bg)]">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="shrink-0 px-4 pt-4 pb-2 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-[var(--c-text)]">Harvest</h2>
-          <p className="text-xs text-[var(--c-muted)]">{active.length} active crop cycle{active.length !== 1 ? 's' : ''}</p>
+          <p className="text-xs text-[var(--c-muted)]">
+            {active.length} active{openSales.length > 0 ? ` · ${openSales.length} open sale${openSales.length !== 1 ? 's' : ''}` : ''}
+          </p>
         </div>
         <button onClick={openNewCycle} className="flex items-center gap-1.5 px-3 py-2 bg-[#1D9E75]/20 border border-[#1D9E75]/40 rounded-xl text-xs text-[#1D9E75] font-semibold">
           <Plus size={13}/> New Cycle
@@ -247,22 +346,21 @@ export default function Harvest() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
-        {active.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-8">No active crop cycles.</p>}
+        {active.length === 0 && openSales.length === 0 && pastHarvests.length === 0 && (
+          <p className="text-center text-[var(--c-faint)] text-sm py-8">No crop cycles yet.</p>
+        )}
 
+        {/* ── Active crop cycles ─────────────────────────────────────────────── */}
         {active.map(cycle => {
           if (isCane(cycle)) {
             const crop     = cropMaster.find(c => c.id === cycle.cropId)
             const supplies = cycleSupplies(cycle.id)
             const supSales = supplies.map(s => sessionSale(s.id)).filter(Boolean)
-
             const totalQtl   = supplies.reduce((n, s) => n + s.qtyQtl, 0)
             const totalGross = supSales.reduce((n, s) => n + s.grossAmount, 0)
             const totalPaid  = supSales.filter(s => s.paymentStatus === 'paid').reduce((n, s) => n + s.netAmount, 0)
             const arrears    = supSales.filter(s => s.paymentStatus !== 'paid').reduce((n, s) => n + s.grossAmount, 0)
-
-            const varietyLabel = crop?.varietyCategory === 'early' ? 'Early Maturing'
-              : crop?.varietyCategory === 'common' ? 'Common Variety'
-              : crop?.varietyCategory === 'late'   ? 'Late Maturing' : null
+            const varietyLabel = crop?.varietyCategory === 'early' ? 'Early Maturing' : crop?.varietyCategory === 'common' ? 'Common Variety' : crop?.varietyCategory === 'late' ? 'Late Maturing' : null
 
             return (
               <div key={cycle.id} className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4">
@@ -275,24 +373,13 @@ export default function Harvest() {
                     </div>
                     <p className="text-xs text-[var(--c-muted)] mt-0.5">{cycle.plotLabel} · {cycle.acres} ac · Sown {cycle.sowDate}</p>
                   </div>
-                  <button onClick={() => openMillModal(cycle)} className="text-[var(--c-faint)] hover:text-[var(--c-muted)] p-1">
-                    <Pencil size={13}/>
-                  </button>
+                  <button onClick={() => openMillModal(cycle)} className="text-[var(--c-faint)] hover:text-[var(--c-muted)] p-1"><Pencil size={13}/></button>
                 </div>
-
                 <div className="flex items-center gap-2 mb-3 text-xs text-[var(--c-faint)]">
                   <Building2 size={12} className="shrink-0"/>
-                  {cycle.millName
-                    ? <span>{cycle.millName}{cycle.growerCode ? ` · Code: ${cycle.growerCode}` : ''}</span>
-                    : <span className="italic">Mill not set — tap pencil to add</span>
-                  }
-                  {crop?.pricePerQtl > 0 && (
-                    <span className="ml-auto text-[#1D9E75] font-semibold whitespace-nowrap">
-                      SAP ₹{crop.pricePerQtl}/qtl{varietyLabel ? ` (${varietyLabel})` : ''}
-                    </span>
-                  )}
+                  {cycle.millName ? <span>{cycle.millName}{cycle.growerCode ? ` · Code: ${cycle.growerCode}` : ''}</span> : <span className="italic">Mill not set — tap pencil to add</span>}
+                  {crop?.pricePerQtl > 0 && <span className="ml-auto text-[#1D9E75] font-semibold whitespace-nowrap">SAP ₹{crop.pricePerQtl}/qtl{varietyLabel ? ` (${varietyLabel})` : ''}</span>}
                 </div>
-
                 {supplies.length > 0 ? (
                   <div className="mb-3 rounded-xl overflow-hidden border border-[var(--c-border)]">
                     <div className="grid grid-cols-4 px-2 py-1 bg-[var(--c-ghost)] text-[10px] text-[var(--c-faint)] font-semibold uppercase tracking-wide">
@@ -319,10 +406,7 @@ export default function Harvest() {
                       )
                     })}
                   </div>
-                ) : (
-                  <p className="text-xs text-[var(--c-faint)] italic mb-3">No supplies logged yet.</p>
-                )}
-
+                ) : <p className="text-xs text-[var(--c-faint)] italic mb-3">No supplies logged yet.</p>}
                 {supplies.length > 0 && (
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
@@ -337,15 +421,12 @@ export default function Harvest() {
                     </div>
                   </div>
                 )}
-
                 <div className="space-y-2">
-                  <button onClick={() => openSupplyModal(cycle)}
-                    className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40">
+                  <button onClick={() => openSupplyModal(cycle)} className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40">
                     <Plus size={11} className="inline mr-1"/>Log Supply (Parchi)
                   </button>
                   {supplies.length > 0 && (
-                    <button onClick={() => openCloseModal(cycle)}
-                      className="w-full py-2.5 text-xs font-bold rounded-xl border border-[#BA7517]/40 text-[#BA7517]">
+                    <button onClick={() => openCloseModal(cycle)} className="w-full py-2.5 text-xs font-bold rounded-xl border border-[#BA7517]/40 text-[#BA7517]">
                       Close Harvest — Verify &amp; Lock
                     </button>
                   )}
@@ -354,7 +435,7 @@ export default function Harvest() {
             )
           }
 
-          // ── Non-cane: harvest countdown ──────────────────────────────────────
+          // ── Non-cane: harvest countdown ────────────────────────────────────
           const crop         = cropMaster.find(c => c.id === cycle.cropId)
           const daysSown     = daysAgo(cycle.sowDate)
           const totalDays    = crop?.duration_days || 120
@@ -379,73 +460,184 @@ export default function Harvest() {
                   <p className="text-[10px] text-[var(--c-faint)] mt-0.5">Sown {cycle.sowDate}</p>
                 </div>
                 <div className="text-right">
-                  {isReady ? (
-                    <p className="text-lg font-bold text-[#1D9E75]">Harvest!</p>
-                  ) : (
-                    <>
-                      <p className="text-2xl font-bold text-[var(--c-text)]">{daysToWindow}</p>
-                      <p className="text-[10px] text-[var(--c-muted)]">days to harvest</p>
-                    </>
+                  {isReady ? <p className="text-lg font-bold text-[#1D9E75]">Harvest!</p> : (
+                    <><p className="text-2xl font-bold text-[var(--c-text)]">{daysToWindow}</p><p className="text-[10px] text-[var(--c-muted)]">days to harvest</p></>
                   )}
                   <p className="text-[10px] text-[var(--c-faint)] mt-1">Day {daysSown}</p>
                 </div>
               </div>
-
               <div className="mb-3">
-                <div className="flex justify-between text-[10px] text-[var(--c-faint)] mb-1">
-                  <span>Progress</span><span>{pct}%</span>
-                </div>
+                <div className="flex justify-between text-[10px] text-[var(--c-faint)] mb-1"><span>Progress</span><span>{pct}%</span></div>
                 <div className="h-1.5 bg-[var(--c-ghost)] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all"
-                    style={{ width: `${pct}%`, background: isReady ? '#1D9E75' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isReady ? '#1D9E75' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
                 </div>
               </div>
-
               {crop?.yieldPerAcre > 0 && (
                 <p className="text-[10px] text-[var(--c-faint)] mb-3">
                   Est. yield: ~{Math.round(crop.yieldPerAcre * cycle.acres)} qtl
                   {crop.pricePerQtl > 0 && ` · ₹${Math.round(crop.yieldPerAcre * cycle.acres * crop.pricePerQtl / 1000)}k est. revenue`}
                 </p>
               )}
-
               <button onClick={() => isReady && openRecord(cycle)} disabled={!isReady}
                 className={`w-full py-2.5 text-xs font-bold rounded-xl border transition-colors ${
-                  isReady
-                    ? 'bg-[#1D9E75] text-white border-transparent cursor-pointer'
-                    : 'bg-[var(--c-card)] text-[var(--c-sub)] border-[var(--c-border-md)] opacity-60 cursor-not-allowed'
+                  isReady ? 'bg-[#1D9E75] text-white border-transparent cursor-pointer' : 'bg-[var(--c-card)] text-[var(--c-sub)] border-[var(--c-border-md)] opacity-60 cursor-not-allowed'
                 }`}>
-                {isReady
-                  ? `Record Harvest${crop?.ratoonCropId ? ' · Ratoon auto-starts' : ''}`
-                  : `Harvest window opens in ${daysToWindow} day${daysToWindow !== 1 ? 's' : ''}`}
+                {isReady ? `Record Harvest${crop?.ratoonCropId ? ' · Ratoon auto-starts' : ''}` : `Harvest window opens in ${daysToWindow} day${daysToWindow !== 1 ? 's' : ''}`}
               </button>
             </div>
           )
         })}
 
-        {harvested.length > 0 && (
+        {/* ── Open Sales (harvested, payment not received) ───────────────────── */}
+        {openSales.length > 0 && (
           <>
-            <div className="pt-2 pb-1"><p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">Past Harvests</p></div>
-            {harvested.map(h => (
-              <div key={h.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 opacity-70">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[var(--c-text)]">
-                      {cropMaster.find(c => c.id === h.cropId)?.name || h.cropId} — {h.plotLabel}
-                    </p>
-                    <p className="text-xs text-[var(--c-muted)]">{h.actualHarvestDate} · {h.acres} acres</p>
+            <div className="pt-3 pb-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#BA7517]"/>
+              <p className="text-xs font-semibold text-[#BA7517] uppercase tracking-wide">
+                Open Sales — {openSales.length} pending
+              </p>
+            </div>
+
+            {openSales.map(cycle => {
+              const crop      = cropMaster.find(c => c.id === cycle.cropId)
+              const session   = getSession(cycle.id)
+              const sale      = getSale(session?.id)
+              const residuals = getCycleResids(cycle.id)
+
+              return (
+                <div key={cycle.id} className="bg-[var(--c-nav)] rounded-2xl border border-[#BA7517]/35 p-4">
+
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{crop?.emoji || '🌾'}</span>
+                        <p className="text-sm font-bold text-[var(--c-text)]">{crop?.name || cycle.cropId}</p>
+                        {cycle.parentCycleId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/50">Ratoon</span>}
+                      </div>
+                      <p className="text-xs text-[var(--c-muted)] mt-0.5">{cycle.plotLabel} · {cycle.acres} acres</p>
+                    </div>
+                    {!sale ? (
+                      <span className="text-[10px] px-2 py-1 rounded-full bg-[#BA7517]/20 text-[#BA7517] font-semibold">Sale Pending</span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-1 rounded-full bg-[#E24B4A]/15 text-[#E24B4A] font-semibold">Unpaid</span>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-[#1D9E75]">{h.harvestQtl} qtl</p>
-                    {h.revenue > 0 && <p className="text-[10px] text-[var(--c-muted)]">₹{parseFloat(h.revenue).toLocaleString()}</p>}
-                  </div>
+
+                  {/* Harvest summary */}
+                  {session ? (
+                    <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-[10px] text-[var(--c-faint)]">Harvested {session.date}</p>
+                        <p className="text-base font-bold text-[var(--c-text)]">{session.qtyQtl.toFixed(1)} qtl</p>
+                      </div>
+                      {session.quality && (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {session.quality}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--c-faint)] italic mb-3">Harvest session not found.</p>
+                  )}
+
+                  {/* Sale action */}
+                  {session && !sale && (
+                    <button onClick={() => openSaleModal(cycle, session)}
+                      className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40 mb-3">
+                      <Plus size={11} className="inline mr-1"/>Record Sale
+                    </button>
+                  )}
+
+                  {sale && (
+                    <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <p className="text-xs font-semibold text-[var(--c-text)]">{sale.buyerName || 'Buyer'}</p>
+                          <p className="text-[10px] text-[var(--c-faint)]">₹{sale.ratePerQtl}/qtl · {sale.date}</p>
+                        </div>
+                        <p className="text-sm font-bold text-[var(--c-text)]">₹{sale.grossAmount?.toLocaleString('en-IN')}</p>
+                      </div>
+                      <button onClick={() => openCropPayModal(cycle, session, sale)}
+                        className="w-full py-2 text-xs font-bold rounded-lg bg-[#E24B4A]/10 border border-[#E24B4A]/35 text-[#E24B4A]">
+                        Mark Payment & Upload Receipt →
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Residuals */}
+                  {residuals.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-[var(--c-faint)] uppercase tracking-wide mb-1">Residuals</p>
+                      {residuals.map(r => <ResidualRow key={r.id} r={r}/>)}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
+          </>
+        )}
+
+        {/* ── Past Harvests (crop sale paid) ─────────────────────────────────── */}
+        {pastHarvests.length > 0 && (
+          <>
+            <div className="pt-2 pb-1">
+              <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">Past Harvests</p>
+            </div>
+            {pastHarvests.map(h => {
+              const crop      = cropMaster.find(c => c.id === h.cropId)
+              const session   = getSession(h.id)
+              const sale      = getSale(session?.id)
+              const residuals = getCycleResids(h.id)
+              const openRes   = residuals.filter(r => r.status === 'open')
+
+              return (
+                <div key={h.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
+                  <div className="flex items-start justify-between mb-1">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{crop?.emoji || '🌾'}</span>
+                        <p className="text-sm font-semibold text-[var(--c-text)]">{crop?.name || h.cropId} — {h.plotLabel}</p>
+                      </div>
+                      <p className="text-xs text-[var(--c-muted)]">{session?.date || h.actualHarvestDate} · {h.acres} acres</p>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] font-semibold">✓ Paid</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs mt-2">
+                    <span className="text-[var(--c-muted)]">
+                      {session?.qtyQtl?.toFixed(1)} qtl{session?.quality ? ` · Grade ${session.quality}` : ''}
+                    </span>
+                    <span className="font-bold text-[#1D9E75]">₹{sale?.netAmount?.toLocaleString('en-IN')}</span>
+                  </div>
+                  {sale?.buyerName && (
+                    <p className="text-[10px] text-[var(--c-faint)] mt-0.5">
+                      {sale.buyerName} · ₹{sale.ratePerQtl}/qtl · Paid {sale.paymentDate}
+                      {sale.deductions > 0 && ` (–₹${sale.deductions.toLocaleString('en-IN')} deductions)`}
+                    </p>
+                  )}
+                  {sale?.paymentAttachmentPath && (
+                    <a href={attachmentUrl(sale.paymentAttachmentPath)} target="_blank" rel="noreferrer"
+                      className="text-[10px] text-[#1D9E75] underline mt-0.5 block">🧾 View Receipt</a>
+                  )}
+
+                  {/* Residuals (still actionable if open) */}
+                  {residuals.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-[var(--c-border)] space-y-1.5">
+                      <p className="text-[10px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">
+                        Residuals{openRes.length > 0 && <span className="ml-1 text-[#BA7517]">· {openRes.length} unsold</span>}
+                      </p>
+                      {residuals.map(r => <ResidualRow key={r.id} r={r}/>)}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </>
         )}
       </div>
 
-      {/* Record Harvest Modal (non-cane) */}
+      {/* ════════════ MODALS ════════════ */}
+
+      {/* Record Harvest Modal */}
       {modal === 'record' && selected && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setModal(null)}>
           <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
@@ -458,9 +650,19 @@ export default function Harvest() {
               return crop?.ratoonCropId ? (
                 <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2">
                   <span className="text-sm">🌱</span>
-                  <p className="text-xs text-[#1D9E75] leading-relaxed">
-                    After recording, <strong>{cropMaster.find(c => c.id === crop.ratoonCropId)?.name}</strong> will auto-start on this plot.
-                  </p>
+                  <p className="text-xs text-[#1D9E75] leading-relaxed">After recording, <strong>{cropMaster.find(c => c.id === crop.ratoonCropId)?.name}</strong> will auto-start on this plot.</p>
+                </div>
+              ) : null
+            })()}
+            {(() => {
+              const crop = cropMaster.find(c => c.id === selected.cropId)
+              const residualDefs = crop?.residuals || []
+              return residualDefs.length > 0 ? (
+                <div className="bg-[var(--c-ghost)] border border-[var(--c-border)] rounded-xl px-3 py-2 mb-4">
+                  <p className="text-[10px] text-[var(--c-faint)] font-semibold uppercase tracking-wide mb-1">Auto-creates residuals</p>
+                  {residualDefs.map((r, i) => (
+                    <p key={i} className="text-xs text-[var(--c-muted)]">· {r.name} — {(parseFloat(r.qty_per_acre) * selected.acres).toFixed(1)} {r.unit || 'qtl'}</p>
+                  ))}
                 </div>
               ) : null
             })()}
@@ -479,10 +681,9 @@ export default function Harvest() {
                 <select value={form.quality} onChange={e => f('quality', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
                   {['A', 'B', 'C'].map(g => <option key={g} value={g} style={{ background: '#1a2030' }}>Grade {g}</option>)}
                 </select></div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Buyer (optional)</label>
-                <input placeholder="Buyer name" value={form.buyer} onChange={e => f('buyer', e.target.value)} className="finput"/></div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale rate ₹/qtl (optional)</label>
-                <input type="number" placeholder="e.g. 2200" value={form.rate} onChange={e => f('rate', e.target.value)} className="finput"/></div>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
+                <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
+              <p className="text-[10px] text-[var(--c-faint)] text-center">Sale details (buyer, rate, payment) recorded in next step →</p>
               <button onClick={confirmRecord} disabled={saving || !form.qtyPerAcre}
                 className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Confirm Harvest'}
@@ -508,8 +709,7 @@ export default function Harvest() {
                     const hasActive = cropCycles.some(c => c.plotId === p.id && c.status === 'active')
                     return <option key={p.id} value={p.id} style={{ background: '#1a2030' }}>{p.name} ({Number(p.area_acres).toFixed(1)} ac){hasActive ? ' · +Mixed' : ''}</option>
                   })}
-                </select>
-              </div>
+                </select></div>
               {newPlotHasActive && (
                 <div className="bg-[#BA7517]/10 border border-[#BA7517]/30 rounded-xl px-3 py-2.5 flex items-start gap-2">
                   <AlertTriangle size={14} className="text-[#BA7517] shrink-0 mt-0.5"/>
@@ -522,8 +722,7 @@ export default function Harvest() {
                   {cropMaster.map(c => (
                     <option key={c.id} value={c.id} style={{ background: '#1a2030' }}>{c.emoji} {c.name} ({c.duration_days}d · window ±{c.harvest_window_days}d)</option>
                   ))}
-                </select>
-              </div>
+                </select></div>
               {form.plotId && selectedPlotForNew && (
                 <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
                   <p className="text-[10px] text-[var(--c-faint)]">Plot size</p>
@@ -540,7 +739,7 @@ export default function Harvest() {
                 return (
                   <div className="bg-[#1D9E75]/8 border border-[#1D9E75]/15 rounded-xl px-3 py-2">
                     <p className="text-[10px] text-[var(--c-faint)]">Harvest window opens</p>
-                    <p className="text-sm font-semibold text-[#1D9E75]">{windowOpen.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</p>
+                    <p className="text-sm font-semibold text-[#1D9E75]">{windowOpen.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     <p className="text-[10px] text-[var(--c-faint)]">±{crop.harvest_window_days} days from {crop.duration_days}d growing period</p>
                   </div>
                 )
@@ -554,7 +753,159 @@ export default function Harvest() {
         </div>
       )}
 
-      {/* Add Supply Modal */}
+      {/* Record Sale Modal */}
+      {saleModal && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setSaleModal(null)}>
+          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--c-text)]">Record Sale — {saleModal.cycle.plotLabel}</h3>
+              <button onClick={() => !saving && setSaleModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
+            </div>
+            <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] text-[var(--c-faint)]">Harvest qty to sell</p>
+                <p className="text-base font-bold text-[var(--c-text)]">{saleModal.session.qtyQtl.toFixed(1)} qtl</p>
+              </div>
+              {saleModal.session.quality && (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {saleModal.session.quality}</span>
+              )}
+            </div>
+            <div className="space-y-3">
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale date</label>
+                <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Buyer name <span className="text-[#E24B4A]">*</span></label>
+                <input placeholder="e.g. Ramesh Trader" value={form.buyer} onChange={e => f('buyer', e.target.value)} className="finput"/></div>
+              {buyers.length > 0 && (
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Or select from buyer list</label>
+                  <select value={form.buyerId} onChange={e => {
+                    const b = buyers.find(b => b.id === e.target.value)
+                    f('buyerId', e.target.value)
+                    if (b) f('buyer', b.name)
+                  }} className="finput" style={{ background: 'var(--c-surface)' }}>
+                    <option value="" style={{ background: 'var(--c-surface)' }}>Select buyer…</option>
+                    {buyers.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--c-surface)' }}>{b.name}</option>)}
+                  </select></div>
+              )}
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Rate ₹/qtl <span className="text-[#E24B4A]">*</span></label>
+                <input type="number" placeholder="e.g. 2200" value={form.rate} onChange={e => f('rate', e.target.value)} className="finput"/></div>
+              {form.rate && (
+                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+                  <p className="text-xs text-[var(--c-sub)]">Total amount</p>
+                  <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(saleModal.session.qtyQtl * parseFloat(form.rate)).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              <p className="text-[10px] text-[var(--c-faint)] text-center">Payment receipt uploaded in next step →</p>
+              <button onClick={confirmSale} disabled={saving || !form.buyer || !form.rate}
+                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                {saving ? 'Saving…' : 'Record Sale'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mark Payment Modal (crop) */}
+      {cropPayModal && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setCropPayModal(null)}>
+          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--c-text)]">Mark Payment — {cropPayModal.cycle.plotLabel}</h3>
+              <button onClick={() => !saving && setCropPayModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
+            </div>
+            <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 space-y-1 mb-4">
+              {[
+                ['Buyer',        cropPayModal.sale.buyerName || '—'],
+                ['Quantity',     `${cropPayModal.session.qtyQtl.toFixed(1)} qtl`],
+                ['Rate',         `₹${cropPayModal.sale.ratePerQtl}/qtl`],
+                ['Gross Amount', `₹${cropPayModal.sale.grossAmount?.toLocaleString('en-IN')}`],
+              ].map(([label, val]) => (
+                <div key={label} className="flex justify-between text-xs">
+                  <span className="text-[var(--c-faint)]">{label}</span>
+                  <span className="text-[var(--c-text)] font-medium">{val}</span>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-3">
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
+                <input type="date" value={cropPayModal.date} onChange={e => setCropPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deductions ₹ (commission, freight, etc.)</label>
+                <input type="number" placeholder="0" value={cropPayModal.ded} onChange={e => setCropPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
+              {cropPayModal.ded > 0 && (
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deduction note</label>
+                  <input placeholder="e.g. Commission 2%" value={cropPayModal.dedNote} onChange={e => setCropPayModal(p => ({ ...p, dedNote: e.target.value }))} className="finput"/></div>
+              )}
+              <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
+                <p className="text-xs text-[var(--c-faint)]">Net amount to receive</p>
+                <p className="text-lg font-bold text-[#1D9E75]">
+                  ₹{Math.max(0, (cropPayModal.sale.grossAmount || 0) - (parseFloat(cropPayModal.ded) || 0)).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt <span className="text-[#E24B4A]">*</span></label>
+                <input type="file" accept="image/*,application/pdf"
+                  onChange={e => setCropPayFile(e.target.files[0] || null)}
+                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                {!cropPayFile && <p className="text-[10px] text-[#BA7517] mt-1">Receipt required to confirm payment</p>}
+              </div>
+              <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
+                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Residual Sale Modal */}
+      {residualModal && (
+        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setResidualModal(null)}>
+          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[var(--c-text)]">Sell — {residualModal.productName}</h3>
+              <button onClick={() => !saving && setResidualModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
+            </div>
+            <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2 mb-4 flex items-center justify-between">
+              <p className="text-sm font-bold text-[var(--c-text)]">{residualModal.quantity.toFixed(1)} {residualModal.unit}</p>
+              {residualModal.expectedRate > 0 && <p className="text-[10px] text-[var(--c-faint)]">Est. ₹{residualModal.expectedRate}/{residualModal.unit}</p>}
+            </div>
+            <div className="space-y-3">
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale date</label>
+                <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Buyer name (optional)</label>
+                <input placeholder="e.g. Ramesh" value={form.buyerName} onChange={e => f('buyerName', e.target.value)} className="finput"/></div>
+              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Rate ₹/{residualModal.unit} <span className="text-[#E24B4A]">*</span></label>
+                <input type="number" placeholder={String(residualModal.expectedRate || '')} value={form.actualRate} onChange={e => f('actualRate', e.target.value)} className="finput"/></div>
+              {form.actualRate && (
+                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+                  <p className="text-xs text-[var(--c-sub)]">Total</p>
+                  <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(residualModal.quantity * parseFloat(form.actualRate)).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Payment status</label>
+                <div className="flex gap-2">
+                  {['pending', 'paid'].map(s => (
+                    <button key={s} onClick={() => f('paymentStatus', s)}
+                      className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors ${
+                        form.paymentStatus === s
+                          ? s === 'paid' ? 'bg-[#1D9E75] text-white border-transparent' : 'bg-[#BA7517]/20 text-[#BA7517] border-[#BA7517]/40'
+                          : 'bg-transparent text-[var(--c-muted)] border-[var(--c-border)]'
+                      }`}>
+                      {s === 'paid' ? '✓ Received' : 'Pending'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button onClick={confirmResidualSale} disabled={saving || !form.actualRate}
+                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                {saving ? 'Saving…' : 'Record Residual Sale'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cane: Add Supply Modal */}
       {supplyModal && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setSupplyModal(null)}>
           <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
@@ -593,8 +944,7 @@ export default function Harvest() {
               )}
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Parchi attachment (optional)</label>
-                <input type="file" accept="image/*,application/pdf"
-                  onChange={e => setParchiFile(e.target.files[0] || null)}
+                <input type="file" accept="image/*,application/pdf" onChange={e => setParchiFile(e.target.files[0] || null)}
                   className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
               </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
@@ -608,7 +958,7 @@ export default function Harvest() {
         </div>
       )}
 
-      {/* Payment Modal */}
+      {/* Cane: Payment Modal */}
       {payModal && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setPayModal(null)}>
           <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
@@ -632,47 +982,34 @@ export default function Harvest() {
                   </div>
                 ))}
                 {payModal.supply.parchiAttachmentPath && (
-                  <a href={attachmentUrl(payModal.supply.parchiAttachmentPath)} target="_blank" rel="noreferrer"
-                    className="text-[10px] text-[#1D9E75] underline">📄 View Parchi</a>
+                  <a href={attachmentUrl(payModal.supply.parchiAttachmentPath)} target="_blank" rel="noreferrer" className="text-[10px] text-[#1D9E75] underline">📄 View Parchi</a>
                 )}
               </div>
-
               {payModal.sale?.paymentStatus === 'paid' ? (
                 <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
                   <p className="text-sm font-semibold text-[#1D9E75]">Payment Received</p>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">Date: {payModal.sale.paymentDate}</p>
-                  {payModal.sale.deductions > 0 && (
-                    <p className="text-xs text-[var(--c-muted)] mt-0.5">
-                      Deductions: ₹{payModal.sale.deductions.toLocaleString('en-IN')}
-                      {payModal.sale.deductionsNote && ` (${payModal.sale.deductionsNote})`}
-                    </p>
-                  )}
+                  {payModal.sale.deductions > 0 && <p className="text-xs text-[var(--c-muted)] mt-0.5">Deductions: ₹{payModal.sale.deductions.toLocaleString('en-IN')}{payModal.sale.deductionsNote && ` (${payModal.sale.deductionsNote})`}</p>}
                   <p className="text-sm font-bold text-[#1D9E75] mt-1">Net: ₹{payModal.sale.netAmount?.toLocaleString('en-IN')}</p>
-                  {payModal.sale.paymentAttachmentPath && (
-                    <a href={attachmentUrl(payModal.sale.paymentAttachmentPath)} target="_blank" rel="noreferrer"
-                      className="text-[10px] text-[#1D9E75] underline mt-1 block">🧾 View Receipt</a>
-                  )}
+                  {payModal.sale.paymentAttachmentPath && <a href={attachmentUrl(payModal.sale.paymentAttachmentPath)} target="_blank" rel="noreferrer" className="text-[10px] text-[#1D9E75] underline mt-1 block">🧾 View Receipt</a>}
                 </div>
               ) : (
                 <>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
                     <input type="date" value={payModal.date} onChange={e => setPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
-                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deductions ₹ (society commission, advance etc.)</label>
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deductions ₹</label>
                     <input type="number" placeholder="0" value={payModal.ded} onChange={e => setPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deduction note (optional)</label>
                     <input placeholder="e.g. Society commission 1%" value={payModal.dedNote} onChange={e => setPayModal(p => ({ ...p, dedNote: e.target.value }))} className="finput"/></div>
                   {payModal.sale && (
                     <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
                       <p className="text-xs text-[var(--c-faint)]">Net amount to receive</p>
-                      <p className="text-lg font-bold text-[#1D9E75]">
-                        ₹{Math.max(0, (payModal.sale.grossAmount || 0) - (parseFloat(payModal.ded) || 0)).toLocaleString('en-IN')}
-                      </p>
+                      <p className="text-lg font-bold text-[#1D9E75]">₹{Math.max(0, (payModal.sale.grossAmount || 0) - (parseFloat(payModal.ded) || 0)).toLocaleString('en-IN')}</p>
                     </div>
                   )}
                   <div>
                     <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt (optional)</label>
-                    <input type="file" accept="image/*,application/pdf"
-                      onChange={e => setPayFile(e.target.files[0] || null)}
+                    <input type="file" accept="image/*,application/pdf" onChange={e => setPayFile(e.target.files[0] || null)}
                       className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
                   </div>
                   <button onClick={confirmPayment} disabled={saving}
@@ -686,7 +1023,7 @@ export default function Harvest() {
         </div>
       )}
 
-      {/* Mill Info Modal */}
+      {/* Cane: Mill Info Modal */}
       {millModal && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setMillModal(null)}>
           <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
@@ -708,7 +1045,7 @@ export default function Harvest() {
         </div>
       )}
 
-      {/* Close Harvest Modal */}
+      {/* Cane: Close Harvest Modal */}
       {closeModal && (
         <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setCloseModal(null)}>
           <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
@@ -719,15 +1056,12 @@ export default function Harvest() {
             <div className="space-y-3">
               <div className="bg-[#BA7517]/10 border border-[#BA7517]/30 rounded-xl px-3 py-2.5">
                 <p className="text-xs text-[#BA7517] font-semibold mb-1">Parchi numbers logged:</p>
-                <p className="text-xs text-[var(--c-text)]">
-                  {cycleSupplies(closeModal.id).map(s => s.parchiNumber).filter(Boolean).join(', ') || '(none with parchi numbers)'}
-                </p>
+                <p className="text-xs text-[var(--c-text)]">{cycleSupplies(closeModal.id).map(s => s.parchiNumber).filter(Boolean).join(', ') || '(none with parchi numbers)'}</p>
               </div>
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Enter all parchi numbers (comma separated)</label>
                 <textarea className="finput" rows={3} placeholder="P-001, P-002, P-003"
-                  value={closeInput} onChange={e => setCloseInput(e.target.value)}
-                  style={{ resize: 'vertical' }}/>
+                  value={closeInput} onChange={e => setCloseInput(e.target.value)} style={{ resize: 'vertical' }}/>
               </div>
               {closeError && (
                 <div className="bg-[#E24B4A]/10 border border-[#E24B4A]/30 rounded-xl px-3 py-2.5 flex items-start gap-2">
@@ -737,11 +1071,9 @@ export default function Harvest() {
               )}
               <button onClick={confirmClose} disabled={saving || !closeInput.trim()}
                 className="w-full py-3 bg-[#BA7517] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                {saving ? 'Verifying…' : 'Verify &amp; Close Harvest'}
+                {saving ? 'Verifying…' : 'Verify & Close Harvest'}
               </button>
-              <p className="text-[10px] text-[var(--c-faint)] text-center">
-                After closing, no more supplies can be logged for this plot.
-              </p>
+              <p className="text-[10px] text-[var(--c-faint)] text-center">After closing, no more supplies can be logged for this plot.</p>
             </div>
           </div>
         </div>

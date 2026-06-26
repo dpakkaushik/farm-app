@@ -47,27 +47,29 @@ function mapResidual(r) {
 
 function mapCycle(c) {
   return {
-    id:            c.id,
-    plotId:        c.plot_id,
-    plotLabel:     c.plots?.name || '',
-    cropId:        c.crop_id,
-    sowDate:       c.sow_date,
-    harvestDate:   c.expected_harvest_end || null,
-    status:        c.status,
-    acres:         Number(c.plots?.area_acres) || 0,
-    season:        c.season,
-    parentCycleId: c.parent_cycle_id || null,
-    millName:      c.mill_name   || null,
-    growerCode:    c.grower_code || null,
+    id:                c.id,
+    plotId:            c.plot_id,
+    plotLabel:         c.plots?.name || '',
+    cropId:            c.crop_id,
+    sowDate:           c.sow_date,
+    harvestDate:       c.expected_harvest_end || null,
+    actualHarvestDate: c.actual_harvest_end   || null,
+    status:            c.status,
+    acres:             Number(c.plots?.area_acres) || 0,
+    season:            c.season,
+    parentCycleId:     c.parent_cycle_id || null,
+    millName:          c.mill_name   || null,
+    growerCode:        c.grower_code || null,
   }
 }
 
 function mapSession(s) {
   return {
     id:                   s.id,
-    cycleId:              s.crop_cycle_id,
+    cycleId:              s.cycle_id,
     date:                 s.harvest_date,
     qtyQtl:               Number(s.quantity_kg) / 100,
+    quality:              s.quality_grade || null,
     parchiNumber:         s.parchi_number || null,
     notes:                s.notes || null,
     partnerId:            s.partner_id || null,
@@ -609,12 +611,12 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Harvest sessions (non-cane crops) ──────────────────────────────────────
-  addHarvestSession: async (cycleId, { date, qtyQtl, notes }) => {
+  addHarvestSession: async (cycleId, { date, qtyQtl, quality, notes }) => {
     const { cropMaster, cropCycles } = get()
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
     const { data: session, error } = await supabase
       .from('harvest_sessions')
-      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, notes: notes || null })
+      .insert({ cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null })
       .select().single()
     if (error) throw error
 
@@ -1494,7 +1496,7 @@ const useAppStore = create((set, get) => ({
     const gross  = Math.round(parseFloat(qtyQtl) * parseFloat(sap))
     const { data: session, error: e1 } = await supabase
       .from('harvest_sessions')
-      .insert({ crop_cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
+      .insert({ cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
       .select().single()
     if (e1) throw e1
     const { data: sale, error: e2 } = await supabase
@@ -1532,6 +1534,63 @@ const useAppStore = create((set, get) => ({
     const today = new Date().toISOString().slice(0, 10)
     await updateCropCycle(cycleId, { status: 'harvested', actualHarvestDate: today })
     return { ok: true }
+  },
+
+  // ── Non-cane crop sale & payment ────────────────────────────────────────────
+  addCropSale: async (sessionId, { date, buyerName, buyerId, qtyQtl, ratePerQtl }) => {
+    const gross = Math.round(parseFloat(qtyQtl) * parseFloat(ratePerQtl))
+    const { data: sale, error } = await supabase.from('sales').insert({
+      harvest_id:     sessionId,
+      sale_date:      date,
+      buyer_name:     buyerName || null,
+      buyer_id:       buyerId   || null,
+      quantity_sold:  parseFloat(qtyQtl),
+      rate_per_unit:  parseFloat(ratePerQtl),
+      total_revenue:  gross,
+      payment_status: 'pending',
+    }).select().single()
+    if (error) throw error
+    set(s => ({ sales: [...s.sales, mapSale(sale)] }))
+    return mapSale(sale)
+  },
+
+  markCropSalePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
+    const { sales: allSales } = get()
+    const sale = allSales.find(s => s.id === saleId)
+    const ded       = parseFloat(deductions) || 0
+    const netAmount = Math.max(0, (sale?.grossAmount || 0) - ded)
+
+    const { error } = await supabase.from('sales').update({
+      payment_status:          'paid',
+      payment_date:             paymentDate,
+      deductions:               ded,
+      deductions_note:          deductionsNote || null,
+      payment_attachment_path:  paymentAttachmentPath || null,
+    }).eq('id', saleId)
+    if (error) throw error
+
+    // Record in cash book as income
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase.from('owner_cash_entries').insert({
+      entry_date:  paymentDate,
+      amount:      netAmount,
+      direction:   'in',
+      entry_type:  'crop_sale',
+      notes:       `Crop sale — ${sale?.buyerName || 'Buyer'}`,
+      created_by:  user?.id || null,
+    })
+
+    set(s => ({
+      sales: s.sales.map(sl => sl.id !== saleId ? sl : {
+        ...sl,
+        paymentStatus:         'paid',
+        paymentDate,
+        deductions:            ded,
+        deductionsNote:        deductionsNote || null,
+        netAmount,
+        paymentAttachmentPath: paymentAttachmentPath || null,
+      }),
+    }))
   },
 
   addBuyer: async ({ name, address, contact, type, buys }) => {
