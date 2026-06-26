@@ -19,7 +19,7 @@ const TABS = [
 export default function Inventory() {
   const {
     inventoryMaster, purchases, issues, plots, cropCycles, cropMaster,
-    machineryMaster, recordBillPurchase, issueItem,
+    machineryMaster, vendors, recordBillPurchase, issueItem,
   } = useAppStore()
 
   const [tab,       setTab]       = useState('items')
@@ -32,7 +32,7 @@ export default function Inventory() {
   const [saving,    setSaving]    = useState(false)
 
   // Bill purchase state
-  const [billMeta, setBillMeta] = useState({ date: TODAY_STR, vendor: '', invoiceNo: '', notes: '' })
+  const [billMeta, setBillMeta] = useState({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
   const [billLines, setBillLines] = useState([{ itemId: '', qty: '', unitPrice: '' }])
   const [billFile,  setBillFile]  = useState(null)
 
@@ -53,7 +53,7 @@ export default function Inventory() {
   }, 0)
 
   const openBillModal = () => {
-    setBillMeta({ date: TODAY_STR, vendor: '', invoiceNo: '', notes: '' })
+    setBillMeta({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
     setBillLines([{ itemId: '', qty: '', unitPrice: '' }])
     setBillFile(null)
     setModal('bill')
@@ -73,7 +73,9 @@ export default function Inventory() {
         if (!upErr) billFileUrl = supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
       }
       await recordBillPurchase({
-        billDate: billMeta.date, vendor: billMeta.vendor.trim(),
+        billDate: billMeta.date,
+        vendorId: (billMeta.vendorId && billMeta.vendorId !== '__other__') ? billMeta.vendorId : null,
+        vendor: billMeta.vendor.trim(),
         invoiceNo: billMeta.invoiceNo.trim(), notes: billMeta.notes.trim(),
         billFileUrl,
         lineItems: valid.map(l => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
@@ -222,9 +224,23 @@ export default function Inventory() {
                 <input type="date" className="finput" value={billMeta.date}
                   onChange={e => bm('date', e.target.value)} style={{ colorScheme: 'dark' }} />
               </FRow>
-              <FRow label="Vendor Name *">
-                <input className="finput" placeholder="e.g. Ram Fertilizers"
-                  value={billMeta.vendor} onChange={e => bm('vendor', e.target.value)} />
+              <FRow label="Vendor *">
+                <select className="finput" value={billMeta.vendorId}
+                  onChange={e => {
+                    const v = vendors.find(x => x.id === e.target.value)
+                    setBillMeta(p => ({ ...p, vendorId: e.target.value, vendor: v ? v.name : '' }))
+                  }}
+                  style={{ background: 'var(--c-surface)' }}>
+                  <option value="" style={{ background: 'var(--c-surface)' }}>Select vendor…</option>
+                  {(vendors || []).filter(v => v.is_active).map(v => (
+                    <option key={v.id} value={v.id} style={{ background: 'var(--c-surface)' }}>{v.name}</option>
+                  ))}
+                  <option value="__other__" style={{ background: 'var(--c-surface)' }}>Other (type below)</option>
+                </select>
+                {billMeta.vendorId === '__other__' && (
+                  <input className="finput mt-1.5" placeholder="Vendor name"
+                    value={billMeta.vendor} onChange={e => bm('vendor', e.target.value)} />
+                )}
               </FRow>
             </div>
             <div className="grid grid-cols-2 gap-2">

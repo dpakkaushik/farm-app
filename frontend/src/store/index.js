@@ -1038,13 +1038,14 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Purchase Bill — multi-item, one bill record ─────────────────────────────
-  recordBillPurchase: async ({ billDate, vendor, invoiceNo, notes, billFileUrl, lineItems }) => {
+  recordBillPurchase: async ({ billDate, vendorId, vendor, invoiceNo, notes, billFileUrl, lineItems }) => {
     const totalAmount = lineItems.reduce((s, l) => s + l.qty * l.unitPrice, 0)
 
     const { data: bill, error: billErr } = await supabase
       .from('inventory_bills')
-      .insert({ bill_date: billDate, vendor_name: vendor, invoice_number: invoiceNo || null,
-                notes: notes || null, bill_file_url: billFileUrl || null,
+      .insert({ bill_date: billDate, vendor_id: vendorId || null, vendor_name: vendor,
+                invoice_number: invoiceNo || null, notes: notes || null,
+                bill_file_url: billFileUrl || null,
                 total_amount: Math.round(totalAmount * 100) / 100 })
       .select().single()
     if (billErr) throw billErr
@@ -1066,7 +1067,8 @@ const useAppStore = create((set, get) => ({
         .insert({ item_id: line.itemId, purchase_date: billDate, invoice_date: billDate,
                   quantity: line.qty, unit_price: line.unitPrice,
                   total_cost: Math.round(line.qty * line.unitPrice * 100) / 100,
-                  vendor_name: vendor, invoice_number: invoiceNo || null, bill_id: bill.id })
+                  vendor_name: vendor, vendor_id: vendorId || null,
+                  invoice_number: invoiceNo || null, bill_id: bill.id })
         .select().single()
       if (purchErr) throw purchErr
 
