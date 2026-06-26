@@ -633,7 +633,8 @@ function LabourMaster() {
   const [saving, setSaving]       = useState(false)
   const [toast, setToast]         = useState(null)
   const [confirm, setConfirm]     = useState(null)
-  const [settingsEdit, setSettingsEdit] = useState(null)  // null | { staffMonthlyHolidays, workerDailyRate }
+  const [holidayEdit, setHolidayEdit] = useState(null)   // null | string value being edited
+  const [rateEdit,    setRateEdit]    = useState(null)   // null | string value being edited
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
   const today = new Date().toISOString().slice(0, 10)
@@ -735,44 +736,19 @@ function LabourMaster() {
     setSaving(false)
   }
 
-  const saveSettings = (field, val) => {
-    const n = parseFloat(val)
-    if (!val || isNaN(n) || n < 0) { showToast('Enter a valid number'); return }
-    setManpowerSettings({ ...manpowerSettings, [field]: n })
-    setSettingsEdit(null)
-    showToast('Saved ✓')
+  const saveHoliday = () => {
+    const n = parseInt(holidayEdit)
+    if (isNaN(n) || n < 0) { showToast('Enter a valid number'); return }
+    setManpowerSettings({ ...manpowerSettings, staffMonthlyHolidays: n })
+    setHolidayEdit(null)
+    showToast('Holidays updated ✓')
   }
-
-  // Compact inline setting row used inside each tab
-  const SettingRow = ({ field, label, prefix, suffix, min }) => {
-    const current = manpowerSettings[field]
-    const editing = settingsEdit?.field === field
-    return (
-      <div className="flex items-center justify-between bg-[var(--c-nav)] border border-[var(--c-border)] rounded-2xl px-4 py-2.5">
-        <div>
-          <p className="text-[10px] text-[var(--c-faint)]">{label}</p>
-          {editing
-            ? <div className="flex items-center gap-2 mt-1">
-                <input type="number" min={min} autoFocus className="finput w-24 text-sm py-1"
-                  value={settingsEdit.value}
-                  onChange={e => setSettingsEdit(p => ({ ...p, value: e.target.value }))}
-                  onKeyDown={e => { if (e.key === 'Enter') saveSettings(field, settingsEdit.value); if (e.key === 'Escape') setSettingsEdit(null) }} />
-                <button onClick={() => saveSettings(field, settingsEdit.value)}
-                  className="px-3 py-1 bg-[#1D9E75] text-white text-xs font-bold rounded-lg">Save</button>
-                <button onClick={() => setSettingsEdit(null)}
-                  className="px-2 py-1 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
-              </div>
-            : <p className="text-sm font-bold text-[var(--c-text)] mt-0.5">{prefix}{current}{suffix}</p>
-          }
-        </div>
-        {!editing && (
-          <button onClick={() => setSettingsEdit({ field, value: String(current) })}
-            className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">
-            Edit
-          </button>
-        )}
-      </div>
-    )
+  const saveRate = () => {
+    const n = parseFloat(rateEdit)
+    if (isNaN(n) || n <= 0) { showToast('Enter a valid number'); return }
+    setManpowerSettings({ ...manpowerSettings, workerDailyRate: n })
+    setRateEdit(null)
+    showToast('Daily rate updated ✓')
   }
 
       {/* Tab strip */}
@@ -788,7 +764,25 @@ function LabourMaster() {
       {/* ── Permanent Staff ── */}
       {tab === 'staff' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
-        <SettingRow field="staffMonthlyHolidays" label="Monthly holidays — all staff" prefix="" suffix=" days / month (absences up to this = paid)" min="0" />
+        <div className="flex items-center justify-between bg-[var(--c-nav)] border border-[var(--c-border)] rounded-2xl px-4 py-2.5">
+          <div>
+            <p className="text-[10px] text-[var(--c-faint)]">Monthly holidays — all staff</p>
+            {holidayEdit !== null
+              ? <div className="flex items-center gap-2 mt-1">
+                  <input type="number" min="0" max="31" autoFocus className="finput w-20 text-sm py-1"
+                    value={holidayEdit} onChange={e => setHolidayEdit(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveHoliday(); if (e.key === 'Escape') setHolidayEdit(null) }} />
+                  <button onClick={saveHoliday} className="px-3 py-1 bg-[#1D9E75] text-white text-xs font-bold rounded-lg">Save</button>
+                  <button onClick={() => setHolidayEdit(null)} className="px-2 py-1 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
+                </div>
+              : <p className="text-sm font-bold text-[var(--c-text)] mt-0.5">{manpowerSettings.staffMonthlyHolidays} days / month</p>
+            }
+          </div>
+          {holidayEdit === null && (
+            <button onClick={() => setHolidayEdit(String(manpowerSettings.staffMonthlyHolidays))}
+              className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">Edit</button>
+          )}
+        </div>
         <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Staff Member
@@ -858,7 +852,25 @@ function LabourMaster() {
       {/* ── Regular Labour ── */}
       {tab === 'regular' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
-        <SettingRow field="workerDailyRate" label="Daily rate — all regular workers" prefix="₹" suffix=" / day" min="1" />
+        <div className="flex items-center justify-between bg-[var(--c-nav)] border border-[var(--c-border)] rounded-2xl px-4 py-2.5">
+          <div>
+            <p className="text-[10px] text-[var(--c-faint)]">Daily rate — all regular workers</p>
+            {rateEdit !== null
+              ? <div className="flex items-center gap-2 mt-1">
+                  <input type="number" min="1" autoFocus className="finput w-24 text-sm py-1"
+                    value={rateEdit} onChange={e => setRateEdit(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveRate(); if (e.key === 'Escape') setRateEdit(null) }} />
+                  <button onClick={saveRate} className="px-3 py-1 bg-[#1D9E75] text-white text-xs font-bold rounded-lg">Save</button>
+                  <button onClick={() => setRateEdit(null)} className="px-2 py-1 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
+                </div>
+              : <p className="text-sm font-bold text-[var(--c-text)] mt-0.5">₹{manpowerSettings.workerDailyRate} / day</p>
+            }
+          </div>
+          {rateEdit === null && (
+            <button onClick={() => setRateEdit(String(manpowerSettings.workerDailyRate))}
+              className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">Edit</button>
+          )}
+        </div>
         <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Regular Labourer
