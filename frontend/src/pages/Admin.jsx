@@ -748,7 +748,7 @@ function LabourMaster() {
       {/* ── Permanent Staff ── */}
       {tab === 'staff' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
-        <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
+        <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', monthlyHoliday: '2', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Staff Member
         </button>
@@ -776,12 +776,19 @@ function LabourMaster() {
               </FRow>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FRow label="Opening balance (₹)">
-                <input type="number" className="finput" placeholder="0"
-                  value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
+              <FRow label="Monthly holidays">
+                <input type="number" className="finput" placeholder="2" min="0" max="31"
+                  value={form.monthlyHoliday ?? '2'} onChange={e => setForm(p => ({ ...p, monthlyHoliday: e.target.value }))} />
               </FRow>
               <FRow label="Join date">
                 <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
+              </FRow>
+            </div>
+            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Monthly holidays: days off per month that still count as paid (default 2)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <FRow label="Opening balance (₹)">
+                <input type="number" className="finput" placeholder="0"
+                  value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
               </FRow>
             </div>
             <p className="text-[10px] text-[var(--c-faint)] px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
@@ -803,7 +810,7 @@ function LabourMaster() {
             person={s} accentColor="#4169E1"
             isLogOpen={openLog === s.id}
             onToggleLog={() => setOpenLog(openLog === s.id ? null : s.id)}
-            onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, dailyRate: s.dailyRate, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '', photoUrl: s.photoUrl }) }}
+            onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: s.id, name: s.name, designation: s.designation, monthlySalary: s.monthlySalary, dailyRate: s.dailyRate, monthlyHoliday: s.monthlyHoliday ?? 2, phone: s.phone, openingBalance: s.openingBalance, joinDate: s.joinDate || '', photoUrl: s.photoUrl }) }}
             onDelete={() => handleDeleteStaff(s.id, s.name)}
             onDeactivate={() => { setConfirm({ title: `Deactivate "${s.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(s.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
             onReactivate={async () => { try { await reactivateLabourer(s.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
@@ -983,37 +990,45 @@ const NORMAL_CYCLE  = [null, 'present', 'half_day', 'leave', 'absent']
 // Cycle for public holiday days: null(shows PH)→present→absent→null
 const HOLIDAY_CYCLE = [null, 'present', 'absent']
 
+// Sunday tap cycle: null(weekly_off) → present → null
+const SUN_CYCLE = [null, 'present']
+
 function AttendanceRegularize() {
   const {
-    permanentStaff, staffMonthAttendance, publicHolidays,
+    permanentStaff, regularLabourers, staffMonthAttendance, publicHolidays,
     loadMonthAttendance, markAttendanceOnDate,
     loadPublicHolidays, addPublicHoliday, deletePublicHoliday,
   } = useAppStore()
 
   const now  = new Date()
-  const [year,    setYear]    = React.useState(now.getFullYear())
-  const [month,   setMonth]   = React.useState(now.getMonth() + 1)
-  const [staffId, setStaffId] = React.useState(null)
-  const [saving,  setSaving]  = React.useState(null)
-  const [hForm,   setHForm]   = React.useState(null)
-  const [hSaving, setHSaving] = React.useState(false)
-  const [toast,   setToast]   = React.useState(null)
+  const [year,     setYear]    = React.useState(now.getFullYear())
+  const [month,    setMonth]   = React.useState(now.getMonth() + 1)
+  const [personId, setPersonId] = React.useState(null)
+  const [saving,   setSaving]  = React.useState(null)
+  const [hForm,    setHForm]   = React.useState(null)
+  const [hSaving,  setHSaving] = React.useState(false)
+  const [toast,    setToast]   = React.useState(null)
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
+
+  const allPeople = [...permanentStaff, ...regularLabourers]
 
   React.useEffect(() => { loadPublicHolidays() }, [])
 
   React.useEffect(() => {
-    if (permanentStaff.length && !staffId) setStaffId(permanentStaff[0].id)
-  }, [permanentStaff])
+    if (allPeople.length && !personId) setPersonId(allPeople[0].id)
+  }, [permanentStaff.length, regularLabourers.length])
 
   React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
 
-  const mm          = String(month).padStart(2, '0')
-  const monthKey    = `${year}-${mm}`
-  const personAtt   = staffMonthAttendance[monthKey]?.[staffId] || {}
+  const mm         = String(month).padStart(2, '0')
+  const monthKey   = `${year}-${mm}`
+  const personAtt  = staffMonthAttendance[monthKey]?.[personId] || {}
 
-  // Public holidays this month as a map { dateStr: name }
+  const isStaffPerson = !!permanentStaff.find(s => s.id === personId)
+  const person        = allPeople.find(p => p.id === personId)
+
+  // Public holidays this month
   const phMap = React.useMemo(() =>
     publicHolidays.filter(h => h.date.startsWith(monthKey))
       .reduce((acc, h) => { acc[h.date] = h; return acc }, {}),
@@ -1021,44 +1036,58 @@ function AttendanceRegularize() {
   )
 
   // Build calendar cells
-  const todayStr     = now.toISOString().slice(0, 10)
-  const firstDow     = new Date(year, month - 1, 1).getDay()
-  const daysInMonth  = new Date(year, month, 0).getDate()
+  const todayStr    = now.toISOString().slice(0, 10)
+  const firstDow    = new Date(year, month - 1, 1).getDay()
+  const daysInMonth = new Date(year, month, 0).getDate()
   const cells = []
   for (let i = 0; i < firstDow; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) {
-    const ds       = `${year}-${mm}-${String(d).padStart(2, '0')}`
-    const dow      = new Date(year, month - 1, d).getDay()
-    const isSun    = dow === 0
-    const isPH     = !!phMap[ds]
-    const isFuture = ds > todayStr
+    const ds        = `${year}-${mm}-${String(d).padStart(2, '0')}`
+    const dow       = new Date(year, month - 1, d).getDay()
+    const isSun     = dow === 0
+    const isPH      = !!phMap[ds]
+    const isFuture  = ds > todayStr
     const recStatus = personAtt[ds]?.status
-    // Display status: explicit record first, then auto-derive
     const dispStatus = recStatus || (isSun ? 'weekly_off' : isPH ? 'holiday' : null)
     cells.push({ ds, d, isSun, isPH, isFuture, recStatus, dispStatus })
   }
 
-  // Stats
+  // Stats — count Sundays separately (they can be marked present now)
   const stats = { present: 0, half_day: 0, leave: 0, holiday: 0, absent: 0 }
   cells.filter(Boolean).forEach(c => {
-    if (!c.isSun && !c.isFuture && c.dispStatus && stats[c.dispStatus] !== undefined)
+    if (!c.isFuture && c.dispStatus && stats[c.dispStatus] !== undefined)
       stats[c.dispStatus]++
   })
-  const workingDays = cells.filter(Boolean).filter(c => !c.isSun && !c.isFuture).length
-  const phCount     = cells.filter(Boolean).filter(c => c.isPH && !c.isFuture && (!c.recStatus || c.recStatus === 'holiday')).length
-  const paidDays    = stats.present + stats.half_day * 0.5 + stats.leave + phCount
-  const staff       = permanentStaff.find(s => s.id === staffId)
-  const estSalary   = workingDays > 0 && staff?.monthlySalary
-    ? Math.round(staff.monthlySalary * paidDays / workingDays)
-    : null
+  const sundayPresent  = cells.filter(Boolean).filter(c => c.isSun && !c.isFuture && c.recStatus === 'present').length
+  const workingDays    = cells.filter(Boolean).filter(c => !c.isSun && !c.isFuture).length
+  const phCount        = cells.filter(Boolean).filter(c => c.isPH && !c.isFuture && (!c.recStatus || c.recStatus === 'holiday')).length
+
+  // Salary estimate differs by person type
+  let estSalary = null
+  let salaryNote = ''
+  if (isStaffPerson && person?.monthlySalary && workingDays > 0) {
+    const monthlyHoliday  = person.monthlyHoliday ?? 2
+    const regularPaid     = stats.present - sundayPresent + stats.half_day * 0.5 + stats.leave + phCount
+    const coveredAbsences = Math.min(stats.absent, monthlyHoliday)
+    const effectivePaid   = Math.min(regularPaid + coveredAbsences, workingDays) + sundayPresent
+    estSalary  = Math.round(person.monthlySalary * effectivePaid / workingDays)
+    salaryNote = `₹${person.monthlySalary} × ${effectivePaid.toFixed(1)} paid / ${workingDays} working · ${monthlyHoliday} free holidays/mo`
+  } else if (!isStaffPerson && person?.ratePerDay) {
+    const paidDays = stats.present + stats.half_day * 0.5
+    estSalary  = Math.round(paidDays * person.ratePerDay)
+    salaryNote = `${paidDays.toFixed(1)} days × ₹${person.ratePerDay}/day`
+  }
 
   const handleDayTap = async (cell) => {
-    if (cell.isSun || cell.isFuture || !staffId) return
-    const cycle = cell.isPH ? HOLIDAY_CYCLE : NORMAL_CYCLE
-    const idx   = cycle.indexOf(cell.recStatus ?? null)
-    const next  = cycle[(idx + 1) % cycle.length]
+    if (cell.isFuture || !personId) return
+    let cycle
+    if (cell.isSun)  cycle = SUN_CYCLE
+    else if (cell.isPH) cycle = HOLIDAY_CYCLE
+    else             cycle = NORMAL_CYCLE
+    const idx  = cycle.indexOf(cell.recStatus ?? null)
+    const next = cycle[(idx + 1) % cycle.length]
     setSaving(cell.ds)
-    try { await markAttendanceOnDate(staffId, cell.ds, next) }
+    try { await markAttendanceOnDate(personId, cell.ds, next) }
     catch (e) { showToast('Failed: ' + e.message) }
     finally { setSaving(null) }
   }
@@ -1074,12 +1103,12 @@ function AttendanceRegularize() {
   const prevMonth = () => { if (month === 1) { setYear(y => y - 1); setMonth(12) } else setMonth(m => m - 1) }
   const nextMonth = () => { if (month === 12) { setYear(y => y + 1); setMonth(1) } else setMonth(m => m + 1) }
 
-  if (permanentStaff.length === 0) return (
+  if (allPeople.length === 0) return (
     <div className="p-4 pt-0">
       <div className="rounded-2xl border border-[var(--c-border)] p-6 text-center">
         <p className="text-2xl mb-2">📅</p>
-        <p className="text-sm font-semibold text-[var(--c-sub)]">No permanent staff added</p>
-        <p className="text-xs text-[var(--c-faint)] mt-1">Add staff in the Staff tab first</p>
+        <p className="text-sm font-semibold text-[var(--c-sub)]">No staff or workers added</p>
+        <p className="text-xs text-[var(--c-faint)] mt-1">Add staff in the Staff tab or workers in the Regular tab first</p>
       </div>
       <Style />
     </div>
@@ -1088,24 +1117,35 @@ function AttendanceRegularize() {
   return (
     <div className="p-4 pt-0 space-y-3 pb-6">
       <div className="bg-[var(--c-nav)] rounded-2xl p-2.5 text-[10px] text-[var(--c-muted)] leading-relaxed">
-        Staff: <span className="text-[var(--c-sub)]">6 days/week (Sunday off) · 10 paid leaves/year · Public holidays paid</span>
-        &nbsp;·&nbsp;Regular labour: salary = days present × daily rate only
+        Staff: <span className="text-[var(--c-sub)]">monthly salary · free holidays + leaves + PH paid · Sunday can be marked present</span>
+        &nbsp;·&nbsp;Regular: <span className="text-[var(--c-sub)]">days present × daily rate</span>
       </div>
 
-      {/* Staff selector */}
-      {permanentStaff.length > 1 && (
-        <select className="finput" value={staffId || ''} onChange={e => setStaffId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
-          {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: 'var(--c-surface)' }}>{s.name} — {s.designation || 'Staff'}</option>)}
+      {/* Person selector */}
+      {allPeople.length > 1 ? (
+        <select className="finput" value={personId || ''} onChange={e => setPersonId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
+          {permanentStaff.length > 0 && (
+            <optgroup label="Permanent Staff" style={{ background: 'var(--c-surface)' }}>
+              {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: 'var(--c-surface)' }}>{s.name} — {s.designation || 'Staff'}</option>)}
+            </optgroup>
+          )}
+          {regularLabourers.length > 0 && (
+            <optgroup label="Regular Workers" style={{ background: 'var(--c-surface)' }}>
+              {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: 'var(--c-surface)' }}>{l.name} — {l.workType || 'Worker'}</option>)}
+            </optgroup>
+          )}
         </select>
-      )}
-      {permanentStaff.length === 1 && (
+      ) : (
         <div className="flex items-center gap-2 px-1">
-          <div className="w-7 h-7 rounded-full bg-[#4169E1]/20 flex items-center justify-center text-xs font-bold text-[#4169E1]">
-            {staff?.name?.charAt(0)}
+          <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{ background: isStaffPerson ? '#4169E1' + '20' : '#1D9E75' + '20', color: isStaffPerson ? '#4169E1' : '#1D9E75' }}>
+            {person?.name?.charAt(0)}
           </div>
           <div>
-            <p className="text-sm font-semibold text-[var(--c-text)]">{staff?.name}</p>
-            <p className="text-[10px] text-[var(--c-muted)]">{staff?.designation} · ₹{staff?.monthlySalary}/mo</p>
+            <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name}</p>
+            <p className="text-[10px] text-[var(--c-muted)]">
+              {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${person?.monthlyHoliday ?? 2} holidays/mo` : `${person?.workType} · ₹${person?.ratePerDay}/day`}
+            </p>
           </div>
         </div>
       )}
@@ -1119,27 +1159,25 @@ function AttendanceRegularize() {
 
       {/* Calendar */}
       <div className="bg-[var(--c-nav)] rounded-2xl overflow-hidden">
-        {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-[var(--c-border)]">
           {DAY_LABELS.map((d, i) => (
             <div key={d} className="text-center py-2 text-[10px] font-bold"
               style={{ color: i === 0 ? '#E24B4A80' : 'var(--c-faint)' }}>{d}</div>
           ))}
         </div>
-        {/* Cells */}
         <div className="grid grid-cols-7">
           {cells.map((cell, i) => {
             if (!cell) return <div key={`e${i}`} className="aspect-square" />
-            const style = cell.dispStatus ? ATT_STYLES[cell.dispStatus] : null
-            const isToday = cell.ds === todayStr
+            const style    = cell.dispStatus ? ATT_STYLES[cell.dispStatus] : null
+            const isToday  = cell.ds === todayStr
             const isTapping = saving === cell.ds
             return (
               <button key={cell.ds} onClick={() => handleDayTap(cell)}
-                disabled={cell.isSun || cell.isFuture || isTapping}
+                disabled={cell.isFuture || isTapping}
                 className="aspect-square flex flex-col items-center justify-center gap-0.5 border border-white/[0.04] transition-opacity disabled:cursor-default"
                 style={{ background: style ? style.bg + '30' : 'transparent', opacity: cell.isFuture ? 0.35 : 1 }}>
                 <span className="text-[10px] font-semibold leading-none"
-                  style={{ color: cell.isSun ? '#E24B4A60' : style ? style.bg : 'var(--c-sub)' }}>
+                  style={{ color: cell.isSun && !cell.recStatus ? '#E24B4A60' : style ? style.bg : 'var(--c-sub)' }}>
                   {cell.d}
                 </span>
                 {style && style.label && (
@@ -1152,7 +1190,7 @@ function AttendanceRegularize() {
                   <span className="text-[7px] text-[#7B2D8B] leading-none">PH</span>
                 )}
                 {isToday && !style && (
-                  <div className="w-1 h-1 rounded-full bg-[var(--c-card)]0 mt-0.5" />
+                  <div className="w-1 h-1 rounded-full bg-[#1D9E75] mt-0.5" />
                 )}
               </button>
             )
@@ -1163,12 +1201,12 @@ function AttendanceRegularize() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Present',    val: stats.present,   color: '#1D9E75' },
-          { label: 'Half Day',   val: stats.half_day,  color: '#BA7517' },
-          { label: 'Leave',      val: stats.leave,     color: '#4169E1' },
-          { label: 'P. Holiday', val: phCount,          color: '#7B2D8B' },
-          { label: 'Absent',     val: stats.absent,    color: '#E24B4A' },
-          { label: 'Working Days', val: workingDays,   color: '#888' },
+          { label: 'Present',      val: stats.present,  color: '#1D9E75' },
+          { label: 'Half Day',     val: stats.half_day, color: '#BA7517' },
+          { label: 'Leave',        val: stats.leave,    color: '#4169E1' },
+          { label: 'P. Holiday',   val: phCount,         color: '#7B2D8B' },
+          { label: 'Absent',       val: stats.absent,   color: '#E24B4A' },
+          { label: 'Working Days', val: workingDays,    color: '#888' },
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-[var(--c-nav)] rounded-xl p-3 text-center border border-[var(--c-border)]">
             <p className="text-lg font-bold" style={{ color }}>{val}</p>
@@ -1179,14 +1217,14 @@ function AttendanceRegularize() {
       {estSalary !== null && (
         <div className="bg-[var(--c-surface)] rounded-2xl p-4 flex items-center justify-between border border-[var(--c-border)]">
           <div>
-            <p className="text-xs text-[var(--c-muted)]">Estimated salary · {paidDays.toFixed(1)} paid days / {workingDays} working</p>
-            <p className="text-[10px] text-[var(--c-faint)] mt-0.5">= ₹{staff?.monthlySalary} × {paidDays.toFixed(1)}/{workingDays}</p>
+            <p className="text-xs text-[var(--c-muted)]">Estimated salary</p>
+            <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{salaryNote}</p>
           </div>
           <p className="text-xl font-bold text-[#1D9E75]">₹{estSalary.toLocaleString('en-IN')}</p>
         </div>
       )}
 
-      {/* Legend + tap hint */}
+      {/* Legend */}
       <div className="flex flex-wrap gap-2">
         {Object.entries(ATT_STYLES).filter(([k]) => k !== 'weekly_off').map(([s, cfg]) => (
           <div key={s} className="flex items-center gap-1.5">
@@ -1198,7 +1236,7 @@ function AttendanceRegularize() {
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[var(--c-faint)] text-center">Tap a day to cycle: P → H → L → A → clear</p>
+      <p className="text-[10px] text-[var(--c-faint)] text-center">Tap a day to cycle · Sunday tap marks present (overtime)</p>
 
       {/* Public Holidays */}
       <div>

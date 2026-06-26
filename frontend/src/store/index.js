@@ -199,6 +199,7 @@ function mapStaff(l) {
     phone:          l.phone || '',
     monthlySalary:  Number(l.monthly_salary) || 0,
     dailyRate:      Number(l.daily_base_rate) || 0,
+    monthlyHoliday: Number(l.monthly_holiday) ?? 2,
     openingBalance: Number(l.opening_balance) || 0,
     joinDate:       l.join_date || null,
     photoUrl:       l.photo_url || null,
@@ -790,6 +791,7 @@ const useAppStore = create((set, get) => ({
       sub_type:        'permanent',
       monthly_salary:  parseFloat(s.monthlySalary) || 0,
       daily_base_rate: parseFloat(s.dailyRate) || 0,
+      monthly_holiday: parseInt(s.monthlyHoliday) || 2,
       opening_balance: parseFloat(s.openingBalance) || 0,
       join_date:       s.joinDate || null,
       photo_url:       s.photoUrl || null,
@@ -806,6 +808,7 @@ const useAppStore = create((set, get) => ({
       designation:     s.designation || null,
       monthly_salary:  parseFloat(s.monthlySalary) || 0,
       daily_base_rate: parseFloat(s.dailyRate) || 0,
+      monthly_holiday: parseInt(s.monthlyHoliday) || 2,
       opening_balance: parseFloat(s.openingBalance) || 0,
       join_date:       s.joinDate || null,
     }
@@ -915,15 +918,16 @@ const useAppStore = create((set, get) => ({
   publicHolidays: [],
 
   loadMonthAttendance: async (year, month) => {
-    const { permanentStaff } = get()
-    if (!permanentStaff.length) return
+    const { permanentStaff, regularLabourers } = get()
+    const allTracked = [...permanentStaff, ...regularLabourers]
+    if (!allTracked.length) return
     const mm        = String(month).padStart(2, '0')
     const startDate = `${year}-${mm}-01`
     const lastDay   = new Date(year, month, 0).getDate()
     const endDate   = `${year}-${mm}-${String(lastDay).padStart(2, '0')}`
     const { data }  = await supabase.from('attendance')
       .select('id, labour_master_id, attendance_date, status')
-      .in('labour_master_id', permanentStaff.map(s => s.id))
+      .in('labour_master_id', allTracked.map(s => s.id))
       .gte('attendance_date', startDate)
       .lte('attendance_date', endDate)
     const byPerson = {}
