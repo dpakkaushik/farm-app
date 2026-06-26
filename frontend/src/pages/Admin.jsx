@@ -814,7 +814,7 @@ function LabourMaster() {
             onDelete={() => handleDeleteStaff(s.id, s.name)}
             onDeactivate={() => { setConfirm({ title: `Deactivate "${s.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(s.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
             onReactivate={async () => { try { await reactivateLabourer(s.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
-            subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo`}
+            subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo · ${s.monthlyHoliday ?? 2} holidays/mo`}
             ratePerDay={null} monthlySalary={s.monthlySalary}
           />
         ))}
@@ -877,7 +877,7 @@ function LabourMaster() {
             onDelete={() => handleDeleteRegular(l.id, l.name)}
             onDeactivate={() => { setConfirm({ title: `Deactivate "${l.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(l.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
             onReactivate={async () => { try { await reactivateLabourer(l.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
-            subLabel={`${l.workType} · ₹${l.ratePerDay}/day`}
+            subLabel={`${l.workType} · ₹${l.ratePerDay || '—'}/day`}
             ratePerDay={l.ratePerDay} monthlySalary={null}
           />
         ))}
