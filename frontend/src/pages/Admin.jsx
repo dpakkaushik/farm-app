@@ -998,16 +998,19 @@ function AttendanceRegularize() {
     permanentStaff, regularLabourers, staffMonthAttendance, publicHolidays,
     loadMonthAttendance, markAttendanceOnDate,
     loadPublicHolidays, addPublicHoliday, deletePublicHoliday,
+    updatePermanentStaff, updateRegularLabourer,
   } = useAppStore()
 
   const now  = new Date()
-  const [year,     setYear]    = React.useState(now.getFullYear())
-  const [month,    setMonth]   = React.useState(now.getMonth() + 1)
-  const [personId, setPersonId] = React.useState(null)
-  const [saving,   setSaving]  = React.useState(null)
-  const [hForm,    setHForm]   = React.useState(null)
-  const [hSaving,  setHSaving] = React.useState(false)
-  const [toast,    setToast]   = React.useState(null)
+  const [year,      setYear]     = React.useState(now.getFullYear())
+  const [month,     setMonth]    = React.useState(now.getMonth() + 1)
+  const [personId,  setPersonId] = React.useState(null)
+  const [saving,    setSaving]   = React.useState(null)
+  const [hForm,     setHForm]    = React.useState(null)
+  const [hSaving,   setHSaving]  = React.useState(false)
+  const [varEdit,   setVarEdit]  = React.useState(null)   // null = not editing; string = editing value
+  const [varSaving, setVarSaving] = React.useState(false)
+  const [toast,     setToast]    = React.useState(null)
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
 
@@ -1018,6 +1021,8 @@ function AttendanceRegularize() {
   React.useEffect(() => {
     if (allPeople.length && !personId) setPersonId(allPeople[0].id)
   }, [permanentStaff.length, regularLabourers.length])
+
+  React.useEffect(() => { setVarEdit(null) }, [personId])
 
   React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
 
@@ -1076,6 +1081,24 @@ function AttendanceRegularize() {
     const paidDays = stats.present + stats.half_day * 0.5
     estSalary  = Math.round(paidDays * person.ratePerDay)
     salaryNote = `${paidDays.toFixed(1)} days × ₹${person.ratePerDay}/day`
+  }
+
+  const saveVar = async () => {
+    if (varEdit === null || varSaving || !person) return
+    const val = parseFloat(varEdit)
+    if (!val || val <= 0) { showToast('Enter a valid number'); return }
+    setVarSaving(true)
+    try {
+      if (isStaffPerson) {
+        await updatePermanentStaff(personId, { ...person, monthlyHoliday: val })
+        showToast(`Monthly holidays updated to ${val} ✓`)
+      } else {
+        await updateRegularLabourer(personId, { ...person, ratePerDay: val })
+        showToast(`Daily rate updated to ₹${val} ✓`)
+      }
+      setVarEdit(null)
+    } catch (e) { showToast('Save failed: ' + e.message) }
+    setVarSaving(false)
   }
 
   const handleDayTap = async (cell) => {
@@ -1147,6 +1170,48 @@ function AttendanceRegularize() {
               {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${person?.monthlyHoliday ?? 2} holidays/mo` : `${person?.workType} · ₹${person?.ratePerDay}/day`}
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Inline variable editor — monthly holidays (staff) or daily rate (regular) */}
+      {person && (
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">
+              {isStaffPerson ? 'Monthly Holidays' : 'Daily Rate'}
+            </p>
+            {varEdit === null ? (
+              <p className="text-sm font-semibold text-[var(--c-text)] mt-0.5">
+                {isStaffPerson
+                  ? `${person.monthlyHoliday ?? 2} days / month (counted as paid)`
+                  : `₹${person.ratePerDay ?? '—'} per day`}
+              </p>
+            ) : (
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="number"
+                  className="finput w-24 text-sm"
+                  value={varEdit}
+                  min="0"
+                  onChange={e => setVarEdit(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') saveVar(); if (e.key === 'Escape') setVarEdit(null) }}
+                  autoFocus
+                />
+                <button onClick={saveVar} disabled={varSaving}
+                  className="px-3 py-1.5 bg-[#1D9E75] text-white text-xs font-bold rounded-lg disabled:opacity-40">
+                  {varSaving ? '…' : 'Save'}
+                </button>
+                <button onClick={() => setVarEdit(null)} className="px-2 py-1.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
+              </div>
+            )}
+          </div>
+          {varEdit === null && (
+            <button
+              onClick={() => setVarEdit(String(isStaffPerson ? (person.monthlyHoliday ?? 2) : (person.ratePerDay ?? '')))}
+              className="flex-shrink-0 text-[10px] text-[#1D9E75] border border-[#1D9E75]/30 px-2.5 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">
+              Edit
+            </button>
+          )}
         </div>
       )}
 
