@@ -751,6 +751,9 @@ function LabourMaster() {
     showToast('Daily rate updated ✓')
   }
 
+  return (
+    <div className="p-4 space-y-3 pb-6">
+
       {/* Tab strip */}
       <div className="flex gap-1 bg-[var(--c-nav)] rounded-xl p-1 overflow-x-auto no-scrollbar">
         {LABOUR_TABS.map(([k, lbl]) => (
