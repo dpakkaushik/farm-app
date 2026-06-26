@@ -130,6 +130,8 @@ function mapPurchase(p) {
     vendor:        p.vendor_name || '',
     invoiceNo:     p.invoice_number || '',
     billImagePath: p.bill_image_path || null,
+    billId:        p.bill_id || null,
+    billFileUrl:   p.inventory_bills?.bill_file_url || null,
   }
 }
 
@@ -502,7 +504,7 @@ const useAppStore = create((set, get) => ({
           .order('created_at', { ascending: false }),
         supabase.from('inventory_items').select('*').order('category').order('name'),
         supabase.from('inventory_purchases')
-          .select('*').order('purchase_date', { ascending: false }),
+          .select('*, inventory_bills(bill_file_url)').order('purchase_date', { ascending: false }),
         supabase.from('inventory_issues')
           .select('*, plots(name), crop_cycles(season, plots(name))')
           .order('issue_date', { ascending: false }),
@@ -1032,6 +1034,56 @@ const useAppStore = create((set, get) => ({
       inventoryMaster: s.inventoryMaster.map(i =>
         i.id === purchase.itemId ? { ...i, currentStock: newStock, costPerUnit: newWAC } : i
       ),
+    }))
+  },
+
+  // ── Purchase Bill — multi-item, one bill record ─────────────────────────────
+  recordBillPurchase: async ({ billDate, vendor, invoiceNo, notes, billFileUrl, lineItems }) => {
+    const totalAmount = lineItems.reduce((s, l) => s + l.qty * l.unitPrice, 0)
+
+    const { data: bill, error: billErr } = await supabase
+      .from('inventory_bills')
+      .insert({ bill_date: billDate, vendor_name: vendor, invoice_number: invoiceNo || null,
+                notes: notes || null, bill_file_url: billFileUrl || null,
+                total_amount: Math.round(totalAmount * 100) / 100 })
+      .select().single()
+    if (billErr) throw billErr
+
+    const stockUpdates = {}
+    const newPurchaseRows = []
+
+    for (const line of lineItems) {
+      const item     = get().inventoryMaster.find(i => i.id === line.itemId)
+      const oldStock = stockUpdates[line.itemId]?.newStock ?? (item?.currentStock || 0)
+      const oldWAC   = stockUpdates[line.itemId]?.newWAC   ?? (item?.costPerUnit  || 0)
+      const newStock = oldStock + line.qty
+      const newWAC   = newStock > 0
+        ? Math.round(((oldStock * oldWAC) + (line.qty * line.unitPrice)) / newStock * 100) / 100
+        : line.unitPrice
+
+      const { data: row, error: purchErr } = await supabase
+        .from('inventory_purchases')
+        .insert({ item_id: line.itemId, purchase_date: billDate, invoice_date: billDate,
+                  quantity: line.qty, unit_price: line.unitPrice,
+                  total_cost: Math.round(line.qty * line.unitPrice * 100) / 100,
+                  vendor_name: vendor, invoice_number: invoiceNo || null, bill_id: bill.id })
+        .select().single()
+      if (purchErr) throw purchErr
+
+      await supabase.from('inventory_items')
+        .update({ current_stock: newStock, cost_per_unit: newWAC })
+        .eq('id', line.itemId)
+
+      stockUpdates[line.itemId] = { newStock, newWAC }
+      newPurchaseRows.push({ ...row, bill_id: bill.id })
+    }
+
+    set(s => ({
+      purchases: [...newPurchaseRows.map(mapPurchase), ...s.purchases],
+      inventoryMaster: s.inventoryMaster.map(i => {
+        const u = stockUpdates[i.id]
+        return u ? { ...i, currentStock: u.newStock, costPerUnit: u.newWAC } : i
+      }),
     }))
   },
 
