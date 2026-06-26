@@ -405,6 +405,16 @@ const useMapStore = create(
 // ── Main app store ────────────────────────────────────────────────────────────
 const useAppStore = create((set, get) => ({
 
+  // ── Global manpower settings (localStorage) ─────────────────────────────────
+  manpowerSettings: (() => {
+    try { return JSON.parse(localStorage.getItem('manpower_settings') || 'null') || { staffMonthlyHolidays: 2, workerDailyRate: 300 } }
+    catch { return { staffMonthlyHolidays: 2, workerDailyRate: 300 } }
+  })(),
+  setManpowerSettings: (s) => {
+    localStorage.setItem('manpower_settings', JSON.stringify(s))
+    set({ manpowerSettings: s })
+  },
+
   // ── State — all loaded from Supabase ────────────────────────────────────────
   plots:             [],
   cropMaster:        [],

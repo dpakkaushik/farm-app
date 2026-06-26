@@ -623,15 +623,17 @@ function LabourMaster() {
     addRegularLabourer, updateRegularLabourer, deleteRegularLabourer,
     addContractualLabour, updateContractualLabour, deleteContractualLabour,
     addAdvance, deactivateLabourer, reactivateLabourer,
+    manpowerSettings, setManpowerSettings,
   } = useAppStore()
   const [tab, setTab]             = useState('staff')
   const [form, setForm]           = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
-  const [openLog, setOpenLog]     = useState(null)   // id of person whose log is expanded
+  const [openLog, setOpenLog]     = useState(null)
   const [advForm, setAdvForm]     = useState(null)
   const [saving, setSaving]       = useState(false)
   const [toast, setToast]         = useState(null)
   const [confirm, setConfirm]     = useState(null)
+  const [settingsEdit, setSettingsEdit] = useState(null)  // null | { staffMonthlyHolidays, workerDailyRate }
 
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(null), 2500) }
   const today = new Date().toISOString().slice(0, 10)
@@ -733,8 +735,58 @@ function LabourMaster() {
     setSaving(false)
   }
 
+  const saveSettings = () => {
+    if (!settingsEdit) return
+    const holidays = parseInt(settingsEdit.staffMonthlyHolidays)
+    const rate     = parseFloat(settingsEdit.workerDailyRate)
+    if (isNaN(holidays) || holidays < 0 || isNaN(rate) || rate <= 0) { showToast('Enter valid numbers'); return }
+    setManpowerSettings({ staffMonthlyHolidays: holidays, workerDailyRate: rate })
+    setSettingsEdit(null)
+    showToast('Settings saved ✓')
+  }
+
   return (
     <div className="p-4 space-y-3 pb-6">
+
+      {/* ── Global Manpower Settings ── */}
+      <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Manpower Settings</p>
+          {settingsEdit
+            ? <div className="flex gap-2">
+                <button onClick={saveSettings} className="text-[11px] font-bold text-[var(--c-text)] bg-[#1D9E75] px-3 py-1 rounded-lg">Save</button>
+                <button onClick={() => setSettingsEdit(null)} className="text-[11px] text-[var(--c-sub)] bg-[var(--c-ghost)] px-3 py-1 rounded-lg">Cancel</button>
+              </div>
+            : <button onClick={() => setSettingsEdit({ staffMonthlyHolidays: String(manpowerSettings.staffMonthlyHolidays), workerDailyRate: String(manpowerSettings.workerDailyRate) })}
+                className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1 rounded-lg hover:bg-[#1D9E75]/10">
+                Edit
+              </button>
+          }
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-[10px] text-[var(--c-faint)] mb-1">Staff monthly holidays</p>
+            {settingsEdit
+              ? <input type="number" min="0" max="31" className="finput text-sm w-full"
+                  value={settingsEdit.staffMonthlyHolidays}
+                  onChange={e => setSettingsEdit(p => ({ ...p, staffMonthlyHolidays: e.target.value }))} />
+              : <p className="text-lg font-bold text-[var(--c-text)]">{manpowerSettings.staffMonthlyHolidays} <span className="text-xs font-normal text-[var(--c-faint)]">days / month</span></p>
+            }
+            <p className="text-[9px] text-[var(--c-faint)] mt-0.5">Absences up to this count = paid</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-[var(--c-faint)] mb-1">Worker daily rate</p>
+            {settingsEdit
+              ? <input type="number" min="1" className="finput text-sm w-full"
+                  value={settingsEdit.workerDailyRate}
+                  onChange={e => setSettingsEdit(p => ({ ...p, workerDailyRate: e.target.value }))} />
+              : <p className="text-lg font-bold text-[var(--c-text)]">₹{manpowerSettings.workerDailyRate} <span className="text-xs font-normal text-[var(--c-faint)]">/ day</span></p>
+            }
+            <p className="text-[9px] text-[var(--c-faint)] mt-0.5">Applies to all regular workers</p>
+          </div>
+        </div>
+      </div>
+
       {/* Tab strip */}
       <div className="flex gap-1 bg-[var(--c-nav)] rounded-xl p-1 overflow-x-auto no-scrollbar">
         {LABOUR_TABS.map(([k, lbl]) => (
@@ -748,7 +800,7 @@ function LabourMaster() {
       {/* ── Permanent Staff ── */}
       {tab === 'staff' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
-        <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', monthlyHoliday: '2', openingBalance: '0' })}
+        <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
           <Plus size={14} /> Add Staff Member
         </button>
@@ -776,19 +828,12 @@ function LabourMaster() {
               </FRow>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <FRow label="Monthly holidays">
-                <input type="number" className="finput" placeholder="2" min="0" max="31"
-                  value={form.monthlyHoliday ?? '2'} onChange={e => setForm(p => ({ ...p, monthlyHoliday: e.target.value }))} />
-              </FRow>
-              <FRow label="Join date">
-                <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
-              </FRow>
-            </div>
-            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Monthly holidays: days off per month that still count as paid (default 2)</p>
-            <div className="grid grid-cols-2 gap-2">
               <FRow label="Opening balance (₹)">
                 <input type="number" className="finput" placeholder="0"
                   value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
+              </FRow>
+              <FRow label="Join date">
+                <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
               </FRow>
             </div>
             <p className="text-[10px] text-[var(--c-faint)] px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
@@ -814,7 +859,7 @@ function LabourMaster() {
             onDelete={() => handleDeleteStaff(s.id, s.name)}
             onDeactivate={() => { setConfirm({ title: `Deactivate "${s.name}"?`, message: 'They will be hidden from attendance lists until reactivated. All history is preserved.', confirmLabel: 'Deactivate', onConfirm: async () => { setConfirm(null); try { await deactivateLabourer(s.id); showToast('Deactivated') } catch (e) { showToast(e.message) } } }) }}
             onReactivate={async () => { try { await reactivateLabourer(s.id); showToast('Reactivated ✓') } catch (e) { showToast(e.message) } }}
-            subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo · ${s.monthlyHoliday ?? 2} holidays/mo`}
+            subLabel={`${s.designation || 'Staff'} · ₹${s.monthlySalary?.toLocaleString()}/mo`}
             ratePerDay={null} monthlySalary={s.monthlySalary}
           />
         ))}
@@ -998,6 +1043,7 @@ function AttendanceRegularize() {
     permanentStaff, regularLabourers, staffMonthAttendance, publicHolidays,
     loadMonthAttendance, markAttendanceOnDate,
     loadPublicHolidays, addPublicHoliday, deletePublicHoliday,
+    manpowerSettings,
   } = useAppStore()
 
   const now  = new Date()
@@ -1066,16 +1112,17 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
   let estSalary = null
   let salaryNote = ''
   if (isStaffPerson && person?.monthlySalary && workingDays > 0) {
-    const monthlyHoliday  = person.monthlyHoliday ?? 2
+    const freeHolidays    = manpowerSettings.staffMonthlyHolidays
     const regularPaid     = stats.present - sundayPresent + stats.half_day * 0.5 + stats.leave + phCount
-    const coveredAbsences = Math.min(stats.absent, monthlyHoliday)
+    const coveredAbsences = Math.min(stats.absent, freeHolidays)
     const effectivePaid   = Math.min(regularPaid + coveredAbsences, workingDays) + sundayPresent
     estSalary  = Math.round(person.monthlySalary * effectivePaid / workingDays)
-    salaryNote = `₹${person.monthlySalary} × ${effectivePaid.toFixed(1)} paid / ${workingDays} working · ${monthlyHoliday} free holidays/mo`
-  } else if (!isStaffPerson && person?.ratePerDay) {
+    salaryNote = `₹${person.monthlySalary} × ${effectivePaid.toFixed(1)}/${workingDays} days · ${freeHolidays} free holidays/mo`
+  } else if (!isStaffPerson) {
+    const rate     = manpowerSettings.workerDailyRate
     const paidDays = stats.present + stats.half_day * 0.5
-    estSalary  = Math.round(paidDays * person.ratePerDay)
-    salaryNote = `${paidDays.toFixed(1)} days × ₹${person.ratePerDay}/day`
+    estSalary  = Math.round(paidDays * rate)
+    salaryNote = `${paidDays.toFixed(1)} days × ₹${rate}/day`
   }
 
   const handleDayTap = async (cell) => {
@@ -1144,7 +1191,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
           <div>
             <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name}</p>
             <p className="text-[10px] text-[var(--c-muted)]">
-              {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${person?.monthlyHoliday ?? 2} holidays/mo` : `${person?.workType} · ₹${person?.ratePerDay}/day`}
+              {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${manpowerSettings.staffMonthlyHolidays} holidays/mo` : `${person?.workType} · ₹${manpowerSettings.workerDailyRate}/day`}
             </p>
           </div>
         </div>
