@@ -1179,6 +1179,31 @@ const useAppStore = create((set, get) => ({
     set(s => ({ labourLogs: [mapLabourLog(data), ...s.labourLogs] }))
   },
 
+  // ── Labour log — batch (multi-worker × multi-plot) ──────────────────────────
+  logLabourBatch: async (logs) => {
+    const rows = logs.map(log => ({
+      labour_type:      log.labourType || 'regular',
+      labour_master_id: log.labourMasterId || null,
+      labour_name:      log.labourName,
+      plot_id:          log.plotId || null,
+      cycle_id:         log.cropCycleId || null,
+      work_type:        log.purpose || 'General',
+      work_type_id:     log.workTypeId || null,
+      activity_date:    log.date,
+      quantity:         log.workers || 1,
+      quantity_unit:    'workers',
+      base_rate:        log.rate || null,
+      total_payment:    log.totalCost || null,
+      contract_type:    log.contractType || null,
+      contract_qty:     log.contractQty || null,
+    }))
+    const { data, error } = await supabase.from('labour_logs')
+      .insert(rows)
+      .select('*, plots(name)')
+    if (error) throw error
+    set(s => ({ labourLogs: [...(data || []).map(mapLabourLog), ...s.labourLogs] }))
+  },
+
   addWorkType: async (name) => {
     const { data, error } = await supabase.from('work_types').insert({ name }).select().single()
     if (error) throw error

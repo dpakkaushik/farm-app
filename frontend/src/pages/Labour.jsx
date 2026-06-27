@@ -18,7 +18,7 @@ const CONTRACT_TYPES = [
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, plots, logLabourBatch } = useAppStore()
   const permanentStaff    = allStaff.filter(s => s.isActive !== false)
   const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
@@ -67,7 +67,7 @@ export default function Labour() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} />}
+        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} />}
         {subTab === 'logs'    && <LabourLogs labourLogs={labourLogs} permanentStaff={permanentStaff} regularLabourers={regularLabourers} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
         {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
@@ -183,17 +183,13 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthAtt, monthLo
 }
 
 // ── Today: attendance + task log ──────────────────────────────────────────────
-const EMPTY_WFORM = { workTypeId: '', workerType: 'contractual', selectedWorkers: new Set(), workerCount: '', contractType: '', contractQty: '', rate: '', cycleId: '', date: TODAY_STR }
-
-function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast }) {
+function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast, plots, logLabourBatch }) {
   const { activityTypes } = useAppStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
   const [savingAtt,     setSavingAtt]    = useState({})
   const [showLogModal,  setShowLogModal] = useState(null)
-  const [wForm,         setWForm]        = useState(EMPTY_WFORM)
-  const [saving,        setSaving]       = useState(false)
   const [selMonth,      setSelMonth]     = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [monthAtt,      setMonthAtt]     = useState([])
   const [monthLogs,     setMonthLogs]    = useState([])
@@ -289,63 +285,6 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
       })
     }
     setSavingAtt(s => ({ ...s, [labourId]: false }))
-  }
-
-  const submitWork = async () => {
-    if (!wForm.workTypeId)   return showToast('Select a work type', 'warn')
-    if (!wForm.contractType) return showToast('Select contract type', 'warn')
-    const cycle    = cropCycles.find(c => c.id === wForm.cycleId)
-    const workType = activityTypes.find(a => a.id === wForm.workTypeId)
-    setSaving(true)
-    try {
-      if (wForm.workerType === 'regular') {
-        if (!wForm.selectedWorkers.size) return showToast('Select a worker', 'warn')
-        const qty    = parseFloat(wForm.contractQty)
-        const rate   = parseFloat(wForm.rate)
-        if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
-        const [wid]  = wForm.selectedWorkers
-        const person = [...permanentStaff, ...regularLabourers].find(p => p.id === wid)
-        if (!person) return showToast('Select a worker', 'warn')
-        await logLabour({
-          labourType:     'regular',
-          labourMasterId: person.id,
-          labourName:     person.name,
-          plotId:         cycle?.plotId || null,
-          cropCycleId:    wForm.cycleId || null,
-          date:           wForm.date,
-          workers:        1,
-          ratePerDay:     rate,
-          totalCost:      qty * rate,
-          purpose:        workType?.label || 'Work',
-          workTypeId:     wForm.workTypeId,
-          contractType:   wForm.contractType,
-          contractQty:    qty,
-        })
-        showToast('Work logged ✓')
-      } else {
-        const workers = parseFloat(wForm.workerCount) || 0
-        const qty     = parseFloat(wForm.contractQty)
-        const rate    = parseFloat(wForm.rate)
-        if (!qty || !rate) return showToast('Fill quantity and rate', 'warn')
-        await logLabour({
-          labourType:   'contractual',
-          labourName:   workType?.label || 'Contractual',
-          plotId:       cycle?.plotId || null,
-          cropCycleId:  wForm.cycleId || null,
-          date:         wForm.date,
-          workers,
-          ratePerDay:   rate,
-          totalCost:    qty * rate,
-          purpose:      workType?.label || 'Contractual work',
-          workTypeId:   wForm.workTypeId,
-          contractType: wForm.contractType,
-          contractQty:  qty,
-        })
-        showToast('Work logged ✓')
-      }
-      setWForm(EMPTY_WFORM)
-    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
-    setSaving(false)
   }
 
   const todayLogs     = labourLogs.filter(l => l.date === TODAY_STR)
@@ -515,154 +454,14 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         })()}
       </div>
 
-      {/* Log Work */}
-      <div>
-        <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Log Work</p>
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-3">
-
-          {/* Work type */}
-          <FRow label="Work Type">
-            <select className="finput" value={wForm.workTypeId} onChange={e => setWForm(p => ({ ...p, workTypeId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
-              <option value="" style={{ background: 'var(--c-surface)' }}>Select work type…</option>
-              {activityTypes.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
-            </select>
-          </FRow>
-
-          {/* Worker Type toggle */}
-          <div>
-            <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Worker Type</p>
-            <div className="flex gap-2">
-              {[['contractual','🏗️ Contractual'],['regular','👤 Regular']].map(([v,lbl]) => (
-                <button key={v} onClick={() => setWForm(p => ({ ...p, workerType: v, selectedWorkers: new Set(), contractType: '', contractQty: '', rate: '' }))}
-                  className="flex-1 py-2 text-xs font-bold rounded-xl border transition-all"
-                  style={{
-                    background:  wForm.workerType === v ? '#1D9E7522' : 'var(--c-card)',
-                    borderColor: wForm.workerType === v ? '#1D9E75'   : 'var(--c-border-md)',
-                    color:       wForm.workerType === v ? '#1D9E75'   : 'var(--c-muted)',
-                  }}>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Contract Type — always second, for both worker types */}
-          <FRow label="Contract Type">
-            <div className="grid grid-cols-3 gap-1.5">
-              {(wForm.workerType === 'regular' ? CONTRACT_TYPES.filter(ct => ct.value !== 'per_day') : CONTRACT_TYPES).map(ct => (
-                <button key={ct.value} onClick={() => setWForm(p => ({ ...p, contractType: ct.value, selectedWorkers: new Set(), contractQty: '', rate: '' }))}
-                  className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
-                  style={{
-                    background:  wForm.contractType === ct.value ? '#1D9E7520' : 'var(--c-card)',
-                    borderColor: wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-border-md)',
-                    color:       wForm.contractType === ct.value ? '#1D9E75'   : 'var(--c-sub)',
-                  }}>
-                  {ct.emoji}<br/>{ct.label}
-                </button>
-              ))}
-            </div>
-          </FRow>
-
-          {/* Contractual: worker count (after contract type) */}
-          {wForm.workerType === 'contractual' && wForm.contractType && (
-            <FRow label="No. of Workers">
-              <input type="number" className="finput" placeholder="0" min="1"
-                value={wForm.workerCount} onChange={e => setWForm(p => ({ ...p, workerCount: e.target.value }))} />
-            </FRow>
-          )}
-
-          {/* Regular: worker chips — only shown after contract type is picked */}
-          {wForm.workerType === 'regular' && !wForm.contractType && (
-            <p className="text-xs text-[var(--c-faint)] text-center py-1">Select a contract type above to pick workers.</p>
-          )}
-          {wForm.workerType === 'regular' && wForm.contractType && (() => {
-            const presentWorkers = regularLabourers.map(l => ({ ...l, tag: '👷', rate: l.ratePerDay || 0 }))
-            if (presentWorkers.length === 0) return (
-              <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No regular labourers added yet. Go to Admin → Labour to add them.</p>
-            )
-            const singleSelect = wForm.contractType !== 'per_day'
-            return (
-              <div key="chips">
-                <p className="text-[10px] text-[var(--c-muted)] mb-1.5">
-                  {singleSelect ? 'Select Worker (one at a time)' : 'Select Workers (multi-select)'}
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {presentWorkers.map(w => {
-                    const sel = wForm.selectedWorkers.has(w.id)
-                    return (
-                      <button key={w.id}
-                        onClick={() => setWForm(p => {
-                          if (singleSelect) {
-                            return { ...p, selectedWorkers: new Set([w.id]), contractQty: '', rate: '' }
-                          }
-                          const s = new Set(p.selectedWorkers)
-                          sel ? s.delete(w.id) : s.add(w.id)
-                          return { ...p, selectedWorkers: s }
-                        })}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all"
-                        style={{
-                          background:  sel ? '#1D9E7520' : 'var(--c-card)',
-                          borderColor: sel ? '#1D9E75'   : 'var(--c-border-md)',
-                          color:       sel ? '#1D9E75'   : 'var(--c-sub)',
-                        }}>
-                        {w.tag} {w.name}
-                        <span className="text-[9px] opacity-60 ml-0.5">₹{w.rate}/day</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
-
-
-          {/* Qty + Rate — for contractual (all types) or regular (non-per_day) */}
-          {wForm.contractType && (wForm.workerType === 'contractual' || wForm.contractType !== 'per_day') && (() => {
-            const ct = CONTRACT_TYPES.find(c => c.value === wForm.contractType)
-            return (
-              <>
-                <div className="grid grid-cols-2 gap-2">
-                  <FRow label={`Qty (${ct.unit})`}>
-                    <input type="number" className="finput" placeholder="e.g. 4" min="0"
-                      value={wForm.contractQty} onChange={e => setWForm(p => ({ ...p, contractQty: e.target.value }))} />
-                  </FRow>
-                  <FRow label={`Rate / ${ct.unit} (₹)`}>
-                    <input type="number" className="finput" placeholder="e.g. 500" min="0"
-                      value={wForm.rate} onChange={e => setWForm(p => ({ ...p, rate: e.target.value }))} />
-                  </FRow>
-                </div>
-                {wForm.contractQty && wForm.rate && (
-                  <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/25 rounded-xl px-3 py-2 flex items-center justify-between">
-                    <p className="text-[10px] text-[var(--c-muted)]">{wForm.contractQty} × ₹{wForm.rate}</p>
-                    <p className="text-sm font-bold text-[#1D9E75]">₹{(parseFloat(wForm.contractQty) * parseFloat(wForm.rate)).toLocaleString('en-IN')}</p>
-                  </div>
-                )}
-              </>
-            )
-          })()}
-
-          {/* Common: plot + date */}
-          <div className="grid grid-cols-2 gap-2">
-            <FRow label="Plot / Cycle">
-              <select className="finput" value={wForm.cycleId} onChange={e => setWForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
-                <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide</option>
-                {cropCycles.filter(c => c.status === 'active').map(c => {
-                  const crop = cropMaster.find(cr => cr.id === c.cropId)
-                  return <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.plotLabel} — {crop?.name || ''}</option>
-                })}
-              </select>
-            </FRow>
-            <FRow label="Date">
-              <input type="date" className="finput" value={wForm.date} onChange={e => setWForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
-            </FRow>
-          </div>
-
-          <button onClick={submitWork} disabled={saving}
-            className="w-full py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
-            {saving ? 'Logging…' : '+ Log Work'}
-          </button>
-        </div>
-      </div>
+      <LogWorkForm
+        plots={plots}
+        cropCycles={cropCycles}
+        cropMaster={cropMaster}
+        regularLabourers={regularLabourers}
+        logLabourBatch={logLabourBatch}
+        showToast={showToast}
+      />
 
       {/* Today's logs */}
       {todayLogs.length > 0 && (
@@ -1178,6 +977,292 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Log Work — multi-field × multi-worker bill-style form ─────────────────────
+const EMPTY_WORKER = () => ({ id: String(Date.now() + Math.random()), workerId: '', workerCount: '1', qty: '', rate: '' })
+
+function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabourBatch, showToast }) {
+  const { activityTypes } = useAppStore()
+  const [selPlots,     setSelPlots]     = useState(new Set())
+  const [workTypeId,   setWorkTypeId]   = useState('')
+  const [workerType,   setWorkerType]   = useState('regular')
+  const [contractType, setContractType] = useState('')
+  const [date,         setDate]         = useState(TODAY_STR)
+  const [workers,      setWorkers]      = useState([EMPTY_WORKER()])
+  const [saving,       setSaving]       = useState(false)
+
+  const ct             = CONTRACT_TYPES.find(c => c.value === contractType)
+  const selectedPlots  = plots.filter(p => selPlots.has(p.id))
+  const totalAcres     = selectedPlots.reduce((s, p) => s + (Number(p.area_acres) || 0), 0)
+  const totalCost      = workers.reduce((s, w) => s + (parseFloat(w.qty) || 0) * (parseFloat(w.rate) || 0), 0)
+
+  const plotSplit = selectedPlots.map(p => {
+    const share = totalAcres > 0
+      ? Number(p.area_acres) / totalAcres
+      : 1 / Math.max(selectedPlots.length, 1)
+    return { ...p, share, amount: totalCost * share }
+  })
+
+  const togglePlot    = (id) => setSelPlots(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  const addWorker     = () => setWorkers(prev => [...prev, EMPTY_WORKER()])
+  const removeWorker  = (id) => setWorkers(prev => prev.filter(w => w.id !== id))
+  const updateWorker  = (id, field, val) => setWorkers(prev => prev.map(w => w.id === id ? { ...w, [field]: val } : w))
+
+  const reset = () => {
+    setSelPlots(new Set()); setWorkTypeId(''); setWorkerType('regular')
+    setContractType(''); setDate(TODAY_STR); setWorkers([EMPTY_WORKER()])
+  }
+
+  const submit = async () => {
+    if (!workTypeId)   return showToast('Select a work type', 'warn')
+    if (!contractType) return showToast('Select contract type', 'warn')
+    const validW = workers.filter(w => parseFloat(w.qty) > 0 && parseFloat(w.rate) > 0)
+    if (validW.length === 0) return showToast('Add qty and rate for at least one worker', 'warn')
+    if (workerType === 'regular' && validW.some(w => !w.workerId)) return showToast('Select a worker for each row', 'warn')
+
+    const workType = activityTypes.find(a => a.id === workTypeId)
+    const targets  = selectedPlots.length > 0 ? selectedPlots : [null]
+    const logs     = []
+
+    for (const plot of targets) {
+      const share = plot
+        ? (totalAcres > 0 ? Number(plot.area_acres) / totalAcres : 1 / selectedPlots.length)
+        : 1
+      const cycle = plot ? cropCycles.find(c => c.plotId === plot.id && c.status === 'active') : null
+
+      for (const w of validW) {
+        const qty    = parseFloat(w.qty)
+        const rate   = parseFloat(w.rate)
+        const cost   = Math.round(qty * rate * share * 100) / 100
+        const person = workerType === 'regular' ? regularLabourers.find(l => l.id === w.workerId) : null
+        logs.push({
+          labourType:     workerType,
+          labourMasterId: person?.id || null,
+          labourName:     person?.name || 'Contractual',
+          plotId:         plot?.id || null,
+          cropCycleId:    cycle?.id || null,
+          date,
+          workers:        workerType === 'contractual' ? (parseFloat(w.workerCount) || 1) : 1,
+          rate,
+          totalCost:      cost,
+          purpose:        workType?.label || 'Work',
+          workTypeId,
+          contractType,
+          contractQty:    qty,
+        })
+      }
+    }
+
+    setSaving(true)
+    try {
+      await logLabourBatch(logs)
+      showToast(`Work logged ✓ (${logs.length} entr${logs.length === 1 ? 'y' : 'ies'})`)
+      reset()
+    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Log Work</p>
+      <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-3">
+
+        {/* Step 1 — Fields */}
+        <div>
+          <p className="text-xs font-medium text-[var(--c-sub)] mb-1.5">
+            Fields <span className="font-normal text-[var(--c-faint)]">(select one or more · leave blank for farm-wide)</span>
+          </p>
+          {plots.length === 0
+            ? <p className="text-xs text-[var(--c-faint)]">No plots added yet.</p>
+            : <div className="flex flex-wrap gap-1.5">
+                {plots.map(p => {
+                  const sel  = selPlots.has(p.id)
+                  const cycle = cropCycles.find(c => c.plotId === p.id && c.status === 'active')
+                  const crop  = cycle ? cropMaster.find(cr => cr.id === cycle.cropId) : null
+                  return (
+                    <button key={p.id} onClick={() => togglePlot(p.id)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all"
+                      style={{
+                        background:  sel ? '#1D9E7520' : 'var(--c-card)',
+                        borderColor: sel ? '#1D9E75'   : 'var(--c-border-md)',
+                        color:       sel ? '#1D9E75'   : 'var(--c-sub)',
+                      }}>
+                      {p.name}
+                      <span className="text-[9px] opacity-60">{Number(p.area_acres).toFixed(1)}ac</span>
+                      {crop && (
+                        <span className="text-[8px] px-1 py-0.5 rounded" style={{ background: '#1D9E7520', color: '#1D9E75' }}>
+                          {crop.name}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+          }
+        </div>
+
+        {/* Step 2 — Work Type */}
+        <FRow label="Work Type">
+          <select className="finput" value={workTypeId} onChange={e => setWorkTypeId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
+            <option value="" style={{ background: 'var(--c-surface)' }}>Select work type…</option>
+            {activityTypes.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
+          </select>
+        </FRow>
+
+        {/* Step 3 — Worker Type */}
+        <div>
+          <p className="text-[10px] text-[var(--c-muted)] mb-1.5">Worker Type</p>
+          <div className="flex gap-2">
+            {[['regular','👤 Regular'],['contractual','🏗️ Contractual']].map(([v,lbl]) => (
+              <button key={v}
+                onClick={() => { setWorkerType(v); setContractType(''); setWorkers([EMPTY_WORKER()]) }}
+                className="flex-1 py-2 text-xs font-bold rounded-xl border transition-all"
+                style={{
+                  background:  workerType === v ? '#1D9E7522' : 'var(--c-card)',
+                  borderColor: workerType === v ? '#1D9E75'   : 'var(--c-border-md)',
+                  color:       workerType === v ? '#1D9E75'   : 'var(--c-muted)',
+                }}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Step 4 — Contract Type */}
+        <FRow label="Contract Type">
+          <div className="grid grid-cols-3 gap-1.5">
+            {CONTRACT_TYPES.map(c => (
+              <button key={c.value}
+                onClick={() => { setContractType(c.value); setWorkers([EMPTY_WORKER()]) }}
+                className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
+                style={{
+                  background:  contractType === c.value ? '#1D9E7520' : 'var(--c-card)',
+                  borderColor: contractType === c.value ? '#1D9E75'   : 'var(--c-border-md)',
+                  color:       contractType === c.value ? '#1D9E75'   : 'var(--c-sub)',
+                }}>
+                {c.emoji}<br/>{c.label}
+              </button>
+            ))}
+          </div>
+        </FRow>
+
+        {/* Step 5 — Workers list */}
+        {contractType && (
+          <div className="space-y-2">
+            <p className="text-[10px] text-[var(--c-muted)]">
+              {workerType === 'regular' ? 'Workers' : 'Contractor Groups'} — {ct?.emoji} {ct?.label} @ ₹/{ct?.unit}
+            </p>
+
+            {workers.map((w, idx) => (
+              <div key={w.id} className="bg-[var(--c-card)] rounded-xl p-2.5 space-y-2 border border-[var(--c-border)]">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold text-[var(--c-sub)]">
+                    {workerType === 'regular' ? `Worker ${idx + 1}` : `Group ${idx + 1}`}
+                  </p>
+                  {workers.length > 1 && (
+                    <button onClick={() => removeWorker(w.id)} className="text-[#E24B4A] p-0.5">
+                      <X size={13}/>
+                    </button>
+                  )}
+                </div>
+
+                {workerType === 'regular' ? (
+                  <select className="finput" value={w.workerId}
+                    onChange={e => updateWorker(w.id, 'workerId', e.target.value)}
+                    style={{ background: 'var(--c-surface)', fontSize: 12, padding: '8px 12px' }}>
+                    <option value="" style={{ background: 'var(--c-surface)' }}>Select worker…</option>
+                    {regularLabourers.map(l => (
+                      <option key={l.id} value={l.id} style={{ background: 'var(--c-surface)' }}>
+                        {l.name} · ₹{l.ratePerDay}/day
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div>
+                    <p className="text-[9px] text-[var(--c-faint)] mb-0.5">No. of Workers</p>
+                    <input type="number" className="finput" placeholder="1" min="1"
+                      value={w.workerCount} onChange={e => updateWorker(w.id, 'workerCount', e.target.value)}
+                      style={{ fontSize: 12, padding: '8px 12px' }} />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-1.5">
+                  <div>
+                    <p className="text-[9px] text-[var(--c-faint)] mb-0.5">Qty ({ct?.unit})</p>
+                    <input type="number" className="finput" placeholder="0" min="0"
+                      value={w.qty} onChange={e => updateWorker(w.id, 'qty', e.target.value)}
+                      style={{ fontSize: 12, padding: '8px 10px' }} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-[var(--c-faint)] mb-0.5">Rate/₹{ct?.unit}</p>
+                    <input type="number" className="finput" placeholder="0" min="0"
+                      value={w.rate} onChange={e => updateWorker(w.id, 'rate', e.target.value)}
+                      style={{ fontSize: 12, padding: '8px 10px' }} />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-[var(--c-faint)] mb-0.5">Amount</p>
+                    <div className="finput flex items-center font-bold"
+                      style={{ fontSize: 12, padding: '8px 10px', color: '#1D9E75' }}>
+                      ₹{((parseFloat(w.qty)||0)*(parseFloat(w.rate)||0)).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <button onClick={addWorker}
+              className="w-full py-2 rounded-xl text-xs font-semibold border border-dashed text-[var(--c-muted)] hover:border-[#1D9E75]/50 hover:text-[#1D9E75] transition-colors"
+              style={{ borderColor: 'var(--c-border-md)' }}>
+              + Add Another Worker
+            </button>
+          </div>
+        )}
+
+        {/* Total + area-split preview */}
+        {totalCost > 0 && (
+          <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/25 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold text-[var(--c-text)]">Total Work Cost</p>
+              <p className="text-base font-bold text-[#1D9E75]">₹{Math.round(totalCost).toLocaleString('en-IN')}</p>
+            </div>
+            {selectedPlots.length > 1 && (
+              <div className="border-t border-[#1D9E75]/20 pt-2 space-y-1.5">
+                <p className="text-[9px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Split by area</p>
+                {plotSplit.map(p => (
+                  <div key={p.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#1D9E75]"/>
+                      <p className="text-[10px] text-[var(--c-text)]">{p.name}</p>
+                      <p className="text-[9px] text-[var(--c-faint)]">{Number(p.area_acres).toFixed(1)}ac · {Math.round(p.share*100)}%</p>
+                    </div>
+                    <p className="text-[10px] font-bold text-[#1D9E75]">₹{Math.round(p.amount).toLocaleString('en-IN')}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {selectedPlots.length === 1 && (
+              <p className="text-[9px] text-[var(--c-faint)]">Full amount → {selectedPlots[0].name}</p>
+            )}
+            {selectedPlots.length === 0 && (
+              <p className="text-[9px] text-[var(--c-faint)]">No fields selected — logs as farm-wide</p>
+            )}
+          </div>
+        )}
+
+        {/* Date */}
+        <FRow label="Date">
+          <input type="date" className="finput" value={date} onChange={e => setDate(e.target.value)} style={{ colorScheme: 'dark' }} />
+        </FRow>
+
+        <button onClick={submit} disabled={saving}
+          className="w-full py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+          {saving ? 'Logging…' : '+ Submit Work Log'}
+        </button>
+        <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
+      </div>
     </div>
   )
 }
