@@ -1066,7 +1066,6 @@ const useAppStore = create((set, get) => ({
         .from('inventory_purchases')
         .insert({ item_id: line.itemId, purchase_date: billDate, invoice_date: billDate,
                   quantity: line.qty, unit_price: line.unitPrice,
-                  total_cost: Math.round(line.qty * line.unitPrice * 100) / 100,
                   vendor_name: vendor, vendor_id: vendorId || null,
                   invoice_number: invoiceNo || null, bill_id: bill.id })
         .select().single()
