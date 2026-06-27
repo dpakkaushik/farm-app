@@ -576,21 +576,15 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
             <p className="text-xs text-[var(--c-faint)] text-center py-1">Select a contract type above to pick workers.</p>
           )}
           {wForm.workerType === 'regular' && wForm.contractType && (() => {
-            const presentWorkers = [
-              ...permanentStaff.map(s  => ({ ...s, tag: '🏢', rate: s.ratePerDay || 0 })),
-              ...regularLabourers.map(l => ({ ...l, tag: '👷', rate: l.ratePerDay || 0 })),
-            ].filter(w => {
-              const att = attendance[w.id]
-              return att?.status === 'present' || att?.status === 'half_day'
-            })
+            const presentWorkers = regularLabourers.map(l => ({ ...l, tag: '👷', rate: l.ratePerDay || 0 }))
             if (presentWorkers.length === 0) return (
-              <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No workers marked present today. Mark attendance above first.</p>
+              <p key="none" className="text-xs text-[var(--c-faint)] text-center py-2">No regular labourers added yet. Go to Admin → Labour to add them.</p>
             )
             const singleSelect = wForm.contractType !== 'per_day'
             return (
               <div key="chips">
                 <p className="text-[10px] text-[var(--c-muted)] mb-1.5">
-                  {singleSelect ? 'Select Worker (one at a time)' : 'Select Workers (present today · multi-select)'}
+                  {singleSelect ? 'Select Worker (one at a time)' : 'Select Workers (multi-select)'}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {presentWorkers.map(w => {
