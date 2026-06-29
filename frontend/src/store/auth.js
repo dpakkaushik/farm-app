@@ -197,7 +197,7 @@ const useAuthStore = create((set, get) => ({
         email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${window.location.origin}/invite/${data.token}`,
+          emailRedirectTo: `${import.meta.env.VITE_APP_URL || window.location.origin}/invite/${data.token}`,
         },
       })
     }
