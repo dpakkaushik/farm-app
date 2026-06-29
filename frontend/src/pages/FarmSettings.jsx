@@ -146,7 +146,7 @@ export default function FarmSettings() {
               <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '2px' }}>{activeFarm?.farm_location} · {activeFarm?.total_acres} acres</div>
             </div>
             {amAdmin && (
-              <button onClick={() => setEditFarm(true)} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
+              <button onClick={() => setEditFarm(true)} style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', color: '#374151', cursor: 'pointer', fontSize: '13px' }}>Edit</button>
             )}
           </div>
         )}
@@ -251,7 +251,7 @@ export default function FarmSettings() {
                 <input
                   readOnly
                   value={inviteLink}
-                  style={{ flex: 1, padding: '7px 10px', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '12px', background: '#fff' }}
+                  style={{ flex: 1, padding: '7px 10px', border: '1px solid #bbf7d0', borderRadius: '6px', fontSize: '12px', background: '#fff', color: '#111827' }}
                 />
                 <button
                   onClick={handleCopy}
