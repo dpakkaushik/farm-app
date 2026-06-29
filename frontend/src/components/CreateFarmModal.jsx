@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useMapStore } from '../store'
 
 export default function CreateFarmModal({ onClose }) {
+  const navigate = useNavigate()
   const { createFarm } = useAuthStore()
   const [form, setForm]     = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
   const [loading, setLoading] = useState(false)
@@ -17,6 +19,7 @@ export default function CreateFarmModal({ onClose }) {
     try {
       await createFarm(form)
       onClose()
+      navigate('/field?newFarm=1')
     } catch (err) {
       setError(err.message || 'Failed to create farm')
     } finally {

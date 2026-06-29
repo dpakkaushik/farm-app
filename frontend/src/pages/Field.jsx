@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
@@ -129,6 +129,8 @@ export default function Field() {
   const { zoom, center, bearing, pitch, setMapState, overlay, setOverlay } = useMapStore()
   const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
   const { activeFarm, activeFarmId } = useAuthStore()
+  const location = useLocation()
+  const [showNewFarmBanner, setShowNewFarmBanner] = useState(() => new URLSearchParams(location.search).get('newFarm') === '1')
 
   const [selectedPlot, setSelectedPlot]         = useState(null)
   const [showCoordPanel, setShowCoordPanel]     = useState(false)
@@ -460,6 +462,32 @@ export default function Field() {
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
+
+      {/* New-farm welcome banner */}
+      {showNewFarmBanner && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+          style={{ width: 'calc(100% - 24px)', maxWidth: '420px' }}>
+          <div style={{ background: '#1D9E75', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+            <span style={{ fontSize: '22px', lineHeight: 1 }}>🎉</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Farm created! Now add your first plot.</div>
+              <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.4 }}>
+                Go to <strong>Admin → Fields</strong> to draw plot boundaries on this map.
+              </div>
+              <button
+                onClick={() => { setShowNewFarmBanner(false); navigate('/admin') }}
+                style={{ marginTop: '8px', padding: '6px 14px', border: 'none', borderRadius: '7px', background: '#fff', color: '#1D9E75', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Add First Plot →
+              </button>
+            </div>
+            <button onClick={() => setShowNewFarmBanner(false)}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: '18px', cursor: 'pointer', lineHeight: 1, padding: 0 }}>
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Greeting + Weather — compact top-left pills */}
       <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none" style={{ maxWidth: '175px' }}>

@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useMapStore } from '../store'
 
 export default function FarmOnboarding() {
+  const navigate = useNavigate()
   const { createFarm, logout, user } = useAuthStore()
   const [form, setForm]       = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
   const [pickMode, setPickMode] = useState(false)
@@ -16,6 +18,7 @@ export default function FarmOnboarding() {
     setError('')
     try {
       await createFarm(form)
+      navigate('/field?newFarm=1')
     } catch (err) {
       setError(err.message || 'Failed to create farm. Please try again.')
       setLoading(false)

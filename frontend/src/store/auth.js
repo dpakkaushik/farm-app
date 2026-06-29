@@ -157,16 +157,14 @@ const useAuthStore = create((set, get) => ({
       ? { center: [parsedLng, parsedLat], zoom: 15 }
       : null
 
-    const { data: farm, error: fErr } = await supabase
-      .from('farms')
-      .insert({ name, location: location || 'India', total_acres: parseFloat(total_acres) || 0, owner_id: user.id, map_state })
-      .select().single()
-    if (fErr) throw fErr
-
-    const { error: mErr } = await supabase.from('farm_memberships').insert({
-      farm_id: farm.id, user_id: user.id, role: 'admin', status: 'active',
+    // Use SECURITY DEFINER RPC — avoids RLS chicken-and-egg (farm exists before membership)
+    const { data: farm, error } = await supabase.rpc('create_farm_with_membership', {
+      p_name:        name,
+      p_location:    location || 'India',
+      p_total_acres: parseFloat(total_acres) || 0,
+      p_map_state:   map_state,
     })
-    if (mErr) throw mErr
+    if (error) throw error
 
     await get().refreshFarms()
     get().switchFarm(farm.id)
