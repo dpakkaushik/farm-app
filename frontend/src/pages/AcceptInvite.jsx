@@ -44,7 +44,7 @@ export default function AcceptInvite() {
     setSending(true)
     await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: true, emailRedirectTo: `${import.meta.env.VITE_APP_URL || window.location.origin}/invite/${token}` },
+      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.hostname === 'localhost' ? 'https://frontend-zeta-ten-64.vercel.app' : window.location.origin}/invite/${token}` },
     })
     setSending(false)
     setSent(true)

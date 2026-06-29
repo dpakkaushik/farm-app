@@ -197,7 +197,7 @@ const useAuthStore = create((set, get) => ({
         email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: `${import.meta.env.VITE_APP_URL || window.location.origin}/invite/${data.token}`,
+          emailRedirectTo: `${window.location.hostname === 'localhost' ? 'https://frontend-zeta-ten-64.vercel.app' : window.location.origin}/invite/${data.token}`,
         },
       })
     }
