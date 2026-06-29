@@ -77,6 +77,8 @@ function mapSession(s) {
     notes:                s.notes || null,
     partnerId:            s.partner_id || null,
     parchiAttachmentPath: s.parchi_attachment_path || null,
+    storageLocation:      s.storage_location || null,
+    moisturePct:          s.moisture_pct != null ? Number(s.moisture_pct) : null,
   }
 }
 
@@ -642,12 +644,22 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Harvest sessions (non-cane crops) ──────────────────────────────────────
-  addHarvestSession: async (cycleId, { date, qtyQtl, quality, notes, weighingSlipPath }) => {
+  addHarvestSession: async (cycleId, { date, qtyQtl, quality, notes, weighingSlipPath, storageLocation, moisturePct }) => {
     const { cropMaster, cropCycles } = get()
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
     const { data: session, error } = await supabase
       .from('harvest_sessions')
-      .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null, parchi_attachment_path: weighingSlipPath || null })
+      .insert({
+        farm_id:              getFarmId(),
+        cycle_id:             cycleId,
+        harvest_date:         date,
+        quantity_kg:          qtyKg,
+        quality_grade:        quality || null,
+        notes:                notes || null,
+        parchi_attachment_path: weighingSlipPath || null,
+        storage_location:     storageLocation || null,
+        moisture_pct:         moisturePct != null ? parseFloat(moisturePct) : null,
+      })
       .select().single()
     if (error) throw error
 

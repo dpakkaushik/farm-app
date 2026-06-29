@@ -104,14 +104,14 @@ export default function Harvest() {
   // ── Non-cane harvest record ───────────────────────────────────────────────────
   const openRecord = (cycle) => {
     setSelected(cycle)
-    setForm({ date: new Date().toISOString().slice(0, 10), qtyPerAcre: '', quality: 'A', notes: '' })
+    setForm({ date: new Date().toISOString().slice(0, 10), qtyQtl: '', quality: 'A', storageLocation: 'own_godown', moisturePct: '', notes: '' })
     setWeighingSlip(null)
     setRecordError('')
     setModal('record')
   }
 
   const confirmRecord = async () => {
-    if (!form.qtyPerAcre || !selected || saving) return
+    if (!form.qtyQtl || !selected || saving) return
     const today = new Date().toISOString().slice(0, 10)
     if (form.date > today) { setRecordError('Harvest date cannot be in the future.'); return }
     if (!weighingSlip)     { setRecordError('Please attach the weighing slip — it is required.'); return }
@@ -119,15 +119,17 @@ export default function Harvest() {
     setSaving(true)
     try {
       const weighingSlipPath = await uploadFile(weighingSlip, 'weighing', selected.id)
-      const crop    = cropMaster.find(c => c.id === selected.cropId)
-      const qtyQtl  = parseFloat((parseFloat(form.qtyPerAcre) * selected.acres).toFixed(1))
+      const crop   = cropMaster.find(c => c.id === selected.cropId)
+      const qtyQtl = parseFloat(parseFloat(form.qtyQtl).toFixed(1))
 
       await addHarvestSession(selected.id, {
-        date:             form.date,
+        date:            form.date,
         qtyQtl,
-        quality:          form.quality,
-        notes:            form.notes || null,
+        quality:         form.quality,
+        notes:           form.notes || null,
         weighingSlipPath,
+        storageLocation: form.storageLocation || null,
+        moisturePct:     form.moisturePct ? parseFloat(form.moisturePct) : null,
       })
 
       if (crop?.ratoonCropId) {
@@ -537,7 +539,7 @@ export default function Harvest() {
                   {/* Harvest summary */}
                   {session ? (
                     <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-3">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-1">
                         <div>
                           <p className="text-[10px] text-[var(--c-faint)]">Harvested {session.date}</p>
                           <p className="text-base font-bold text-[var(--c-text)]">{session.qtyQtl.toFixed(1)} qtl</p>
@@ -546,10 +548,22 @@ export default function Harvest() {
                           <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {session.quality}</span>
                         )}
                       </div>
-                      {session.parchiAttachmentPath && (
-                        <a href={attachmentUrl(session.parchiAttachmentPath)} target="_blank" rel="noreferrer"
-                          className="text-[10px] text-[#1D9E75] underline mt-1.5 block">⚖️ View Weighing Slip</a>
-                      )}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {session.storageLocation && (
+                          <span className="text-[10px] text-[var(--c-faint)]">
+                            📦 {session.storageLocation === 'own_godown' ? 'Own Godown' : session.storageLocation === 'mandi' ? 'Mandi' : "Buyer's Store"}
+                          </span>
+                        )}
+                        {session.moisturePct != null && (
+                          <span className={`text-[10px] font-medium ${session.moisturePct > 14 ? 'text-[#BA7517]' : 'text-[var(--c-faint)]'}`}>
+                            💧 {session.moisturePct}% moisture{session.moisturePct > 14 ? ' ⚠' : ''}
+                          </span>
+                        )}
+                        {session.parchiAttachmentPath && (
+                          <a href={attachmentUrl(session.parchiAttachmentPath)} target="_blank" rel="noreferrer"
+                            className="text-[10px] text-[#1D9E75] underline">⚖️ Weighing Slip</a>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <p className="text-xs text-[var(--c-faint)] italic mb-3">Harvest session not found.</p>
@@ -683,36 +697,90 @@ export default function Harvest() {
               ) : null
             })()}
             <div className="space-y-3">
+
+              {/* Harvest date */}
               <div>
-                <label className="text-xs text-[var(--c-sub)] block mb-1">Harvest date</label>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Harvest date <span className="text-[#E24B4A]">*</span></label>
                 <input type="date" value={form.date}
                   max={new Date().toISOString().slice(0, 10)}
                   onChange={e => { f('date', e.target.value); setRecordError('') }}
                   className="finput" style={{ colorScheme: 'dark' }}/>
               </div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Yield per acre (qtl)</label>
-                <input type="number" placeholder="e.g. 15" value={form.qtyPerAcre} onChange={e => f('qtyPerAcre', e.target.value)} className="finput"/></div>
-              {form.qtyPerAcre && (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
-                  <p className="text-xs text-[var(--c-sub)]">Total yield ({selected.acres} acres)</p>
-                  <p className="text-xl font-bold text-[#1D9E75]">{(parseFloat(form.qtyPerAcre) * selected.acres).toFixed(1)} qtl</p>
+
+              {/* Total quantity — read from weighing slip */}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Total quantity (qtl) <span className="text-[#E24B4A]">*</span></label>
+                <input type="number" step="0.1" placeholder="e.g. 47.5 — as shown on weighing slip"
+                  value={form.qtyQtl} onChange={e => f('qtyQtl', e.target.value)} className="finput"/>
+              </div>
+
+              {/* Auto-calculated yield per acre */}
+              {form.qtyQtl && parseFloat(form.qtyQtl) > 0 && (
+                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] text-[var(--c-faint)]">Yield per acre</p>
+                    <p className="text-xl font-bold text-[#1D9E75]">
+                      {(parseFloat(form.qtyQtl) / selected.acres).toFixed(1)} qtl/acre
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-[var(--c-faint)] text-right">
+                    {parseFloat(form.qtyQtl).toFixed(1)} qtl<br/>÷ {selected.acres} acres
+                  </p>
                 </div>
               )}
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Quality grade</label>
-                <select value={form.quality} onChange={e => f('quality', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
-                  {['A', 'B', 'C'].map(g => <option key={g} value={g} style={{ background: '#1a2030' }}>Grade {g}</option>)}
-                </select></div>
+
+              {/* Quality grade */}
               <div>
-                <label className="text-xs text-[var(--c-sub)] block mb-1">
-                  Weighing slip <span className="text-[#E24B4A]">*</span>
-                </label>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Quality grade</label>
+                <div className="flex gap-2">
+                  {['A', 'B', 'C'].map(g => (
+                    <button key={g} type="button" onClick={() => f('quality', g)}
+                      className={`flex-1 py-2.5 text-sm font-bold rounded-xl border transition-colors ${
+                        form.quality === g
+                          ? 'bg-[#1D9E75] text-white border-transparent'
+                          : 'bg-transparent text-[var(--c-muted)] border-[var(--c-border)]'
+                      }`}>
+                      Grade {g}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Storage location */}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Storage location</label>
+                <select value={form.storageLocation} onChange={e => f('storageLocation', e.target.value)}
+                  className="finput" style={{ background: 'var(--c-input)' }}>
+                  <option value="own_godown">Own Godown</option>
+                  <option value="mandi">Mandi</option>
+                  <option value="buyer_store">Buyer's Store</option>
+                </select>
+              </div>
+
+              {/* Moisture % */}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Moisture % <span className="text-[var(--c-faint)]">(optional)</span></label>
+                <input type="number" step="0.1" min="0" max="30" placeholder="e.g. 12.5"
+                  value={form.moisturePct} onChange={e => f('moisturePct', e.target.value)} className="finput"/>
+                {form.moisturePct && parseFloat(form.moisturePct) > 14 && (
+                  <p className="text-[10px] text-[#BA7517] mt-1">⚠ Above 14% — expect drying deductions at mandi</p>
+                )}
+              </div>
+
+              {/* Weighing slip */}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Weighing slip <span className="text-[#E24B4A]">*</span></label>
                 <input type="file" accept="image/*,application/pdf"
                   onChange={e => { setWeighingSlip(e.target.files[0] || null); setRecordError('') }}
                   className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
-                {!weighingSlip && <p className="text-[10px] text-[#BA7517] mt-1">Required — attach photo or PDF of weighing slip</p>}
+                {!weighingSlip && <p className="text-[10px] text-[#BA7517] mt-1">Required — photo or PDF of weighing slip</p>}
               </div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
-                <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Notes <span className="text-[var(--c-faint)]">(optional)</span></label>
+                <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/>
+              </div>
 
               {recordError && (
                 <div className="bg-[#E24B4A]/10 border border-[#E24B4A]/30 rounded-xl px-3 py-2.5">
@@ -722,11 +790,11 @@ export default function Harvest() {
 
               <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2 text-[10px] text-[var(--c-faint)] space-y-0.5">
                 <p>• Plot will be marked <strong className="text-[var(--c-muted)]">empty</strong> on the field map</p>
-                <p>• Sale details (buyer, rate) recorded as next step — shows <strong className="text-[#BA7517]">pending</strong> until filled</p>
+                <p>• Sale shows <strong className="text-[#BA7517]">pending</strong> until buyer + rate are entered</p>
                 <p>• Payment receipt required to close the sale</p>
               </div>
 
-              <button onClick={confirmRecord} disabled={saving || !form.qtyPerAcre || !weighingSlip}
+              <button onClick={confirmRecord} disabled={saving || !form.qtyQtl || !weighingSlip}
                 className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Uploading & saving…' : 'Confirm Harvest'}
               </button>
