@@ -182,13 +182,14 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ── Invitation management ─────────────────────────────────────────────────
-  createInvitation: async ({ role }) => {
+  createInvitation: async ({ role, email, phone }) => {
     const { activeFarmId, user } = get()
     if (!activeFarmId || !user) throw new Error('No active farm')
-    const { data, error } = await supabase.from('farm_invitations').insert({
-      farm_id: activeFarmId, role, invited_by: user.id,
-    }).select().single()
-    if (error) throw error
+    const payload = { farm_id: activeFarmId, role, invited_by: user.id }
+    if (email) payload.email = email.toLowerCase().trim()
+    if (phone) payload.invitee_phone = phone.trim()
+    const { data, error } = await supabase.from('farm_invitations').insert(payload).select().single()
+    if (error) throw new Error(error.message || error.details || JSON.stringify(error))
     return data
   },
 
@@ -254,6 +255,9 @@ const useAuthStore = create((set, get) => ({
     if (iErr || !invite) throw new Error('Invitation not found or already used')
     if (new Date(invite.expires_at) < new Date()) {
       throw new Error('This invitation has expired. Ask the farm admin to send a new one.')
+    }
+    if (invite.email && invite.email.toLowerCase() !== user.email?.toLowerCase()) {
+      throw new Error(`This invitation was sent to ${invite.email}. Please sign in with that email to accept.`)
     }
 
     const { error: mErr } = await supabase.from('farm_memberships').insert({

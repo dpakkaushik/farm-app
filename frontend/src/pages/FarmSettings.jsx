@@ -16,11 +16,13 @@ export default function FarmSettings() {
   const [editFarm,    setEditFarm]    = useState(false)
   const [farmForm,    setFarmForm]    = useState({ name: '', location: '', total_acres: '' })
   const [saving,      setSaving]      = useState(false)
-  const [inviteRole,  setInviteRole]  = useState('manager')
-  const [inviteLink,  setInviteLink]  = useState('')
-  const [creating,    setCreating]    = useState(false)
-  const [copied,      setCopied]      = useState(false)
-  const [error,       setError]       = useState('')
+  const [inviteRole,    setInviteRole]    = useState('manager')
+  const [inviteeEmail,  setInviteeEmail]  = useState('')
+  const [inviteePhone,  setInviteePhone]  = useState('')
+  const [inviteLink,    setInviteLink]    = useState('')
+  const [creating,      setCreating]      = useState(false)
+  const [copied,        setCopied]        = useState(false)
+  const [error,         setError]         = useState('')
 
   const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const amAdmin = isAdmin(activeFarmRole)
@@ -71,16 +73,22 @@ export default function FarmSettings() {
   }
 
   const handleCreateInvite = async () => {
+    if (!inviteeEmail.trim() && !inviteePhone.trim()) {
+      setError('Enter the invitee\'s email or mobile number before generating the link.')
+      return
+    }
     setCreating(true)
     setInviteLink('')
     setError('')
     try {
-      const inv = await createInvitation({ role: inviteRole })
+      const inv = await createInvitation({ role: inviteRole, email: inviteeEmail.trim(), phone: inviteePhone.trim() })
       const link = `${window.location.origin}/invite/${inv.token}`
       setInviteLink(link)
       setInvitations(is => [inv, ...is])
+      setInviteeEmail('')
+      setInviteePhone('')
     } catch (err) {
-      setError(err.message)
+      setError(err?.message || err?.details || JSON.stringify(err) || 'Failed to generate invite link')
     } finally {
       setCreating(false)
     }
@@ -195,6 +203,28 @@ export default function FarmSettings() {
       {amAdmin && (
         <div style={card}>
           <span style={label}>Invite Someone</span>
+
+          {/* Invitee contact — required for security */}
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <input
+              value={inviteeEmail}
+              onChange={e => setInviteeEmail(e.target.value)}
+              placeholder="Email address"
+              type="email"
+              style={{ flex: 1, padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+            <input
+              value={inviteePhone}
+              onChange={e => setInviteePhone(e.target.value)}
+              placeholder="Mobile number"
+              type="tel"
+              style={{ flex: 1, padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+            />
+          </div>
+          <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '10px' }}>
+            🔒 Only someone with this email or mobile can accept the invite
+          </div>
+
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
             <select
               value={inviteRole}
@@ -230,8 +260,8 @@ export default function FarmSettings() {
                   {copied ? '✓' : 'Copy'}
                 </button>
               </div>
-              <div style={{ fontSize: '11px', color: '#4ade80', marginTop: '6px' }}>
-                💡 Share via WhatsApp — anyone with this link can join as {ROLE_LABELS[inviteRole]}
+              <div style={{ fontSize: '11px', color: '#059669', marginTop: '6px' }}>
+                💡 Share via WhatsApp — only the invited person can join as {ROLE_LABELS[inviteRole]}
               </div>
             </div>
           )}
@@ -243,8 +273,10 @@ export default function FarmSettings() {
                 <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f9fafb', borderRadius: '6px', marginBottom: '6px' }}>
                   <div>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{ROLE_LABELS[inv.role]}</span>
+                    {inv.email && <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '6px' }}>→ {inv.email}</span>}
+                    {inv.invitee_phone && <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '6px' }}>📱 {inv.invitee_phone}</span>}
                     <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '8px' }}>
-                      Expires {new Date(inv.expires_at).toLocaleDateString('en-IN')}
+                      · Expires {new Date(inv.expires_at).toLocaleDateString('en-IN')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
