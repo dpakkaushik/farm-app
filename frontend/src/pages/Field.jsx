@@ -128,6 +128,7 @@ export default function Field() {
 
   const { zoom, center, bearing, pitch, setMapState, overlay, setOverlay } = useMapStore()
   const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
+  const { activeFarm, activeFarmId } = useAuthStore()
 
   const [selectedPlot, setSelectedPlot]         = useState(null)
   const [showCoordPanel, setShowCoordPanel]     = useState(false)
@@ -338,6 +339,9 @@ export default function Field() {
     map.current.on('load', () => {
       addPlotLayers()
       if (overlay) addOverlayLayer(overlay)
+      // Fly to farm's saved location on first load
+      const farmCenter = useAuthStore.getState().activeFarm?.map_state?.center
+      if (farmCenter) map.current.flyTo({ center: farmCenter, zoom: useAuthStore.getState().activeFarm.map_state.zoom || 15, essential: true })
     })
     map.current.on('moveend', () => {
       const z = map.current.getZoom(), c = map.current.getCenter()
@@ -349,6 +353,12 @@ export default function Field() {
     })
     return () => { clearTimeout(saveTimer.current); markersRef.current.forEach(m => m.remove()); map.current?.remove(); map.current = null }
   }, [])
+
+  // Fly to farm location when active farm changes
+  useEffect(() => {
+    if (!map.current || !activeFarm?.map_state?.center) return
+    map.current.flyTo({ center: activeFarm.map_state.center, zoom: activeFarm.map_state.zoom || 15, essential: true })
+  }, [activeFarmId])
 
   // Refresh map polygons + labels whenever live data changes
   useEffect(() => {

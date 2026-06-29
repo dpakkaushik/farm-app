@@ -148,13 +148,18 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ── Farm CRUD ─────────────────────────────────────────────────────────────
-  createFarm: async ({ name, location, total_acres }) => {
+  createFarm: async ({ name, location, total_acres, lat, lng }) => {
     const { user } = get()
     if (!user) throw new Error('Not logged in')
 
+    const parsedLat = parseFloat(lat), parsedLng = parseFloat(lng)
+    const map_state = (!isNaN(parsedLat) && !isNaN(parsedLng))
+      ? { center: [parsedLng, parsedLat], zoom: 15 }
+      : null
+
     const { data: farm, error: fErr } = await supabase
       .from('farms')
-      .insert({ name, location: location || 'India', total_acres: parseFloat(total_acres) || 0, owner_id: user.id })
+      .insert({ name, location: location || 'India', total_acres: parseFloat(total_acres) || 0, owner_id: user.id, map_state })
       .select().single()
     if (fErr) throw fErr
 

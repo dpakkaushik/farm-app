@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useAuthStore } from '../store/auth'
+import { useMapStore } from '../store'
 
 export default function FarmOnboarding() {
   const { createFarm, logout, user } = useAuthStore()
-  const [form, setForm]       = useState({ name: '', location: '', total_acres: '' })
+  const [form, setForm]       = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
+  const [pickMode, setPickMode] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
