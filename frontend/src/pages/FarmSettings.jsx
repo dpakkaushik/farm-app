@@ -29,7 +29,12 @@ export default function FarmSettings() {
     if (!activeFarm) return
     setFarmForm({ name: activeFarm.farm_name || '', location: activeFarm.farm_location || '', total_acres: activeFarm.total_acres || '' })
     loadMembers().then(setMembers)
-    loadInvitations().then(setInvitations)
+    loadInvitations().then(invs => {
+      setInvitations(invs)
+      if (invs.length > 0 && invs[0].token) {
+        setInviteLink(`${window.location.origin}/invite/${invs[0].token}`)
+      }
+    })
   }, [activeFarm?.farm_id])
 
   const handleSaveFarm = async (e) => {
@@ -242,12 +247,26 @@ export default function FarmSettings() {
                       Expires {new Date(inv.expires_at).toLocaleDateString('en-IN')}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleRevoke(inv.id)}
-                    style={{ padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fff', color: '#dc2626', fontSize: '11px', cursor: 'pointer' }}
-                  >
-                    Revoke
-                  </button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    {inv.token && (
+                      <button
+                        onClick={() => {
+                          const link = `${window.location.origin}/invite/${inv.token}`
+                          navigator.clipboard.writeText(link)
+                          setInviteLink(link)
+                        }}
+                        style={{ padding: '3px 8px', border: '1px solid #bbf7d0', borderRadius: '6px', background: '#fff', color: '#166534', fontSize: '11px', cursor: 'pointer' }}
+                      >
+                        Copy Link
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleRevoke(inv.id)}
+                      style={{ padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fff', color: '#dc2626', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      Revoke
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
