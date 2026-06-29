@@ -16,7 +16,8 @@
       "Bash(exist \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\studio64.exe\" echo \"Android Studio found\")",
       "Bash(npx cap *)",
       "PowerShell(Start-Process \"C:\\\\Program Files\\\\Android\\\\Android Studio\\\\bin\\\\studio64.exe\" -ArgumentList \"c:\\\\Users\\\\Admin\\\\Documents\\\\Claude\\\\Projects\\\\farm_app\\\\frontend\\\\android\")",
-      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\('Bird:', !!l.Bird, 'Boxes:', !!l.Boxes, 'Wrench:', !!l.Wrench\\)\")"
+      "Bash(node -e \"const l = require\\('lucide-react'\\); console.log\\('Bird:', !!l.Bird, 'Boxes:', !!l.Boxes, 'Wrench:', !!l.Wrench\\)\")",
+      "Bash(git add *)"
     ]
   }
 }
