@@ -5,7 +5,7 @@ const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', view_only: 'View Only'
 
 export default function FarmSettings() {
   const {
-    activeFarm, activeFarmRole, updateFarmDetails,
+    activeFarm, activeFarmId, farms, updateFarmDetails,
     loadMembers, removeMember, updateMemberRole,
     loadInvitations, createInvitation, revokeInvitation,
     user,
@@ -22,6 +22,7 @@ export default function FarmSettings() {
   const [copied,      setCopied]      = useState(false)
   const [error,       setError]       = useState('')
 
+  const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const amAdmin = isAdmin(activeFarmRole)
 
   useEffect(() => {

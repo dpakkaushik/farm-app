@@ -44,7 +44,9 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { user, profile, loading, farms, activeFarmId, activeFarm, activeFarmRole, init, logout } = useAuthStore()
+  const { user, profile, loading, farms, activeFarmId, activeFarm, init, logout } = useAuthStore()
+  // Compute role directly — Zustand getters don't survive set() shallow-merge
+  const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const { mediaItems } = useAppStore()
   const { theme, toggle } = useThemeStore()
   const location = useLocation()
