@@ -190,6 +190,18 @@ const useAuthStore = create((set, get) => ({
     if (phone) payload.invitee_phone = phone.trim()
     const { data, error } = await supabase.from('farm_invitations').insert(payload).select().single()
     if (error) throw new Error(error.message || error.details || JSON.stringify(error))
+
+    // Auto-send magic link email so invitee can join with one click, no password
+    if (email && data?.token) {
+      await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/invite/${data.token}`,
+        },
+      })
+    }
+
     return data
   },
 

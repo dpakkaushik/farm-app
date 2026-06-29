@@ -72,9 +72,9 @@ export default function App() {
     }
   }, [location.pathname])
 
-  // Public route — handle before auth check
+  // Invite route — must come before auth & onboarding guards
+  // New users who click a magic link arrive here with 0 farms — show AcceptInvite, not FarmOnboarding
   if (location.pathname.startsWith('/invite/')) {
-    if (!user) return <Login />
     return <AcceptInvite />
   }
 
