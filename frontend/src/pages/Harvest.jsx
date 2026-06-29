@@ -179,7 +179,15 @@ export default function Harvest() {
   // ── Record sale (non-cane) ────────────────────────────────────────────────────
   const openSaleModal = (cycle, session) => {
     setSaleModal({ cycle, session })
-    setForm({ date: new Date().toISOString().slice(0, 10), buyer: '', buyerId: '', rate: '' })
+    setForm({
+      date:          new Date().toISOString().slice(0, 10),
+      buyer:         '',
+      buyerId:       '',
+      rate:          '',
+      qtyQtl:        String(session.qtyQtl.toFixed(2)),
+      commissionPct: '',
+      freightCharges:'',
+    })
   }
 
   const confirmSale = async () => {
@@ -187,11 +195,13 @@ export default function Harvest() {
     setSaving(true)
     try {
       await addCropSale(saleModal.session.id, {
-        date:       form.date,
-        buyerName:  form.buyer,
-        buyerId:    form.buyerId || null,
-        qtyQtl:     saleModal.session.qtyQtl,
-        ratePerQtl: parseFloat(form.rate),
+        date:           form.date,
+        buyerName:      form.buyer,
+        buyerId:        form.buyerId || null,
+        qtyQtl:         parseFloat(form.qtyQtl) || saleModal.session.qtyQtl,
+        ratePerQtl:     parseFloat(form.rate),
+        commissionPct:  form.commissionPct ? parseFloat(form.commissionPct) : null,
+        freightCharges: parseFloat(form.freightCharges) || 0,
       })
       showToast('Sale recorded — awaiting payment')
       setSaleModal(null)
@@ -864,107 +874,235 @@ export default function Harvest() {
       )}
 
       {/* Record Sale Modal */}
-      {saleModal && (
-        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setSaleModal(null)}>
-          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-[var(--c-text)]">Record Sale — {saleModal.cycle.plotLabel}</h3>
-              <button onClick={() => !saving && setSaleModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
-            </div>
-            <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-[var(--c-faint)]">Harvest qty to sell</p>
-                <p className="text-base font-bold text-[var(--c-text)]">{saleModal.session.qtyQtl.toFixed(1)} qtl</p>
+      {saleModal && (() => {
+        const qty   = parseFloat(form.qtyQtl)  || 0
+        const rate  = parseFloat(form.rate)     || 0
+        const gross = Math.round(qty * rate)
+        const commPct = parseFloat(form.commissionPct) || 0
+        const commAmt = commPct > 0 ? Math.round(gross * commPct / 100) : 0
+        const freight = parseFloat(form.freightCharges) || 0
+        const net   = Math.max(0, gross - commAmt - freight)
+        const hasBreakdown = gross > 0 && (commAmt > 0 || freight > 0)
+        return (
+          <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setSaleModal(null)}>
+            <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-[var(--c-text)]">Record Sale — {saleModal.cycle.plotLabel}</h3>
+                <button onClick={() => !saving && setSaleModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
               </div>
-              {saleModal.session.quality && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {saleModal.session.quality}</span>
-              )}
-            </div>
-            <div className="space-y-3">
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale date</label>
-                <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Buyer name <span className="text-[#E24B4A]">*</span></label>
-                <input placeholder="e.g. Ramesh Trader" value={form.buyer} onChange={e => f('buyer', e.target.value)} className="finput"/></div>
-              {buyers.length > 0 && (
-                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Or select from buyer list</label>
-                  <select value={form.buyerId} onChange={e => {
-                    const b = buyers.find(b => b.id === e.target.value)
-                    f('buyerId', e.target.value)
-                    if (b) f('buyer', b.name)
-                  }} className="finput" style={{ background: 'var(--c-surface)' }}>
-                    <option value="" style={{ background: 'var(--c-surface)' }}>Select buyer…</option>
-                    {buyers.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--c-surface)' }}>{b.name}</option>)}
-                  </select></div>
-              )}
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Rate ₹/qtl <span className="text-[#E24B4A]">*</span></label>
-                <input type="number" placeholder="e.g. 2200" value={form.rate} onChange={e => f('rate', e.target.value)} className="finput"/></div>
-              {form.rate && (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
-                  <p className="text-xs text-[var(--c-sub)]">Total amount</p>
-                  <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(saleModal.session.qtyQtl * parseFloat(form.rate)).toLocaleString('en-IN')}</p>
+
+              {/* Crop info bar */}
+              <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-[var(--c-faint)]">Harvest recorded</p>
+                  <p className="text-base font-bold text-[var(--c-text)]">{saleModal.session.qtyQtl.toFixed(2)} qtl</p>
                 </div>
-              )}
-              <p className="text-[10px] text-[var(--c-faint)] text-center">Payment receipt uploaded in next step →</p>
-              <button onClick={confirmSale} disabled={saving || !form.buyer || !form.rate}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                {saving ? 'Saving…' : 'Record Sale'}
-              </button>
+                {saleModal.session.quality && (
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {saleModal.session.quality}</span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {/* Sale date */}
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale date</label>
+                  <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
+
+                {/* Buyer — pills + Local Market button + free text */}
+                <div>
+                  <label className="text-xs text-[var(--c-sub)] block mb-1.5">Buyer <span className="text-[#E24B4A]">*</span></label>
+                  {/* Local Market quick button */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <button type="button"
+                      onClick={() => { f('buyer', 'Local Market'); f('buyerId', '') }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                        form.buyer === 'Local Market'
+                          ? 'bg-[#BA7517]/20 border-[#BA7517] text-[#BA7517]'
+                          : 'bg-[var(--c-ghost)] border-[var(--c-border-md)] text-[var(--c-sub)]'
+                      }`}>
+                      🏪 Local Market
+                    </button>
+                    {buyers.filter(b => b.isActive !== false).slice(0, 4).map(b => (
+                      <button key={b.id} type="button"
+                        onClick={() => { f('buyer', b.name); f('buyerId', b.id) }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          form.buyerId === b.id
+                            ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
+                            : 'bg-[var(--c-ghost)] border-[var(--c-border-md)] text-[var(--c-sub)]'
+                        }`}>
+                        {b.name}
+                      </button>
+                    ))}
+                  </div>
+                  <input placeholder="Or type buyer name…" value={form.buyer} onChange={e => { f('buyer', e.target.value); f('buyerId', '') }} className="finput"/>
+                </div>
+
+                {/* Editable qty */}
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Qty sold (qtl)</label>
+                  <input type="number" step="0.01" value={form.qtyQtl} onChange={e => f('qtyQtl', e.target.value)} className="finput"/></div>
+
+                {/* Rate */}
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Rate ₹/qtl <span className="text-[#E24B4A]">*</span></label>
+                  <input type="number" placeholder="e.g. 2200" value={form.rate} onChange={e => f('rate', e.target.value)} className="finput"/></div>
+
+                {/* Commission + Freight on same row */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Commission %</label>
+                    <input type="number" step="0.1" placeholder="e.g. 2" value={form.commissionPct} onChange={e => f('commissionPct', e.target.value)} className="finput"/></div>
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Freight ₹</label>
+                    <input type="number" placeholder="0" value={form.freightCharges} onChange={e => f('freightCharges', e.target.value)} className="finput"/></div>
+                </div>
+
+                {/* Live breakdown card */}
+                {gross > 0 && (
+                  <div className={`rounded-xl px-3 py-2.5 border ${hasBreakdown ? 'bg-[var(--c-ghost)] border-[var(--c-border-md)]' : 'bg-[#1D9E75]/10 border-[#1D9E75]/20'}`}>
+                    {hasBreakdown ? (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--c-faint)]">Gross ({qty.toFixed(2)} × ₹{rate})</span>
+                          <span className="text-[var(--c-text)] font-medium">₹{gross.toLocaleString('en-IN')}</span>
+                        </div>
+                        {commAmt > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--c-faint)]">Commission ({commPct}%)</span>
+                            <span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {freight > 0 && (
+                          <div className="flex justify-between text-xs">
+                            <span className="text-[var(--c-faint)]">Freight</span>
+                            <span className="text-[#E24B4A]">− ₹{freight.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        <div className="border-t border-[var(--c-border-md)] pt-1.5 flex justify-between">
+                          <span className="text-xs font-semibold text-[var(--c-text)]">Net receivable</span>
+                          <span className="text-base font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-xs text-[var(--c-sub)]">Gross amount</p>
+                        <p className="text-xl font-bold text-[#1D9E75]">₹{gross.toLocaleString('en-IN')}</p>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <p className="text-[10px] text-[var(--c-faint)] text-center">Payment receipt uploaded in next step →</p>
+                <button onClick={confirmSale} disabled={saving || !form.buyer || !form.rate}
+                  className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                  {saving ? 'Saving…' : 'Record Sale'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Mark Payment Modal (crop) */}
-      {cropPayModal && (
-        <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setCropPayModal(null)}>
-          <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-[var(--c-text)]">Mark Payment — {cropPayModal.cycle.plotLabel}</h3>
-              <button onClick={() => !saving && setCropPayModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
-            </div>
-            <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 space-y-1 mb-4">
-              {[
-                ['Buyer',        cropPayModal.sale.buyerName || '—'],
-                ['Quantity',     `${cropPayModal.session.qtyQtl.toFixed(1)} qtl`],
-                ['Rate',         `₹${cropPayModal.sale.ratePerQtl}/qtl`],
-                ['Gross Amount', `₹${cropPayModal.sale.grossAmount?.toLocaleString('en-IN')}`],
-              ].map(([label, val]) => (
-                <div key={label} className="flex justify-between text-xs">
-                  <span className="text-[var(--c-faint)]">{label}</span>
-                  <span className="text-[var(--c-text)] font-medium">{val}</span>
+      {cropPayModal && (() => {
+        const sale       = cropPayModal.sale
+        const gross      = sale.grossAmount      || 0
+        const commAmt    = sale.commissionAmt    || 0
+        const freight    = sale.freightCharges   || 0
+        const extraDed   = parseFloat(cropPayModal.ded) || 0
+        const net        = Math.max(0, gross - commAmt - freight - extraDed)
+        const hasSaleDeds = commAmt > 0 || freight > 0
+        return (
+          <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={() => !saving && setCropPayModal(null)}>
+            <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto border-t border-[var(--c-border-md)]" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-[var(--c-text)]">Mark Payment — {cropPayModal.cycle.plotLabel}</h3>
+                <button onClick={() => !saving && setCropPayModal(null)} className="text-[var(--c-muted)]"><X size={18}/></button>
+              </div>
+
+              {/* Sale summary */}
+              <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 space-y-1.5 mb-4">
+                {[
+                  ['Buyer',    sale.buyerName || '—'],
+                  ['Quantity', `${cropPayModal.session.qtyQtl.toFixed(2)} qtl`],
+                  ['Rate',     `₹${sale.ratePerQtl}/qtl`],
+                  ['Gross',    `₹${gross.toLocaleString('en-IN')}`],
+                ].map(([label, val]) => (
+                  <div key={label} className="flex justify-between text-xs">
+                    <span className="text-[var(--c-faint)]">{label}</span>
+                    <span className="text-[var(--c-text)] font-medium">{val}</span>
+                  </div>
+                ))}
+
+                {/* Sale-time deductions (read-only) */}
+                {hasSaleDeds && (
+                  <>
+                    <div className="border-t border-[var(--c-border-md)] pt-1.5">
+                      <p className="text-[10px] text-[var(--c-faint)] mb-1">Recorded at sale time</p>
+                      {commAmt > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--c-faint)]">Commission ({sale.commissionPct}%)</span>
+                          <span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                      {freight > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-[var(--c-faint)]">Freight</span>
+                          <span className="text-[#E24B4A]">− ₹{freight.toLocaleString('en-IN')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
+                  <input type="date" value={cropPayModal.date} onChange={e => setCropPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
+
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Additional deductions ₹ <span className="text-[10px] text-[var(--c-faint)]">(if any at payment time)</span></label>
+                  <input type="number" placeholder="0" value={cropPayModal.ded} onChange={e => setCropPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
+
+                {parseFloat(cropPayModal.ded) > 0 && (
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deduction note</label>
+                    <input placeholder="e.g. Weight shortage" value={cropPayModal.dedNote} onChange={e => setCropPayModal(p => ({ ...p, dedNote: e.target.value }))} className="finput"/></div>
+                )}
+
+                {/* Net amount card */}
+                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
+                  {(hasSaleDeds || extraDed > 0) ? (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[var(--c-faint)]">Gross</span>
+                        <span className="text-[var(--c-text)]">₹{gross.toLocaleString('en-IN')}</span>
+                      </div>
+                      {commAmt > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Commission</span><span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span></div>}
+                      {freight > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Freight</span><span className="text-[#E24B4A]">− ₹{freight.toLocaleString('en-IN')}</span></div>}
+                      {extraDed > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Extra deductions</span><span className="text-[#E24B4A]">− ₹{extraDed.toLocaleString('en-IN')}</span></div>}
+                      <div className="border-t border-[#1D9E75]/30 pt-1 flex justify-between">
+                        <span className="text-xs font-semibold text-[var(--c-text)]">Net receivable</span>
+                        <span className="text-base font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-[var(--c-faint)]">Net receivable</p>
+                      <p className="text-lg font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</p>
+                    </>
+                  )}
                 </div>
-              ))}
-            </div>
-            <div className="space-y-3">
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
-                <input type="date" value={cropPayModal.date} onChange={e => setCropPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deductions ₹ (commission, freight, etc.)</label>
-                <input type="number" placeholder="0" value={cropPayModal.ded} onChange={e => setCropPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
-              {cropPayModal.ded > 0 && (
-                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deduction note</label>
-                  <input placeholder="e.g. Commission 2%" value={cropPayModal.dedNote} onChange={e => setCropPayModal(p => ({ ...p, dedNote: e.target.value }))} className="finput"/></div>
-              )}
-              <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
-                <p className="text-xs text-[var(--c-faint)]">Net amount to receive</p>
-                <p className="text-lg font-bold text-[#1D9E75]">
-                  ₹{Math.max(0, (cropPayModal.sale.grossAmount || 0) - (parseFloat(cropPayModal.ded) || 0)).toLocaleString('en-IN')}
-                </p>
+
+                <div>
+                  <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt <span className="text-[#E24B4A]">*</span></label>
+                  <input type="file" accept="image/*,application/pdf"
+                    onChange={e => setCropPayFile(e.target.files[0] || null)}
+                    className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                  {!cropPayFile && <p className="text-[10px] text-[#BA7517] mt-1">Receipt required to confirm payment</p>}
+                </div>
+                <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
+                  className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                  {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
+                </button>
               </div>
-              <div>
-                <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt <span className="text-[#E24B4A]">*</span></label>
-                <input type="file" accept="image/*,application/pdf"
-                  onChange={e => setCropPayFile(e.target.files[0] || null)}
-                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
-                {!cropPayFile && <p className="text-[10px] text-[#BA7517] mt-1">Receipt required to confirm payment</p>}
-              </div>
-              <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Residual Sale Modal */}
       {residualModal && (
