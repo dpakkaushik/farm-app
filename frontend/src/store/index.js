@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { useAuthStore } from './auth'
+
+const getFarmId = () => useAuthStore.getState().activeFarmId
 
 // ── Data mappers (Supabase column names → local field names) ──────────────────
 
@@ -465,6 +468,8 @@ const useAppStore = create((set, get) => ({
 
   // ── Load all data from Supabase ─────────────────────────────────────────────
   loadAll: async () => {
+    const farmId = getFarmId()
+    if (!farmId) { set({ loading: false }); return }
     set({ loading: true })
     try {
       const [
@@ -496,48 +501,59 @@ const useAppStore = create((set, get) => ({
         { data: livestockRevenueRaw },
         { data: cropResidualsRaw },
       ] = await Promise.all([
-        supabase.from('plots').select('*').order('name'),
-        supabase.from('crops').select('*').order('name'),
-        supabase.from('crop_activity_templates').select('*').order('day_offset'),
+        supabase.from('plots').select('*').eq('farm_id', farmId).order('name'),
+        supabase.from('crops').select('*').eq('farm_id', farmId).order('name'),
+        supabase.from('crop_activity_templates').select('*').eq('farm_id', farmId).order('day_offset'),
         supabase.from('crop_cycles')
           .select('*, plots(name,area_acres), crops(name,color,icon)')
+          .eq('farm_id', farmId)
           .order('created_at', { ascending: false }),
-        supabase.from('inventory_items').select('*').order('category').order('name'),
+        supabase.from('inventory_items').select('*').eq('farm_id', farmId).order('category').order('name'),
         supabase.from('inventory_purchases')
-          .select('*, inventory_bills(bill_file_url)').order('purchase_date', { ascending: false }),
+          .select('*, inventory_bills(bill_file_url)')
+          .eq('farm_id', farmId)
+          .order('purchase_date', { ascending: false }),
         supabase.from('inventory_issues')
           .select('*, plots(name), crop_cycles(season, plots(name))')
+          .eq('farm_id', farmId)
           .order('issue_date', { ascending: false }),
         supabase.from('activity_logs')
-          .select('*, plots(name)').order('created_at', { ascending: false }),
-        supabase.from('labour_master').select('*').in('status', ['active', 'paused']).order('name'),
+          .select('*, plots(name)')
+          .eq('farm_id', farmId)
+          .order('created_at', { ascending: false }),
+        supabase.from('labour_master').select('*').eq('farm_id', farmId).in('status', ['active', 'paused']).order('name'),
         supabase.from('labour_logs')
-          .select('*, plots(name)').order('activity_date', { ascending: false }),
+          .select('*, plots(name)')
+          .eq('farm_id', farmId)
+          .order('activity_date', { ascending: false }),
         supabase.from('media_files')
           .select('*, plots(name)')
+          .eq('farm_id', farmId)
           .in('entity_type', ['farm_photo', 'farm_video'])
           .order('created_at', { ascending: false }),
         supabase.from('attendance')
           .select('id, labour_master_id, status')
+          .eq('farm_id', farmId)
           .eq('attendance_date', new Date().toISOString().slice(0, 10)),
         supabase.from('salary_advances')
           .select('*')
+          .eq('farm_id', farmId)
           .eq('is_recovered', false)
           .order('advance_date', { ascending: false }),
-        supabase.from('salary_payments').select('*').order('payment_date', { ascending: false }),
-        supabase.from('work_types').select('*').eq('is_active', true).order('name'),
-        supabase.from('activity_types').select('*').eq('is_active', true).order('sort_order'),
-        supabase.from('machinery_master').select('*').eq('is_active', true).order('display_id'),
-        supabase.from('farm_assets').select('*').eq('is_active', true).order('display_id'),
-        supabase.from('livestock_master').select('*').eq('is_active', true).order('name'),
-        supabase.from('livestock_count_logs').select('*').order('log_date', { ascending: false }),
-        supabase.from('harvest_sessions').select('*').order('harvest_date'),
-        supabase.from('sales').select('*').order('sale_date'),
-        supabase.from('buyers').select('*').eq('is_active', true).order('name'),
-        supabase.from('partners').select('*').eq('is_active', true).order('name'),
-        supabase.from('farm_expenses').select('*').order('expense_date', { ascending: false }),
-        supabase.from('livestock_revenue').select('*').order('revenue_date', { ascending: false }),
-        supabase.from('crop_residuals').select('*').order('created_at', { ascending: false }),
+        supabase.from('salary_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
+        supabase.from('work_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
+        supabase.from('activity_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('sort_order'),
+        supabase.from('machinery_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        supabase.from('farm_assets').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        supabase.from('livestock_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
+        supabase.from('livestock_count_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
+        supabase.from('harvest_sessions').select('*').eq('farm_id', farmId).order('harvest_date'),
+        supabase.from('sales').select('*').eq('farm_id', farmId).order('sale_date'),
+        supabase.from('buyers').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
+        supabase.from('partners').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
+        supabase.from('farm_expenses').select('*').eq('farm_id', farmId).order('expense_date', { ascending: false }),
+        supabase.from('livestock_revenue').select('*').eq('farm_id', farmId).order('revenue_date', { ascending: false }),
+        supabase.from('crop_residuals').select('*').eq('farm_id', farmId).order('created_at', { ascending: false }),
       ])
 
       const tpl = templates || []
@@ -589,7 +605,9 @@ const useAppStore = create((set, get) => ({
 
   // ── Crop master ─────────────────────────────────────────────────────────────
   addCrop: async (crop) => {
+    const farmId = getFarmId()
     const { data, error } = await supabase.from('crops').insert({
+      farm_id:             farmId,
       name:                crop.name,
       icon:                crop.emoji || '🌾',
       color:               crop.color || '#dcb428',
@@ -629,7 +647,7 @@ const useAppStore = create((set, get) => ({
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
     const { data: session, error } = await supabase
       .from('harvest_sessions')
-      .insert({ cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null })
+      .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null })
       .select().single()
     if (error) throw error
 
@@ -642,6 +660,7 @@ const useAppStore = create((set, get) => ({
     let newResiduals = []
     if (residualDefs.length > 0 && acres > 0) {
       const residualRows = residualDefs.map(r => ({
+        farm_id:            getFarmId(),
         crop_cycle_id:      cycleId,
         harvest_session_id: session.id,
         product_name:       r.name,
@@ -695,7 +714,9 @@ const useAppStore = create((set, get) => ({
 
   // ── Inventory master ────────────────────────────────────────────────────────
   addInventoryItem: async (item) => {
+    const farmId = getFarmId()
     const { data, error } = await supabase.from('inventory_items').insert({
+      farm_id:       farmId,
       name:          item.name,
       category:      item.category,
       unit:          item.unit,
@@ -765,7 +786,9 @@ const useAppStore = create((set, get) => ({
   },
 
   addContractualLabour: async (l) => {
+    const farmId = getFarmId()
     const { data, error } = await supabase.from('labour_master').insert({
+      farm_id:         farmId,
       name:            l.name,
       sub_type:        'contractual',
       daily_base_rate: parseFloat(l.defaultRate) || 400,
@@ -796,7 +819,9 @@ const useAppStore = create((set, get) => ({
 
   // ── Permanent staff ─────────────────────────────────────────────────────────
   addPermanentStaff: async (s) => {
+    const farmId = getFarmId()
     const { data, error } = await supabase.from('labour_master').insert({
+      farm_id:         farmId,
       name:            s.name,
       phone:           s.phone || null,
       designation:     s.designation || null,
@@ -837,7 +862,9 @@ const useAppStore = create((set, get) => ({
   },
 
   addRegularLabourer: async (l) => {
+    const farmId = getFarmId()
     const { data, error } = await supabase.from('labour_master').insert({
+      farm_id:         farmId,
       name:            l.name,
       phone:           l.phone || null,
       sub_type:        'regular',
@@ -861,7 +888,7 @@ const useAppStore = create((set, get) => ({
       if (error) throw error
     } else {
       const { data, error } = await supabase.from('attendance')
-        .insert({ labour_master_id: labourerId, attendance_date: today, status })
+        .insert({ farm_id: getFarmId(), labour_master_id: labourerId, attendance_date: today, status })
         .select('id').single()
       if (error) throw error
       set(s => ({ todayAttendance: { ...s.todayAttendance, [labourerId]: { id: data.id, status } } }))
@@ -882,6 +909,7 @@ const useAppStore = create((set, get) => ({
   // ── Salary advances ─────────────────────────────────────────────────────────
   addAdvance: async (adv) => {
     const { data, error } = await supabase.from('salary_advances').insert({
+      farm_id:         getFarmId(),
       labourer_id:     adv.labourerId,
       advance_date:    adv.date,
       amount:          parseFloat(adv.amount),
@@ -905,6 +933,7 @@ const useAppStore = create((set, get) => ({
   // ── Salary payments ─────────────────────────────────────────────────────────
   addSalaryPayment: async (p) => {
     const { data, error } = await supabase.from('salary_payments').insert({
+      farm_id:        getFarmId(),
       labourer_id:    p.labourerId,
       payment_date:   p.date,
       amount_paid:    parseFloat(p.amount),
@@ -962,7 +991,7 @@ const useAppStore = create((set, get) => ({
       newRec = { id: cur.id, status }
     } else {
       const { data, error } = await supabase.from('attendance')
-        .insert({ labour_master_id: labourerId, attendance_date: date, status })
+        .insert({ farm_id: getFarmId(), labour_master_id: labourerId, attendance_date: date, status })
         .select('id').single()
       if (error) throw error
       newRec = { id: data.id, status }
@@ -1014,6 +1043,7 @@ const useAppStore = create((set, get) => ({
       : purchase.unitPrice
 
     const { data, error } = await supabase.from('inventory_purchases').insert({
+      farm_id:         getFarmId(),
       item_id:         purchase.itemId,
       purchase_date:   purchase.date,
       invoice_date:    purchase.invoiceDate || null,
@@ -1043,7 +1073,7 @@ const useAppStore = create((set, get) => ({
 
     const { data: bill, error: billErr } = await supabase
       .from('inventory_bills')
-      .insert({ bill_date: billDate, vendor_id: vendorId || null, vendor_name: vendor,
+      .insert({ farm_id: getFarmId(), bill_date: billDate, vendor_id: vendorId || null, vendor_name: vendor,
                 invoice_number: invoiceNo || null, notes: notes || null,
                 bill_file_url: billFileUrl || null,
                 total_amount: Math.round(totalAmount * 100) / 100 })
@@ -1064,7 +1094,7 @@ const useAppStore = create((set, get) => ({
 
       const { data: row, error: purchErr } = await supabase
         .from('inventory_purchases')
-        .insert({ item_id: line.itemId, purchase_date: billDate, invoice_date: billDate,
+        .insert({ farm_id: getFarmId(), item_id: line.itemId, purchase_date: billDate, invoice_date: billDate,
                   quantity: line.qty, unit_price: line.unitPrice,
                   vendor_name: vendor, vendor_id: vendorId || null,
                   invoice_number: invoiceNo || null, bill_id: bill.id })
@@ -1105,6 +1135,7 @@ const useAppStore = create((set, get) => ({
 
     const totalCost = issue.qty * wac
     const { data, error } = await supabase.from('inventory_issues').insert({
+      farm_id:            getFarmId(),
       item_id:            issue.itemId,
       plot_id:            issue.plotId || null,
       cycle_id:           cycleId,
@@ -1160,6 +1191,7 @@ const useAppStore = create((set, get) => ({
   // ── Labour log ──────────────────────────────────────────────────────────────
   logLabour: async (log) => {
     const { data, error } = await supabase.from('labour_logs').insert({
+      farm_id:          getFarmId(),
       labour_type:      log.labourType || 'contractual',
       labour_master_id: log.labourMasterId || null,
       labour_name:      log.labourName,
@@ -1181,7 +1213,9 @@ const useAppStore = create((set, get) => ({
 
   // ── Labour log — batch (multi-worker × multi-plot) ──────────────────────────
   logLabourBatch: async (logs) => {
+    const farmId = getFarmId()
     const rows = logs.map(log => ({
+      farm_id:          farmId,
       labour_type:      log.labourType || 'regular',
       labour_master_id: log.labourMasterId || null,
       labour_name:      log.labourName,
@@ -1205,7 +1239,7 @@ const useAppStore = create((set, get) => ({
   },
 
   addWorkType: async (name) => {
-    const { data, error } = await supabase.from('work_types').insert({ name }).select().single()
+    const { data, error } = await supabase.from('work_types').insert({ farm_id: getFarmId(), name }).select().single()
     if (error) throw error
     set(s => ({ workTypes: [...s.workTypes, { id: data.id, name: data.name }].sort((a,b) => a.name.localeCompare(b.name)) }))
   },
@@ -1219,7 +1253,7 @@ const useAppStore = create((set, get) => ({
   addActivityType: async ({ label, emoji }) => {
     const name = label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
     const { data, error } = await supabase.from('activity_types')
-      .insert({ name, label: label.trim(), emoji: emoji || '📋', is_system: false })
+      .insert({ farm_id: getFarmId(), name, label: label.trim(), emoji: emoji || '📋', is_system: false })
       .select().single()
     if (error) throw error
     set(s => ({ activityTypes: [...s.activityTypes, { id: data.id, name: data.name, label: data.label, emoji: data.emoji, isSystem: false }] }))
@@ -1262,6 +1296,7 @@ const useAppStore = create((set, get) => ({
 
   addLivestockCountLog: async (log) => {
     const { data, error } = await supabase.from('livestock_count_logs').insert({
+      farm_id:      getFarmId(),
       livestock_id: log.livestockId,
       log_date:     log.date,
       change_type:  log.changeType,
@@ -1301,6 +1336,7 @@ const useAppStore = create((set, get) => ({
 
   addMachinery: async (data) => {
     const { data: row, error } = await supabase.from('machinery_master').insert({
+      farm_id:         getFarmId(),
       name:            data.name,
       machinery_type:  data.type,
       make:            data.make || null,
@@ -1319,6 +1355,7 @@ const useAppStore = create((set, get) => ({
 
   addFarmAsset: async (data) => {
     const { data: row, error } = await supabase.from('farm_assets').insert({
+      farm_id:        getFarmId(),
       name:           data.name,
       category:       data.category,
       quantity:       parseInt(data.quantity) || 1,
@@ -1335,6 +1372,7 @@ const useAppStore = create((set, get) => ({
   addLivestock: async (data) => {
     const initialCount = data.trackingMode === 'count' ? (parseInt(data.currentCount) || 0) : 0
     const { data: row, error } = await supabase.from('livestock_master').insert({
+      farm_id:          getFarmId(),
       tag_id:           data.tagId || `lv-${Date.now()}`,
       name:             data.name,
       animal_type:      data.species,
@@ -1355,6 +1393,7 @@ const useAppStore = create((set, get) => ({
 
     if (data.trackingMode === 'count' && initialCount > 0) {
       await supabase.from('livestock_count_logs').insert({
+        farm_id:      getFarmId(),
         livestock_id: row.id,
         log_date:     data.purchaseDate || new Date().toISOString().split('T')[0],
         change_type:  'opening_balance',
@@ -1439,6 +1478,7 @@ const useAppStore = create((set, get) => ({
   // ── Farm Expenses ────────────────────────────────────────────────────────────
   addFarmExpense: async (exp) => {
     const { data, error } = await supabase.from('farm_expenses').insert({
+      farm_id:        getFarmId(),
       expense_date:   exp.expenseDate,
       category:       exp.category,
       amount:         exp.amount,
@@ -1464,6 +1504,7 @@ const useAppStore = create((set, get) => ({
   // ── Livestock Revenue ────────────────────────────────────────────────────────
   addLivestockRevenue: async (rev) => {
     const { data, error } = await supabase.from('livestock_revenue').insert({
+      farm_id:        getFarmId(),
       livestock_id:   rev.livestockId || null,
       revenue_date:   rev.revenueDate,
       revenue_type:   rev.revenueType,
@@ -1514,6 +1555,7 @@ const useAppStore = create((set, get) => ({
     if (!cycleId && !isEvent) return  // non-events require a cycle
 
     const { data, error } = await supabase.from('activity_logs').insert({
+      farm_id:              getFarmId(),
       cycle_id:             cycleId,
       plot_id:              act.plotId || null,
       activity_type:        act.type,
@@ -1558,11 +1600,13 @@ const useAppStore = create((set, get) => ({
       outsidePerPlot = floors
     }
 
+    const farmId = getFarmId()
     const rows = plotIds.map((plotId, idx) => {
       const cycle   = cropCycles.find(c => c.plotId === plotId && c.status === 'active')
       if (!cycle && !isEvent) return null
       const outside = outsidePerPlot[idx]
       return {
+        farm_id:              farmId,
         cycle_id:             cycle?.id || null,
         plot_id:              plotId === '__all__' ? null : plotId,
         activity_type:        actData.type,
@@ -1588,12 +1632,12 @@ const useAppStore = create((set, get) => ({
     const gross  = Math.round(parseFloat(qtyQtl) * parseFloat(sap))
     const { data: session, error: e1 } = await supabase
       .from('harvest_sessions')
-      .insert({ cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
+      .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
       .select().single()
     if (e1) throw e1
     const { data: sale, error: e2 } = await supabase
       .from('sales')
-      .insert({ harvest_id: session.id, sale_date: date, buyer_id: buyerId || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
+      .insert({ farm_id: getFarmId(), harvest_id: session.id, sale_date: date, buyer_id: buyerId || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
       .select().single()
     if (e2) throw e2
     set(s => ({ harvestSessions: [...s.harvestSessions, mapSession(session)], sales: [...s.sales, mapSale(sale)] }))
@@ -1632,6 +1676,7 @@ const useAppStore = create((set, get) => ({
   addCropSale: async (sessionId, { date, buyerName, buyerId, qtyQtl, ratePerQtl }) => {
     const gross = Math.round(parseFloat(qtyQtl) * parseFloat(ratePerQtl))
     const { data: sale, error } = await supabase.from('sales').insert({
+      farm_id:        getFarmId(),
       harvest_id:     sessionId,
       sale_date:      date,
       buyer_name:     buyerName || null,
@@ -1664,6 +1709,7 @@ const useAppStore = create((set, get) => ({
     // Record in cash book as income
     const { data: { user } } = await supabase.auth.getUser()
     await supabase.from('owner_cash_entries').insert({
+      farm_id:     getFarmId(),
       entry_date:  paymentDate,
       amount:      netAmount,
       direction:   'in',
@@ -1687,7 +1733,7 @@ const useAppStore = create((set, get) => ({
 
   addBuyer: async ({ name, address, contact, type, buys }) => {
     const { data, error } = await supabase.from('buyers')
-      .insert({ name, address: address || null, contact: contact || null, type: type || 'trader', buys: buys || [] })
+      .insert({ farm_id: getFarmId(), name, address: address || null, contact: contact || null, type: type || 'trader', buys: buys || [] })
       .select().single()
     if (error) throw error
     set(s => ({ buyers: [...s.buyers, mapBuyer(data)].sort((a, b) => a.name.localeCompare(b.name)) }))
@@ -1718,6 +1764,7 @@ const useAppStore = create((set, get) => ({
 
   addCropCycle: async (cycle) => {
     const { data, error } = await supabase.from('crop_cycles').insert({
+      farm_id:              getFarmId(),
       plot_id:              cycle.plotId,
       crop_id:              cycle.cropId,
       season:               cycle.season,
@@ -1766,6 +1813,7 @@ const useAppStore = create((set, get) => ({
 
   addPlot: async (data) => {
     const { data: row, error } = await supabase.from('plots').insert({
+      farm_id:     getFarmId(),
       name:        data.name,
       area_acres:  parseFloat(data.area_acres) || 0,
       soil_type:   data.soil_type || null,
@@ -1817,6 +1865,7 @@ const useAppStore = create((set, get) => ({
   addMediaItem: async (item) => {
     const isVideo = item.type === 'video'
     const { data, error } = await supabase.from('media_files').insert({
+      farm_id:        getFarmId(),
       entity_type:    isVideo ? 'farm_video' : 'farm_photo',
       entity_id:      item.plotId,
       file_type:      isVideo ? 'video' : 'image',
@@ -1837,6 +1886,8 @@ const useAppStore = create((set, get) => ({
   // ── Ledger ──────────────────────────────────────────────────────────────────
 
   loadLedgerData: async () => {
+    const farmId = getFarmId()
+    if (!farmId) return
     const [
       { data: vendorsRaw },
       { data: vendorPaymentsRaw },
@@ -1850,10 +1901,10 @@ const useAppStore = create((set, get) => ({
       { data: livestockPnlRaw },
       { data: cropPnlRaw },
     ] = await Promise.all([
-      supabase.from('vendors').select('*').order('name'),
-      supabase.from('vendor_payments').select('*, vendors(name)').order('payment_date', { ascending: false }),
-      supabase.from('owner_cash_entries').select('*').order('entry_date'),
-      supabase.from('expense_payments').select('*').order('payment_date', { ascending: false }),
+      supabase.from('vendors').select('*').eq('farm_id', farmId).order('name'),
+      supabase.from('vendor_payments').select('*, vendors(name)').eq('farm_id', farmId).order('payment_date', { ascending: false }),
+      supabase.from('owner_cash_entries').select('*').eq('farm_id', farmId).order('entry_date'),
+      supabase.from('expense_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
       supabase.from('v_cash_book').select('*'),
       supabase.from('v_vendor_balances').select('*'),
       supabase.from('v_income_ledger').select('*').order('entry_date', { ascending: false }),
@@ -1879,6 +1930,7 @@ const useAppStore = create((set, get) => ({
 
   addVendor: async (vendor) => {
     const { data, error } = await supabase.from('vendors').insert({
+      farm_id:     getFarmId(),
       name:        vendor.name,
       category:    vendor.category || 'other',
       phone:       vendor.phone    || null,
@@ -1893,6 +1945,7 @@ const useAppStore = create((set, get) => ({
   addOwnerCashEntry: async (entry) => {
     const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase.from('owner_cash_entries').insert({
+      farm_id:    getFarmId(),
       entry_date: entry.entry_date,
       amount:     parseFloat(entry.amount),
       direction:  entry.direction,
@@ -1911,7 +1964,9 @@ const useAppStore = create((set, get) => ({
 
   addVendorPayment: async (payment) => {
     const { data: { user } } = await supabase.auth.getUser()
+    const farmId = getFarmId()
     const { data: cashEntry, error: ce } = await supabase.from('owner_cash_entries').insert({
+      farm_id:    farmId,
       entry_date: payment.payment_date,
       amount:     parseFloat(payment.amount),
       direction:  'out',
@@ -1921,6 +1976,7 @@ const useAppStore = create((set, get) => ({
     }).select().single()
     if (ce) throw ce
     const { data, error } = await supabase.from('vendor_payments').insert({
+      farm_id:       farmId,
       vendor_id:     payment.vendor_id,
       payment_date:  payment.payment_date,
       amount:        parseFloat(payment.amount),
@@ -1945,7 +2001,9 @@ const useAppStore = create((set, get) => ({
 
   addExpensePayment: async (payment) => {
     const { data: { user } } = await supabase.auth.getUser()
+    const farmId = getFarmId()
     const { data: cashEntry, error: ce } = await supabase.from('owner_cash_entries').insert({
+      farm_id:    farmId,
       entry_date: payment.payment_date,
       amount:     parseFloat(payment.amount),
       direction:  'out',
@@ -1955,6 +2013,7 @@ const useAppStore = create((set, get) => ({
     }).select().single()
     if (ce) throw ce
     const { data, error } = await supabase.from('expense_payments').insert({
+      farm_id:       farmId,
       payment_date:  payment.payment_date,
       amount:        parseFloat(payment.amount),
       expense_type:  payment.expense_type,

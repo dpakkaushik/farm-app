@@ -7,43 +7,272 @@ async function fetchProfile(userId) {
   return data
 }
 
-const useAuthStore = create((set, get) => ({
-  user:    null,
-  profile: null,
-  loading: true,
-  users:   [],
+async function fetchMemberships(userId) {
+  const { data } = await supabase
+    .from('farm_memberships')
+    .select('farm_id, role, status, farms(id, name, location, total_acres, map_state, overlay_config)')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+  return (data || []).map(m => ({
+    farm_id:        m.farm_id,
+    role:           m.role,
+    farm_name:      m.farms?.name || 'Unnamed Farm',
+    farm_location:  m.farms?.location || '',
+    total_acres:    m.farms?.total_acres || 0,
+    map_state:      m.farms?.map_state || null,
+    overlay_config: m.farms?.overlay_config || null,
+  }))
+}
 
+function getStoredFarmId() {
+  try { return localStorage.getItem('active_farm_id') || null } catch { return null }
+}
+
+function storeActiveFarmId(id) {
+  try {
+    if (id) localStorage.setItem('active_farm_id', id)
+    else localStorage.removeItem('active_farm_id')
+  } catch {}
+}
+
+function resolveActiveFarm(memberships) {
+  if (!memberships.length) return null
+  const stored = getStoredFarmId()
+  const stillMember = memberships.find(f => f.farm_id === stored)
+  const chosen = stillMember ? stored : memberships[0].farm_id
+  storeActiveFarmId(chosen)
+  return chosen
+}
+
+const useAuthStore = create((set, get) => ({
+  user:         null,
+  profile:      null,
+  loading:      true,
+  users:        [],
+  farms:        [],       // array of { farm_id, role, farm_name, ... }
+  activeFarmId: null,
+  activeFarm:   null,     // the membership object matching activeFarmId
+
+  // ── Computed helpers (read from state, not reactive) ──────────────────────
+  get isSuperAdmin() { return get().profile?.is_super_admin === true },
+  get activeFarmRole() {
+    const { activeFarmId, farms } = get()
+    return farms.find(f => f.farm_id === activeFarmId)?.role || null
+  },
+
+  // ── Initialise on app boot ────────────────────────────────────────────────
   init: async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
-      const profile = await fetchProfile(session.user.id)
-      set({ user: session.user, profile, loading: false })
+      const [profile, memberships] = await Promise.all([
+        fetchProfile(session.user.id),
+        fetchMemberships(session.user.id),
+      ])
+      const activeFarmId = resolveActiveFarm(memberships)
+      set({
+        user: session.user, profile, loading: false,
+        farms: memberships, activeFarmId,
+        activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
+      })
     } else {
       set({ loading: false })
     }
+
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') { set({ user: null, profile: null }); return }
+      if (event === 'SIGNED_OUT') {
+        storeActiveFarmId(null)
+        set({ user: null, profile: null, farms: [], activeFarmId: null, activeFarm: null })
+        return
+      }
       if (session?.user) {
-        const profile = await fetchProfile(session.user.id)
-        set({ user: session.user, profile })
+        const [profile, memberships] = await Promise.all([
+          fetchProfile(session.user.id),
+          fetchMemberships(session.user.id),
+        ])
+        const activeFarmId = resolveActiveFarm(memberships)
+        set({
+          user: session.user, profile,
+          farms: memberships, activeFarmId,
+          activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
+        })
       }
     })
   },
 
+  // ── Auth ──────────────────────────────────────────────────────────────────
   login: async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
-    const profile = await fetchProfile(data.user.id)
+    const [profile, memberships] = await Promise.all([
+      fetchProfile(data.user.id),
+      fetchMemberships(data.user.id),
+    ])
     if (!profile) throw new Error('Account not set up yet. Contact your admin.')
     if (!profile.is_active) throw new Error('Account deactivated. Contact your admin.')
-    set({ user: data.user, profile })
+    const activeFarmId = resolveActiveFarm(memberships)
+    set({
+      user: data.user, profile,
+      farms: memberships, activeFarmId,
+      activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
+    })
   },
 
   logout: async () => {
     await supabase.auth.signOut()
-    set({ user: null, profile: null })
+    storeActiveFarmId(null)
+    set({ user: null, profile: null, farms: [], activeFarmId: null, activeFarm: null })
   },
 
+  // ── Farm switching ────────────────────────────────────────────────────────
+  switchFarm: (farmId) => {
+    const { farms } = get()
+    const farm = farms.find(f => f.farm_id === farmId)
+    if (!farm) return
+    storeActiveFarmId(farmId)
+    set({ activeFarmId: farmId, activeFarm: farm })
+    // Trigger full data reload for the new farm (lazy import to avoid circular)
+    import('./index.js').then(m => m.useAppStore.getState().loadAll())
+  },
+
+  refreshFarms: async () => {
+    const { user, activeFarmId } = get()
+    if (!user) return
+    const memberships = await fetchMemberships(user.id)
+    const stillMember = memberships.find(f => f.farm_id === activeFarmId)
+    const newActiveFarmId = stillMember ? activeFarmId : resolveActiveFarm(memberships)
+    storeActiveFarmId(newActiveFarmId)
+    set({
+      farms: memberships, activeFarmId: newActiveFarmId,
+      activeFarm: memberships.find(f => f.farm_id === newActiveFarmId) || null,
+    })
+  },
+
+  // ── Farm CRUD ─────────────────────────────────────────────────────────────
+  createFarm: async ({ name, location, total_acres }) => {
+    const { user } = get()
+    if (!user) throw new Error('Not logged in')
+
+    const { data: farm, error: fErr } = await supabase
+      .from('farms')
+      .insert({ name, location: location || 'India', total_acres: parseFloat(total_acres) || 0, owner_id: user.id })
+      .select().single()
+    if (fErr) throw fErr
+
+    const { error: mErr } = await supabase.from('farm_memberships').insert({
+      farm_id: farm.id, user_id: user.id, role: 'admin', status: 'active',
+    })
+    if (mErr) throw mErr
+
+    await get().refreshFarms()
+    get().switchFarm(farm.id)
+    return farm
+  },
+
+  updateFarmDetails: async ({ name, location, total_acres }) => {
+    const { activeFarmId } = get()
+    if (!activeFarmId) throw new Error('No active farm')
+    const { error } = await supabase.from('farms')
+      .update({ name, location, total_acres: parseFloat(total_acres) || 0 })
+      .eq('id', activeFarmId)
+    if (error) throw error
+    await get().refreshFarms()
+  },
+
+  // ── Invitation management ─────────────────────────────────────────────────
+  createInvitation: async ({ role }) => {
+    const { activeFarmId, user } = get()
+    if (!activeFarmId || !user) throw new Error('No active farm')
+    const { data, error } = await supabase.from('farm_invitations').insert({
+      farm_id: activeFarmId, role, invited_by: user.id,
+    }).select().single()
+    if (error) throw error
+    return data
+  },
+
+  loadInvitations: async () => {
+    const { activeFarmId } = get()
+    if (!activeFarmId) return []
+    const { data } = await supabase
+      .from('farm_invitations')
+      .select('*')
+      .eq('farm_id', activeFarmId)
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+    return data || []
+  },
+
+  revokeInvitation: async (id) => {
+    const { error } = await supabase.from('farm_invitations').delete().eq('id', id)
+    if (error) throw error
+  },
+
+  // ── Member management ─────────────────────────────────────────────────────
+  loadMembers: async () => {
+    const { activeFarmId } = get()
+    if (!activeFarmId) return []
+    const { data } = await supabase
+      .from('farm_memberships')
+      .select('*, user_profiles(id, full_name, email, role, is_active)')
+      .eq('farm_id', activeFarmId)
+      .eq('status', 'active')
+    return data || []
+  },
+
+  removeMember: async (userId) => {
+    const { activeFarmId } = get()
+    const { error } = await supabase.from('farm_memberships')
+      .delete()
+      .eq('farm_id', activeFarmId)
+      .eq('user_id', userId)
+    if (error) throw error
+  },
+
+  updateMemberRole: async (userId, role) => {
+    const { activeFarmId } = get()
+    const { error } = await supabase.from('farm_memberships')
+      .update({ role })
+      .eq('farm_id', activeFarmId)
+      .eq('user_id', userId)
+    if (error) throw error
+  },
+
+  // ── Accept invitation (public route handler) ──────────────────────────────
+  acceptInvitation: async (token) => {
+    const { user } = get()
+    if (!user) throw new Error('Must be logged in to accept invitation')
+
+    const { data: invite, error: iErr } = await supabase
+      .from('farm_invitations')
+      .select('*, farms(id, name)')
+      .eq('token', token)
+      .is('accepted_at', null)
+      .single()
+    if (iErr || !invite) throw new Error('Invitation not found or already used')
+    if (new Date(invite.expires_at) < new Date()) {
+      throw new Error('This invitation has expired. Ask the farm admin to send a new one.')
+    }
+
+    const { error: mErr } = await supabase.from('farm_memberships').insert({
+      farm_id:    invite.farm_id,
+      user_id:    user.id,
+      role:       invite.role,
+      status:     'active',
+      invited_by: invite.invited_by,
+    })
+    // Ignore duplicate — user may already be a member
+    if (mErr && !mErr.message.includes('duplicate') && !mErr.code === '23505') throw mErr
+
+    await supabase.from('farm_invitations')
+      .update({ accepted_at: new Date().toISOString() })
+      .eq('id', invite.id)
+
+    await get().refreshFarms()
+    get().switchFarm(invite.farm_id)
+    return invite.farms
+  },
+
+  // ── User management (admin panel — all users across platform) ─────────────
   loadUsers: async () => {
     const { data } = await supabase
       .from('user_profiles').select('*').order('created_at')
@@ -51,23 +280,17 @@ const useAuthStore = create((set, get) => ({
   },
 
   createUser: async ({ email, password, full_name, role, phone }) => {
-    // Save admin session before signUp replaces it
     const { data: { session } } = await supabase.auth.getSession()
-
     try {
       const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) throw error
-
       const { error: pErr } = await supabase.from('user_profiles').insert({
-        id: data.user.id, email, full_name,
-        role, phone: phone || null,
+        id: data.user.id, email, full_name, role, phone: phone || null,
       })
       if (pErr) throw pErr
-
       await get().loadUsers()
       return data.user
     } finally {
-      // Always restore admin session
       if (session) {
         await supabase.auth.setSession({
           access_token:  session.access_token,
@@ -96,9 +319,9 @@ const useAuthStore = create((set, get) => ({
   },
 }))
 
-// Role helpers
-const isAdmin   = (p) => p?.role === 'admin'
-const isManager = (p) => p?.role === 'admin' || p?.role === 'manager'
-const canEdit   = (p) => p?.role !== 'view_only'
+// ── Role helpers (accept role string, not profile object) ─────────────────────
+const isAdmin   = (role) => role === 'admin'
+const isManager = (role) => role === 'admin' || role === 'manager'
+const canEdit   = (role) => role !== null && role !== 'view_only'
 
 export { useAuthStore, isAdmin, isManager, canEdit }
