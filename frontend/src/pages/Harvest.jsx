@@ -36,11 +36,13 @@ export default function Harvest() {
   } = useAppStore()
 
   // ── Shared state ─────────────────────────────────────────────────────────────
-  const [modal,        setModal]        = useState(null)
-  const [selected,     setSelected]     = useState(null)
-  const [form,         setForm]         = useState({})
-  const [toast,        setToast]        = useState(null)
-  const [saving,       setSaving]       = useState(false)
+  const [modal,           setModal]           = useState(null)
+  const [selected,        setSelected]        = useState(null)
+  const [form,            setForm]            = useState({})
+  const [toast,           setToast]           = useState(null)
+  const [saving,          setSaving]          = useState(false)
+  const [weighingSlip,    setWeighingSlip]    = useState(null)
+  const [recordError,     setRecordError]     = useState('')
 
   // ── Cane-specific modals ──────────────────────────────────────────────────────
   const [supplyModal,  setSupplyModal]  = useState(null)
@@ -103,21 +105,29 @@ export default function Harvest() {
   const openRecord = (cycle) => {
     setSelected(cycle)
     setForm({ date: new Date().toISOString().slice(0, 10), qtyPerAcre: '', quality: 'A', notes: '' })
+    setWeighingSlip(null)
+    setRecordError('')
     setModal('record')
   }
 
   const confirmRecord = async () => {
     if (!form.qtyPerAcre || !selected || saving) return
+    const today = new Date().toISOString().slice(0, 10)
+    if (form.date > today) { setRecordError('Harvest date cannot be in the future.'); return }
+    if (!weighingSlip)     { setRecordError('Please attach the weighing slip — it is required.'); return }
+    setRecordError('')
     setSaving(true)
     try {
+      const weighingSlipPath = await uploadFile(weighingSlip, 'weighing', selected.id)
       const crop    = cropMaster.find(c => c.id === selected.cropId)
       const qtyQtl  = parseFloat((parseFloat(form.qtyPerAcre) * selected.acres).toFixed(1))
 
       await addHarvestSession(selected.id, {
-        date:    form.date,
+        date:             form.date,
         qtyQtl,
-        quality: form.quality,
-        notes:   form.notes || null,
+        quality:          form.quality,
+        notes:            form.notes || null,
+        weighingSlipPath,
       })
 
       if (crop?.ratoonCropId) {
@@ -526,13 +536,19 @@ export default function Harvest() {
 
                   {/* Harvest summary */}
                   {session ? (
-                    <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] text-[var(--c-faint)]">Harvested {session.date}</p>
-                        <p className="text-base font-bold text-[var(--c-text)]">{session.qtyQtl.toFixed(1)} qtl</p>
+                    <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2.5 mb-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-[var(--c-faint)]">Harvested {session.date}</p>
+                          <p className="text-base font-bold text-[var(--c-text)]">{session.qtyQtl.toFixed(1)} qtl</p>
+                        </div>
+                        {session.quality && (
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {session.quality}</span>
+                        )}
                       </div>
-                      {session.quality && (
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {session.quality}</span>
+                      {session.parchiAttachmentPath && (
+                        <a href={attachmentUrl(session.parchiAttachmentPath)} target="_blank" rel="noreferrer"
+                          className="text-[10px] text-[#1D9E75] underline mt-1.5 block">⚖️ View Weighing Slip</a>
                       )}
                     </div>
                   ) : (
@@ -667,8 +683,13 @@ export default function Harvest() {
               ) : null
             })()}
             <div className="space-y-3">
-              <div><label className="text-xs text-[var(--c-sub)] block mb-1">Harvest date</label>
-                <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">Harvest date</label>
+                <input type="date" value={form.date}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={e => { f('date', e.target.value); setRecordError('') }}
+                  className="finput" style={{ colorScheme: 'dark' }}/>
+              </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Yield per acre (qtl)</label>
                 <input type="number" placeholder="e.g. 15" value={form.qtyPerAcre} onChange={e => f('qtyPerAcre', e.target.value)} className="finput"/></div>
               {form.qtyPerAcre && (
@@ -681,12 +702,33 @@ export default function Harvest() {
                 <select value={form.quality} onChange={e => f('quality', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
                   {['A', 'B', 'C'].map(g => <option key={g} value={g} style={{ background: '#1a2030' }}>Grade {g}</option>)}
                 </select></div>
+              <div>
+                <label className="text-xs text-[var(--c-sub)] block mb-1">
+                  Weighing slip <span className="text-[#E24B4A]">*</span>
+                </label>
+                <input type="file" accept="image/*,application/pdf"
+                  onChange={e => { setWeighingSlip(e.target.files[0] || null); setRecordError('') }}
+                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                {!weighingSlip && <p className="text-[10px] text-[#BA7517] mt-1">Required — attach photo or PDF of weighing slip</p>}
+              </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
                 <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
-              <p className="text-[10px] text-[var(--c-faint)] text-center">Sale details (buyer, rate, payment) recorded in next step →</p>
-              <button onClick={confirmRecord} disabled={saving || !form.qtyPerAcre}
+
+              {recordError && (
+                <div className="bg-[#E24B4A]/10 border border-[#E24B4A]/30 rounded-xl px-3 py-2.5">
+                  <p className="text-xs text-[#E24B4A]">{recordError}</p>
+                </div>
+              )}
+
+              <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2 text-[10px] text-[var(--c-faint)] space-y-0.5">
+                <p>• Plot will be marked <strong className="text-[var(--c-muted)]">empty</strong> on the field map</p>
+                <p>• Sale details (buyer, rate) recorded as next step — shows <strong className="text-[#BA7517]">pending</strong> until filled</p>
+                <p>• Payment receipt required to close the sale</p>
+              </div>
+
+              <button onClick={confirmRecord} disabled={saving || !form.qtyPerAcre || !weighingSlip}
                 className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                {saving ? 'Saving…' : 'Confirm Harvest'}
+                {saving ? 'Uploading & saving…' : 'Confirm Harvest'}
               </button>
             </div>
           </div>

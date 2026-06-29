@@ -642,12 +642,12 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Harvest sessions (non-cane crops) ──────────────────────────────────────
-  addHarvestSession: async (cycleId, { date, qtyQtl, quality, notes }) => {
+  addHarvestSession: async (cycleId, { date, qtyQtl, quality, notes, weighingSlipPath }) => {
     const { cropMaster, cropCycles } = get()
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
     const { data: session, error } = await supabase
       .from('harvest_sessions')
-      .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null })
+      .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, quality_grade: quality || null, notes: notes || null, parchi_attachment_path: weighingSlipPath || null })
       .select().single()
     if (error) throw error
 
