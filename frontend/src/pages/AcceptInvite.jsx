@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import { supabase } from '../store/auth'
+import { supabase } from '../lib/supabase'
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', view_only: 'View Only' }
 
@@ -10,12 +10,18 @@ export default function AcceptInvite() {
   const navigate     = useNavigate()
   const { user, acceptInvitation } = useAuthStore()
 
-  const [status,   setStatus]   = useState('loading')
-  const [preview,  setPreview]  = useState(null)   // { farm_name, role, email, valid }
-  const [error,    setError]    = useState('')
-  const [sending,  setSending]  = useState(false)
-  const [sent,     setSent]     = useState(false)
+  const [status,      setStatus]      = useState('loading')
+  const [preview,     setPreview]     = useState(null)    // { farm_name, role, email, valid }
+  const [error,       setError]       = useState('')
+  const [sending,     setSending]     = useState(false)
+  const [sent,        setSent]        = useState(false)
   const [manualEmail, setManualEmail] = useState('')
+
+  // Set-password step
+  const [password,    setPassword]    = useState('')
+  const [password2,   setPassword2]   = useState('')
+  const [pwError,     setPwError]     = useState('')
+  const [pwSaving,    setPwSaving]    = useState('')    // '' | 'saving' | 'saved'
 
   // Step 1: fetch invite preview (works without auth — public RPC)
   useEffect(() => {
@@ -47,13 +53,24 @@ export default function AcceptInvite() {
   const handleAccept = async () => {
     setStatus('accepting')
     try {
-      const farm = await acceptInvitation(token)
+      await acceptInvitation(token)
       setStatus('success')
-      setTimeout(() => navigate('/', { replace: true }), 2000)
     } catch (err) {
       setError(err.message || 'Failed to accept invitation')
       setStatus('error')
     }
+  }
+
+  const handleSetPassword = async (e) => {
+    e.preventDefault()
+    setPwError('')
+    if (password.length < 8)  { setPwError('Password must be at least 8 characters.'); return }
+    if (password !== password2) { setPwError('Passwords do not match.'); return }
+    setPwSaving('saving')
+    const { error } = await supabase.auth.updateUser({ password })
+    if (error) { setPwError(error.message); setPwSaving(''); return }
+    setPwSaving('saved')
+    setTimeout(() => navigate('/', { replace: true }), 1000)
   }
 
   const wrap = (children) => (
@@ -115,6 +132,10 @@ export default function AcceptInvite() {
             <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '10px' }}>
               Click the link in the email — no password needed. You'll land straight on this invitation.
             </div>
+            <button type="button" onClick={() => setSent(false)}
+              style={{ background: 'none', border: 'none', color: '#1D9E75', fontSize: '12px', cursor: 'pointer', marginTop: '12px', textDecoration: 'underline' }}>
+              Resend link
+            </button>
           </div>
         ) : (
           <>
@@ -162,14 +183,42 @@ export default function AcceptInvite() {
     )
   }
 
-  // ── Success ───────────────────────────────────────────────────────────────
+  // ── Success → offer to set a password ────────────────────────────────────
   if (status === 'success') return wrap(
     <>
       <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-      <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 800 }}>You're in!</h2>
-      <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
-        You've joined <strong>{preview?.farm_name}</strong>. Taking you to your farm…
+      <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 800, color: '#111827' }}>You're in!</h2>
+      <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 24px', lineHeight: 1.5 }}>
+        You've joined <strong style={{ color: '#111827' }}>{preview?.farm_name}</strong> as{' '}
+        <strong style={{ color: '#1D9E75' }}>{ROLE_LABELS[preview?.role]}</strong>.
       </p>
+
+      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '20px', marginBottom: '20px', textAlign: 'left' }}>
+        <div style={{ fontWeight: 700, color: '#92400e', fontSize: '14px', marginBottom: '6px' }}>
+          🔑 Set a password for easy future sign-ins
+        </div>
+        <div style={{ fontSize: '12px', color: '#78350f', lineHeight: 1.5, marginBottom: '16px' }}>
+          You signed in via email link. Setting a password lets you log in directly next time — no email link needed.
+        </div>
+        <form onSubmit={handleSetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+            placeholder="Choose a password (min 8 chars)" required
+            style={{ padding: '10px 12px', border: '1.5px solid #fbbf24', borderRadius: '8px', fontSize: '14px', color: '#111827', width: '100%', boxSizing: 'border-box' }} />
+          <input type="password" value={password2} onChange={e => setPassword2(e.target.value)}
+            placeholder="Confirm password" required
+            style={{ padding: '10px 12px', border: '1.5px solid #fbbf24', borderRadius: '8px', fontSize: '14px', color: '#111827', width: '100%', boxSizing: 'border-box' }} />
+          {pwError && <p style={{ color: '#dc2626', fontSize: '12px', margin: 0 }}>{pwError}</p>}
+          <button type="submit" disabled={!!pwSaving}
+            style={{ padding: '11px', border: 'none', borderRadius: '8px', background: pwSaving === 'saved' ? '#16a34a' : '#f59e0b', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: 'pointer' }}>
+            {pwSaving === 'saving' ? 'Saving…' : pwSaving === 'saved' ? '✓ Password saved! Entering farm…' : '🔐 Set password & enter farm'}
+          </button>
+        </form>
+      </div>
+
+      <button onClick={() => navigate('/', { replace: true })}
+        style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '13px', cursor: 'pointer', textDecoration: 'underline' }}>
+        Skip — I'll use email links to sign in
+      </button>
     </>
   )
 
