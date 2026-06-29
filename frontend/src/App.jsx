@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
 import { useAuthStore, isAdmin, isManager } from './store/auth'
 import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, BarChart3, Users, Camera, Settings, LogOut, Sun, Moon, Bird, BookOpen, Shield } from 'lucide-react'
+import { Map, ListChecks, Package, BarChart3, Users, Camera, LogOut, Sun, Moon, Bird, BookOpen } from 'lucide-react'
 
 import Field         from './pages/Field'
 import Today         from './pages/Today'
@@ -20,6 +20,7 @@ import FarmSettings  from './pages/FarmSettings'
 import AcceptInvite  from './pages/AcceptInvite'
 import SuperAdmin    from './pages/SuperAdmin'
 import FarmSwitcher  from './components/FarmSwitcher'
+import AdminMenu     from './components/AdminMenu'
 
 const NAV = [
   { to: '/field',     label: 'Fields',    Icon: Map        },
@@ -102,31 +103,10 @@ export default function App() {
         {/* Left: Farm switcher shows farm name + acres */}
         <FarmSwitcher />
 
-        {/* Right: settings, super admin, theme, sign out */}
+        {/* Right: admin menu, theme, sign out */}
         <div className="flex items-center gap-2">
-          {/* Farm Settings (admin only) */}
-          {admin && (
-            <NavLink to="/settings" title="Farm Settings">
-              {({ isActive }) => (
-                <div className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
-                  style={{ background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', color: '#fff' }}>
-                  <Settings size={13} />
-                </div>
-              )}
-            </NavLink>
-          )}
-
-          {/* Super Admin (platform admin only) */}
-          {profile?.is_super_admin && (
-            <NavLink to="/super-admin" title="Super Admin">
-              {({ isActive }) => (
-                <div className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
-                  style={{ background: isActive ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', color: '#fff' }}>
-                  <Shield size={13} />
-                </div>
-              )}
-            </NavLink>
-          )}
+          {/* Admin dropdown (admin only) — Farm Masters + Farm Settings + Super Admin */}
+          {admin && <AdminMenu />}
 
           <button onClick={toggle}
             className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
@@ -191,17 +171,6 @@ export default function App() {
             </NavLink>
           ))}
 
-          {admin && (
-            <NavLink to="/admin" className="flex-none px-2">
-              {({ isActive }) => (
-                <div className="flex flex-col items-center gap-1 py-2.5"
-                  style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
-                  <Settings size={16} strokeWidth={1.5} />
-                  <span className="text-[8px] font-medium tracking-wide">Admin</span>
-                </div>
-              )}
-            </NavLink>
-          )}
         </nav>
       )}
 
@@ -209,7 +178,7 @@ export default function App() {
       {!manager && (
         <nav className="flex shrink-0 border-t"
           style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          {[NAV[0], NAV[6], NAV[7]].map(({ to, label, Icon }) => (
+          {[NAV[0], NAV[1], NAV[6], NAV[7]].map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} className="flex-1">
               {({ isActive }) => (
                 <div className="flex flex-col items-center gap-1 py-2.5"
