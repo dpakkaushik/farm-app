@@ -29,7 +29,9 @@ export default function Today() {
     activityTypes, todayAttendance,
     logActivity, logActivities,
   } = useAppStore()
-  const { profile } = useAuthStore()
+  const { profile, farms, activeFarmId } = useAuthStore()
+  // Compute role directly — Zustand getters don't survive set() shallow-merge
+  const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
 
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
@@ -189,7 +191,7 @@ export default function Today() {
           </h1>
           <p className="text-sm text-[var(--c-muted)]">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
-        {isManager(profile) && (
+        {isManager(activeFarmRole) && (
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"

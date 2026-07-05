@@ -2,7 +2,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
-import { useAuthStore, isManager } from '../store/auth'
+import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -838,7 +838,7 @@ function ActiveCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput })
       </div>
 
       <div className="flex gap-2">
-        {isManager(useAuthStore.getState().profile) && <>
+        {isManager(getActiveFarmRole()) && <>
           <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Log Activity</button>
           <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Issue Inputs</button>
         </>}
@@ -892,7 +892,7 @@ function MixedCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput }) 
       </div>
 
       <div className="flex gap-2">
-        {isManager(useAuthStore.getState().profile) && <>
+        {isManager(getActiveFarmRole()) && <>
           <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Log Activity</button>
           <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Issue Inputs</button>
         </>}

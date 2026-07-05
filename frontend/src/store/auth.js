@@ -343,4 +343,11 @@ const isAdmin   = (role) => role === 'admin'
 const isManager = (role) => role === 'admin' || role === 'manager'
 const canEdit   = (role) => role !== null && role !== 'view_only'
 
-export { useAuthStore, isAdmin, isManager, canEdit }
+// Compute role directly — Zustand getters don't survive set() shallow-merge.
+// Use this (not the stale activeFarmRole field) for non-reactive reads via getState().
+function getActiveFarmRole() {
+  const { farms, activeFarmId } = useAuthStore.getState()
+  return farms.find(f => f.farm_id === activeFarmId)?.role || null
+}
+
+export { useAuthStore, isAdmin, isManager, canEdit, getActiveFarmRole }

@@ -83,8 +83,10 @@ const fmtDuration = (secs) => {
 // ── Component ────────────────────────────────────────────────────────────────
 export default function Media() {
   const { mediaItems, addMediaItem, plots } = useAppStore()
-  const { profile } = useAuthStore()
-  const adminUser = isAdmin(profile)
+  const { farms, activeFarmId } = useAuthStore()
+  // Compute role directly — Zustand getters don't survive set() shallow-merge
+  const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
+  const adminUser = isAdmin(activeFarmRole)
 
   const deleteMedia = async (item, e) => {
     e.stopPropagation()
