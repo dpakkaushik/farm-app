@@ -1,32 +1,29 @@
-﻿import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, MapPin, HardHat } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
+import { supabase } from '../lib/supabase'
+import { buildDayBundle, datesInRange } from './today/dayBundle'
+import DayCard from './today/DayCard'
+import UpcomingBlock from './today/UpcomingBlock'
 
 const getTodayStr  = () => new Date().toISOString().slice(0, 10)
 const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
 const TODAY_DATE   = getTodayDate()
 const TODAY_STR    = getTodayStr()
 
-
-const ACT_EMOJI = {
-  irrigation: '💧', weeding: '🌿', fertilizer: '🧪', spray: '🧴',
-  pesticide: '🧴', ploughing: '🚜', sowing: '🌱', harvesting: '🌾',
-  harvest: '🌾', intercultural: '🔧', crop_ops: '🌻', events: '📅', other: '📋',
-}
-const ACT_COLOR = {
-  irrigation: '#3b82f6', weeding: '#f97316', fertilizer: '#a855f7',
-  spray: '#ef4444', pesticide: '#ef4444', ploughing: '#f59e0b',
-  sowing: '#34d399', harvesting: '#1D9E75', harvest: '#1D9E75',
-  intercultural: '#64748b', crop_ops: '#22c55e', events: '#ec4899', other: '#6b7280',
-}
+const HISTORY_WARN_DAYS = 90
 
 export default function Today() {
   const {
     cropCycles, cropMaster, activities, plots,
     permanentStaff, regularLabourers,
     activityTypes, todayAttendance,
+    purchases, issues, harvestSessions, sales, cropResiduals,
+    labourLogs, advances, salaryPayments,
+    livestockCountLogs, livestockMaster, farmExpenses, livestockRevenue,
+    mediaItems, inventoryMaster,
     logActivity, logActivities,
   } = useAppStore()
   const { profile, farms, activeFarmId } = useAuthStore()
@@ -43,8 +40,16 @@ export default function Today() {
   const [outsideLabour, setOutsideLabour] = useState(0)          // headcount
   const [actNotes,      setActNotes]      = useState('')
   const [doneTasks,     setDoneTasks]     = useState(new Set())
-  const [showHistory,   setShowHistory]   = useState(false)
   const [saving,        setSaving]        = useState(false)
+
+  // ── History (collapsed, gated behind an explicit date-range + Fetch) ───────
+  const [showHistory,       setShowHistory]       = useState(false)
+  const [historyStart,      setHistoryStart]      = useState('')
+  const [historyEnd,        setHistoryEnd]        = useState('')
+  const [historyLoading,    setHistoryLoading]    = useState(false)
+  const [historyResults,    setHistoryResults]    = useState(null)  // [{date, bundle}] | null
+  const [historyError,      setHistoryError]      = useState('')
+  const [confirmLargeRange, setConfirmLargeRange] = useState(false)
 
   // Only workers marked present or half-day today
   const allNamedWorkers = useMemo(() => {
@@ -134,16 +139,62 @@ export default function Today() {
     loggedToday.reduce((sum, a) => sum + (a.outsideLabourCount || 0), 0)
   , [loggedToday])
 
-  // Group logged activities by plot — fixes multiple-activity-per-plot display
-  const loggedByPlot = useMemo(() => {
-    const map = new Map()
-    loggedToday.forEach(a => {
-      const key = a.plotId || '__event__'
-      if (!map.has(key)) map.set(key, { plotLabel: a.plotLabel || 'Event / Farm-wide', activities: [] })
-      map.get(key).activities.push(a)
-    })
-    return [...map.values()]
-  }, [loggedToday])
+  // ── Day-bundle data: same shape/logic powers both today's card and History ──
+  const workerMap = useMemo(() => {
+    const m = {}
+    ;[...permanentStaff, ...regularLabourers].forEach(w => { m[w.id] = w.name })
+    return m
+  }, [permanentStaff, regularLabourers])
+
+  const resolvers = useMemo(() => ({
+    cropCycles, cropMaster, livestockMaster, inventoryMaster, workerMap, activityTypes,
+  }), [cropCycles, cropMaster, livestockMaster, inventoryMaster, workerMap, activityTypes])
+
+  const todaySlices = useMemo(() => ({
+    activities, purchases, issues, harvestSessions, sales, cropResiduals,
+    labourLogs, advances, salaryPayments, livestockCountLogs, farmExpenses,
+    livestockRevenue, mediaItems,
+  }), [activities, purchases, issues, harvestSessions, sales, cropResiduals,
+       labourLogs, advances, salaryPayments, livestockCountLogs, farmExpenses,
+       livestockRevenue, mediaItems])
+
+  const todayBundle = useMemo(() => buildDayBundle(TODAY_STR, todaySlices, resolvers), [todaySlices, resolvers])
+
+  const rangeDays = (historyStart && historyEnd && historyStart <= historyEnd)
+    ? Math.round((new Date(historyEnd) - new Date(historyStart)) / 86400000) + 1
+    : 0
+
+  const fetchHistory = async () => {
+    setHistoryError('')
+    if (!historyStart || !historyEnd || historyStart > historyEnd) {
+      setHistoryError('Pick a valid start and end date')
+      return
+    }
+    if (rangeDays > HISTORY_WARN_DAYS && !confirmLargeRange) {
+      setConfirmLargeRange(true)
+      return
+    }
+    setHistoryLoading(true)
+    setConfirmLargeRange(false)
+    // Recovered advances aren't loaded into the live store (it only tracks
+    // outstanding ones) — fetch the full range directly so past days aren't
+    // missing advances that have since been marked recovered.
+    const { data } = await supabase.from('salary_advances').select('*')
+      .eq('farm_id', activeFarmId)
+      .gte('advance_date', historyStart)
+      .lte('advance_date', historyEnd)
+    const historyAdvances = (data || []).map(a => ({
+      id: a.id, labourerId: a.labourer_id, date: a.advance_date,
+      amount: Number(a.amount), reason: a.reason || '',
+    }))
+    const slices = { ...todaySlices, advances: historyAdvances }
+    const dates = datesInRange(slices, historyStart, historyEnd)
+    const results = dates
+      .map(d => ({ date: d, bundle: buildDayBundle(d, slices, resolvers) }))
+      .filter(r => !r.bundle.isEmpty)
+    setHistoryResults(results)
+    setHistoryLoading(false)
+  }
 
   const markDone = async (task) => {
     setDoneTasks(prev => new Set([...prev, task.id]))
@@ -177,7 +228,6 @@ export default function Today() {
 
   const togglePlot   = id => setSelPlots(prev   => { const n = new Set(prev);   n.has(id) ? n.delete(id) : n.add(id); return n })
   const toggleWorker = id => setSelWorkers(prev  => { const n = new Set(prev);   n.has(id) ? n.delete(id) : n.add(id); return n })
-  const totalScheduled = pendingOverdue.length + pendingToday.length + completedToday.length
   const totalWorkers   = selWorkers.size + outsideLabour
 
   return (
@@ -243,50 +293,15 @@ export default function Today() {
         </div>
       )}
 
-      <div className="px-4 space-y-5">
+      <div className="px-4 space-y-4">
 
-        {pendingOverdue.length > 0 && (
-          <Section title="⚠ Overdue" color="#E24B4A">
-            {pendingOverdue.map(t => (
-              <ScheduledCard key={t.id} task={t} status="overdue" onDone={() => markDone(t)} />
-            ))}
-          </Section>
-        )}
+        <DayCard date={TODAY_STR} isToday bundle={todayBundle}
+          tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
+          onMarkDone={markDone} />
 
-        {totalScheduled > 0 && (
-          <Section title="Scheduled Today" color="#1D9E75"
-            badge={pendingToday.length === 0 && todayTasks.length > 0 ? '✓ All done' : null}>
-            {pendingToday.map(t  => (
-              <ScheduledCard key={t.id} task={t} status="today"   onDone={() => markDone(t)} />
-            ))}
-            {completedToday.map(t => (
-              <ScheduledCard key={t.id} task={t} status="done" />
-            ))}
-          </Section>
-        )}
+        <UpcomingBlock tomorrow={tomorrow} upcoming={upcoming} />
 
-        {/* Logged Today — grouped by plot so ALL activities per plot are clearly visible */}
-        {loggedByPlot.length > 0 && (
-          <Section title="Logged Today" color="#3b82f6">
-            {loggedByPlot.map(group => (
-              <LoggedPlotCard key={group.plotLabel} group={group} />
-            ))}
-          </Section>
-        )}
-
-        {tomorrow.length > 0 && (
-          <Section title="Tomorrow" color="#BA7517">
-            {tomorrow.map(t => <ScheduledCard key={t.id} task={t} status="upcoming" />)}
-          </Section>
-        )}
-
-        {upcoming.length > 0 && (
-          <Section title="Next 7 days" color="#6b7280">
-            {upcoming.map(t => <ScheduledCard key={t.id} task={t} status="future" />)}
-          </Section>
-        )}
-
-        {/* Activity History */}
+        {/* History — gated behind an explicit date range + Fetch */}
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--c-border)' }}>
           <button
             onClick={() => setShowHistory(h => !h)}
@@ -294,59 +309,47 @@ export default function Today() {
             style={{ background: 'var(--c-card)' }}>
             <div className="flex items-center gap-2">
               <ClipboardList size={15} className="text-[var(--c-muted)]" />
-              <span className="text-xs font-bold text-[var(--c-sub)] uppercase tracking-wide">Activity History</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                style={{ background: '#1D9E7520', color: '#1D9E75' }}>
-                {activities.length} records
-              </span>
+              <span className="text-xs font-bold text-[var(--c-sub)] uppercase tracking-wide">History</span>
             </div>
             <ChevronRight size={14} className="text-[var(--c-faint)] transition-transform"
               style={{ transform: showHistory ? 'rotate(90deg)' : 'rotate(0deg)' }} />
           </button>
 
           {showHistory && (
-            <div className="divide-y" style={{ divideColor: 'var(--c-border)' }}>
-              {activities.length === 0 ? (
-                <p className="text-xs text-[var(--c-faint)] text-center py-6 italic">No activities logged yet</p>
-              ) : (
-                [...activities]
-                  .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-                  .map(a => {
-                    const color    = ACT_COLOR[a.type] || '#6b7280'
-                    const typeInfo = activityTypes.find(t => t.name === a.type)
-                    return (
-                      <div key={a.id} className="flex items-center gap-3 px-4 py-3"
-                        style={{ background: 'var(--c-card)' }}>
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm shrink-0"
-                          style={{ background: color + '20' }}>
-                          {ACT_EMOJI[a.type] || '📋'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-[var(--c-text-80)]">{a.plotLabel || '—'}</span>
-                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded"
-                              style={{ background: color + '20', color }}>
-                              {typeInfo?.label || a.type}
-                            </span>
-                            {(a.regularWorkerIds?.length > 0) && (
-                              <span className="text-[9px] text-[#6366f1]/60">
-                                👥 {a.regularWorkerIds.length}
-                              </span>
-                            )}
-                            {(a.outsideLabourCount > 0) && (
-                              <span className="text-[9px] text-[#f59e0b]/60">
-                                👷 {a.outsideLabourCount}
-                              </span>
-                            )}
-                          </div>
-                          {a.notes
-                            ? <p className="text-[11px] text-[var(--c-muted)] mt-0.5 truncate">{a.notes}</p>
-                            : null}
-                        </div>
-                        <span className="text-[10px] text-[var(--c-faint)] shrink-0">{a.date}</span>
-                      </div>
-                    )
-                  })
+            <div className="px-4 py-4 space-y-3" style={{ background: 'var(--c-card)' }}>
+              <div className="flex items-center gap-2">
+                <input type="date" value={historyStart}
+                  onChange={e => { setHistoryStart(e.target.value); setConfirmLargeRange(false); setHistoryResults(null) }}
+                  className="flex-1 rounded-xl px-3 py-2 text-xs border outline-none"
+                  style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)', colorScheme: 'dark' }} />
+                <span className="text-xs text-[var(--c-faint)]">to</span>
+                <input type="date" value={historyEnd}
+                  onChange={e => { setHistoryEnd(e.target.value); setConfirmLargeRange(false); setHistoryResults(null) }}
+                  className="flex-1 rounded-xl px-3 py-2 text-xs border outline-none"
+                  style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)', colorScheme: 'dark' }} />
+              </div>
+
+              {historyError && <p className="text-xs text-[#E24B4A]">{historyError}</p>}
+              {confirmLargeRange && (
+                <p className="text-xs text-[#BA7517]">
+                  That's a {rangeDays}-day range — it may take a moment to render. Tap Fetch again to continue.
+                </p>
+              )}
+
+              <button onClick={fetchHistory} disabled={historyLoading}
+                className="w-full py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
+                style={{ background: '#1D9E75', color: '#fff' }}>
+                {historyLoading ? 'Fetching…' : confirmLargeRange ? 'Fetch Anyway' : 'Fetch'}
+              </button>
+
+              {historyResults && (
+                <div className="space-y-3 pt-1">
+                  {historyResults.length === 0 ? (
+                    <p className="text-xs text-[var(--c-faint)] text-center py-4 italic">No activity in this range</p>
+                  ) : (
+                    historyResults.map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -582,141 +585,6 @@ function Pill({ count, label, color, dim, icon }) {
       {icon && <span style={{ color }}>{icon}</span>}
       <span className="text-sm font-bold" style={{ color }}>{count}</span>
       <span className="text-xs font-medium" style={{ color }}>{label}</span>
-    </div>
-  )
-}
-
-function Section({ title, color, badge, children }) {
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-2.5">
-        <div className="w-1.5 h-4 rounded-full" style={{ background: color }} />
-        <p className="text-xs font-bold text-[var(--c-text)] uppercase tracking-wide">{title}</p>
-        {badge && <span className="text-[10px] text-[var(--c-faint)] ml-1">{badge}</span>}
-      </div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  )
-}
-
-function ScheduledCard({ task, status, onDone }) {
-  const isDone    = status === 'done'
-  const isOverdue = status === 'overdue'
-  const isToday   = status === 'today'
-  const color     = ACT_COLOR[task.type] || '#6b7280'
-  return (
-    <div className={`rounded-2xl border p-3.5 transition-opacity ${isDone ? 'opacity-35' : ''}`}
-      style={{
-        background:  isDone ? 'transparent' : isOverdue ? 'var(--c-card-danger)' : isToday ? 'var(--c-card-success)' : 'var(--c-card)',
-        borderColor: isDone ? 'var(--c-card)' : isOverdue ? '#7f1d1d60' : isToday ? '#1D9E7530' : 'var(--c-border)',
-      }}>
-      <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
-          style={{ background: isDone ? 'var(--c-card)' : color + '22' }}>
-          {isDone ? '✓' : ACT_EMOJI[task.type] || '📋'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-[var(--c-text-80)]">{task.plotLabel}</span>
-            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
-              style={{ background: color + '22', color }}>
-              {task.label || task.type}
-            </span>
-            {isOverdue && (
-              <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
-            )}
-            {status === 'future' && (
-              <span className="text-[9px] text-[var(--c-faint)]">in {task.daysUntil}d</span>
-            )}
-          </div>
-          <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-[var(--c-faint)] line-through' : 'text-[var(--c-text-80)]'}`}>
-            {task.label}
-          </p>
-          <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{task.cropName} · Day {task.day}</p>
-        </div>
-        {(isToday || isOverdue) && onDone && (
-          <button onClick={onDone}
-            className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors hover:bg-[#1D9E75] hover:text-[var(--c-text)] hover:border-[#1D9E75]"
-            style={{ color: '#1D9E75', borderColor: '#1D9E7540', background: '#1D9E7510' }}>
-            Done
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// Grouped card for "Logged Today" — shows ALL activities per plot in one card
-function LoggedPlotCard({ group }) {
-  const { permanentStaff, regularLabourers, activityTypes } = useAppStore()
-  const workerMap = useMemo(() => {
-    const m = {}
-    ;[...permanentStaff, ...regularLabourers].forEach(w => { m[w.id] = w.name })
-    return m
-  }, [permanentStaff, regularLabourers])
-
-  return (
-    <div className="rounded-2xl border p-3.5" style={{ background: 'var(--c-card-info)', borderColor: '#3b82f630' }}>
-      {/* Plot header */}
-      <div className="flex items-center gap-2 mb-2.5 pb-2 border-b border-[var(--c-border)]">
-        <MapPin size={11} style={{ color: '#3b82f6' }} className="shrink-0" />
-        <span className="text-xs font-bold text-[var(--c-text-80)] flex-1">{group.plotLabel}</span>
-        {group.activities.length > 1 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded font-bold"
-            style={{ background: '#3b82f620', color: '#3b82f6' }}>
-            {group.activities.length} ops
-          </span>
-        )}
-      </div>
-
-      {/* One row per activity */}
-      <div className="space-y-2.5">
-        {group.activities.map(a => {
-          const color    = ACT_COLOR[a.type] || '#6b7280'
-          const typeInfo = activityTypes.find(t => t.name === a.type)
-          const names    = (a.regularWorkerIds || []).map(id => workerMap[id]).filter(Boolean)
-          const outside  = a.outsideLabourCount || 0
-
-          return (
-            <div key={a.id} className="flex items-start gap-2.5">
-              <div className="w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5"
-                style={{ background: color + '20' }}>
-                {ACT_EMOJI[a.type] || '📋'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[11px] font-semibold" style={{ color }}>
-                    {typeInfo?.label || a.type}
-                  </span>
-                  {a.notes && (
-                    <span className="text-[10px] text-[var(--c-muted)] truncate max-w-[160px]">
-                      · {a.notes}
-                    </span>
-                  )}
-                </div>
-                {(names.length > 0 || outside > 0) && (
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    {names.length > 0 && (
-                      <span className="text-[10px] flex items-center gap-0.5"
-                        style={{ color: '#6366f1' + 'aa' }}>
-                        👥 {names.length <= 2
-                          ? names.join(', ')
-                          : `${names.slice(0, 2).join(', ')} +${names.length - 2}`}
-                      </span>
-                    )}
-                    {outside > 0 && (
-                      <span className="text-[10px] flex items-center gap-0.5"
-                        style={{ color: '#f59e0b' + 'aa' }}>
-                        👷 {outside} outside
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
     </div>
   )
 }
