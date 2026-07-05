@@ -16,12 +16,13 @@ const CONTRACT_TYPES = [
   { value: 'rate_wise', label: 'Rate Wise',  unit: 'Units',  emoji: '💰' },
 ]
 
-// Staff on fixed monthly salary only lose pay for absences beyond the monthly holiday allowance
+// Day rate is spread over working days only (month days minus the paid holiday allowance).
+// Full presence across those working days earns the full salary; salary never exceeds that cap.
 function calcStaffEarned(daysPresent, daysInMonth, monthlySalary, monthlyHoliday = 2) {
   if (!monthlySalary) return 0
-  const absentDays     = Math.max(0, daysInMonth - daysPresent)
-  const deductibleDays = Math.max(0, absentDays - monthlyHoliday)
-  return Math.round(monthlySalary - deductibleDays * (monthlySalary / daysInMonth))
+  const workingDays = Math.max(1, daysInMonth - monthlyHoliday)
+  const dailyRate    = monthlySalary / workingDays
+  return Math.min(monthlySalary, Math.round(daysPresent * dailyRate))
 }
 
 export default function Labour() {
