@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom'
 import { useAppStore } from './store'
-import { useAuthStore, isAdmin, isManager } from './store/auth'
-import { useThemeStore } from './store/theme'
-import { Map, ListChecks, Package, BarChart3, Users, Camera, LogOut, Sun, Moon, Bird, BookOpen } from 'lucide-react'
+import { useAuthStore, isAdmin } from './store/auth'
+import { Map, ListChecks, Camera, BookOpen } from 'lucide-react'
 
 import Field         from './pages/Field'
 import Today         from './pages/Today'
@@ -19,18 +18,13 @@ import FarmOnboarding from './pages/FarmOnboarding'
 import FarmSettings  from './pages/FarmSettings'
 import AcceptInvite  from './pages/AcceptInvite'
 import SuperAdmin    from './pages/SuperAdmin'
-import FarmSwitcher  from './components/FarmSwitcher'
-import AdminMenu     from './components/AdminMenu'
+import ProfileMenu   from './components/ProfileMenu'
 
 const NAV = [
-  { to: '/field',     label: 'Fields',    Icon: Map        },
-  { to: '/today',     label: 'Today',     Icon: ListChecks },
-  { to: '/resources', label: 'Resources', Icon: Package    },
-  { to: '/labour',    label: 'People',    Icon: Users      },
-  { to: '/livestock', label: 'Livestock', Icon: Bird       },
-  { to: '/ledger',    label: 'Ledger',    Icon: BookOpen   },
-  { to: '/reports',   label: 'Reports',   Icon: BarChart3  },
-  { to: '/media',     label: 'Media',     Icon: Camera     },
+  { to: '/field', label: 'Fields', Icon: Map        },
+  { to: '/today', label: 'Today',  Icon: ListChecks },
+  { to: '/ledger',label: 'Ledger', Icon: BookOpen   },
+  { to: '/media', label: 'Media',  Icon: Camera     },
 ]
 
 function LoadingScreen() {
@@ -45,11 +39,10 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { user, profile, loading, farms, activeFarmId, activeFarm, init, logout } = useAuthStore()
+  const { user, profile, loading, farms, activeFarmId, init } = useAuthStore()
   // Compute role directly — Zustand getters don't survive set() shallow-merge
   const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const { mediaItems } = useAppStore()
-  const { theme, toggle } = useThemeStore()
   const location = useLocation()
   const [mediaUnread, setMediaUnread] = useState(0)
 
@@ -84,44 +77,16 @@ export default function App() {
   // New user — no farms yet → onboarding
   if (farms.length === 0) return <FarmOnboarding />
 
-  const role    = activeFarmRole            // 'admin' | 'manager' | 'view_only'
-  const admin   = isAdmin(role)
-  const manager = isManager(role)
-  const isDark  = theme === 'dark'
-
-  // Farm name + ID for the top bar
-  const farmName  = activeFarm?.farm_name   || 'My Farm'
-  const farmAcres = activeFarm?.total_acres || 0
+  const role  = activeFarmRole            // 'admin' | 'manager' | 'view_only'
+  const admin = isAdmin(role)
 
   return (
     <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--c-bg)' }}>
 
-      {/* Top bar — FarmSwitcher left, controls right */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-1.5 border-b"
+      {/* Top bar — profile menu only; farm switching, admin, theme, logout all live in its drawer */}
+      <div className="shrink-0 flex items-center px-3 py-1.5 border-b"
         style={{ background: '#1D9E75', borderColor: 'rgba(255,255,255,0.15)' }}>
-
-        {/* Left: Farm switcher shows farm name + acres */}
-        <FarmSwitcher />
-
-        {/* Right: admin menu, theme, sign out */}
-        <div className="flex items-center gap-2">
-          {/* Admin dropdown (admin only) — Farm Masters + Farm Settings + Super Admin */}
-          {admin && <AdminMenu />}
-
-          <button onClick={toggle}
-            className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
-            style={{ background: 'rgba(255,255,255,0.12)', color: '#fff' }}
-            title="Toggle theme">
-            {isDark ? <Sun size={13} /> : <Moon size={13} />}
-          </button>
-
-          <button onClick={logout}
-            className="flex items-center justify-center w-7 h-7 rounded-full transition-colors"
-            style={{ background: 'rgba(255,255,255,0.12)', color: '#fff' }}
-            title="Sign out">
-            <LogOut size={13} />
-          </button>
-        </div>
+        <ProfileMenu />
       </div>
 
       <main className="flex-1 overflow-hidden min-h-0">
@@ -148,49 +113,28 @@ export default function App() {
         </Routes>
       </main>
 
-      {/* Bottom nav — manager+ tabs only */}
-      {manager && (
-        <nav className="flex shrink-0 border-t"
-          style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          {NAV.map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} className="flex-1">
-              {({ isActive }) => (
-                <div className="flex flex-col items-center gap-1 py-2.5 transition-colors"
-                  style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
-                  <div className="relative">
-                    <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
-                    {to === '/media' && mediaUnread > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
-                        {mediaUnread > 9 ? '9+' : mediaUnread}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[8px] font-medium tracking-wide">{label}</span>
-                </div>
-              )}
-            </NavLink>
-          ))}
-
-        </nav>
-      )}
-
-      {/* View-only: minimal read-only nav */}
-      {!manager && (
-        <nav className="flex shrink-0 border-t"
-          style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          {[NAV[0], NAV[1], NAV[6], NAV[7]].map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} className="flex-1">
-              {({ isActive }) => (
-                <div className="flex flex-col items-center gap-1 py-2.5"
-                  style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
+      {/* Bottom nav — same 4 tabs for every role; everything else lives in the profile drawer */}
+      <nav className="flex shrink-0 border-t"
+        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        {NAV.map(({ to, label, Icon }) => (
+          <NavLink key={to} to={to} className="flex-1">
+            {({ isActive }) => (
+              <div className="flex flex-col items-center gap-1 py-2.5 transition-colors"
+                style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
+                <div className="relative">
                   <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
-                  <span className="text-[8px] font-medium tracking-wide">{label}</span>
+                  {to === '/media' && mediaUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      {mediaUnread > 9 ? '9+' : mediaUnread}
+                    </span>
+                  )}
                 </div>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-      )}
+                <span className="text-[8px] font-medium tracking-wide">{label}</span>
+              </div>
+            )}
+          </NavLink>
+        ))}
+      </nav>
     </div>
   )
 }
