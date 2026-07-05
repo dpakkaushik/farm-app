@@ -16,6 +16,14 @@ const CONTRACT_TYPES = [
   { value: 'rate_wise', label: 'Rate Wise',  unit: 'Units',  emoji: '💰' },
 ]
 
+// Staff on fixed monthly salary only lose pay for absences beyond the monthly holiday allowance
+function calcStaffEarned(daysPresent, daysInMonth, monthlySalary, monthlyHoliday = 2) {
+  if (!monthlySalary) return 0
+  const absentDays     = Math.max(0, daysInMonth - daysPresent)
+  const deductibleDays = Math.max(0, absentDays - monthlyHoliday)
+  return Math.round(monthlySalary - deductibleDays * (monthlySalary / daysInMonth))
+}
+
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
   const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, plots, logLabourBatch } = useAppStore()
@@ -88,19 +96,20 @@ const ATT_STYLE = {
   absent:   { bg: '#E24B4A20', border: '#E24B4A', color: '#E24B4A' },
 }
 
-function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthAtt, monthLogs, selMonth, setSelMonth }) {
+function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, monthAtt, monthLogs, selMonth, setSelMonth }) {
   const y = selMonth.getFullYear()
   const m = selMonth.getMonth()
   const daysInMonth  = new Date(y, m + 1, 0).getDate()
   const firstOffset  = (new Date(y, m, 1).getDay() + 6) % 7
   const monthLabel   = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
   const attRecs      = monthAtt.filter(a => a.labour_master_id === workerId)
-  const dailyRate    = ratePerDay || (monthlySalary ? monthlySalary / daysInMonth : 0)
-  const attPay       = Math.round(attRecs.reduce((s, a) => s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0))
-  const contractPay  = Math.round(monthLogs.filter(l => l.labour_master_id === workerId).reduce((s, l) => s + (Number(l.total_payment) || 0), 0))
-  const attByDate    = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
   const daysPresent  = attRecs.filter(a => a.status === 'present').length
   const daysHalf     = attRecs.filter(a => a.status === 'half_day').length
+  const attPay       = monthlySalary
+    ? calcStaffEarned(daysPresent + daysHalf / 2, daysInMonth, monthlySalary, monthlyHoliday)
+    : Math.round((daysPresent + daysHalf / 2) * (ratePerDay || 0))
+  const contractPay  = Math.round(monthLogs.filter(l => l.labour_master_id === workerId).reduce((s, l) => s + (Number(l.total_payment) || 0), 0))
+  const attByDate    = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
   const cells = [
     ...Array(firstOffset).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => {
@@ -256,9 +265,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     const all = [...permanentStaff, ...regularLabourers]
     return Object.fromEntries(all.map(w => {
       const attRecs = curMonthAtt.filter(a => a.labour_master_id === w.id)
-      const dailyRate = w.ratePerDay || (w.monthlySalary ? w.monthlySalary / daysInMonth : 0)
-      const attPay  = attRecs.reduce((s, a) =>
-        s + (a.status === 'present' ? dailyRate : a.status === 'half_day' ? dailyRate / 2 : 0), 0)
+      const daysPresent = attRecs.filter(a => a.status === 'present').length
+      const daysHalf    = attRecs.filter(a => a.status === 'half_day').length
+      const attPay  = w.monthlySalary
+        ? calcStaffEarned(daysPresent + daysHalf / 2, daysInMonth, w.monthlySalary, w.monthlyHoliday)
+        : Math.round((daysPresent + daysHalf / 2) * (w.ratePerDay || 0))
       const contractPay = curMonthLogs.filter(l => l.labour_master_id === w.id)
         .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
       return [w.id, { attPay: Math.round(attPay), contractPay: Math.round(contractPay), total: Math.round(attPay + contractPay) }]
@@ -442,6 +453,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                     workerId={l.id}
                     ratePerDay={l.ratePerDay}
                     monthlySalary={l.monthlySalary}
+                    monthlyHoliday={l.monthlyHoliday}
                     monthAtt={monthAtt}
                     monthLogs={monthLogs}
                     selMonth={selMonth}
@@ -570,11 +582,12 @@ function LabourLogs({ labourLogs, permanentStaff, regularLabourers, month, setMo
   const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const filtered      = labourLogs.filter(l => l.date?.startsWith(month))
 
-  // Staff Salary: prorated monthly salary based on attendance days
+  // Staff Salary: full monthly salary minus absences beyond the monthly holiday allowance
   const staffSalary = permanentStaff.reduce((sum, s) => {
-    const days    = att[s.id] || 0
-    const daily   = s.monthlySalary ? s.monthlySalary / daysInMonth : (s.ratePerDay || 0)
-    return sum + Math.round(days * daily)
+    const days = att[s.id] || 0
+    return sum + (s.monthlySalary
+      ? calcStaffEarned(days, daysInMonth, s.monthlySalary, s.monthlyHoliday)
+      : Math.round(days * (s.ratePerDay || 0)))
   }, 0)
 
   // Regular labour: attendance pay + any logs tied to them
@@ -722,10 +735,9 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
 
       {allWorkers.map(w => {
         const days         = att[w.id] || 0
-        const dailyRate    = w.workerType === 'staff'
-          ? (w.monthlySalary ? w.monthlySalary / daysInMonth : (w.ratePerDay || 0))
-          : (w.ratePerDay || 0)
-        const earned       = Math.round(days * dailyRate)
+        const earned       = w.workerType === 'staff' && w.monthlySalary
+          ? calcStaffEarned(days, daysInMonth, w.monthlySalary, w.monthlyHoliday)
+          : Math.round(days * (w.ratePerDay || 0))
         const contractPay  = labourLogs.filter(l => l.labourMasterId === w.id && l.date?.startsWith(month)).reduce((s, l) => s + (l.totalCost || 0), 0)
         const advTotal     = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)].reduce((s, a) => s + a.amount, 0)
         const paidThisMonth= monthPayments.filter(p => p.labourerId === w.id && p.type === 'salary').reduce((s, p) => s + p.amount, 0)
