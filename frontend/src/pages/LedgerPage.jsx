@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { isManager, getActiveFarmRole } from '../store/auth'
 import {
@@ -837,12 +838,29 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 }
 
 // ── Tab: Buyer Khata (Sundry Debtors — accounts receivable) ────────────────────
-function BuyersTab({ sales }) {
+function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster }) {
+  const navigate = useNavigate()
   const cropSales = sales.filter(s => s.buyerName)
 
-  // Group by buyerId when registered; fall back to grouping by typed name
-  // (covers "Local Market" and any other free-text buyer).
+  const sessionById = Object.fromEntries(harvestSessions.map(h => [h.id, h]))
+  const cycleById    = Object.fromEntries(cropCycles.map(c => [c.id, c]))
+  const cropById     = Object.fromEntries(cropMaster.map(c => [c.id, c]))
+  const cropPlotLabel = (sale) => {
+    const session = sessionById[sale.sessionId]
+    const cycle   = session && cycleById[session.cycleId]
+    if (!cycle) return null
+    const crop = cropById[cycle.cropId]
+    return [cycle.plotLabel, crop?.name].filter(Boolean).join(' — ') || null
+  }
+
+  // Every registered buyer appears even with zero sales (mirrors Party
+  // Ledger, which lists every vendor regardless of purchase history).
+  // Free-text buyers (e.g. "Local Market") only appear once they have a
+  // sale, grouped by the typed name since they have no master record.
   const groups = {}
+  buyers.filter(b => b.isActive !== false).forEach(b => {
+    groups[b.id] = { key: b.id, name: b.name, rows: [] }
+  })
   cropSales.forEach(s => {
     const key = s.buyerId || `name:${s.buyerName.trim().toLowerCase()}`
     if (!groups[key]) groups[key] = { key, name: s.buyerName, rows: [] }
@@ -861,17 +879,24 @@ function BuyersTab({ sales }) {
 
   return (
     <div className="flex flex-col gap-3 pt-3">
-      <div>
-        <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>Sundry Debtors (Buyer Khata)</div>
-        <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-          What each buyer owes you — amounts are net of commission/freight
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>Sundry Debtors (Buyer Khata)</div>
+          <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+            What each buyer owes you — amounts are net of commission/freight
+          </div>
         </div>
+        <button onClick={() => navigate('/admin')}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shrink-0"
+          style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+          <Plus size={11} /> Add Buyer
+        </button>
       </div>
 
       {parties.length === 0 ? (
         <Card>
           <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            No sales recorded yet. Buyers appear here once you record a sale on the Harvest page.
+            No buyers or sales recorded yet. Add a buyer, or one appears here as soon as you record a sale on the Harvest page.
           </div>
         </Card>
       ) : (
@@ -922,17 +947,23 @@ function BuyersTab({ sales }) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      {['Date','Qty (qtl)','Rate','Net Amount','Status'].map(h => (
+                      {['Date','Plot / Crop','Qty (qtl)','Rate','Net Amount','Status'].map(h => (
                         <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
+                    {rows.length === 0 && (
+                      <tr><td colSpan={6} className="px-3 py-4 text-center" style={{ color: 'var(--c-faint)' }}>
+                        No sales recorded for this buyer yet.
+                      </td></tr>
+                    )}
                     {rows.map(r => {
                       const paid = r.paymentStatus === 'paid'
                       return (
                         <tr key={r.id} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                           <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(r.date)}</td>
+                          <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{cropPlotLabel(r) || '—'}</td>
                           <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{Number(r.qtyQtl || 0).toFixed(2)}</td>
                           <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>₹{r.ratePerQtl}</td>
                           <td className="px-3 py-2 font-bold" style={{ color: 'var(--c-text)' }}>{fmt(r.netAmount)}</td>
@@ -1192,7 +1223,8 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LedgerPage() {
   const {
-    vendors, vendorBalances, vendorPayments, cashBook, sales,
+    vendors, vendorBalances, vendorPayments, cashBook, sales, buyers,
+    harvestSessions, cropCycles, cropMaster,
     incomeLedger, expenseLedger, monthlySummary, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
@@ -1285,7 +1317,12 @@ export default function LedgerPage() {
             canPay={canManage}
           />
         )}
-        {tab === 'buyers'   && <BuyersTab sales={sales} />}
+        {tab === 'buyers'   && (
+          <BuyersTab
+            sales={sales} buyers={buyers}
+            harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
+          />
+        )}
         {tab === 'expenses' && (
           <ExpensesTab expenseLedger={expenseLedger} vendorPayments={vendorPayments} />
         )}
