@@ -25,6 +25,38 @@ const MonthLabel = (d) => {
   return new Date(d).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
 }
 
+// ── Financial Year helpers (Indian FY: 1 Apr – 31 Mar) ─────────────────────────
+// 'all' means no period filter (all-time). Any other value is the FY start
+// year as a string, e.g. "2025" for FY 2025-26.
+const fyLabel = (startYear) => `${startYear}-${String((Number(startYear) + 1) % 100).padStart(2, '0')}`
+
+const fyStartYearForDate = (dateStr) => {
+  const d = new Date(dateStr)
+  return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1 // April (month 3) starts the FY
+}
+
+const currentFY = () => String(fyStartYearForDate(new Date().toISOString().slice(0, 10)))
+
+const fyRange = (fy) => {
+  if (fy === 'all') return null
+  const y = Number(fy)
+  return { start: `${y}-04-01`, end: `${y + 1}-03-31` }
+}
+
+const inFY = (dateStr, fy) => {
+  if (fy === 'all' || !dateStr) return true
+  const r = fyRange(fy)
+  return dateStr >= r.start && dateStr <= r.end
+}
+
+const fyOptions = (count = 5) => {
+  const curStart = Number(currentFY())
+  const opts = []
+  for (let i = 0; i < count; i++) opts.push(String(curStart - i))
+  opts.push('all')
+  return opts
+}
+
 const CATEGORY_LABELS = {
   feed:              'Feed & Fodder',
   veterinary:        'Veterinary',
@@ -310,7 +342,7 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
         <MetricCard label="Receivables Due" value={fmt(totalReceivables)} color="#1D9E75" />
       </div>
       <div className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
-        Income/Expenses are booked when the transaction happens (not when cash moves) — check Cash Balance above for actual money in hand.
+        Income/Expenses reflect the period selected above. Cash Balance, Vendor Dues, and Receivables are always as of today, regardless of period.
       </div>
 
       {/* Monthly chart */}
@@ -338,7 +370,7 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
 }
 
 // ── Tab: Cash Book ────────────────────────────────────────────────────────────
-function CashBookTab({ cashBook, onAdd }) {
+function CashBookTab({ cashBook, openingBalance = 0, showOpening = false, onAdd }) {
   const rows = [...cashBook].reverse() // newest first for display
 
   return (
@@ -357,10 +389,17 @@ function CashBookTab({ cashBook, onAdd }) {
         </button>
       </div>
 
+      {showOpening && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: 'var(--c-ghost)' }}>
+          <span className="text-[10px] font-medium" style={{ color: 'var(--c-faint)' }}>Opening Balance (carried from before this period)</span>
+          <span className="text-xs font-bold" style={{ color: openingBalance >= 0 ? '#1D9E75' : '#E24B4A' }}>{fmt(openingBalance)}</span>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <Card>
           <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            No cash entries yet. Add the owner's first cash injection to start.
+            {showOpening ? 'No cash entries in this period.' : "No cash entries yet. Add the owner's first cash injection to start."}
           </div>
         </Card>
       ) : (
@@ -603,48 +642,64 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
 }
 
 // ── Tab: Party Ledger (Vendor Khatas) ─────────────────────────────────────────
-function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, canPay }) {
-  const [activeId, setActiveId] = useState(vendors[0]?.id || null)
+function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, canPay, fy }) {
+  const [activeId, setActiveId] = useState(null) // null = overview list
   const [monthView, setMonthView] = useState(false)
   const { vendorPayments, purchases } = useAppStore()
 
+  const purchasesFor = (v) => purchases.filter(p => {
+    if (p.vendor_id && p.vendor_id === v.id) return true
+    return p.vendor && v.name && p.vendor.toLowerCase() === v.name.toLowerCase()
+  })
+  const paymentsFor = (v) => vendorPayments.filter(p => p.vendor_id === v.id)
+
+  // Overview: every vendor, all-time Balance Due (a point-in-time fact) plus
+  // Purchased/Paid scoped to the selected financial year (period activity).
+  const overview = vendors.map(v => {
+    const vPurchases = purchasesFor(v)
+    const vPayments  = paymentsFor(v)
+    const purchasedAllTime = vPurchases.reduce((s, p) => s + Number(p.totalCost || 0), 0)
+    const paidAllTime      = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+    return {
+      vendor: v,
+      balanceDue:  purchasedAllTime - paidAllTime,
+      purchasedFY: vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
+      paidFY:      vPayments.filter(p => inFY(p.payment_date, fy)).reduce((s, p) => s + Number(p.amount || 0), 0),
+    }
+  }).sort((a, b) => b.balanceDue - a.balanceDue)
+
   const activeVendor = vendors.find(v => v.id === activeId)
 
-  // Match purchases by vendor_id first, fall back to name match
-  const vendorPurchases = purchases.filter(p => {
-    if (!activeVendor) return false
-    if (p.vendor_id && p.vendor_id === activeId) return true
-    return p.vendor && activeVendor.name &&
-      p.vendor.toLowerCase() === activeVendor.name.toLowerCase()
-  })
-
-  const vendorPmts = vendorPayments.filter(p => p.vendor_id === activeId)
-
-  const ledgerRows = [
-    ...vendorPurchases.map(p => ({
+  const ledgerRowsAll = activeVendor ? [
+    ...purchasesFor(activeVendor).map(p => ({
       date: p.date, type: 'purchase',
-      particulars: `Purchase — ${p.vendor || activeVendor?.name || 'Vendor'}`,
+      particulars: `Purchase — ${p.vendor || activeVendor.name}`,
       debit: Number(p.totalCost || 0), credit: 0,
     })),
-    ...vendorPmts.map(p => ({
+    ...paymentsFor(activeVendor).map(p => ({
       date: p.payment_date, type: 'payment',
       particulars: p.notes || 'Cash Payment',
       debit: 0, credit: Number(p.amount || 0),
     })),
-  ].sort((a, b) => new Date(a.date) - new Date(b.date))
+  ].sort((a, b) => new Date(a.date) - new Date(b.date)) : []
 
-  let running = 0
-  const ledgerWithBal = ledgerRows.map(r => {
+  const range = fyRange(fy)
+  const openingBal = range
+    ? ledgerRowsAll.filter(r => r.date < range.start).reduce((s, r) => s + r.debit - r.credit, 0)
+    : 0
+  const ledgerRowsFY = range ? ledgerRowsAll.filter(r => r.date >= range.start && r.date <= range.end) : ledgerRowsAll
+
+  let running = openingBal
+  const ledgerWithBal = ledgerRowsFY.map(r => {
     running += r.debit - r.credit
     return { ...r, balance: running }
   })
 
-  // Client-side totals (always correct regardless of SQL view)
-  const clientPurchased = ledgerWithBal.reduce((s, r) => s + r.debit, 0)
-  const clientPaid      = ledgerWithBal.reduce((s, r) => s + r.credit, 0)
-  const clientBalance   = clientPurchased - clientPaid
+  const purchasedFY = ledgerWithBal.reduce((s, r) => s + r.debit, 0)
+  const paidFY      = ledgerWithBal.reduce((s, r) => s + r.credit, 0)
+  const balanceDueAllTime = ledgerRowsAll.reduce((s, r) => s + r.debit - r.credit, 0)
 
-  // Month-wise grouping with opening / closing balance
+  // Month-wise grouping with opening / closing balance (within the FY-scoped rows)
   const byMonth = {}
   ledgerWithBal.forEach(row => {
     const mo = row.date ? row.date.slice(0, 7) : '0000-00'
@@ -652,7 +707,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     byMonth[mo].rows.push(row)
   })
   const months = Object.keys(byMonth).sort()
-  let prevClosing = 0
+  let prevClosing = openingBal
   months.forEach(mo => {
     byMonth[mo].openingBal = prevClosing
     const last = byMonth[mo].rows[byMonth[mo].rows.length - 1]
@@ -660,176 +715,205 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     byMonth[mo].closingBal = prevClosing
   })
 
+  const header = (
+    <div className="flex items-center justify-between">
+      <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
+        Sundry Creditors (Vendor Khatas)
+      </div>
+      <button onClick={onAddVendor}
+        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium"
+        style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+        <Plus size={11} /> Add Vendor
+      </button>
+    </div>
+  )
+
+  // ── Overview: every vendor, row-wise, worst balance first ──────────────────
+  if (!activeVendor) {
+    return (
+      <div className="flex flex-col gap-3 pt-3">
+        {header}
+        {vendors.length === 0 ? (
+          <Card>
+            <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
+              No vendors set up. Add a vendor to start tracking.
+            </div>
+          </Card>
+        ) : (
+          <Card className="overflow-x-auto p-0">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                  {['Vendor','Purchased','Paid','Balance Due'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {overview.map(({ vendor, purchasedFY: pFY, paidFY: yFY, balanceDue }) => (
+                  <tr key={vendor.id} onClick={() => setActiveId(vendor.id)}
+                    className="cursor-pointer hover:bg-[var(--c-ghost)] transition-colors"
+                    style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>{vendor.name}</td>
+                    <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(pFY)}</td>
+                    <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(yFY)}</td>
+                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(balanceDue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
+        <p className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
+          Purchased/Paid reflect the selected period · Balance Due is always as of today · Tap a vendor for details
+        </p>
+      </div>
+    )
+  }
+
+  // ── Detail: one vendor's ledger for the selected period ────────────────────
   return (
     <div className="flex flex-col gap-3 pt-3">
-      <div className="flex items-center justify-between">
-        <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-          Sundry Creditors (Vendor Khatas)
-        </div>
-        <button onClick={onAddVendor}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium"
+      <div className="flex items-center gap-2">
+        <button onClick={() => setActiveId(null)} className="text-xs px-2 py-1 rounded-lg"
           style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-          <Plus size={11} /> Add Vendor
+          ← All Vendors
         </button>
+        <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>{activeVendor.name}</div>
       </div>
 
-      {/* Vendor selector pills */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {vendors.map(v => (
-          <button key={v.id}
-            onClick={() => setActiveId(v.id)}
-            className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-            style={{
-              background: activeId === v.id ? '#1D9E75' : 'var(--c-ghost)',
-              color:      activeId === v.id ? '#fff'    : 'var(--c-muted)',
-            }}>
-            {v.name}
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Purchased</div>
+          <div className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{fmt(purchasedFY)}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Paid</div>
+          <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(paidFY)}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
+          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(balanceDueAllTime)}</div>
+        </Card>
+      </div>
+
+      {balanceDueAllTime > 0 && (
+        canPay ? (
+          <button
+            onClick={() => {
+              setSelectedVendor({ vendor_id: activeVendor.id, vendor_name: activeVendor.name, balance_due: balanceDueAllTime })
+              onPay()
+            }}
+            className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
+            style={{ background: '#1D9E75' }}>
+            <CheckCircle size={14} /> Record Payment to {activeVendor.name}
           </button>
-        ))}
-      </div>
+        ) : (
+          <p className="text-[10px] text-center py-2.5 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
+            Only a manager or accounts admin can record vendor payments
+          </p>
+        )
+      )}
 
-      {activeVendor ? (
+      {ledgerWithBal.length > 0 ? (
         <>
-          {/* Summary cards — always from client-side calculation */}
-          <div className="grid grid-cols-3 gap-2">
-            <Card className="p-3">
-              <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Purchased</div>
-              <div className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{fmt(clientPurchased)}</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Paid</div>
-              <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(clientPaid)}</div>
-            </Card>
-            <Card className="p-3">
-              <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
-              <div className="text-sm font-bold"
-                style={{ color: clientBalance > 0 ? '#E24B4A' : '#1D9E75' }}>
-                {fmt(clientBalance)}
-              </div>
-            </Card>
+          <div className="flex justify-end">
+            <button
+              onClick={() => setMonthView(v => !v)}
+              className="text-[10px] px-2.5 py-1 rounded-full"
+              style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+              {monthView ? 'Flat View' : 'Month-wise View'}
+            </button>
           </div>
 
-          {clientBalance > 0 && (
-            canPay ? (
-              <button
-                onClick={() => {
-                  setSelectedVendor({ vendor_id: activeId, vendor_name: activeVendor.name, balance_due: clientBalance })
-                  onPay()
-                }}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: '#1D9E75' }}>
-                <CheckCircle size={14} /> Record Payment to {activeVendor.name}
-              </button>
-            ) : (
-              <p className="text-[10px] text-center py-2.5 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
-                Only a manager or accounts admin can record vendor payments
-              </p>
-            )
-          )}
-
-          {ledgerWithBal.length > 0 ? (
-            <>
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setMonthView(v => !v)}
-                  className="text-[10px] px-2.5 py-1 rounded-full"
-                  style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-                  {monthView ? 'Flat View' : 'Month-wise View'}
-                </button>
-              </div>
-
-              {monthView ? (
-                <div className="flex flex-col gap-2">
-                  {months.map(mo => {
-                    const { rows: mRows, openingBal, closingBal } = byMonth[mo]
-                    const moLabel = new Date(mo + '-02').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-                    return (
-                      <Card key={mo} className="p-0 overflow-hidden">
-                        <div className="flex items-center justify-between px-3 py-2"
-                          style={{ background: 'var(--c-ghost)', borderBottom: '0.5px solid var(--c-border)' }}>
-                          <span className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>{moLabel}</span>
-                          <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-                            Opening: {fmt(openingBal)}
-                          </span>
-                        </div>
-                        <table className="w-full text-xs">
-                          <tbody>
-                            {mRows.map((row, i) => (
-                              <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                                <td className="px-3 py-2 whitespace-nowrap w-[72px]" style={{ color: 'var(--c-faint)' }}>
-                                  {fmtDate(row.date)}
-                                </td>
-                                <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
-                                <td className="px-3 py-2 text-right w-20 font-medium"
-                                  style={{ color: row.debit > 0 ? '#E24B4A' : 'var(--c-faint)' }}>
-                                  {row.debit > 0 ? fmt(row.debit) : '—'}
-                                </td>
-                                <td className="px-3 py-2 text-right w-20 font-medium"
-                                  style={{ color: row.credit > 0 ? '#1D9E75' : 'var(--c-faint)' }}>
-                                  {row.credit > 0 ? fmt(row.credit) : '—'}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        <div className="flex items-center justify-between px-3 py-2"
-                          style={{ background: 'var(--c-ghost)', borderTop: '0.5px solid var(--c-border)' }}>
-                          <span className="text-[10px] font-semibold" style={{ color: 'var(--c-text)' }}>Closing Balance</span>
-                          <span className="text-[12px] font-bold"
-                            style={{ color: closingBal > 0 ? '#E24B4A' : '#1D9E75' }}>
-                            {fmt(closingBal)}
-                          </span>
-                        </div>
-                      </Card>
-                    )
-                  })}
-                </div>
-              ) : (
-                <Card className="overflow-x-auto p-0">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                        {['Date','Particulars','Purchase (Dr)','Payment (Cr)','Balance'].map(h => (
-                          <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+          {monthView ? (
+            <div className="flex flex-col gap-2">
+              {months.map(mo => {
+                const { rows: mRows, openingBal: moOpen, closingBal } = byMonth[mo]
+                const moLabel = new Date(mo + '-02').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+                return (
+                  <Card key={mo} className="p-0 overflow-hidden">
+                    <div className="flex items-center justify-between px-3 py-2"
+                      style={{ background: 'var(--c-ghost)', borderBottom: '0.5px solid var(--c-border)' }}>
+                      <span className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>{moLabel}</span>
+                      <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                        Opening: {fmt(moOpen)}
+                      </span>
+                    </div>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {mRows.map((row, i) => (
+                          <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                            <td className="px-3 py-2 whitespace-nowrap w-[72px]" style={{ color: 'var(--c-faint)' }}>
+                              {fmtDate(row.date)}
+                            </td>
+                            <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
+                            <td className="px-3 py-2 text-right w-20 font-medium"
+                              style={{ color: row.debit > 0 ? '#E24B4A' : 'var(--c-faint)' }}>
+                              {row.debit > 0 ? fmt(row.debit) : '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right w-20 font-medium"
+                              style={{ color: row.credit > 0 ? '#1D9E75' : 'var(--c-faint)' }}>
+                              {row.credit > 0 ? fmt(row.credit) : '—'}
+                            </td>
+                          </tr>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledgerWithBal.map((row, i) => (
-                        <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                          <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
-                          <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
-                            {row.debit > 0 ? fmt(row.debit) : '—'}
-                          </td>
-                          <td className="px-3 py-2 text-right" style={{ color: '#1D9E75' }}>
-                            {row.credit > 0 ? fmt(row.credit) : '—'}
-                          </td>
-                          <td className="px-3 py-2 text-right font-bold"
-                            style={{ color: row.balance > 0 ? '#E24B4A' : '#1D9E75' }}>
-                            {fmt(row.balance)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
-              )}
-            </>
+                      </tbody>
+                    </table>
+                    <div className="flex items-center justify-between px-3 py-2"
+                      style={{ background: 'var(--c-ghost)', borderTop: '0.5px solid var(--c-border)' }}>
+                      <span className="text-[10px] font-semibold" style={{ color: 'var(--c-text)' }}>Closing Balance</span>
+                      <span className="text-[12px] font-bold"
+                        style={{ color: closingBal > 0 ? '#E24B4A' : '#1D9E75' }}>
+                        {fmt(closingBal)}
+                      </span>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
           ) : (
-            <Card>
-              <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
-                No purchases recorded for this vendor yet. Assign vendor when recording inventory purchases.
-              </div>
+            <Card className="overflow-x-auto p-0">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    {['Date','Particulars','Purchase (Dr)','Payment (Cr)','Balance'].map(h => (
+                      <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {range && (
+                    <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                      <td colSpan={4} className="px-3 py-2 italic" style={{ color: 'var(--c-faint)' }}>Opening Balance</td>
+                      <td className="px-3 py-2 text-right font-bold" style={{ color: openingBal > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(openingBal)}</td>
+                    </tr>
+                  )}
+                  {ledgerWithBal.map((row, i) => (
+                    <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
+                      <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
+                      <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
+                        {row.debit > 0 ? fmt(row.debit) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right" style={{ color: '#1D9E75' }}>
+                        {row.credit > 0 ? fmt(row.credit) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold"
+                        style={{ color: row.balance > 0 ? '#E24B4A' : '#1D9E75' }}>
+                        {fmt(row.balance)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </Card>
           )}
         </>
       ) : (
         <Card>
-          <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            {vendors.length === 0
-              ? 'No vendors set up. Add a vendor to start tracking.'
-              : 'Select a vendor above to view their ledger.'}
+          <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
+            No purchases recorded for this vendor in this period.
           </div>
         </Card>
       )}
@@ -838,8 +922,9 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 }
 
 // ── Tab: Buyer Khata (Sundry Debtors — accounts receivable) ────────────────────
-function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster }) {
+function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy }) {
   const navigate = useNavigate()
+  const [activeKey, setActiveKey] = useState(null) // null = overview list
   const cropSales = sales.filter(s => s.buyerName)
 
   const sessionById = Object.fromEntries(harvestSessions.map(h => [h.id, h]))
@@ -866,126 +951,160 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster }) {
     if (!groups[key]) groups[key] = { key, name: s.buyerName, rows: [] }
     groups[key].rows.push(s)
   })
-  const parties = Object.values(groups).sort((a, b) => a.name.localeCompare(b.name))
+  const parties = Object.values(groups)
 
-  const [activeKey, setActiveKey] = useState(null)
-  const effectiveKey = activeKey || parties[0]?.key
-  const active = parties.find(p => p.key === effectiveKey)
+  // Overview: Balance Due is all-time (a point-in-time fact — what they owe
+  // right now); Sold/Received are scoped to the selected financial year.
+  const overview = parties.map(p => {
+    const soldAllTime     = p.rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    const receivedAllTime = p.rows.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    return {
+      party: p,
+      balanceDue: soldAllTime - receivedAllTime,
+      soldFY:     p.rows.filter(r => inFY(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
+      receivedFY: p.rows.filter(r => r.paymentStatus === 'paid' && inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
+    }
+  }).sort((a, b) => b.balanceDue - a.balanceDue)
 
-  const rows      = active ? [...active.rows].sort((a, b) => new Date(b.date) - new Date(a.date)) : []
-  const sold      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
-  const received  = rows.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
-  const balanceDue = sold - received
+  const active = parties.find(p => p.key === activeKey)
+  const rowsAll = active ? [...active.rows].sort((a, b) => new Date(b.date) - new Date(a.date)) : []
+  const rows    = active ? rowsAll.filter(r => inFY(r.date, fy)) : []
+  const soldFY      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
+  const receivedFY  = rows.filter(r => r.paymentStatus === 'paid' && inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0)
+  const balanceDueAllTime = active
+    ? rowsAll.reduce((s, r) => s + Number(r.netAmount || 0), 0) - rowsAll.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    : 0
 
+  const header = (
+    <div className="flex items-center justify-between">
+      <div>
+        <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>Sundry Debtors (Buyer Khata)</div>
+        <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+          What each buyer owes you — amounts are net of commission/freight
+        </div>
+      </div>
+      <button onClick={() => navigate('/admin')}
+        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shrink-0"
+        style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+        <Plus size={11} /> Add Buyer
+      </button>
+    </div>
+  )
+
+  // ── Overview: every buyer, row-wise, worst balance first ───────────────────
+  if (!active) {
+    return (
+      <div className="flex flex-col gap-3 pt-3">
+        {header}
+        {parties.length === 0 ? (
+          <Card>
+            <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
+              No buyers or sales recorded yet. Add a buyer, or one appears here as soon as you record a sale on the Harvest page.
+            </div>
+          </Card>
+        ) : (
+          <Card className="overflow-x-auto p-0">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                  {['Buyer','Sold','Received','Balance Due'].map(h => (
+                    <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {overview.map(({ party, soldFY: sFY, receivedFY: rFY, balanceDue }) => (
+                  <tr key={party.key} onClick={() => setActiveKey(party.key)}
+                    className="cursor-pointer hover:bg-[var(--c-ghost)] transition-colors"
+                    style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>{party.name}</td>
+                    <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(sFY)}</td>
+                    <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(rFY)}</td>
+                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDue)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
+        <p className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
+          Sold/Received reflect the selected period · Balance Due is always as of today · Tap a buyer for details
+        </p>
+      </div>
+    )
+  }
+
+  // ── Detail: one buyer's sales for the selected period ──────────────────────
   return (
     <div className="flex flex-col gap-3 pt-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>Sundry Debtors (Buyer Khata)</div>
-          <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-            What each buyer owes you — amounts are net of commission/freight
-          </div>
-        </div>
-        <button onClick={() => navigate('/admin')}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium shrink-0"
+      <div className="flex items-center gap-2">
+        <button onClick={() => setActiveKey(null)} className="text-xs px-2 py-1 rounded-lg"
           style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-          <Plus size={11} /> Add Buyer
+          ← All Buyers
         </button>
+        <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>{active.name}</div>
       </div>
 
-      {parties.length === 0 ? (
-        <Card>
-          <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            No buyers or sales recorded yet. Add a buyer, or one appears here as soon as you record a sale on the Harvest page.
-          </div>
+      <div className="grid grid-cols-3 gap-2">
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Sold</div>
+          <div className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{fmt(soldFY)}</div>
         </Card>
-      ) : (
-        <>
-          {/* Buyer selector pills */}
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {parties.map(p => {
-              const due = p.rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
-                        - p.rows.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Received</div>
+          <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(receivedFY)}</div>
+        </Card>
+        <Card className="p-3">
+          <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
+          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDueAllTime)}</div>
+        </Card>
+      </div>
+
+      {balanceDueAllTime > 0 && (
+        <p className="text-[10px] text-center py-2 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
+          Mark payment from the Harvest page against the specific sale to clear this balance
+        </p>
+      )}
+
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full text-xs">
+          <thead>
+            <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+              {['Date','Plot / Crop','Qty (qtl)','Rate','Net Amount','Status'].map(h => (
+                <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-4 text-center" style={{ color: 'var(--c-faint)' }}>
+                No sales recorded for this buyer in this period.
+              </td></tr>
+            )}
+            {rows.map(r => {
+              const paid = r.paymentStatus === 'paid'
               return (
-                <button key={p.key}
-                  onClick={() => setActiveKey(p.key)}
-                  className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
-                  style={{
-                    background: effectiveKey === p.key ? '#1D9E75' : 'var(--c-ghost)',
-                    color:      effectiveKey === p.key ? '#fff'    : 'var(--c-muted)',
-                  }}>
-                  {p.name}{due > 0 ? ` · ${fmt(due)}` : ''}
-                </button>
+                <tr key={r.id} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                  <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(r.date)}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{cropPlotLabel(r) || '—'}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{Number(r.qtyQtl || 0).toFixed(2)}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>₹{r.ratePerQtl}</td>
+                  <td className="px-3 py-2 font-bold" style={{ color: 'var(--c-text)' }}>{fmt(r.netAmount)}</td>
+                  <td className="px-3 py-2">
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                      style={{
+                        background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
+                        color:      paid ? '#1D9E75'               : '#BA7517',
+                      }}>
+                      {paid ? 'Received' : 'Pending'}
+                    </span>
+                  </td>
+                </tr>
               )
             })}
-          </div>
-
-          {active && (
-            <>
-              <div className="grid grid-cols-3 gap-2">
-                <Card className="p-3">
-                  <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Sold</div>
-                  <div className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{fmt(sold)}</div>
-                </Card>
-                <Card className="p-3">
-                  <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Received</div>
-                  <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(received)}</div>
-                </Card>
-                <Card className="p-3">
-                  <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
-                  <div className="text-sm font-bold" style={{ color: balanceDue > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDue)}</div>
-                </Card>
-              </div>
-
-              {balanceDue > 0 && (
-                <p className="text-[10px] text-center py-2 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
-                  Mark payment from the Harvest page against the specific sale to clear this balance
-                </p>
-              )}
-
-              <Card className="overflow-x-auto p-0">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      {['Date','Plot / Crop','Qty (qtl)','Rate','Net Amount','Status'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-4 text-center" style={{ color: 'var(--c-faint)' }}>
-                        No sales recorded for this buyer yet.
-                      </td></tr>
-                    )}
-                    {rows.map(r => {
-                      const paid = r.paymentStatus === 'paid'
-                      return (
-                        <tr key={r.id} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                          <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(r.date)}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{cropPlotLabel(r) || '—'}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{Number(r.qtyQtl || 0).toFixed(2)}</td>
-                          <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>₹{r.ratePerQtl}</td>
-                          <td className="px-3 py-2 font-bold" style={{ color: 'var(--c-text)' }}>{fmt(r.netAmount)}</td>
-                          <td className="px-3 py-2">
-                            <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
-                              style={{
-                                background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
-                                color:      paid ? '#1D9E75'               : '#BA7517',
-                              }}>
-                              {paid ? 'Received' : 'Pending'}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </Card>
-            </>
-          )}
-        </>
-      )}
+          </tbody>
+        </table>
+      </Card>
     </div>
   )
 }
@@ -1233,6 +1352,7 @@ export default function LedgerPage() {
   const canManage = isManager(getActiveFarmRole())
 
   const [tab, setTab] = useState('summary')
+  const [fy, setFy] = useState(currentFY())
   const [loading, setLoading] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState(null)
   const [showAddCash, setShowAddCash] = useState(false)
@@ -1243,15 +1363,39 @@ export default function LedgerPage() {
     loadLedgerData().finally(() => setLoading(false))
   }, [])
 
+  // Balance-sheet facts (cash in hand, what's owed either way) are always
+  // as-of-today — they must NOT be scoped to the selected financial year,
+  // or "Current Cash Balance" / "Balance Due" would misstate reality.
   const cashBalance = cashBook.length > 0
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
-  const totalIncome    = incomeLedger.reduce((s, r) => s + Number(r.amount || 0), 0)
-  const totalExpenses  = expenseLedger.reduce((s, r) => s + Number(r.amount || 0), 0)
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
   const totalReceivables = sales
     .filter(s => s.paymentStatus !== 'paid')
     .reduce((s, r) => s + Number(r.netAmount || 0), 0)
+
+  // P&L facts (income, expenses, profit) are period-based — scoped to the
+  // selected financial year.
+  const incomeLedgerFY   = incomeLedger.filter(r => inFY(r.entry_date, fy))
+  const expenseLedgerFY  = expenseLedger.filter(r => inFY(r.entry_date, fy))
+  const vendorPaymentsFY = vendorPayments.filter(p => inFY(p.payment_date, fy))
+  const cropPnlFY        = cropPnl.filter(r => inFY(r.sow_date, fy))
+  const totalIncome    = incomeLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
+  const totalExpenses  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  // Cash Book: list only the period's transactions, but carry forward an
+  // opening balance from everything before the period started so the
+  // running balance shown is still correct, not reset to zero.
+  const range = fyRange(fy)
+  const cashBookOpening = range
+    ? cashBook.filter(r => r.entry_date < range.start).reduce((s, r) => s + (r.direction === 'in' ? Number(r.amount) : -Number(r.amount)), 0)
+    : 0
+  const cashBookPeriodRows = range ? cashBook.filter(r => r.entry_date >= range.start && r.entry_date <= range.end) : cashBook
+  let _cashRunning = cashBookOpening
+  const cashBookFY = cashBookPeriodRows.map(r => {
+    _cashRunning += r.direction === 'in' ? Number(r.amount) : -Number(r.amount)
+    return { ...r, running_balance: _cashRunning }
+  })
 
   if (loading) {
     return (
@@ -1273,7 +1417,7 @@ export default function LedgerPage() {
       </div>
 
       {/* Tabs */}
-      <div className="shrink-0 flex gap-1.5 px-4 pb-3 overflow-x-auto"
+      <div className="shrink-0 flex gap-1.5 px-4 pb-2 overflow-x-auto"
         style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
         {TABS.map(t => (
           <button key={t.id}
@@ -1284,6 +1428,23 @@ export default function LedgerPage() {
               color:      tab === t.id ? '#fff'    : 'var(--c-muted)',
             }}>
             {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Financial year selector — applies to every tab */}
+      <div className="shrink-0 flex items-center gap-1.5 px-4 pb-3 overflow-x-auto"
+        style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>Period:</span>
+        {fyOptions().map(opt => (
+          <button key={opt}
+            onClick={() => setFy(opt)}
+            className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors"
+            style={{
+              background: fy === opt ? '#1D9E75' : 'var(--c-ghost)',
+              color:      fy === opt ? '#fff'    : 'var(--c-muted)',
+            }}>
+            {opt === 'all' ? 'All Time' : `FY ${fyLabel(opt)}`}
           </button>
         ))}
       </div>
@@ -1302,11 +1463,13 @@ export default function LedgerPage() {
         )}
         {tab === 'cashbook' && (
           <CashBookTab
-            cashBook={cashBook}
+            cashBook={cashBookFY}
+            openingBalance={cashBookOpening}
+            showOpening={fy !== 'all'}
             onAdd={() => setShowAddCash(true)}
           />
         )}
-        {tab === 'income'   && <IncomeTab incomeLedger={incomeLedger} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />}
+        {tab === 'income'   && <IncomeTab incomeLedger={incomeLedgerFY} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />}
         {tab === 'vendors'  && (
           <VendorTab
             vendors={vendors}
@@ -1315,23 +1478,25 @@ export default function LedgerPage() {
             onPay={() => setShowPayVendor(true)}
             onAddVendor={() => setShowAddVendor(true)}
             canPay={canManage}
+            fy={fy}
           />
         )}
         {tab === 'buyers'   && (
           <BuyersTab
             sales={sales} buyers={buyers}
             harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
+            fy={fy}
           />
         )}
         {tab === 'expenses' && (
-          <ExpensesTab expenseLedger={expenseLedger} vendorPayments={vendorPayments} />
+          <ExpensesTab expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY} />
         )}
         {tab === 'pnl'      && (
           <PnlTab
             totalIncome={totalIncome}
             totalExpenses={totalExpenses}
             livestockPnl={livestockPnl}
-            cropPnl={cropPnl}
+            cropPnl={cropPnlFY}
           />
         )}
       </div>
