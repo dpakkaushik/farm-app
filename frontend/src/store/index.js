@@ -83,19 +83,27 @@ function mapSession(s) {
 }
 
 function mapSale(s) {
-  const gross      = Number(s.total_revenue) || 0
-  const deductions = Number(s.deductions)    || 0
+  const gross          = Number(s.total_revenue)    || 0
+  const commissionPct  = s.commission_pct != null ? Number(s.commission_pct) : null
+  const commissionAmt  = commissionPct != null ? Math.round(gross * commissionPct / 100) : 0
+  const freight        = Number(s.freight_charges)  || 0
+  const payDeductions  = Number(s.deductions)       || 0
+  const totalDeductions = commissionAmt + freight + payDeductions
   return {
     id:                    s.id,
     sessionId:             s.harvest_id,
     date:                  s.sale_date,
     buyerName:             s.buyer_name || '',
     buyerId:               s.buyer_id || null,
+    qtyQtl:                Number(s.quantity_sold) || 0,
     ratePerQtl:            Number(s.rate_per_unit) || 0,
     grossAmount:           gross,
-    deductions,
+    commissionPct,
+    commissionAmt,
+    freightCharges:        freight,
+    deductions:            payDeductions,
     deductionsNote:        s.deductions_note || null,
-    netAmount:             gross - deductions,
+    netAmount:             Math.max(0, gross - totalDeductions),
     paymentStatus:         s.payment_status || 'pending',
     paymentDate:           s.payment_date || null,
     paymentAttachmentPath: s.payment_attachment_path || null,
@@ -1685,15 +1693,17 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Non-cane crop sale & payment ────────────────────────────────────────────
-  addCropSale: async (sessionId, { date, buyerName, buyerId, qtyQtl, ratePerQtl }) => {
+  addCropSale: async (sessionId, { date, buyerName, buyerId, qtyQtl, ratePerQtl, commissionPct, freightCharges }) => {
     const gross = Math.round(parseFloat(qtyQtl) * parseFloat(ratePerQtl))
     const { data: sale, error } = await supabase.from('sales').insert({
-      farm_id:        getFarmId(),
-      harvest_id:     sessionId,
-      sale_date:      date,
-      buyer_name:     buyerName || null,
-      buyer_id:       buyerId   || null,
-      quantity_sold:  parseFloat(qtyQtl),
+      farm_id:          getFarmId(),
+      harvest_id:       sessionId,
+      sale_date:        date,
+      buyer_name:       buyerName || null,
+      buyer_id:         buyerId   || null,
+      quantity_sold:    parseFloat(qtyQtl),
+      commission_pct:   commissionPct != null ? parseFloat(commissionPct) : null,
+      freight_charges:  freightCharges ? parseFloat(freightCharges) : null,
       rate_per_unit:  parseFloat(ratePerQtl),
       total_revenue:  gross,
       payment_status: 'pending',
@@ -1707,7 +1717,7 @@ const useAppStore = create((set, get) => ({
     const { sales: allSales } = get()
     const sale = allSales.find(s => s.id === saleId)
     const ded       = parseFloat(deductions) || 0
-    const netAmount = Math.max(0, (sale?.grossAmount || 0) - ded)
+    const netAmount = Math.max(0, (sale?.grossAmount || 0) - (sale?.commissionAmt || 0) - (sale?.freightCharges || 0) - ded)
 
     const { error } = await supabase.from('sales').update({
       payment_status:          'paid',
@@ -1737,7 +1747,7 @@ const useAppStore = create((set, get) => ({
         paymentDate,
         deductions:            ded,
         deductionsNote:        deductionsNote || null,
-        netAmount,
+        netAmount,             // gross − commission − freight − extra
         paymentAttachmentPath: paymentAttachmentPath || null,
       }),
     }))
