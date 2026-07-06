@@ -1676,16 +1676,37 @@ const useAppStore = create((set, get) => ({
   },
 
   markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
+    const { sales: allSales } = get()
+    const sale = allSales.find(s => s.id === saleId)
     const ded = parseFloat(deductions) || 0
+    const buyerLabel = sale?.buyerName || 'Mill'
     const { error } = await supabase.from('sales')
       .update({ payment_status: 'paid', payment_date: paymentDate, deductions: ded, deductions_note: deductionsNote || null, payment_attachment_path: paymentAttachmentPath || null })
       .eq('id', saleId)
     if (error) throw error
+
+    // Record in cash book: gross received in, extra deduction (if any) out —
+    // this was previously never written to the cash book at all.
+    const { data: { user } } = await supabase.auth.getUser()
+    const cashRows = [{
+      farm_id: getFarmId(), entry_date: paymentDate, amount: sale?.grossAmount || 0,
+      direction: 'in', entry_type: 'cane_sale',
+      notes: `Cane sale — ${buyerLabel}`, created_by: user?.id || null,
+    }]
+    if (ded > 0) cashRows.push({
+      farm_id: getFarmId(), entry_date: paymentDate, amount: ded,
+      direction: 'out', entry_type: 'sale_deduction',
+      notes: deductionsNote || `Deduction — ${buyerLabel}`, created_by: user?.id || null,
+    })
+    const { data: newEntries, error: cashErr } = await supabase.from('owner_cash_entries').insert(cashRows).select()
+    if (cashErr) throw cashErr
+
     set(s => ({
       sales: s.sales.map(sale => {
         if (sale.id !== saleId) return sale
         return { ...sale, paymentStatus: 'paid', paymentDate, deductions: ded, deductionsNote: deductionsNote || null, netAmount: sale.grossAmount - ded, paymentAttachmentPath: paymentAttachmentPath || null }
       }),
+      ownerCashEntries: [...s.ownerCashEntries, ...(newEntries || [])],
     }))
   },
 
@@ -1729,8 +1750,11 @@ const useAppStore = create((set, get) => ({
   markCropSalePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
     const { sales: allSales } = get()
     const sale = allSales.find(s => s.id === saleId)
-    const ded       = parseFloat(deductions) || 0
-    const netAmount = Math.max(0, (sale?.grossAmount || 0) - (sale?.commissionAmt || 0) - (sale?.freightCharges || 0) - ded)
+    const ded         = parseFloat(deductions) || 0
+    const commissionAmt = sale?.commissionAmt   || 0
+    const freight        = sale?.freightCharges || 0
+    const netAmount = Math.max(0, (sale?.grossAmount || 0) - commissionAmt - freight - ded)
+    const buyerLabel = sale?.buyerName || 'Buyer'
 
     const { error } = await supabase.from('sales').update({
       payment_status:          'paid',
@@ -1741,17 +1765,36 @@ const useAppStore = create((set, get) => ({
     }).eq('id', saleId)
     if (error) throw error
 
-    // Record in cash book as income
+    // Record the full picture in the cash book: gross received in, then each
+    // deduction (commission/freight/extra) as its own cash-out line — instead
+    // of a single opaque net figure — so the cash book stays auditable.
     const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('owner_cash_entries').insert({
+    const cashRows = [{
       farm_id:     getFarmId(),
       entry_date:  paymentDate,
-      amount:      netAmount,
+      amount:      sale?.grossAmount || 0,
       direction:   'in',
       entry_type:  'crop_sale',
-      notes:       `Crop sale — ${sale?.buyerName || 'Buyer'}`,
+      notes:       `Crop sale — ${buyerLabel}`,
       created_by:  user?.id || null,
+    }]
+    if (commissionAmt > 0) cashRows.push({
+      farm_id: getFarmId(), entry_date: paymentDate, amount: commissionAmt,
+      direction: 'out', entry_type: 'commission_expense',
+      notes: `Commission — ${buyerLabel}`, created_by: user?.id || null,
     })
+    if (freight > 0) cashRows.push({
+      farm_id: getFarmId(), entry_date: paymentDate, amount: freight,
+      direction: 'out', entry_type: 'freight_expense',
+      notes: `Freight — ${buyerLabel}`, created_by: user?.id || null,
+    })
+    if (ded > 0) cashRows.push({
+      farm_id: getFarmId(), entry_date: paymentDate, amount: ded,
+      direction: 'out', entry_type: 'sale_deduction',
+      notes: deductionsNote || `Deduction — ${buyerLabel}`, created_by: user?.id || null,
+    })
+    const { data: newEntries, error: cashErr } = await supabase.from('owner_cash_entries').insert(cashRows).select()
+    if (cashErr) throw cashErr
 
     set(s => ({
       sales: s.sales.map(sl => sl.id !== saleId ? sl : {
@@ -1763,6 +1806,7 @@ const useAppStore = create((set, get) => ({
         netAmount,             // gross − commission − freight − extra
         paymentAttachmentPath: paymentAttachmentPath || null,
       }),
+      ownerCashEntries: [...s.ownerCashEntries, ...(newEntries || [])],
     }))
   },
 

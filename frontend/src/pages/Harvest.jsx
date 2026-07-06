@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { CheckCircle2, X, Plus, AlertTriangle, Pencil, Building2 } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import { isManager, getActiveFarmRole } from '../store/auth'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -34,6 +35,8 @@ export default function Harvest() {
     addHarvestSession, addCropSale, markCropSalePayment,
     cropResiduals, recordResidualSale,
   } = useAppStore()
+
+  const canMarkPayment = isManager(getActiveFarmRole())
 
   // ── Shared state ─────────────────────────────────────────────────────────────
   const [modal,           setModal]           = useState(null)
@@ -1107,10 +1110,16 @@ export default function Harvest() {
                     className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
                   {!cropPayFile && <p className="text-[10px] text-[#BA7517] mt-1">Receipt required to confirm payment</p>}
                 </div>
-                <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
-                  className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                  {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
-                </button>
+                {canMarkPayment ? (
+                  <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
+                    className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                    {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
+                  </button>
+                ) : (
+                  <p className="text-[10px] text-[#BA7517] text-center bg-[#BA7517]/10 rounded-xl py-2.5 px-2">
+                    Only a manager or accounts admin can confirm payment
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1273,10 +1282,16 @@ export default function Harvest() {
                     <input type="file" accept="image/*,application/pdf" onChange={e => setPayFile(e.target.files[0] || null)}
                       className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
                   </div>
-                  <button onClick={confirmPayment} disabled={saving}
-                    className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Mark as Paid'}
-                  </button>
+                  {canMarkPayment ? (
+                    <button onClick={confirmPayment} disabled={saving}
+                      className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                      {saving ? 'Saving…' : 'Mark as Paid'}
+                    </button>
+                  ) : (
+                    <p className="text-[10px] text-[#BA7517] text-center bg-[#BA7517]/10 rounded-xl py-2.5 px-2">
+                      Only a manager or accounts admin can confirm payment
+                    </p>
+                  )}
                 </>
               )}
             </div>
