@@ -1433,20 +1433,17 @@ export default function LedgerPage() {
       </div>
 
       {/* Financial year selector — applies to every tab */}
-      <div className="shrink-0 flex items-center gap-1.5 px-4 pb-3 overflow-x-auto"
-        style={{ msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>Period:</span>
-        {fyOptions().map(opt => (
-          <button key={opt}
-            onClick={() => setFy(opt)}
-            className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors"
-            style={{
-              background: fy === opt ? '#1D9E75' : 'var(--c-ghost)',
-              color:      fy === opt ? '#fff'    : 'var(--c-muted)',
-            }}>
-            {opt === 'all' ? 'All Time' : `FY ${fyLabel(opt)}`}
-          </button>
-        ))}
+      <div className="shrink-0 flex items-center gap-2 px-4 pb-3">
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>Financial Year:</span>
+        <select
+          value={fy}
+          onChange={e => setFy(e.target.value)}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
+          style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
+          {fyOptions().map(opt => (
+            <option key={opt} value={opt}>{opt === 'all' ? 'All Time' : `FY ${fyLabel(opt)}`}</option>
+          ))}
+        </select>
       </div>
 
       {/* Content */}
