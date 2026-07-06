@@ -9,8 +9,10 @@ const EXPENSE_CATS = [
   ['feed',           '🌾', 'Feed'],
   ['veterinary',     '💉', 'Veterinary'],
   ['livestock_care', '🪢', 'Livestock Care'],
+  ['machinery',      '🚜', 'Machinery / Hired Equipment'],
   ['maintenance',    '🔧', 'Maintenance'],
   ['infrastructure', '🏗',  'Infrastructure'],
+  ['construction',   '🧱', 'Construction'],
   ['utilities',      '⚡', 'Utilities'],
   ['event',          '🎉', 'Event'],
   ['administrative', '📋', 'Administrative'],
@@ -19,9 +21,9 @@ const EXPENSE_CATS = [
 
 const EXPENSE_TYPES = [
   { key: 'livestock',      emoji: '🐄', label: 'Livestock',      attributedTo: 'livestock', cats: ['feed', 'veterinary', 'livestock_care'] },
-  { key: 'crop_field',     emoji: '🌾', label: 'Crop / Field',   attributedTo: 'general',   cats: ['maintenance', 'utilities'] },
-  { key: 'infrastructure', emoji: '🏗', label: 'Infrastructure', attributedTo: 'asset',     cats: ['infrastructure', 'maintenance'] },
-  { key: 'admin',          emoji: '📋', label: 'Administrative', attributedTo: 'general',   cats: ['administrative', 'event'] },
+  { key: 'crop_field',     emoji: '🌾', label: 'Crop / Field',   attributedTo: 'general',   cats: ['machinery', 'maintenance'] },
+  { key: 'infrastructure', emoji: '🏗', label: 'Infrastructure', attributedTo: 'asset',     cats: ['infrastructure', 'construction', 'maintenance'] },
+  { key: 'admin',          emoji: '📋', label: 'Administrative', attributedTo: 'general',   cats: ['administrative', 'utilities', 'event'] },
   { key: 'other',          emoji: '📦', label: 'Other',          attributedTo: 'general',   cats: ['other'] },
 ]
 

@@ -64,8 +64,11 @@ const CATEGORY_LABELS = {
   salary:            'Staff Salary',
   inventory_purchase:'Inventory Purchase',
   farm_expense:      'General Expenses',
+  machinery:         'Machinery / Hired Equipment',
   maintenance:       'Maintenance',
+  construction:      'Construction',
   fuel:              'Fuel',
+  utilities:         'Utilities',
   administrative:    'Administrative',
   other:             'Other',
 }
