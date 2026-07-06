@@ -276,7 +276,7 @@ function AddVendorModal({ onClose, onSave }) {
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
 function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
-  const chartData = monthlySummary.slice(0, 6).reverse().map(m => ({
+  const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
     Income:   Math.round(m.total_income || 0),
     Expenses: Math.round(m.total_expenses || 0),
@@ -1344,7 +1344,7 @@ export default function LedgerPage() {
   const {
     vendors, vendorBalances, vendorPayments, cashBook, sales, buyers,
     harvestSessions, cropCycles, cropMaster,
-    incomeLedger, expenseLedger, monthlySummary, livestockPnl, cropPnl,
+    incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
   } = useAppStore()
@@ -1380,6 +1380,7 @@ export default function LedgerPage() {
   const expenseLedgerFY  = expenseLedger.filter(r => inFY(r.entry_date, fy))
   const vendorPaymentsFY = vendorPayments.filter(p => inFY(p.payment_date, fy))
   const cropPnlFY        = cropPnl.filter(r => inFY(r.sow_date, fy))
+  const monthlySummary   = monthlySummaryAll.filter(m => inFY(m.month, fy))
   const totalIncome    = incomeLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
   const totalExpenses  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
 

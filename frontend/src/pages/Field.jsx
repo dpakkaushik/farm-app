@@ -496,7 +496,7 @@ export default function Field() {
       <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none" style={{ maxWidth: '175px' }}>
         {/* Greeting pill */}
         <div className="bg-black/70 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 self-start">
-          <p className="text-white text-[11px] font-semibold">🌾 Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} · Pallia Farm</p>
+          <p className="text-white text-[11px] font-semibold">🌾 Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} · {activeFarm?.name || 'Farm'}</p>
           {todayWorkers > 0 && (
             <p className="text-white/60 text-[10px] mt-0.5 leading-tight">
               👷 {todayWorkers} working · {todayFields} field{todayFields !== 1 ? 's' : ''}
