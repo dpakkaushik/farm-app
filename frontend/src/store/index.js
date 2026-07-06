@@ -83,22 +83,24 @@ function mapSession(s) {
 }
 
 function mapSale(s) {
-  const gross          = Number(s.total_revenue)    || 0
-  const commissionPct  = s.commission_pct != null ? Number(s.commission_pct) : null
-  const commissionAmt  = commissionPct != null ? Math.round(gross * commissionPct / 100) : 0
-  const freight        = Number(s.freight_charges)  || 0
-  const payDeductions  = Number(s.deductions)       || 0
-  const totalDeductions = commissionAmt + freight + payDeductions
+  const gross            = Number(s.total_amount) || 0
+  const qtyQtl            = Number(s.quantity_kg) / 100 || 0
+  const commissionPerQtl = s.commission_per_qtl != null ? Number(s.commission_per_qtl) : null
+  const commissionAmt    = commissionPerQtl != null ? Math.round(commissionPerQtl * qtyQtl) : 0
+  const freight           = Number(s.freight_charges) || 0
+  const payDeductions     = Number(s.deductions)       || 0
+  const totalDeductions   = commissionAmt + freight + payDeductions
   return {
     id:                    s.id,
-    sessionId:             s.harvest_id,
+    sessionId:             s.harvest_session_id,
+    cycleId:               s.cycle_id,
     date:                  s.sale_date,
     buyerName:             s.buyer_name || '',
     buyerId:               s.buyer_id || null,
-    qtyQtl:                Number(s.quantity_sold) || 0,
-    ratePerQtl:            Number(s.rate_per_unit) || 0,
+    qtyQtl,
+    ratePerQtl:            Number(s.rate_per_kg) * 100 || 0,
     grossAmount:           gross,
-    commissionPct,
+    commissionPerQtl,
     commissionAmt,
     freightCharges:        freight,
     deductions:            payDeductions,
@@ -1649,15 +1651,25 @@ const useAppStore = create((set, get) => ({
   // ── Crop cycles ─────────────────────────────────────────────────────────────
   addCaneSupply: async (cycleId, { date, qtyQtl, parchiNumber, notes, sap, buyerId, partnerId, parchiAttachmentPath }) => {
     const qtyKg = Math.round(parseFloat(qtyQtl) * 100)
-    const gross  = Math.round(parseFloat(qtyQtl) * parseFloat(sap))
     const { data: session, error: e1 } = await supabase
       .from('harvest_sessions')
       .insert({ farm_id: getFarmId(), cycle_id: cycleId, harvest_date: date, quantity_kg: qtyKg, parchi_number: parchiNumber || null, notes: notes || null, partner_id: partnerId || null, parchi_attachment_path: parchiAttachmentPath || null })
       .select().single()
     if (e1) throw e1
+    const buyer = buyerId ? get().buyers.find(b => b.id === buyerId) : null
     const { data: sale, error: e2 } = await supabase
       .from('sales')
-      .insert({ farm_id: getFarmId(), harvest_id: session.id, sale_date: date, buyer_id: buyerId || null, quantity_sold: parseFloat(qtyQtl), rate_per_unit: parseFloat(sap), total_revenue: gross, payment_status: 'pending' })
+      .insert({
+        farm_id:            getFarmId(),
+        cycle_id:           cycleId,
+        harvest_session_id: session.id,
+        sale_date:          date,
+        buyer_id:           buyerId || null,
+        buyer_name:         buyer?.name || 'Mill',
+        quantity_kg:        qtyKg,
+        rate_per_kg:        parseFloat(sap) / 100,
+        payment_status:     'pending',
+      })
       .select().single()
     if (e2) throw e2
     set(s => ({ harvestSessions: [...s.harvestSessions, mapSession(session)], sales: [...s.sales, mapSale(sale)] }))
@@ -1693,20 +1705,21 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Non-cane crop sale & payment ────────────────────────────────────────────
-  addCropSale: async (sessionId, { date, buyerName, buyerId, qtyQtl, ratePerQtl, commissionPct, freightCharges }) => {
-    const gross = Math.round(parseFloat(qtyQtl) * parseFloat(ratePerQtl))
+  addCropSale: async (sessionId, { cycleId, date, buyerName, buyerId, qtyQtl, ratePerQtl, commissionPerQtl, freightCharges }) => {
+    const qty  = parseFloat(qtyQtl)
+    const rate = parseFloat(ratePerQtl)
     const { data: sale, error } = await supabase.from('sales').insert({
-      farm_id:          getFarmId(),
-      harvest_id:       sessionId,
-      sale_date:        date,
-      buyer_name:       buyerName || null,
-      buyer_id:         buyerId   || null,
-      quantity_sold:    parseFloat(qtyQtl),
-      commission_pct:   commissionPct != null ? parseFloat(commissionPct) : null,
-      freight_charges:  freightCharges ? parseFloat(freightCharges) : null,
-      rate_per_unit:  parseFloat(ratePerQtl),
-      total_revenue:  gross,
-      payment_status: 'pending',
+      farm_id:             getFarmId(),
+      cycle_id:            cycleId,
+      harvest_session_id:  sessionId,
+      sale_date:           date,
+      buyer_name:          buyerName,
+      buyer_id:            buyerId || null,
+      quantity_kg:         Math.round(qty * 100),
+      rate_per_kg:         rate / 100,
+      commission_per_qtl:  commissionPerQtl != null ? parseFloat(commissionPerQtl) : null,
+      freight_charges:     freightCharges ? parseFloat(freightCharges) : null,
+      payment_status:      'pending',
     }).select().single()
     if (error) throw error
     set(s => ({ sales: [...s.sales, mapSale(sale)] }))

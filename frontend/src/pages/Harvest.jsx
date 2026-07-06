@@ -180,13 +180,14 @@ export default function Harvest() {
   const openSaleModal = (cycle, session) => {
     setSaleModal({ cycle, session })
     setForm({
-      date:          new Date().toISOString().slice(0, 10),
-      buyer:         '',
-      buyerId:       '',
-      rate:          '',
-      qtyQtl:        String(session.qtyQtl.toFixed(2)),
-      commissionPct: '',
-      freightCharges:'',
+      date:             new Date().toISOString().slice(0, 10),
+      buyer:            '',
+      buyerId:          '',
+      localMarketMode:  false,
+      rate:             '',
+      qtyQtl:           String(session.qtyQtl.toFixed(2)),
+      commissionPerQtl: '',
+      freightCharges:   '',
     })
   }
 
@@ -195,16 +196,19 @@ export default function Harvest() {
     setSaving(true)
     try {
       await addCropSale(saleModal.session.id, {
-        date:           form.date,
-        buyerName:      form.buyer,
-        buyerId:        form.buyerId || null,
-        qtyQtl:         parseFloat(form.qtyQtl) || saleModal.session.qtyQtl,
-        ratePerQtl:     parseFloat(form.rate),
-        commissionPct:  form.commissionPct ? parseFloat(form.commissionPct) : null,
-        freightCharges: parseFloat(form.freightCharges) || 0,
+        cycleId:          saleModal.cycle.id,
+        date:             form.date,
+        buyerName:        form.buyer,
+        buyerId:          form.buyerId || null,
+        qtyQtl:           parseFloat(form.qtyQtl) || saleModal.session.qtyQtl,
+        ratePerQtl:       parseFloat(form.rate),
+        commissionPerQtl: form.commissionPerQtl ? parseFloat(form.commissionPerQtl) : null,
+        freightCharges:   parseFloat(form.freightCharges) || 0,
       })
       showToast('Sale recorded — awaiting payment')
       setSaleModal(null)
+    } catch (err) {
+      showToast(err.message || 'Failed to record sale')
     } finally { setSaving(false) }
   }
 
@@ -227,6 +231,8 @@ export default function Harvest() {
       })
       showToast('Payment confirmed — harvest complete ✓')
       setCropPayModal(null)
+    } catch (err) {
+      showToast(err.message || 'Failed to confirm payment')
     } finally { setSaving(false) }
   }
 
@@ -279,6 +285,8 @@ export default function Harvest() {
       })
       showToast(`Supply logged — ${form.qtyQtl} qtl`)
       setSupplyModal(null)
+    } catch (err) {
+      showToast(err.message || 'Failed to log supply')
     } finally { setSaving(false) }
   }
 
@@ -878,8 +886,8 @@ export default function Harvest() {
         const qty   = parseFloat(form.qtyQtl)  || 0
         const rate  = parseFloat(form.rate)     || 0
         const gross = Math.round(qty * rate)
-        const commPct = parseFloat(form.commissionPct) || 0
-        const commAmt = commPct > 0 ? Math.round(gross * commPct / 100) : 0
+        const commPerQtl = parseFloat(form.commissionPerQtl) || 0
+        const commAmt = commPerQtl > 0 ? Math.round(commPerQtl * qty) : 0
         const freight = parseFloat(form.freightCharges) || 0
         const net   = Math.max(0, gross - commAmt - freight)
         const hasBreakdown = gross > 0 && (commAmt > 0 || freight > 0)
@@ -907,15 +915,14 @@ export default function Harvest() {
                 <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sale date</label>
                   <input type="date" value={form.date} onChange={e => f('date', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
 
-                {/* Buyer — pills + Local Market button + free text */}
+                {/* Buyer — pills + Local Market manual entry */}
                 <div>
                   <label className="text-xs text-[var(--c-sub)] block mb-1.5">Buyer <span className="text-[#E24B4A]">*</span></label>
-                  {/* Local Market quick button */}
                   <div className="flex flex-wrap gap-2 mb-2">
                     <button type="button"
-                      onClick={() => { f('buyer', 'Local Market'); f('buyerId', '') }}
+                      onClick={() => { f('buyer', ''); f('buyerId', ''); f('localMarketMode', true) }}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                        form.buyer === 'Local Market'
+                        form.localMarketMode
                           ? 'bg-[#BA7517]/20 border-[#BA7517] text-[#BA7517]'
                           : 'bg-[var(--c-ghost)] border-[var(--c-border-md)] text-[var(--c-sub)]'
                       }`}>
@@ -923,7 +930,7 @@ export default function Harvest() {
                     </button>
                     {buyers.filter(b => b.isActive !== false).slice(0, 4).map(b => (
                       <button key={b.id} type="button"
-                        onClick={() => { f('buyer', b.name); f('buyerId', b.id) }}
+                        onClick={() => { f('buyer', b.name); f('buyerId', b.id); f('localMarketMode', false) }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                           form.buyerId === b.id
                             ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
@@ -933,7 +940,13 @@ export default function Harvest() {
                       </button>
                     ))}
                   </div>
-                  <input placeholder="Or type buyer name…" value={form.buyer} onChange={e => { f('buyer', e.target.value); f('buyerId', '') }} className="finput"/>
+                  {form.localMarketMode ? (
+                    <input autoFocus placeholder="Enter buyer's name…" value={form.buyer}
+                      onChange={e => { f('buyer', e.target.value); f('buyerId', '') }} className="finput"/>
+                  ) : (
+                    <input placeholder="Or type buyer name…" value={form.buyer}
+                      onChange={e => { f('buyer', e.target.value); f('buyerId', ''); f('localMarketMode', false) }} className="finput"/>
+                  )}
                 </div>
 
                 {/* Editable qty */}
@@ -946,8 +959,8 @@ export default function Harvest() {
 
                 {/* Commission + Freight on same row */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Commission %</label>
-                    <input type="number" step="0.1" placeholder="e.g. 2" value={form.commissionPct} onChange={e => f('commissionPct', e.target.value)} className="finput"/></div>
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Commission ₹/qtl</label>
+                    <input type="number" step="0.1" placeholder="e.g. 20" value={form.commissionPerQtl} onChange={e => f('commissionPerQtl', e.target.value)} className="finput"/></div>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Freight ₹</label>
                     <input type="number" placeholder="0" value={form.freightCharges} onChange={e => f('freightCharges', e.target.value)} className="finput"/></div>
                 </div>
@@ -963,7 +976,7 @@ export default function Harvest() {
                         </div>
                         {commAmt > 0 && (
                           <div className="flex justify-between text-xs">
-                            <span className="text-[var(--c-faint)]">Commission ({commPct}%)</span>
+                            <span className="text-[var(--c-faint)]">Commission (₹{commPerQtl}/qtl)</span>
                             <span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span>
                           </div>
                         )}
@@ -1036,7 +1049,7 @@ export default function Harvest() {
                       <p className="text-[10px] text-[var(--c-faint)] mb-1">Recorded at sale time</p>
                       {commAmt > 0 && (
                         <div className="flex justify-between text-xs">
-                          <span className="text-[var(--c-faint)]">Commission ({sale.commissionPct}%)</span>
+                          <span className="text-[var(--c-faint)]">Commission (₹{sale.commissionPerQtl}/qtl)</span>
                           <span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span>
                         </div>
                       )}
