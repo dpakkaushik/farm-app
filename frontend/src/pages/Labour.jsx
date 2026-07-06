@@ -2,6 +2,7 @@
 import { format } from 'date-fns'
 import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../store'
+import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
@@ -195,6 +196,7 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
 // ── Today: attendance + task log ──────────────────────────────────────────────
 function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast, plots, logLabourBatch }) {
   const { activityTypes } = useAppStore()
+  const { activeFarmId } = useAuthStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
@@ -281,9 +283,10 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     if (attendance[labourId]?.status === status) return
     setSavingAtt(s => ({ ...s, [labourId]: true }))
     const { data, error } = await supabase.from('attendance').upsert(
-      { labour_master_id: labourId, attendance_date: TODAY_STR, status },
+      { farm_id: activeFarmId, labour_master_id: labourId, attendance_date: TODAY_STR, status },
       { onConflict: 'labour_master_id,attendance_date' }
     ).select().single()
+    if (error) showToast('Could not save attendance: ' + error.message, 'warn')
     if (!error) {
       const rec = { id: data?.id, labour_master_id: labourId, attendance_date: TODAY_STR, status }
       setAttendance(prev => ({ ...prev, [labourId]: { status, id: data?.id } }))
