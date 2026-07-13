@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import {
   BookOpen, Plus, Wallet, AlertCircle, TrendingUp, TrendingDown,
-  ChevronDown, X, CheckCircle,
+  ChevronDown, X, CheckCircle, Download,
 } from 'lucide-react'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ function AddVendorModal({ onClose, onSave }) {
 }
 
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
-function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables, monthlySummary }) {
+function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables, totalWageDues = 0, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -344,9 +344,11 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
           color={netProfit >= 0 ? '#1D9E75' : '#E24B4A'} />
         <MetricCard label="Vendor Dues" value={fmt(totalVendorDues)} color="#BA7517" />
         <MetricCard label="Receivables Due" value={fmt(totalReceivables)} color="#1D9E75" />
+        <MetricCard label="Unpaid Wages & Expenses" value={fmt(totalWageDues)} color="#BA7517"
+          sub={totalWageDues > 0 ? 'Settle from Expenses tab' : undefined} />
       </div>
       <div className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
-        Income/Expenses reflect the period selected above. Cash Balance, Vendor Dues, and Receivables are always as of today, regardless of period.
+        Income/Expenses reflect the period selected above. Cash Balance, dues, and Receivables are always as of today, regardless of period.
       </div>
 
       {/* Monthly chart */}
@@ -1128,7 +1130,7 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
 }
 
 // ── Tab: Expense Accounts ─────────────────────────────────────────────────────
-function ExpensesTab({ expenseLedger, vendorPayments = [] }) {
+function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPayRow }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1207,13 +1209,21 @@ function ExpensesTab({ expenseLedger, vendorPayments = [] }) {
                         <td className="px-3 py-2">
                           {key === 'vendor_purchase' ? (
                             <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}>See Party Ledger</span>
+                          ) : row.is_paid ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                              style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                              Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}
+                            </span>
+                          ) : canPay && (row.expense_type === 'labour' || row.expense_type === 'farm_expense') ? (
+                            <button onClick={() => onPayRow?.(row)}
+                              className="px-2.5 py-1 rounded-full text-[9px] font-semibold"
+                              style={{ background: '#1D9E75', color: '#fff' }}>
+                              Pay {fmt(row.amount)}
+                            </button>
                           ) : (
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold`}
-                              style={{
-                                background: row.is_paid ? '#1D9E75/15' : '#BA7517/15',
-                                color:      row.is_paid ? '#1D9E75'    : '#BA7517',
-                              }}>
-                              {row.is_paid ? 'Paid' : 'Pending'}
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                              style={{ background: 'rgba(186,117,23,0.15)', color: '#BA7517' }}>
+                              Pending
                             </span>
                           )}
                         </td>
@@ -1365,6 +1375,7 @@ export default function LedgerPage() {
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
+    markLabourPaid, addExpensePayment,
   } = useAppStore()
 
   const canManage = isManager(getActiveFarmRole())
@@ -1416,6 +1427,11 @@ export default function LedgerPage() {
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
+  // Wages and general expenses incurred but not yet handed over — a real
+  // liability, so it sits beside Vendor Dues (all-time, like every position fact).
+  const totalWageDues = expenseLedger
+    .filter(r => !r.is_paid && (r.expense_type === 'labour' || r.expense_type === 'farm_expense'))
+    .reduce((s, r) => s + Number(r.amount || 0), 0)
   // Receivable = what remains after partial payments, across crop and tree deals.
   const totalReceivables = [...sales, ...treeKhataRows]
     .filter(s => s.paymentStatus !== 'paid')
@@ -1444,6 +1460,102 @@ export default function LedgerPage() {
     _cashRunning += r.direction === 'in' ? Number(r.amount) : -Number(r.amount)
     return { ...r, running_balance: _cashRunning }
   })
+
+  // ── Excel statement ─────────────────────────────────────────────────────────
+  // One workbook, six sheets: everything the owner (or his accountant) needs to
+  // know where the farm stands, in the format they already trust. The xlsx
+  // library loads on click only, so it costs nothing until someone exports.
+  const downloadExcel = async () => {
+    const XLSX = await import('xlsx')
+    const wb = XLSX.utils.book_new()
+    const num = (n) => Math.round(Number(n || 0))
+    const fyName = fy === 'all' ? 'All Time' : `FY ${fyLabel(fy)}`
+
+    const sheet = (name, rows, widths) => {
+      const ws = XLSX.utils.aoa_to_sheet(rows)
+      if (widths) ws['!cols'] = widths.map(wch => ({ wch }))
+      XLSX.utils.book_append_sheet(wb, ws, name)
+    }
+
+    sheet('Summary', [
+      ['FARM ACCOUNTS STATEMENT'],
+      ['Period', fyName],
+      ['Generated on', new Date().toLocaleDateString('en-IN')],
+      [],
+      ['PROFIT & LOSS (period)'],
+      ['Total Income',   num(totalIncome)],
+      ['Total Expenses', num(totalExpenses)],
+      ['Net Profit',     num(totalIncome - totalExpenses)],
+      [],
+      ['POSITION AS OF TODAY'],
+      ['Cash Balance',                num(cashBalance)],
+      ['Vendor Dues (farm owes)',     num(totalVendorDues)],
+      ['Unpaid Wages & Expenses',     num(totalWageDues)],
+      ['Receivables (owed to farm)',  num(totalReceivables)],
+      [],
+      ['MONTH-WISE'],
+      ['Month', 'Income', 'Expenses', 'Profit'],
+      ...monthlySummary.map(m => [
+        MonthLabel(m.month), num(m.total_income), num(m.total_expenses), num(m.net_profit),
+      ]),
+    ], [26, 14, 14, 14])
+
+    sheet('Income', [
+      ['Date', 'Source', 'Description', 'From / Crop', 'Buyer', 'Amount', 'Received', 'Status'],
+      ...[...incomeLedgerFY]
+        .sort((a, b) => new Date(a.entry_date) - new Date(b.entry_date))
+        .map(r => [
+          r.entry_date, r.source_type, r.description, r.entity_name || '',
+          r.buyer_name || '', num(r.amount), num(r.amount_received), r.payment_status || 'paid',
+        ]),
+    ], [11, 12, 22, 24, 18, 12, 12, 10])
+
+    sheet('Expenses', [
+      ['Date', 'Category', 'Description', 'Amount', 'Paid'],
+      ...[...expenseLedgerFY]
+        .sort((a, b) => new Date(a.entry_date) - new Date(b.entry_date))
+        .map(r => [
+          r.entry_date, CATEGORY_LABELS[r.category] || r.category,
+          r.description, num(r.amount), r.is_paid ? 'Yes' : 'No',
+        ]),
+    ], [11, 20, 34, 12, 8])
+
+    sheet('Cash Book', [
+      ['Date', 'Particulars', 'Receipt', 'Payment', 'Balance'],
+      ...(fy !== 'all' ? [['', 'Opening balance', '', '', num(cashBookOpening)]] : []),
+      ...cashBookFY.map(r => [
+        r.entry_date, r.particulars,
+        r.direction === 'in'  ? num(r.amount) : '',
+        r.direction === 'out' ? num(r.amount) : '',
+        num(r.running_balance),
+      ]),
+    ], [11, 34, 12, 12, 12])
+
+    sheet('Vendor Khata', [
+      ['Vendor', 'Category', 'Purchased', 'Paid', 'Balance Due'],
+      ...vendorBalances.map(v => [
+        v.vendor_name, v.category || '', num(v.total_purchased), num(v.total_paid), num(v.balance_due),
+      ]),
+    ], [26, 16, 12, 12, 12])
+
+    // Buyer khata: same grouping the Buyer Khata tab shows — crop and tree deals
+    // together, partial payments counted.
+    const byBuyer = {}
+    ;[...sales.filter(s => s.buyerName), ...treeKhataRows.filter(s => s.buyerName)].forEach(s => {
+      const key = s.buyerId || s.buyerName.trim().toLowerCase()
+      if (!byBuyer[key]) byBuyer[key] = { name: s.buyerName, sold: 0, received: 0 }
+      byBuyer[key].sold     += Number(s.netAmount || 0)
+      byBuyer[key].received += s.paymentStatus === 'paid' ? Number(s.netAmount || 0) : Number(s.amountReceived || 0)
+    })
+    sheet('Buyer Khata', [
+      ['Buyer', 'Sold', 'Received', 'Balance Due'],
+      ...Object.values(byBuyer)
+        .sort((a, b) => (b.sold - b.received) - (a.sold - a.received))
+        .map(b => [b.name, num(b.sold), num(b.received), num(b.sold - b.received)]),
+    ], [26, 14, 14, 14])
+
+    XLSX.writeFile(wb, `Farm-Accounts-${fy === 'all' ? 'All-Time' : 'FY-' + fyLabel(fy)}.xlsx`)
+  }
 
   if (loading) {
     return (
@@ -1492,6 +1604,11 @@ export default function LedgerPage() {
             <option key={opt} value={opt}>{opt === 'all' ? 'All Time' : `FY ${fyLabel(opt)}`}</option>
           ))}
         </select>
+        <button onClick={downloadExcel}
+          className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium shrink-0"
+          style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
+          <Download size={12} /> Excel
+        </button>
       </div>
 
       {/* Content */}
@@ -1503,6 +1620,7 @@ export default function LedgerPage() {
             totalExpenses={totalExpenses}
             totalVendorDues={totalVendorDues}
             totalReceivables={totalReceivables}
+            totalWageDues={totalWageDues}
             monthlySummary={monthlySummary}
           />
         )}
@@ -1535,7 +1653,26 @@ export default function LedgerPage() {
           />
         )}
         {tab === 'expenses' && (
-          <ExpensesTab expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY} />
+          <ExpensesTab
+            expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
+            canPay={canManage}
+            onPayRow={async (row) => {
+              if (!confirm(`Pay ${row.description} — ₹${Math.round(row.amount).toLocaleString('en-IN')} in cash today?`)) return
+              try {
+                if (row.expense_type === 'labour') {
+                  await markLabourPaid(row)
+                } else {
+                  await addExpensePayment({
+                    payment_date: new Date().toISOString().slice(0, 10),
+                    amount:       row.amount,
+                    expense_type: 'farm_expense',
+                    reference_id: row.id,
+                    notes:        row.description,
+                  })
+                }
+              } catch (e) { alert('Payment failed: ' + e.message) }
+            }}
+          />
         )}
         {tab === 'pnl'      && (
           <PnlTab

@@ -8,6 +8,27 @@ import { useAuthStore } from './auth'
 
 const getFarmId = () => useAuthStore.getState().activeFarmId
 
+// The cash book lives in the app store, but a tree payment is cash like any
+// other. One 'in' entry per revenue row, keyed by reference_id and re-written
+// whenever the payment changes, so the cash book always shows what has actually
+// been received — no delta arithmetic to get wrong.
+async function syncCashEntry(revenueId, { received, date, buyerName, revenueType }) {
+  await supabase.from('owner_cash_entries').delete().eq('reference_id', revenueId)
+  if (!received || received <= 0) return
+  const { data: { user } } = await supabase.auth.getUser()
+  const { error } = await supabase.from('owner_cash_entries').insert({
+    farm_id:      getFarmId(),
+    entry_date:   date || new Date().toISOString().slice(0, 10),
+    amount:       received,
+    direction:    'in',
+    entry_type:   'tree_sale',
+    notes:        `${revenueType === 'timber_sale' ? 'Timber sale' : 'Fruit lease'}${buyerName ? ` — ${buyerName}` : ''}`,
+    reference_id: revenueId,
+    created_by:   user?.id || null,
+  })
+  if (error) throw error
+}
+
 const mapSpecies = s => ({
   id:        s.id,
   nameLocal: s.name_local,
@@ -260,17 +281,31 @@ export const useTreeStore = create((set, get) => ({
       }
     }
 
+    await syncCashEntry(data.id, {
+      received:    paid ? Number(rev.amount) : (Number(rev.amountReceived) || 0),
+      date:        rev.paymentDate || rev.agreementDate,
+      buyerName:   rev.buyerName?.trim(),
+      revenueType: rev.revenueType,
+    })
+
     await get().load()
     return data
   },
 
   updatePayment: async (id, { paymentStatus, amountReceived, paymentDate, amount }) => {
+    const received = paymentStatus === 'paid' ? Number(amount) : (Number(amountReceived) || 0)
     const { error } = await supabase.from('tree_revenue').update({
       payment_status:  paymentStatus,
-      amount_received: paymentStatus === 'paid' ? Number(amount) : (Number(amountReceived) || 0),
+      amount_received: received,
       payment_date:    paymentDate || null,
     }).eq('id', id)
     if (error) throw error
+
+    const r = get().revenue.find(x => x.id === id)
+    await syncCashEntry(id, {
+      received, date: paymentDate,
+      buyerName: r?.buyerName, revenueType: r?.revenueType,
+    })
     await get().load()
   },
 
@@ -281,6 +316,7 @@ export const useTreeStore = create((set, get) => ({
   deleteRevenue: async (id) => {
     const { error } = await supabase.from('tree_revenue').delete().eq('id', id)
     if (error) throw error
+    await supabase.from('owner_cash_entries').delete().eq('reference_id', id)
     await get().load()
   },
 }))

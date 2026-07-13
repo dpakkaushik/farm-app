@@ -718,6 +718,16 @@ const useAppStore = create((set, get) => ({
       notes:          notes || null,
     }).eq('id', id)
     if (error) throw error
+
+    // Cash only moves if the buyer actually paid; a pending residual sale is a
+    // receivable, not cash.
+    if ((paymentStatus || 'pending') === 'paid') {
+      await get().writeCashEntry({
+        entry_date: saleDate, amount: actualRevenue, direction: 'in',
+        entry_type: 'residual_sale',
+        notes: `Residual sale${buyerName ? ` — ${buyerName}` : ''}`, reference_id: id,
+      })
+    }
     set(s => ({
       cropResiduals: s.cropResiduals.map(r => r.id !== id ? r : {
         ...r, status: 'sold', saleDate, buyerName: buyerName || null,
@@ -930,6 +940,8 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Salary advances ─────────────────────────────────────────────────────────
+  // An advance is cash leaving the drawer today; the recovery happens later as a
+  // smaller salary payment, which is why booking both never double-counts.
   addAdvance: async (adv) => {
     const { data, error } = await supabase.from('salary_advances').insert({
       farm_id:         getFarmId(),
@@ -942,6 +954,12 @@ const useAppStore = create((set, get) => ({
       attachment_url:  adv.attachmentUrl || null,
     }).select().single()
     if (error) throw error
+
+    const who = get().labourerName(adv.labourerId)
+    await get().writeCashEntry({
+      entry_date: adv.date, amount: parseFloat(adv.amount), direction: 'out',
+      entry_type: 'advance_payment', notes: `Advance — ${who}`, reference_id: data.id,
+    })
     set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
   },
 
@@ -951,6 +969,58 @@ const useAppStore = create((set, get) => ({
       .eq('id', id)
     if (error) throw error
     set(s => ({ advances: s.advances.filter(a => a.id !== id) }))
+  },
+
+  // ── Cash book helpers ───────────────────────────────────────────────────────
+  // Every rupee that actually moves writes exactly one cash entry, tagged with
+  // reference_id so deleting the source record can clean up after itself.
+  labourerName: (id) => {
+    const { permanentStaff, regularLabourers, contractualLabour } = get()
+    const all = [...permanentStaff, ...regularLabourers, ...(contractualLabour || [])]
+    return all.find(l => l.id === id)?.name || 'Worker'
+  },
+
+  writeCashEntry: async ({ entry_date, amount, direction, entry_type, notes, reference_id }) => {
+    if (!amount || amount <= 0) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error } = await supabase.from('owner_cash_entries').insert({
+      farm_id: getFarmId(), entry_date, amount, direction, entry_type,
+      notes: notes || null, reference_id: reference_id || null,
+      created_by: user?.id || null,
+    }).select().single()
+    if (error) throw error
+    const { data: cb } = await supabase.from('v_cash_book').select('*')
+    set(s => ({ ownerCashEntries: [...s.ownerCashEntries, data], cashBook: cb || [] }))
+  },
+
+  removeCashEntriesFor: async (referenceId) => {
+    const { error } = await supabase.from('owner_cash_entries').delete().eq('reference_id', referenceId)
+    if (error) throw error
+    const { data: cb } = await supabase.from('v_cash_book').select('*')
+    set(s => ({
+      ownerCashEntries: s.ownerCashEntries.filter(e => e.reference_id !== referenceId),
+      cashBook: cb || [],
+    }))
+  },
+
+  // ── Settle an unpaid expense row (Ledger → Expenses tab) ────────────────────
+  // Daily labour accrues when logged and is settled here: the log is flagged
+  // paid and the cash leaves the book on the settlement date, not the work date.
+  markLabourPaid: async (row, paidDate) => {
+    const date = paidDate || new Date().toISOString().slice(0, 10)
+    const { error } = await supabase.from('labour_logs')
+      .update({ is_paid: true, paid_date: date, paid_via: 'cash' })
+      .eq('id', row.id)
+    if (error) throw error
+    await get().writeCashEntry({
+      entry_date: date, amount: Number(row.amount), direction: 'out',
+      entry_type: 'labour_payment', notes: row.description, reference_id: row.id,
+    })
+    const { data: el } = await supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false })
+    set(s => ({
+      expenseLedger: el || [],
+      labourLogs: s.labourLogs.map(l => l.id === row.id ? { ...l, isPaid: true, paidDate: date } : l),
+    }))
   },
 
   // ── Salary payments ─────────────────────────────────────────────────────────
@@ -968,12 +1038,20 @@ const useAppStore = create((set, get) => ({
       status:         'paid',
     }).select().single()
     if (error) throw error
+
+    const who = get().labourerName(p.labourerId)
+    await get().writeCashEntry({
+      entry_date: p.date, amount: parseFloat(p.amount), direction: 'out',
+      entry_type: 'salary_payment',
+      notes: `Salary — ${who}${p.month ? ` (${p.month})` : ''}`, reference_id: data.id,
+    })
     set(s => ({ salaryPayments: [mapSalaryPayment(data), ...s.salaryPayments] }))
   },
 
   deleteSalaryPayment: async (id) => {
     const { error } = await supabase.from('salary_payments').delete().eq('id', id)
     if (error) throw error
+    await get().removeCashEntriesFor(id)
     set(s => ({ salaryPayments: s.salaryPayments.filter(p => p.id !== id) }))
   },
 
@@ -1543,6 +1621,15 @@ const useAppStore = create((set, get) => ({
     }).select().single()
     if (error) throw error
 
+    // Livestock money (milk, dung, an animal sold) is cash at the gate — the
+    // income view hardcodes it 'paid' — so it enters the cash book on record.
+    await get().writeCashEntry({
+      entry_date: rev.revenueDate, amount: Number(rev.amount), direction: 'in',
+      entry_type: 'livestock_sale',
+      notes: `Livestock — ${rev.revenueType || 'revenue'}${rev.buyerName ? ` — ${rev.buyerName}` : ''}`,
+      reference_id: data.id,
+    })
+
     if (rev.isSale && rev.livestockId) {
       const today = new Date().toISOString().slice(0, 10)
       await supabase.from('livestock_master')
@@ -1565,6 +1652,7 @@ const useAppStore = create((set, get) => ({
   deleteLivestockRevenue: async (id) => {
     const { error } = await supabase.from('livestock_revenue').delete().eq('id', id)
     if (error) throw error
+    await get().removeCashEntriesFor(id)
     set(s => ({ livestockRevenue: s.livestockRevenue.filter(r => r.id !== id) }))
   },
 
