@@ -298,10 +298,15 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
   const [open, setOpen] = useState(false)
   const logs = countLogs.filter(l => l.plantingId === planting.id)
 
-  const sides    = planting.boundarySides
-  const knownLoc = planting.locationType === 'plot'
-    ? planting.plotName
-    : sides.length ? `${planting.plotName || 'Farm'} — ${sides.join(', ')}` : null
+  // "On a boundary" IS a location — it is what the owner told us. What is missing
+  // is only the exact spot: which plot, which side. Show what we know, and flag
+  // the gap separately instead of pretending we know nothing.
+  const sides = planting.boundarySides
+  const where = planting.locationType === 'plot'
+    ? `${planting.plotName || 'Plot'}`
+    : ['Boundary', planting.plotName, sides.length ? sides.join('/') : null]
+        .filter(Boolean).join(' — ')
+  const vague = planting.locationType === 'boundary' && !sides.length
 
   async function remove() {
     if (!confirm(`Delete this planting of ${planting.count} ${speciesName}? Its count history goes too.`)) return
@@ -324,11 +329,8 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
             )}
           </p>
           <div className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap" style={{ color: 'var(--c-muted)' }}>
-            {knownLoc
-              ? <span className="flex items-center gap-0.5"><MapPin size={9} /> {knownLoc}</span>
-              : <span className="flex items-center gap-0.5" style={{ color: '#BA7517' }}>
-                  <MapPin size={9} /> location not set
-                </span>}
+            <span className="flex items-center gap-0.5"><MapPin size={9} /> {where}</span>
+            {vague && <span style={{ color: '#BA7517' }}>exact spot not set</span>}
             {planting.plantedOn
               ? <span>planted {planting.plantedOn}</span>
               : <span className="flex items-center gap-0.5" style={{ color: '#BA7517' }}>

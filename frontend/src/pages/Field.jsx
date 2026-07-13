@@ -2,7 +2,9 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
+import { useTreeStore } from '../store/trees'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
+import { buildTreeDots } from '../lib/treeDots'
 import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -373,6 +375,24 @@ export default function Field() {
     }
   }, [livePlots])
 
+  // ── Trees ───────────────────────────────────────────────────────────────────
+  const treeSpecies   = useTreeStore(s => s.species)
+  const treePlantings = useTreeStore(s => s.plantings)
+  const loadTrees     = useTreeStore(s => s.load)
+
+  useEffect(() => { loadTrees().catch(() => {}) }, [activeFarmId])
+
+  const treeDots = useMemo(() => {
+    const rings = Object.fromEntries(
+      livePlots.filter(p => p.geo_polygon).map(p => [p.id, p.geo_polygon])
+    )
+    return buildTreeDots(treePlantings, treeSpecies, rings, FARM_BOUNDARY_COORDS)
+  }, [treePlantings, treeSpecies, livePlots])
+
+  useEffect(() => {
+    if (map.current?.getSource('trees')) map.current.getSource('trees').setData(treeDots)
+  }, [treeDots])
+
   const addPlotLayers = () => {
     map.current.addSource('farm-boundary', { type:'geojson', data:{
       type:'Feature', geometry:{ type:'Polygon', coordinates:[FARM_BOUNDARY_COORDS] }
@@ -389,6 +409,18 @@ export default function Field() {
       filter: ['==', ['get', 'is_mixed'], true],
       paint:  { 'fill-pattern': 'mixed-hatch' },
     })
+    // Trees. Deliberately small, soft and translucent: these dots are synthesized
+    // from a planting's count and location, not surveyed. They must read as
+    // texture ("trees are along here"), never as pins ("this tree is here").
+    map.current.addSource('trees', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
+    map.current.addLayer({ id:'tree-dots', type:'circle', source:'trees',
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 1, 16, 2.4, 19, 5],
+        'circle-opacity': 0.55,
+        'circle-stroke-width': 0,
+      },
+    })
     // labels rendered as HTML markers — no glyph server dependency
     map.current.on('click', 'plot-fill', (e) => {
       const raw = e.features[0]?.properties?.__raw
@@ -398,6 +430,9 @@ export default function Field() {
     map.current.on('mouseleave', 'plot-fill', () => { map.current.getCanvas().style.cursor = '' })
     refreshPlotLayers(livePlots)
     refreshLabels(livePlots)
+    // The dots may already be computed by the time the style finishes loading, in
+    // which case the effect that normally feeds them has nothing left to fire on.
+    map.current.getSource('trees').setData(treeDots)
   }
 
   const refreshLabels = (plotData) => {
