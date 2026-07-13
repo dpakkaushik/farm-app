@@ -251,253 +251,70 @@ Simple mobile-first form. Manager fills every evening in 5–7 minutes:
 
 ## 6. Database Schema
 
-### Storage Strategy
+> **The source of truth is [`supabase/migrations/`](supabase/migrations/), not this file.**
+>
+> This section used to contain a hand-written copy of the schema. It drifted badly —
+> it described 14 tables when the database had 43, and named tables (`activities`,
+> `harvests`, `crop_templates`) that do not exist. Anyone reading it built a mental
+> model of a database that wasn't there, which is a real source of bugs.
+>
+> So this section no longer lists columns. It records the **conventions** that every
+> table follows, which is the part that stays true. For the actual DDL, read the
+> migration files, or query the live database.
 
-All files (images, PDFs, bills, receipts) go to **Supabase Storage**. The database stores only the file path. One `media_files` table handles all entities polymorphically.
+### The two rules every table follows
 
-**Supabase Storage Buckets:**
-```
-farm-photos/       → crop health photos, field photos
-inventory-docs/    → purchase bills, vendor invoices (PDF/image)
-harvest-docs/      → harvest photos, weighment slips
-sales-docs/        → payment receipts, buyer contracts
-diary-media/       → manager's daily photo attachments
-```
+**1. Every table carries `farm_id`.** This app is multi-tenant — one Supabase project
+holds several farms. Scoping is by column, not by database. The only two exceptions
+are `farms` (its own `id` *is* the farm id) and `user_profiles` (keyed by user).
 
-**`media_files` table — polymorphic file store:**
-```
-entity_type          entity_id    file_type   use case
-inventory_purchase   uuid         pdf         Vendor bill / invoice
-inventory_purchase   uuid         image       Photo of receipt
-crop_health_log      uuid         image       Yellowing leaf photo
-harvest              uuid         image       Harvest quantity photo
-sale                 uuid         pdf         Payment receipt
-daily_diary          uuid         image       Field photo
-```
+**2. RLS is on, with the same four policies, everywhere.** They key off `farm_id`
+via two helper functions:
 
----
+| Operation | Policy |
+|---|---|
+| `SELECT` | `is_farm_member(farm_id)` |
+| `INSERT` | `has_farm_role(farm_id, 'manager')` |
+| `UPDATE` | `has_farm_role(farm_id, 'manager')` |
+| `DELETE` | `has_farm_role(farm_id, 'admin')` |
 
-### SQLAlchemy Models (Python)
+RLS is what actually enforces tenant separation. The frontend also filters by
+`farm_id` (see `getFarmId()` in `store/index.js`), but that is defence in depth —
+**never rely on the client filter alone.** A new table without RLS is exposed to the
+`anon` role, whose key ships in the frontend bundle and is readable by anyone.
 
-#### `farms`
-```python
-class Farm(Base):
-    __tablename__ = "farms"
-    id: uuid (PK)
-    name: str
-    location: str
-    total_acres: float
-    owner_id: uuid (FK → auth.users)
-    geo_bounds: dict  # GeoJSON polygon of entire farm
-    created_at: datetime
-```
+### Tables, by domain
 
-#### `plots`
-```python
-class Plot(Base):
-    __tablename__ = "plots"
-    id: uuid (PK)
-    farm_id: uuid (FK → farms)
-    label: str           # "A", "B", "C" etc
-    acres: float
-    soil_type: str       # "loamy", "clay", "sandy"
-    water_source: str    # "borewell", "canal", "rain-fed"
-    geo_polygon: dict    # GeoJSON — drawn on Mapbox map
-    status: str          # "active", "fallow", "preparation"
-```
+Names only — for columns, read the migrations or query the database.
 
-#### `crop_templates`
-```python
-class CropTemplate(Base):
-    __tablename__ = "crop_templates"
-    id: uuid (PK)
-    farm_id: uuid (FK → farms)
-    crop_name: str       # "Wheat", "Rice", "Mustard"
-    duration_days: int   # 90, 120, 130
-    activity_schedule: list[dict]
-    # Example:
-    # [
-    #   {"day": 0,  "type": "irrigation",  "label": "First irrigation"},
-    #   {"day": 7,  "type": "fertilizer",  "label": "Basal dose DAP"},
-    #   {"day": 21, "type": "weeding",     "label": "First weeding"},
-    #   {"day": 45, "type": "fertilizer",  "label": "Top dressing urea"},
-    #   {"day": 85, "type": "harvest",     "label": "Harvest window"},
-    # ]
-    expected_yield_per_acre: float  # in kg
-```
+| Domain | Tables |
+|---|---|
+| Tenancy | `farms`, `farm_memberships`, `farm_invitations`, `user_profiles` |
+| Land & crops | `plots`, `crops`, `crop_cycles`, `crop_activity_templates`, `activity_logs`, `activity_types`, `crop_health_logs`, `crop_residuals` |
+| Inventory | `inventory_items`, `inventory_purchases`, `inventory_issues`, `inventory_bills` |
+| Labour | `labour_master`, `labour_activity_rates`, `labour_logs`, `attendance`, `work_types`, `public_holidays`, `salary_advances`, `salary_payments` |
+| Livestock | `livestock_master`, `livestock_health_logs`, `livestock_count_logs`, `livestock_revenue` |
+| Assets | `machinery_master`, `farm_assets`, `diesel_logs` |
+| Money | `sales`, `buyers`, `vendors`, `vendor_payments`, `partners`, `farm_expenses`, `expense_payments`, `owner_cash_entries` |
+| Harvest | `harvest_sessions` |
+| Cross-cutting | `media_files`, `alerts`, `daily_diary` |
 
-#### `crop_cycles`
-```python
-class CropCycle(Base):
-    __tablename__ = "crop_cycles"
-    id: uuid (PK)
-    plot_id: uuid (FK → plots)
-    template_id: uuid (FK → crop_templates)
-    sow_date: date
-    expected_harvest_date: date   # auto = sow_date + template.duration_days
-    actual_harvest_date: date | None
-    status: str                   # "active", "harvested", "failed"
-    season: str                   # "kharif_2025", "rabi_2025"
-    budget: float                 # planned spend for this cycle
-```
+### Storage
 
-#### `activities`
-```python
-class Activity(Base):
-    __tablename__ = "activities"
-    id: uuid (PK)
-    crop_cycle_id: uuid (FK → crop_cycles)
-    activity_type: str    # "irrigation", "weeding", "fertilizer", "spraying", "harvest"
-    label: str            # human-readable name
-    scheduled_date: date  # auto-generated from template
-    completed_date: date | None
-    worker_count: int | None
-    labor_hours: float | None
-    labor_cost: float | None
-    notes: str | None
-    status: str           # "pending", "done", "skipped"
-```
+Files (photos, bills, receipts) go to **Supabase Storage**; the database stores only
+the path. One `media_files` table serves every entity polymorphically via
+`entity_type` + `entity_id`. Never store file bytes in the database.
 
-#### `inventory_items`
-```python
-class InventoryItem(Base):
-    __tablename__ = "inventory_items"
-    id: uuid (PK)
-    farm_id: uuid (FK → farms)
-    name: str             # "DAP", "Urea", "Wheat Seeds", "Chlorpyrifos"
-    category: str         # "seed", "fertilizer", "chemical", "fuel", "other"
-    unit: str             # "kg", "bag", "litre", "bottle"
-    current_stock: float  # auto-updated on purchase/issue
-    min_threshold: float  # alert fires when current_stock < this
-    cost_per_unit: float  # last purchase price (auto-updated)
-```
+Buckets: `farm-photos`, `inventory-docs`, `harvest-docs`, `sales-docs`, `diary-media`.
 
-#### `inventory_purchases`
-```python
-class InventoryPurchase(Base):
-    __tablename__ = "inventory_purchases"
-    id: uuid (PK)
-    item_id: uuid (FK → inventory_items)
-    purchase_date: date
-    quantity: float
-    unit_price: float
-    total_cost: float     # quantity × unit_price
-    vendor_name: str
-    invoice_number: str | None
-    notes: str | None
-    # Bill/invoice PDF or image stored in Supabase Storage
-    # Linked via media_files WHERE entity_type='inventory_purchase'
-```
+### Changing the schema
 
-#### `inventory_issues`
-```python
-class InventoryIssue(Base):
-    __tablename__ = "inventory_issues"
-    id: uuid (PK)
-    item_id: uuid (FK → inventory_items)
-    crop_cycle_id: uuid (FK → crop_cycles)  # cost attribution
-    activity_id: uuid | None (FK → activities)
-    issue_date: date
-    quantity: float
-    total_cost: float     # quantity × item.cost_per_unit
-    purpose: str          # "basal dose", "top dressing", "pest control"
-    issued_by: uuid (FK → auth.users)
-```
+**Never hand-edit the schema in the Supabase dashboard.** Every change belongs in a
+numbered, idempotent migration in `supabase/migrations/`. See
+[`supabase/README.md`](supabase/README.md) — it explains why, with the list of bugs
+the dashboard-only approach actually cost us.
 
-#### `harvests`
-```python
-class Harvest(Base):
-    __tablename__ = "harvests"
-    id: uuid (PK)
-    crop_cycle_id: uuid (FK → crop_cycles)
-    harvest_date: date
-    quantity_kg: float
-    quality_grade: str    # "A", "B", "C"
-    storage_location: str | None
-    notes: str | None
-    # Photos linked via media_files WHERE entity_type='harvest'
-```
-
-#### `sales`
-```python
-class Sale(Base):
-    __tablename__ = "sales"
-    id: uuid (PK)
-    harvest_id: uuid (FK → harvests)
-    sale_date: date
-    buyer_name: str
-    buyer_contact: str | None
-    quantity_sold: float
-    rate_per_unit: float   # ₹ per kg/quintal
-    total_revenue: float   # quantity_sold × rate_per_unit
-    payment_status: str    # "pending", "partial", "received"
-    payment_date: date | None
-    notes: str | None
-    # Payment receipt PDF linked via media_files WHERE entity_type='sale'
-```
-
-#### `crop_health_logs`
-```python
-class CropHealthLog(Base):
-    __tablename__ = "crop_health_logs"
-    id: uuid (PK)
-    crop_cycle_id: uuid (FK → crop_cycles)
-    log_date: date
-    health_rating: str    # "good", "average", "concern"
-    issue_tags: list[str] # ["yellowing", "pest_attack", "waterlogging", "drought"]
-    notes: str | None
-    logged_by: uuid (FK → auth.users)
-    # Photos linked via media_files WHERE entity_type='crop_health_log'
-```
-
-#### `daily_diary`
-```python
-class DailyDiary(Base):
-    __tablename__ = "daily_diary"
-    id: uuid (PK)
-    farm_id: uuid (FK → farms)
-    diary_date: date
-    logged_by: uuid (FK → auth.users)
-    summary: str
-    plot_activities: dict   # JSON: {plot_id: {activity, workers, notes}}
-    tomorrows_plan: str | None
-    submitted_at: datetime
-    # Photos linked via media_files WHERE entity_type='daily_diary'
-```
-
-#### `alerts`
-```python
-class Alert(Base):
-    __tablename__ = "alerts"
-    id: uuid (PK)
-    farm_id: uuid (FK → farms)
-    alert_type: str     # "health_concern", "low_stock", "harvest_due",
-                        #  "diary_missing", "budget_exceeded", "payment_pending"
-    severity: str       # "info", "warning", "critical"
-    message: str
-    entity_type: str    # "crop_cycle", "inventory_item", "sale" etc
-    entity_id: uuid     # tap to navigate directly to the record
-    is_read: bool
-    created_at: datetime
-```
-
-#### `media_files`
-```python
-class MediaFile(Base):
-    __tablename__ = "media_files"
-    id: uuid (PK)
-    entity_type: str    # "inventory_purchase", "harvest", "sale",
-                        #  "crop_health_log", "daily_diary"
-    entity_id: uuid
-    file_type: str      # "image", "pdf", "document"
-    bucket: str         # Supabase Storage bucket name
-    storage_path: str   # path within bucket
-    original_name: str
-    file_size_bytes: int
-    mime_type: str
-    uploaded_by: uuid (FK → auth.users)
-    created_at: datetime
-```
+If a migration adds a table, it must also enable RLS and add the four policies above.
 
 ---
 
