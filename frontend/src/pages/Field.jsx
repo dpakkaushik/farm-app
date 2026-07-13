@@ -389,8 +389,15 @@ export default function Field() {
     return buildTreeDots(treePlantings, treeSpecies, rings, FARM_BOUNDARY_COORDS)
   }, [treePlantings, treeSpecies, livePlots])
 
+  // The dots and the map style load independently, and either can win. Whichever
+  // does, the other has to be able to find the latest dots — so they live in a ref
+  // that addPlotLayers reads at style-load time. Reading `treeDots` there instead
+  // would capture the value from the render that registered the load handler, which
+  // is always the first one, when no trees have loaded yet: an empty map, forever.
+  const treeDotsRef = useRef(treeDots)
   useEffect(() => {
-    if (map.current?.getSource('trees')) map.current.getSource('trees').setData(treeDots)
+    treeDotsRef.current = treeDots
+    map.current?.getSource('trees')?.setData(treeDots)
   }, [treeDots])
 
   const addPlotLayers = () => {
@@ -430,9 +437,7 @@ export default function Field() {
     map.current.on('mouseleave', 'plot-fill', () => { map.current.getCanvas().style.cursor = '' })
     refreshPlotLayers(livePlots)
     refreshLabels(livePlots)
-    // The dots may already be computed by the time the style finishes loading, in
-    // which case the effect that normally feeds them has nothing left to fire on.
-    map.current.getSource('trees').setData(treeDots)
+    map.current.getSource('trees').setData(treeDotsRef.current)
   }
 
   const refreshLabels = (plotData) => {

@@ -64,6 +64,12 @@ function Choice({ options, value, onChange }) {
   )
 }
 
+// What the owner reads. English is the label; the Devanagari name is kept because
+// it is what the register and the manager actually say, and it shows underneath.
+// A species with no English name falls back to its local one rather than showing
+// a blank — some names (Meetha) have no translation worth inventing.
+const displayName = sp => sp.nameEn?.trim() || sp.nameLocal
+
 // ── Species form ──────────────────────────────────────────────────────────────
 function SpeciesModal({ species, onClose }) {
   const { addSpecies, updateSpecies } = useTreeStore()
@@ -77,11 +83,14 @@ function SpeciesModal({ species, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function save() {
-    if (!form.nameLocal.trim()) return alert('Give the tree a name')
+    if (!form.nameEn.trim() && !form.nameLocal.trim()) return alert('Give the tree a name')
     setSaving(true)
     try {
-      if (species) await updateSpecies(species.id, form)
-      else         await addSpecies(form)
+      // name_local is NOT NULL in the database, but the English name is the one
+      // that gets typed. If only English is given, it stands for both.
+      const payload = { ...form, nameLocal: form.nameLocal.trim() || form.nameEn.trim() }
+      if (species) await updateSpecies(species.id, payload)
+      else         await addSpecies(payload)
       onClose()
     } catch (e) { alert('Save failed: ' + e.message) }
     finally { setSaving(false) }
@@ -90,12 +99,12 @@ function SpeciesModal({ species, onClose }) {
   return (
     <Modal title={species ? 'Edit tree' : 'New tree'} onClose={onClose}>
       <FRow label="Name">
-        <input className={inp} placeholder="आम / Mango" value={form.nameLocal}
-          onChange={e => set('nameLocal', e.target.value)} />
-      </FRow>
-      <FRow label="English name (optional)">
         <input className={inp} placeholder="Mango" value={form.nameEn}
           onChange={e => set('nameEn', e.target.value)} />
+      </FRow>
+      <FRow label="Local name (optional)">
+        <input className={inp} placeholder="आम" value={form.nameLocal}
+          onChange={e => set('nameLocal', e.target.value)} />
       </FRow>
       <FRow label="Type">
         <Choice
@@ -387,8 +396,12 @@ function SpeciesCard({ species, plantings, canEdit }) {
   const total = plantings.reduce((s, p) => s + p.count, 0)
   const p     = PURPOSE[species.purpose]
 
+  const name = displayName(species)
+  // Only worth showing when it says something the English name doesn't.
+  const localName = species.nameLocal !== name ? species.nameLocal : null
+
   async function remove() {
-    if (!confirm(`Delete ${species.nameLocal} and all ${total} of its trees?`)) return
+    if (!confirm(`Delete ${name} and all ${total} of its trees?`)) return
     try { await deleteSpecies(species.id) } catch (e) { alert(e.message) }
   }
 
@@ -397,9 +410,9 @@ function SpeciesCard({ species, plantings, canEdit }) {
       <button onClick={() => setOpen(v => !v)} className="w-full flex items-center gap-3 p-4 text-left">
         <span className="text-xl shrink-0">{p.emoji}</span>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{species.nameLocal}</p>
+          <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{name}</p>
           <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-            {species.nameEn ? `${species.nameEn} · ` : ''}
+            {localName ? `${localName} · ` : ''}
             {plantings.length} {plantings.length === 1 ? 'planting' : 'plantings'}
           </p>
         </div>
@@ -414,7 +427,7 @@ function SpeciesCard({ species, plantings, canEdit }) {
       {open && (
         <div className="px-4 pb-4 space-y-2">
           {plantings.map(pl => (
-            <PlantingRow key={pl.id} planting={pl} speciesName={species.nameLocal} canEdit={canEdit}
+            <PlantingRow key={pl.id} planting={pl} speciesName={name} canEdit={canEdit}
               onEdit={() => setEditPl(pl)} onCount={() => setCount(pl)} />
           ))}
 
@@ -439,11 +452,11 @@ function SpeciesCard({ species, plantings, canEdit }) {
       )}
 
       {editSpecies   && <SpeciesModal  species={species} onClose={() => setEdit(false)} />}
-      {newPlanting   && <PlantingModal speciesId={species.id} speciesName={species.nameLocal}
+      {newPlanting   && <PlantingModal speciesId={species.id} speciesName={name}
                                        onClose={() => setNew(false)} />}
-      {editPlanting  && <PlantingModal speciesId={species.id} speciesName={species.nameLocal}
+      {editPlanting  && <PlantingModal speciesId={species.id} speciesName={name}
                                        planting={editPlanting} onClose={() => setEditPl(null)} />}
-      {countPlanting && <CountModal planting={countPlanting} speciesName={species.nameLocal}
+      {countPlanting && <CountModal planting={countPlanting} speciesName={name}
                                     onClose={() => setCount(null)} />}
     </div>
   )
