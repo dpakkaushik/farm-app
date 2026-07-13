@@ -67,8 +67,13 @@ export default function App() {
 
   // Invite route — must come before auth & onboarding guards
   // New users who click a magic link arrive here with 0 farms — show AcceptInvite, not FarmOnboarding
+  // Must be rendered via <Route> so AcceptInvite's useParams() can read :token
   if (location.pathname.startsWith('/invite/')) {
-    return <AcceptInvite />
+    return (
+      <Routes>
+        <Route path="/invite/:token" element={<AcceptInvite />} />
+      </Routes>
+    )
   }
 
   if (loading) return <LoadingScreen />

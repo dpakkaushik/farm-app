@@ -26,7 +26,8 @@ export default function AcceptInvite() {
   // Step 1: fetch invite preview (works without auth — public RPC)
   useEffect(() => {
     if (!token) { setStatus('error'); setError('Invalid invitation link.'); return }
-    supabase.rpc('get_invite_preview', { p_token: token }).then(({ data }) => {
+    supabase.rpc('get_invite_preview', { p_token: token }).then(({ data, error: rpcError }) => {
+      if (rpcError) { setStatus('error'); setError(`Could not check this invitation: ${rpcError.message}`); return }
       if (!data) { setStatus('error'); setError('Invitation not found.'); return }
       if (!data.valid) { setStatus('error'); setError('This invitation has expired or was already used.'); return }
       setPreview(data)
