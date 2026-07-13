@@ -13,3 +13,7 @@ generate_schema_v2.py
 frontend/.env.local
 backend/dependencies.py
 backend/schemas/
+
+# Holds a Supabase personal access token. Never commit.
+# See .mcp.json.example for the shape.
+.mcp.json

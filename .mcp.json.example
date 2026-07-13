@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Template for .mcp.json, which is gitignored because it holds a secret.",
+    "Copy this file to .mcp.json and fill in the two values below.",
+    "",
+    "project_ref  — Supabase dashboard > Settings > General > Reference ID.",
+    "               Also the subdomain of your API URL: https://<ref>.supabase.co",
+    "               Not secret. Scopes the connection to this one project.",
+    "",
+    "Authorization — a Supabase personal access token, created at",
+    "               https://supabase.com/dashboard/account/tokens",
+    "               SECRET. It is account-level: it authenticates as you across",
+    "               every project you own. Revoke it from that same page.",
+    "",
+    "Add &read_only=true to the URL to forbid all writes."
+  ],
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=<project-ref>",
+      "headers": {
+        "Authorization": "Bearer <supabase-personal-access-token>"
+      }
+    }
+  }
+}
