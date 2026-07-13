@@ -455,6 +455,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   const livestockTotal = incomeLedger.filter(r => r.source_type === 'livestock').reduce((s, r) => s + Number(r.amount || 0), 0)
   const cropTotal      = incomeLedger.filter(r => r.source_type === 'crop').reduce((s, r) => s + Number(r.amount || 0), 0)
   const residualTotal  = incomeLedger.filter(r => r.source_type === 'crop_residual').reduce((s, r) => s + Number(r.amount || 0), 0)
+  const treeTotal      = incomeLedger.filter(r => r.source_type === 'tree').reduce((s, r) => s + Number(r.amount || 0), 0)
   const isCollected    = (r) => (r.payment_status || 'paid') === 'paid'
   const collectedTotal = incomeLedger.filter(isCollected).reduce((s, r) => s + Number(r.amount || 0), 0)
   const pendingTotal   = totalIncome - collectedTotal
@@ -477,9 +478,12 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
     }
   }
 
+  // Anything unrecognised falls through to Crop, so a new source_type must be named
+  // here or it gets silently counted as a crop sale.
   const sourceBadge = (type) => {
     if (type === 'livestock')     return { bg: 'rgba(29,158,117,0.12)',  color: '#1D9E75',  label: 'Livestock' }
     if (type === 'crop_residual') return { bg: 'rgba(139,92,246,0.12)',  color: '#7c3aed',  label: 'Residual'  }
+    if (type === 'tree')          return { bg: 'rgba(101,163,13,0.12)',  color: '#65a30d',  label: 'Trees'     }
     return                               { bg: 'rgba(186,117,23,0.12)',  color: '#BA7517',  label: 'Crop'      }
   }
 
@@ -492,6 +496,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
         <MetricCard label="Crop Sales"      value={fmt(cropTotal)}      color="#BA7517" />
         <MetricCard label="Livestock"       value={fmt(livestockTotal)} color="#1D9E75" />
         <MetricCard label="Residuals Sold"  value={fmt(residualTotal)}  color="#7c3aed" />
+        <MetricCard label="Tree Sales"      value={fmt(treeTotal)}      color="#65a30d" />
       </div>
 
       {/* Open residuals alert */}
@@ -586,7 +591,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
       {sorted.length === 0 ? (
         <Card>
           <div className="text-center text-xs py-6" style={{ color: 'var(--c-faint)' }}>
-            No income entries yet. Revenue from livestock, crop sales, and residuals will appear here.
+            No income entries yet. Revenue from crop sales, livestock, residuals, and tree sales will appear here.
           </div>
         </Card>
       ) : (
