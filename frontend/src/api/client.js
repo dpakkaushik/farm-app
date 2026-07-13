@@ -79,8 +79,8 @@ export const assetsApi = {
 export const dashboardApi = {
   getAlerts: () => supabase.from('alerts').select('*').eq('is_read', false).order('created_at', { ascending: false }),
   markRead:  (id) => supabase.from('alerts').update({ is_read: true }).eq('id', id),
-  getDiary:  (date) => supabase.from('daily_diary').select('*').eq('diary_date', date).maybeSingle(),
-  saveDiary: (data) => supabase.from('daily_diary').upsert(data, { onConflict: 'diary_date' }),
+  getDiary:  (farmId, date) => supabase.from('daily_diary').select('*').eq('farm_id', farmId).eq('diary_date', date).maybeSingle(),
+  saveDiary: (data) => supabase.from('daily_diary').upsert(data, { onConflict: 'farm_id,diary_date' }),
 }
 
 // ── Legacy stubs (kept so Field.jsx / old components don't break) ─────────────
