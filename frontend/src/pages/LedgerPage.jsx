@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
+import { useTreeStore } from '../store/trees'
 import { isManager, getActiveFarmRole } from '../store/auth'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -456,8 +457,9 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   const cropTotal      = incomeLedger.filter(r => r.source_type === 'crop').reduce((s, r) => s + Number(r.amount || 0), 0)
   const residualTotal  = incomeLedger.filter(r => r.source_type === 'crop_residual').reduce((s, r) => s + Number(r.amount || 0), 0)
   const treeTotal      = incomeLedger.filter(r => r.source_type === 'tree').reduce((s, r) => s + Number(r.amount || 0), 0)
-  const isCollected    = (r) => (r.payment_status || 'paid') === 'paid'
-  const collectedTotal = incomeLedger.filter(isCollected).reduce((s, r) => s + Number(r.amount || 0), 0)
+  // amount_received comes from the view: full amount when paid, the actual partial
+  // figure otherwise. Judging by status alone counted a part-paid deal as ₹0.
+  const collectedTotal = incomeLedger.reduce((s, r) => s + Number(r.amount_received || 0), 0)
   const pendingTotal   = totalIncome - collectedTotal
   const openResiduals  = cropResiduals.filter(r => r.status === 'open')
   const sorted = [...incomeLedger].sort((a, b) => new Date(b.entry_date) - new Date(a.entry_date))
@@ -930,10 +932,15 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 }
 
 // ── Tab: Buyer Khata (Sundry Debtors — accounts receivable) ────────────────────
-function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy }) {
+function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, treeSales = [], fy }) {
   const navigate = useNavigate()
   const [activeKey, setActiveKey] = useState(null) // null = overview list
   const cropSales = sales.filter(s => s.buyerName)
+
+  // How much of a row's money has actually landed. Status alone is not enough:
+  // a part-paid deal has real cash against it that a paid/unpaid split loses.
+  const receivedOf = (r) =>
+    r.paymentStatus === 'paid' ? Number(r.netAmount || 0) : Number(r.amountReceived || 0)
 
   const sessionById = Object.fromEntries(harvestSessions.map(h => [h.id, h]))
   const cycleById    = Object.fromEntries(cropCycles.map(c => [c.id, c]))
@@ -954,7 +961,9 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy 
   buyers.filter(b => b.isActive !== false).forEach(b => {
     groups[b.id] = { key: b.id, name: b.name, rows: [] }
   })
-  cropSales.forEach(s => {
+  // Crop sales and tree deals sit in the same khata: a thekedar who leased the
+  // mangoes owes money exactly the way a grain trader does.
+  ;[...cropSales, ...treeSales.filter(s => s.buyerName)].forEach(s => {
     const key = s.buyerId || `name:${s.buyerName.trim().toLowerCase()}`
     if (!groups[key]) groups[key] = { key, name: s.buyerName, rows: [] }
     groups[key].rows.push(s)
@@ -965,12 +974,12 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy 
   // right now); Sold/Received are scoped to the selected financial year.
   const overview = parties.map(p => {
     const soldAllTime     = p.rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
-    const receivedAllTime = p.rows.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    const receivedAllTime = p.rows.reduce((s, r) => s + receivedOf(r), 0)
     return {
       party: p,
       balanceDue: soldAllTime - receivedAllTime,
       soldFY:     p.rows.filter(r => inFY(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
-      receivedFY: p.rows.filter(r => r.paymentStatus === 'paid' && inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
+      receivedFY: p.rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
@@ -978,9 +987,9 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy 
   const rowsAll = active ? [...active.rows].sort((a, b) => new Date(b.date) - new Date(a.date)) : []
   const rows    = active ? rowsAll.filter(r => inFY(r.date, fy)) : []
   const soldFY      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
-  const receivedFY  = rows.filter(r => r.paymentStatus === 'paid' && inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0)
+  const receivedFY  = rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
   const balanceDueAllTime = active
-    ? rowsAll.reduce((s, r) => s + Number(r.netAmount || 0), 0) - rowsAll.filter(r => r.paymentStatus === 'paid').reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    ? rowsAll.reduce((s, r) => s + Number(r.netAmount || 0) - receivedOf(r), 0)
     : 0
 
   const header = (
@@ -1070,7 +1079,7 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy 
 
       {balanceDueAllTime > 0 && (
         <p className="text-[10px] text-center py-2 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
-          Mark payment from the Harvest page against the specific sale to clear this balance
+          Mark payment against the specific sale to clear this balance — Harvest page for crops, Trees → Sales for tree deals
         </p>
       )}
 
@@ -1090,21 +1099,22 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, fy 
               </td></tr>
             )}
             {rows.map(r => {
-              const paid = r.paymentStatus === 'paid'
+              const paid    = r.paymentStatus === 'paid'
+              const partial = !paid && Number(r.amountReceived || 0) > 0
               return (
                 <tr key={r.id} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                   <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(r.date)}</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{cropPlotLabel(r) || '—'}</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{Number(r.qtyQtl || 0).toFixed(2)}</td>
-                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>₹{r.ratePerQtl}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{r.treeLabel || cropPlotLabel(r) || '—'}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{r.treeLabel ? '—' : Number(r.qtyQtl || 0).toFixed(2)}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{r.treeLabel ? '—' : `₹${r.ratePerQtl}`}</td>
                   <td className="px-3 py-2 font-bold" style={{ color: 'var(--c-text)' }}>{fmt(r.netAmount)}</td>
                   <td className="px-3 py-2">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
                       style={{
                         background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
                         color:      paid ? '#1D9E75'               : '#BA7517',
                       }}>
-                      {paid ? 'Received' : 'Pending'}
+                      {paid ? 'Received' : partial ? `Part — ${fmt(r.amountReceived)}` : 'Pending'}
                     </span>
                   </td>
                 </tr>
@@ -1359,6 +1369,11 @@ export default function LedgerPage() {
 
   const canManage = isManager(getActiveFarmRole())
 
+  // Tree deals are receivables like any crop sale, but they live in the lazy
+  // tree store — pulled in here so the khata and Receivables see them.
+  const { revenue: treeRevenue, species: treeSpecies, plantings: treePlantings,
+          load: loadTrees } = useTreeStore()
+
   const [tab, setTab] = useState('summary')
   const [fy, setFy] = useState(currentFY())
   const [loading, setLoading] = useState(true)
@@ -1369,7 +1384,30 @@ export default function LedgerPage() {
 
   useEffect(() => {
     loadLedgerData().finally(() => setLoading(false))
+    loadTrees().catch(() => {}) // ledger still renders if trees fail to load
   }, [])
+
+  // Tree revenue reshaped to the khata's row shape (netAmount, paymentStatus…)
+  // so BuyersTab treats a thekedar and a grain trader identically.
+  const treeKhataRows = treeRevenue.map(r => {
+    const names = [...new Set(r.plantingIds.map(id => {
+      const p  = treePlantings.find(x => x.id === id)
+      const sp = p && treeSpecies.find(x => x.id === p.speciesId)
+      return sp ? (sp.nameEn?.trim() || sp.nameLocal) : null
+    }).filter(Boolean))]
+    const kind = r.revenueType === 'timber_sale' ? '🪵 Timber sale' : '🍋 Fruit lease'
+    return {
+      id:             r.id,
+      date:           r.agreementDate || r.startDate || null,
+      buyerId:        r.buyerId,
+      buyerName:      r.buyerName || '',
+      netAmount:      r.amount,
+      amountReceived: r.amountReceived,
+      paymentStatus:  r.paymentStatus,
+      paymentDate:    r.paymentDate,
+      treeLabel:      names.length ? `${kind} — ${names.join(', ')}` : kind,
+    }
+  })
 
   // Balance-sheet facts (cash in hand, what's owed either way) are always
   // as-of-today — they must NOT be scoped to the selected financial year,
@@ -1378,9 +1416,10 @@ export default function LedgerPage() {
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
-  const totalReceivables = sales
+  // Receivable = what remains after partial payments, across crop and tree deals.
+  const totalReceivables = [...sales, ...treeKhataRows]
     .filter(s => s.paymentStatus !== 'paid')
-    .reduce((s, r) => s + Number(r.netAmount || 0), 0)
+    .reduce((s, r) => s + Math.max(0, Number(r.netAmount || 0) - Number(r.amountReceived || 0)), 0)
 
   // P&L facts (income, expenses, profit) are period-based — scoped to the
   // selected financial year.
@@ -1491,6 +1530,7 @@ export default function LedgerPage() {
           <BuyersTab
             sales={sales} buyers={buyers}
             harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
+            treeSales={treeKhataRows}
             fy={fy}
           />
         )}

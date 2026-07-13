@@ -107,6 +107,7 @@ function mapSale(s) {
     deductionsNote:        s.deductions_note || null,
     netAmount:             Math.max(0, gross - totalDeductions),
     paymentStatus:         s.payment_status || 'pending',
+    amountReceived:        Number(s.amount_received) || 0,
     paymentDate:           s.payment_date || null,
     paymentAttachmentPath: s.payment_attachment_path || null,
   }
