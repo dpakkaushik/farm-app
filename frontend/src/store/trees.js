@@ -40,10 +40,32 @@ const mapCountLog = l => ({
   notes:      l.notes,
 })
 
+// The farm leases, it does not harvest: fruit is sold on the tree for a lump sum
+// and the thekedar picks it. Timber is the same shape — a buyer, a lump sum, a
+// payment status — so one row type serves both, split by revenueType.
+const mapRevenue = r => ({
+  id:             r.id,
+  revenueType:    r.revenue_type,       // 'fruit_lease' | 'timber_sale'
+  seasonYear:     r.season_year,
+  buyerId:        r.buyer_id,
+  buyerName:      r.buyer_name,         // free text, for a thekedar not in `buyers`
+  agreementDate:  r.agreement_date,
+  startDate:      r.start_date,
+  endDate:        r.end_date,
+  amount:         Number(r.amount) || 0,
+  paymentStatus:  r.payment_status,     // 'pending' | 'partial' | 'paid'
+  amountReceived: Number(r.amount_received) || 0,
+  paymentDate:    r.payment_date,
+  attachmentPath: r.attachment_path,
+  notes:          r.notes,
+  plantingIds:    (r.tree_revenue_items || []).map(i => i.planting_id),
+})
+
 export const useTreeStore = create((set, get) => ({
   species:   [],
   plantings: [],
   countLogs: [],
+  revenue:   [],
   loading:   false,
   loaded:    false,
 
@@ -52,16 +74,19 @@ export const useTreeStore = create((set, get) => ({
     if (!farmId) return
     set({ loading: true })
     try {
-      const [{ data: sp, error: e1 }, { data: pl, error: e2 }, { data: cl, error: e3 }] = await Promise.all([
+      const [{ data: sp, error: e1 }, { data: pl, error: e2 }, { data: cl, error: e3 }, { data: rv, error: e4 }] = await Promise.all([
         supabase.from('tree_species').select('*').eq('farm_id', farmId).order('name_local'),
         supabase.from('tree_plantings').select('*, plots(name)').eq('farm_id', farmId).order('created_at'),
         supabase.from('tree_count_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
+        supabase.from('tree_revenue').select('*, tree_revenue_items(planting_id)').eq('farm_id', farmId)
+          .order('agreement_date', { ascending: false, nullsFirst: false }),
       ])
-      if (e1 || e2 || e3) throw (e1 || e2 || e3)
+      if (e1 || e2 || e3 || e4) throw (e1 || e2 || e3 || e4)
       set({
         species:   (sp || []).map(mapSpecies),
         plantings: (pl || []).map(mapPlanting),
         countLogs: (cl || []).map(mapCountLog),
+        revenue:   (rv || []).map(mapRevenue),
         loading:   false,
         loaded:    true,
       })
@@ -169,6 +194,92 @@ export const useTreeStore = create((set, get) => ({
       reason:      reason?.trim() || null,
       notes:       notes?.trim() || null,
     })
+    if (error) throw error
+    await get().load()
+  },
+
+  // ── Revenue ─────────────────────────────────────────────────────────────────
+  // A sale is the revenue row plus the plantings it covered, and — for timber that
+  // has actually been cut — the felled rows that take those trees off the books.
+  // The three must not half-land, so anything after the first insert rolls the
+  // revenue row back; deleting it cascades to the items.
+  addRevenue: async (rev) => {
+    const farmId = getFarmId()
+    const today  = new Date().toISOString().slice(0, 10)
+    const paid   = rev.paymentStatus === 'paid'
+
+    const { data, error } = await supabase.from('tree_revenue').insert({
+      farm_id:         farmId,
+      revenue_type:    rev.revenueType,
+      season_year:     rev.seasonYear || null,
+      buyer_id:        rev.buyerId || null,
+      buyer_name:      rev.buyerName?.trim() || null,
+      agreement_date:  rev.agreementDate || null,
+      start_date:      rev.startDate || null,
+      end_date:        rev.endDate || null,
+      amount:          Number(rev.amount),
+      payment_status:  rev.paymentStatus,
+      // "Paid" means the whole amount landed. Storing anything else here would let
+      // the status and the number disagree.
+      amount_received: paid ? Number(rev.amount) : (Number(rev.amountReceived) || 0),
+      payment_date:    rev.paymentDate || null,
+      notes:           rev.notes?.trim() || null,
+    }).select().single()
+    if (error) throw error
+
+    const rollback = async (err) => {
+      await supabase.from('tree_revenue').delete().eq('id', data.id)
+      throw err
+    }
+
+    const plantingIds = rev.plantingIds || []
+    if (plantingIds.length) {
+      const { error: itemError } = await supabase.from('tree_revenue_items').insert(
+        plantingIds.map(id => ({ farm_id: farmId, revenue_id: data.id, planting_id: id }))
+      )
+      if (itemError) await rollback(itemError)
+    }
+
+    // Selling standing timber and cutting it are different days. The ledger tracks
+    // what is on the ground, so it only moves when the manager says the trees came
+    // down — which is why this is application logic and not a trigger on insert.
+    if (rev.revenueType === 'timber_sale' && rev.felled && plantingIds.length) {
+      const covered = get().plantings.filter(p => plantingIds.includes(p.id) && p.count > 0)
+      if (covered.length) {
+        const { error: logError } = await supabase.from('tree_count_logs').insert(
+          covered.map(p => ({
+            farm_id:     farmId,
+            planting_id: p.id,
+            log_date:    rev.agreementDate || today,
+            change_type: 'felled',
+            quantity:    -p.count,          // the sale takes the whole planting
+            reason:      `Timber sale${rev.buyerName ? ` — ${rev.buyerName.trim()}` : ''}`,
+          }))
+        )
+        if (logError) await rollback(logError)
+      }
+    }
+
+    await get().load()
+    return data
+  },
+
+  updatePayment: async (id, { paymentStatus, amountReceived, paymentDate, amount }) => {
+    const { error } = await supabase.from('tree_revenue').update({
+      payment_status:  paymentStatus,
+      amount_received: paymentStatus === 'paid' ? Number(amount) : (Number(amountReceived) || 0),
+      payment_date:    paymentDate || null,
+    }).eq('id', id)
+    if (error) throw error
+    await get().load()
+  },
+
+  // Cascades to tree_revenue_items. Any `felled` rows it wrote are deliberately
+  // left alone: the trees really were cut, and the sale record going away does not
+  // put them back. A sale logged in error is undone in the count ledger with a
+  // `correction`, which is what that change type is for.
+  deleteRevenue: async (id) => {
+    const { error } = await supabase.from('tree_revenue').delete().eq('id', id)
     if (error) throw error
     await get().load()
   },

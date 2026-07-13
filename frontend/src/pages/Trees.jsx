@@ -5,6 +5,7 @@ import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 
 const TODAY = new Date().toISOString().slice(0, 10)
+const YEAR  = new Date().getFullYear()
 const SIDES = ['north', 'east', 'south', 'west']
 
 const CHANGE_TYPES = [
@@ -19,6 +20,22 @@ const PURPOSE = {
   fruit:  { emoji: '🍋', label: 'Fruit',  color: '#1D9E75' },
   timber: { emoji: '🪵', label: 'Timber', color: '#BA7517' },
 }
+
+// Fruit is leased on the tree, timber is sold outright, but both are one buyer and
+// one lump sum — so they are the same row, and each maps to the kind of tree it can
+// possibly cover.
+const REVENUE = {
+  fruit_lease: { emoji: '🍋', label: 'Fruit lease', color: '#1D9E75', purpose: 'fruit'  },
+  timber_sale: { emoji: '🪵', label: 'Timber sale', color: '#BA7517', purpose: 'timber' },
+}
+
+const PAY = {
+  pending: { label: 'Unpaid',    color: '#E24B4A' },
+  partial: { label: 'Part paid', color: '#BA7517' },
+  paid:    { label: 'Paid',      color: '#1D9E75' },
+}
+
+const money = n => `₹${Math.round(n || 0).toLocaleString('en-IN')}`
 
 const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
 
@@ -462,13 +479,493 @@ function SpeciesCard({ species, plantings, canEdit }) {
   )
 }
 
+// ── Sale form ─────────────────────────────────────────────────────────────────
+function SaleModal({ onClose }) {
+  const { species, plantings, addRevenue } = useTreeStore()
+  const buyers = useAppStore(s => s.buyers)
+
+  const [form, setForm] = useState({
+    revenueType: 'fruit_lease',
+    seasonYear:  String(YEAR),
+    buyerId:     '',
+    buyerName:   '',
+    agreementDate: TODAY,
+    startDate:   '',
+    endDate:     '',
+    amount:      '',
+    paymentStatus: 'pending',
+    amountReceived: '',
+    paymentDate: '',
+    plantingIds: [],
+    felled:      false,
+    notes:       '',
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const meta      = REVENUE[form.revenueType]
+  const speciesOf = id => species.find(s => s.id === id)
+
+  // A fruit lease cannot cover a teak tree. Only offer plantings of the right kind.
+  const eligible = plantings.filter(p => speciesOf(p.speciesId)?.purpose === meta.purpose)
+
+  // Switching the type invalidates the selection, so drop it rather than silently
+  // carry over plantings the new type cannot cover.
+  const setType = t => setForm(f => ({ ...f, revenueType: t, plantingIds: [], felled: false }))
+
+  const toggle = id => set('plantingIds',
+    form.plantingIds.includes(id)
+      ? form.plantingIds.filter(x => x !== id)
+      : [...form.plantingIds, id])
+
+  const chosen    = eligible.filter(p => form.plantingIds.includes(p.id))
+  const treeCount = chosen.reduce((s, p) => s + p.count, 0)
+
+  async function save() {
+    if (!form.amount || Number(form.amount) <= 0) return alert('How much is the deal worth?')
+    if (!form.plantingIds.length)                 return alert('Which trees does this cover?')
+    if (!form.buyerId && !form.buyerName.trim())  return alert('Who is the buyer?')
+    if (form.paymentStatus === 'partial' &&
+        (!form.amountReceived || Number(form.amountReceived) <= 0))
+      return alert('How much has been received so far?')
+    if (Number(form.amountReceived) > Number(form.amount))
+      return alert('Received is more than the deal amount. Check the numbers.')
+
+    setSaving(true)
+    try {
+      // A picked buyer wins; the free-text box is only for a thekedar who is not in
+      // the buyer list yet. Either way the row carries a readable name.
+      const name = form.buyerId
+        ? (buyers.find(b => b.id === form.buyerId)?.name || '')
+        : form.buyerName
+      await addRevenue({ ...form, buyerName: name, seasonYear: parseInt(form.seasonYear, 10) || null })
+      onClose()
+    } catch (e) { alert('Save failed: ' + e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Modal title="Record a sale" onClose={onClose}>
+      <FRow label="What kind">
+        <Choice
+          options={[['fruit_lease', '🍋 Fruit lease'], ['timber_sale', '🪵 Timber sale']]}
+          value={form.revenueType} onChange={setType} />
+      </FRow>
+
+      <FRow label="Buyer">
+        <select className={inp} value={form.buyerId}
+          onChange={e => set('buyerId', e.target.value)}>
+          <option value="">— someone else —</option>
+          {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+      </FRow>
+      {!form.buyerId && (
+        <FRow label="Buyer name">
+          <input className={inp} placeholder="e.g. Ramesh thekedar" value={form.buyerName}
+            onChange={e => set('buyerName', e.target.value)} />
+        </FRow>
+      )}
+
+      <FRow label={`Which trees (${eligible.length ? `${chosen.length} of ${eligible.length} selected` : 'none available'})`}>
+        {eligible.length === 0 ? (
+          <p className="text-xs px-1 py-2" style={{ color: 'var(--c-muted)' }}>
+            No {meta.purpose} trees on the farm yet.
+          </p>
+        ) : (
+          <div className="space-y-1.5 max-h-52 overflow-y-auto">
+            {eligible.map(p => {
+              const on = form.plantingIds.includes(p.id)
+              const sp = speciesOf(p.speciesId)
+              const where = p.locationType === 'plot'
+                ? (p.plotName || 'Plot')
+                : ['Boundary', p.plotName].filter(Boolean).join(' — ')
+              return (
+                <button key={p.id} onClick={() => toggle(p.id)}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left"
+                  style={{
+                    background: on ? '#1D9E7514' : 'var(--c-ghost)',
+                    border: `1px solid ${on ? '#1D9E75' : 'var(--c-border)'}`,
+                  }}>
+                  <span className="text-xs" style={{ color: on ? '#1D9E75' : 'var(--c-faint)' }}>
+                    {on ? '☑' : '☐'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate" style={{ color: 'var(--c-text)' }}>
+                      {sp ? displayName(sp) : 'Tree'}
+                      {p.notes && <span className="ml-1 font-normal" style={{ color: 'var(--c-muted)' }}>({p.notes})</span>}
+                    </p>
+                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{where}</p>
+                  </div>
+                  <span className="text-xs font-bold shrink-0" style={{ color: meta.color }}>{p.count}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </FRow>
+
+      {treeCount > 0 && (
+        <p className="text-[10px] px-1 -mt-1" style={{ color: 'var(--c-muted)' }}>
+          Covers <b style={{ color: 'var(--c-text)' }}>{treeCount.toLocaleString('en-IN')}</b> trees
+        </p>
+      )}
+
+      <FRow label="Season (year)">
+        <input type="number" className={inp} value={form.seasonYear}
+          onChange={e => set('seasonYear', e.target.value)} />
+      </FRow>
+
+      <FRow label="Amount (₹)">
+        <input type="number" min="0" className={inp} placeholder="e.g. 45000" value={form.amount}
+          onChange={e => set('amount', e.target.value)} />
+      </FRow>
+
+      <FRow label="Agreement date">
+        <input type="date" max={TODAY} className={inp} value={form.agreementDate}
+          onChange={e => set('agreementDate', e.target.value)} />
+      </FRow>
+
+      {form.revenueType === 'fruit_lease' && (
+        <div className="grid grid-cols-2 gap-2">
+          <FRow label="Season from">
+            <input type="date" className={inp} value={form.startDate}
+              onChange={e => set('startDate', e.target.value)} />
+          </FRow>
+          <FRow label="Season to">
+            <input type="date" className={inp} value={form.endDate}
+              onChange={e => set('endDate', e.target.value)} />
+          </FRow>
+        </div>
+      )}
+
+      <FRow label="Payment">
+        <Choice
+          options={[['pending', 'Unpaid'], ['partial', 'Part paid'], ['paid', 'Paid']]}
+          value={form.paymentStatus}
+          onChange={v => setForm(f => ({
+            ...f,
+            paymentStatus: v,
+            paymentDate: v === 'pending' ? '' : (f.paymentDate || TODAY),
+          }))} />
+      </FRow>
+
+      {form.paymentStatus === 'partial' && (
+        <FRow label="Received so far (₹)">
+          <input type="number" min="0" className={inp} value={form.amountReceived}
+            onChange={e => set('amountReceived', e.target.value)} />
+        </FRow>
+      )}
+      {form.paymentStatus !== 'pending' && (
+        <FRow label="Payment date">
+          <input type="date" max={TODAY} className={inp} value={form.paymentDate}
+            onChange={e => set('paymentDate', e.target.value)} />
+        </FRow>
+      )}
+
+      {/* Selling standing timber and cutting it are different days. Default off, so
+          the count only drops when the manager says the trees actually came down. */}
+      {form.revenueType === 'timber_sale' && treeCount > 0 && (
+        <button onClick={() => set('felled', !form.felled)}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left"
+          style={{
+            background: form.felled ? '#BA751714' : 'var(--c-ghost)',
+            border: `1px solid ${form.felled ? '#BA7517' : 'var(--c-border)'}`,
+          }}>
+          <span className="text-sm" style={{ color: form.felled ? '#BA7517' : 'var(--c-faint)' }}>
+            {form.felled ? '☑' : '☐'}
+          </span>
+          <div className="flex-1">
+            <p className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
+              🪓 Trees have already been cut
+            </p>
+            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+              {form.felled
+                ? `Removes ${treeCount.toLocaleString('en-IN')} trees from the count now`
+                : 'Leave off if the timber is sold but still standing'}
+            </p>
+          </div>
+        </button>
+      )}
+
+      <FRow label="Notes (optional)">
+        <textarea className={inp} rows={2} value={form.notes}
+          onChange={e => set('notes', e.target.value)} />
+      </FRow>
+
+      <button onClick={save} disabled={saving}
+        className="w-full py-3 rounded-xl font-semibold text-sm text-white"
+        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        {saving ? 'Saving…' : 'Record sale'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Payment update ────────────────────────────────────────────────────────────
+function PaymentModal({ sale, onClose }) {
+  const updatePayment = useTreeStore(s => s.updatePayment)
+  const [form, setForm] = useState({
+    paymentStatus:  sale.paymentStatus,
+    amountReceived: sale.amountReceived || '',
+    paymentDate:    sale.paymentDate || TODAY,
+  })
+  const [saving, setSaving] = useState(false)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  async function save() {
+    if (form.paymentStatus === 'partial') {
+      const n = Number(form.amountReceived)
+      if (!n || n <= 0)          return alert('How much has been received?')
+      if (n > sale.amount)       return alert('Received is more than the deal amount.')
+    }
+    setSaving(true)
+    try {
+      await updatePayment(sale.id, { ...form, amount: sale.amount })
+      onClose()
+    } catch (e) { alert('Save failed: ' + e.message) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <Modal title="Update payment" onClose={onClose}>
+      <p className="text-xs px-1" style={{ color: 'var(--c-muted)' }}>
+        Deal is worth <b style={{ color: 'var(--c-text)' }}>{money(sale.amount)}</b>
+      </p>
+
+      <FRow label="Status">
+        <Choice
+          options={[['pending', 'Unpaid'], ['partial', 'Part paid'], ['paid', 'Paid']]}
+          value={form.paymentStatus}
+          onChange={v => setForm(f => ({
+            ...f,
+            paymentStatus: v,
+            paymentDate: v === 'pending' ? '' : (f.paymentDate || TODAY),
+          }))} />
+      </FRow>
+
+      {form.paymentStatus === 'partial' && (
+        <FRow label="Received so far (₹)">
+          <input type="number" min="0" className={inp} value={form.amountReceived}
+            onChange={e => set('amountReceived', e.target.value)} />
+        </FRow>
+      )}
+      {form.paymentStatus !== 'pending' && (
+        <FRow label="Payment date">
+          <input type="date" max={TODAY} className={inp} value={form.paymentDate}
+            onChange={e => set('paymentDate', e.target.value)} />
+        </FRow>
+      )}
+
+      <button onClick={save} disabled={saving}
+        className="w-full py-3 rounded-xl font-semibold text-sm text-white"
+        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Sale row ──────────────────────────────────────────────────────────────────
+function SaleRow({ sale, canEdit }) {
+  const { species, plantings, deleteRevenue } = useTreeStore()
+  const [open, setOpen] = useState(false)
+  const [pay, setPay]   = useState(false)
+
+  const meta   = REVENUE[sale.revenueType] || REVENUE.fruit_lease
+  const status = PAY[sale.paymentStatus]   || PAY.pending
+
+  const covered = plantings.filter(p => sale.plantingIds.includes(p.id))
+  const names   = [...new Set(covered.map(p => {
+    const sp = species.find(s => s.id === p.speciesId)
+    return sp ? displayName(sp) : 'Tree'
+  }))]
+  const outstanding = sale.amount - sale.amountReceived
+
+  async function remove() {
+    if (!confirm(`Delete this ${meta.label.toLowerCase()} of ${money(sale.amount)}? Any felled trees stay felled.`)) return
+    try { await deleteRevenue(sale.id) } catch (e) { alert(e.message) }
+  }
+
+  return (
+    <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
+      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center gap-3 p-4 text-left">
+        <span className="text-xl shrink-0">{meta.emoji}</span>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>
+            {sale.buyerName || 'Buyer not named'}
+          </p>
+          <p className="text-[10px] truncate" style={{ color: 'var(--c-muted)' }}>
+            {meta.label}{sale.seasonYear ? ` · ${sale.seasonYear}` : ''}
+            {names.length ? ` · ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}` : ''}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{money(sale.amount)}</p>
+          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+            style={{ background: `${status.color}18`, color: status.color }}>
+            {status.label}
+          </span>
+        </div>
+        {open ? <ChevronDown size={15} style={{ color: 'var(--c-muted)' }} />
+              : <ChevronRight size={15} style={{ color: 'var(--c-muted)' }} />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2.5 border-t pt-3" style={{ borderColor: 'var(--c-border)' }}>
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {sale.agreementDate && (
+              <div><span style={{ color: 'var(--c-muted)' }}>Agreed </span>
+                <span style={{ color: 'var(--c-text)' }}>{sale.agreementDate}</span></div>
+            )}
+            {(sale.startDate || sale.endDate) && (
+              <div><span style={{ color: 'var(--c-muted)' }}>Season </span>
+                <span style={{ color: 'var(--c-text)' }}>{sale.startDate || '?'} → {sale.endDate || '?'}</span></div>
+            )}
+            {sale.amountReceived > 0 && (
+              <div><span style={{ color: 'var(--c-muted)' }}>Received </span>
+                <span style={{ color: '#1D9E75' }}>{money(sale.amountReceived)}</span></div>
+            )}
+            {outstanding > 0 && (
+              <div><span style={{ color: 'var(--c-muted)' }}>Outstanding </span>
+                <span style={{ color: '#E24B4A' }}>{money(outstanding)}</span></div>
+            )}
+            {sale.paymentDate && (
+              <div><span style={{ color: 'var(--c-muted)' }}>Paid on </span>
+                <span style={{ color: 'var(--c-text)' }}>{sale.paymentDate}</span></div>
+            )}
+          </div>
+
+          {covered.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>
+                Trees covered
+              </p>
+              {covered.map(p => {
+                const sp = species.find(s => s.id === p.speciesId)
+                return (
+                  <div key={p.id} className="flex items-center gap-2 text-[11px]">
+                    <span style={{ color: 'var(--c-text)' }}>{sp ? displayName(sp) : 'Tree'}</span>
+                    {p.notes && <span style={{ color: 'var(--c-muted)' }}>({p.notes})</span>}
+                    <span className="ml-auto font-semibold" style={{ color: 'var(--c-muted)' }}>{p.count} standing</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {sale.notes && (
+            <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>{sale.notes}</p>
+          )}
+
+          {canEdit && (
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setPay(true)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold border"
+                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                Update payment
+              </button>
+              <button onClick={remove} className="px-3 py-2 rounded-xl border"
+                style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {pay && <PaymentModal sale={sale} onClose={() => setPay(false)} />}
+    </div>
+  )
+}
+
+// ── Sales tab ─────────────────────────────────────────────────────────────────
+function SalesTab({ canEdit }) {
+  const revenue = useTreeStore(s => s.revenue)
+  const [newSale, setNew] = useState(false)
+  const [filter, setFilter] = useState('all')
+
+  const shown = revenue.filter(r => filter === 'all' || r.revenueType === filter)
+
+  const earned    = revenue.reduce((s, r) => s + r.amount, 0)
+  const received  = revenue.reduce((s, r) => s + r.amountReceived, 0)
+  const owed      = earned - received
+
+  return (
+    <>
+      {revenue.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            ['Agreed',      earned,   'var(--c-text)'],
+            ['Received',    received, '#1D9E75'],
+            ['Outstanding', owed,     owed > 0 ? '#E24B4A' : 'var(--c-muted)'],
+          ].map(([label, val, color]) => (
+            <div key={label} className="rounded-xl border p-3"
+              style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
+              <p className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+              <p className="text-sm font-bold mt-0.5" style={{ color }}>{money(val)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {revenue.length > 0 && (
+        <FilterChips value={filter} onChange={setFilter}
+          options={[['all', 'All'], ['fruit_lease', '🍋 Leases'], ['timber_sale', '🪵 Timber']]} />
+      )}
+
+      {shown.length === 0 && (
+        <p className="text-center text-sm py-8" style={{ color: 'var(--c-muted)' }}>
+          {revenue.length === 0 ? 'No sales recorded yet' : 'Nothing of this kind'}
+        </p>
+      )}
+
+      {shown.map(r => <SaleRow key={r.id} sale={r} canEdit={canEdit} />)}
+
+      {canEdit && (
+        <button onClick={() => setNew(true)}
+          className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
+          style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+          <Plus size={15} /> Record a sale
+        </button>
+      )}
+
+      {newSale && <SaleModal onClose={() => setNew(false)} />}
+    </>
+  )
+}
+
+// ── Filter chips ──────────────────────────────────────────────────────────────
+// A filter, not a tab: it narrows one list rather than switching between screens.
+// Small and inline, so the tab bar above stays free for Trees / Sales.
+function FilterChips({ options, value, onChange }) {
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {options.map(([k, label]) => {
+        const on = value === k
+        return (
+          <button key={k} onClick={() => onChange(k)}
+            className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
+            style={{
+              background: on ? '#1D9E75' : 'var(--c-ghost)',
+              color:      on ? '#fff'    : 'var(--c-muted)',
+              border:    `1px solid ${on ? '#1D9E75' : 'var(--c-border)'}`,
+            }}>
+            {label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Trees() {
   const { species, plantings, loading, loaded, load } = useTreeStore()
   const { farms, activeFarmId } = useAuthStore()
   const canEdit = isManager(farms.find(f => f.farm_id === activeFarmId)?.role)
 
-  const [filter, setFilter]     = useState('all')
+  const [tab, setTab]           = useState('trees')   // 'trees' | 'sales'
+  const [filter, setFilter]     = useState('all')     // fruit / timber, within the trees tab
   const [newSpecies, setNew]    = useState(false)
   const [error, setError]       = useState(null)
 
@@ -503,11 +1000,11 @@ export default function Trees() {
         </div>
 
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-          {[['all', 'All'], ['fruit', '🍋 Fruiting'], ['timber', '🪵 Timber']].map(([k, label]) => (
-            <button key={k} onClick={() => setFilter(k)}
+          {[['trees', 'Trees'], ['sales', 'Sales']].map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k)}
               className="flex-1 py-2 text-xs font-semibold transition-colors"
-              style={{ background: filter === k ? '#1D9E75' : 'var(--c-ghost)',
-                       color:      filter === k ? '#fff'    : 'var(--c-muted)' }}>
+              style={{ background: tab === k ? '#1D9E75' : 'var(--c-ghost)',
+                       color:      tab === k ? '#fff'    : 'var(--c-muted)' }}>
               {label}
             </button>
           ))}
@@ -523,21 +1020,35 @@ export default function Trees() {
         {!error && loading && !loaded && (
           <p className="text-center text-sm py-8" style={{ color: 'var(--c-muted)' }}>Loading…</p>
         )}
-        {!error && loaded && shown.length === 0 && (
-          <p className="text-center text-sm py-8" style={{ color: 'var(--c-muted)' }}>No trees yet</p>
+
+        {!error && loaded && tab === 'trees' && (
+          <>
+            {species.length > 0 && (
+              <FilterChips value={filter} onChange={setFilter}
+                options={[['all', 'All'], ['fruit', '🍋 Fruiting'], ['timber', '🪵 Timber']]} />
+            )}
+
+            {shown.length === 0 && (
+              <p className="text-center text-sm py-8" style={{ color: 'var(--c-muted)' }}>
+                {species.length === 0 ? 'No trees yet' : 'No trees of this kind'}
+              </p>
+            )}
+
+            {shown.map(s => (
+              <SpeciesCard key={s.id} species={s} plantings={plantingsOf(s.id)} canEdit={canEdit} />
+            ))}
+
+            {canEdit && (
+              <button onClick={() => setNew(true)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
+                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                <Plus size={15} /> Add a tree
+              </button>
+            )}
+          </>
         )}
 
-        {shown.map(s => (
-          <SpeciesCard key={s.id} species={s} plantings={plantingsOf(s.id)} canEdit={canEdit} />
-        ))}
-
-        {canEdit && !error && (
-          <button onClick={() => setNew(true)}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-            style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
-            <Plus size={15} /> Add a tree
-          </button>
-        )}
+        {!error && loaded && tab === 'sales' && <SalesTab canEdit={canEdit} />}
       </div>
 
       {newSpecies && <SpeciesModal onClose={() => setNew(false)} />}
