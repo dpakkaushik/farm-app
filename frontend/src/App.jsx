@@ -105,7 +105,8 @@ export default function App() {
 
       {/* Top bar — profile menu only; farm switching, admin, theme, logout all live in its drawer */}
       <div className="shrink-0 flex items-center px-3 py-1.5 border-b"
-        style={{ background: '#1D9E75', borderColor: 'rgba(255,255,255,0.15)' }}>
+        style={{ background: '#1D9E75', borderColor: 'rgba(255,255,255,0.15)',
+                 paddingTop: 'calc(0.375rem + env(safe-area-inset-top, 0px))' }}>
         <ProfileMenu />
       </div>
 
@@ -136,7 +137,8 @@ export default function App() {
 
       {/* Bottom nav — same 4 tabs for every role; everything else lives in the profile drawer */}
       <nav className="flex shrink-0 border-t"
-        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)',
+                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}>
         {NAV.map(({ to, label, Icon }) => (
           <NavLink key={to} to={to} className="flex-1">
             {({ isActive }) => (

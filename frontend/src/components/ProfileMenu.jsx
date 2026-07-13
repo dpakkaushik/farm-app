@@ -84,7 +84,8 @@ export default function ProfileMenu() {
       {/* Sliding drawer */}
       <div
         className={`fixed top-0 bottom-0 left-0 z-[61] flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: '85%', maxWidth: '340px', background: 'var(--c-nav)' }}>
+        style={{ width: '85%', maxWidth: '340px', background: 'var(--c-nav)',
+                 paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: 'var(--c-border-md)' }}>
