@@ -291,6 +291,25 @@ const useAuthStore = create((set, get) => ({
     return invite.farms
   },
 
+  // ── Own profile (self-service) ────────────────────────────────────────────
+  // RLS profiles_update allows a user to write their own row — no admin needed.
+  updateMyProfile: async ({ full_name, phone, avatar_url }) => {
+    const { user } = get()
+    if (!user) throw new Error('Not logged in')
+
+    const updates = {}
+    if (full_name  !== undefined) updates.full_name  = full_name.trim()
+    if (phone      !== undefined) updates.phone      = phone.trim()
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url
+
+    const { data, error } = await supabase
+      .from('user_profiles').update(updates).eq('id', user.id).select().single()
+    if (error) throw error
+
+    set({ profile: data })
+    return data
+  },
+
   // ── User management (admin panel — all users across platform) ─────────────
   loadUsers: async () => {
     const { data } = await supabase

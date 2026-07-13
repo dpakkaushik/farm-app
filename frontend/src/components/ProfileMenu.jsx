@@ -88,16 +88,19 @@ export default function ProfileMenu() {
 
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: 'var(--c-border-md)' }}>
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg shrink-0"
+          <button onClick={() => go('/profile')} className="flex items-center gap-3 min-w-0 text-left">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden"
               style={{ background: '#1D9E75', color: '#fff' }}>
-              {initial}
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                : initial}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold truncate" style={{ color: 'var(--c-text)' }}>{profile?.full_name || 'You'}</p>
               <p className="text-[11px] truncate" style={{ color: 'var(--c-muted)' }}>{profile?.email}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: '#1D9E75' }}>Edit profile →</p>
             </div>
-          </div>
+          </button>
           <button onClick={() => setOpen(false)}
             className="w-7 h-7 flex items-center justify-center rounded-full shrink-0"
             style={{ color: 'var(--c-muted)' }}>

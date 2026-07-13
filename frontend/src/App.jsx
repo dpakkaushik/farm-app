@@ -17,6 +17,7 @@ import LedgerPage    from './pages/LedgerPage'
 import FarmOnboarding from './pages/FarmOnboarding'
 import FarmSettings  from './pages/FarmSettings'
 import AcceptInvite  from './pages/AcceptInvite'
+import Profile       from './pages/Profile'
 import SuperAdmin    from './pages/SuperAdmin'
 import ProfileMenu   from './components/ProfileMenu'
 
@@ -79,6 +80,11 @@ export default function App() {
   if (loading) return <LoadingScreen />
   if (!user || !profile) return <Login />
 
+  // Invited users arrive with only an email — no name, no mobile. Ask once,
+  // before they can enter, so their name (not their email) appears on the
+  // activity they log. Catches anyone who slipped in without a profile too.
+  if (!profile.full_name || !profile.phone) return <Profile mustComplete />
+
   // New user — no farms yet → onboarding
   if (farms.length === 0) return <FarmOnboarding />
 
@@ -105,6 +111,7 @@ export default function App() {
           <Route path="/livestock"    element={<Livestock />} />
           <Route path="/ledger"       element={<LedgerPage />} />
           <Route path="/media"        element={<Media />} />
+          <Route path="/profile"      element={<Profile />} />
           <Route path="/settings"     element={admin ? <FarmSettings /> : <Navigate to="/field" replace />} />
           <Route path="/super-admin"  element={profile?.is_super_admin ? <SuperAdmin /> : <Navigate to="/field" replace />} />
           <Route path="/admin"        element={admin ? <Admin /> : <Navigate to="/field" replace />} />
