@@ -13,6 +13,7 @@ import Login         from './pages/Login'
 import ResourcesPage from './pages/ResourcesPage'
 import ReportsPage   from './pages/ReportsPage'
 import Livestock     from './pages/Livestock'
+import Trees         from './pages/Trees'
 import LedgerPage    from './pages/LedgerPage'
 import FarmOnboarding from './pages/FarmOnboarding'
 import FarmSettings  from './pages/FarmSettings'
@@ -119,6 +120,7 @@ export default function App() {
           <Route path="/labour"       element={<Labour />} />
           <Route path="/reports"      element={<ReportsPage />} />
           <Route path="/livestock"    element={<Livestock />} />
+          <Route path="/trees"        element={<Trees />} />
           <Route path="/ledger"       element={<LedgerPage />} />
           <Route path="/media"        element={<Media />} />
           <Route path="/profile"      element={<Profile />} />

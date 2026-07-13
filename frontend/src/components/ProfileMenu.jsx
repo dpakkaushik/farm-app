@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, Bird, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/resources', label: 'Resources', Icon: Package    },
   { to: '/labour',     label: 'People',    Icon: Users      },
   { to: '/livestock',  label: 'Livestock', Icon: Bird       },
+  { to: '/trees',      label: 'Trees',     Icon: TreePine   },
   { to: '/reports',    label: 'Reports',   Icon: BarChart3  },
 ]
 
