@@ -82,8 +82,20 @@ function createHatchCanvas() {
   for (let i = -size; i <= 2 * size; i += 6) {
     ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + size, size); ctx.stroke()
   }
-  return canvas
+  // ImageData, not the canvas element. map.addImage() takes ImageData /
+  // HTMLImageElement / ImageBitmap and throws on anything else — and a throw here
+  // aborts the rest of the layer setup, which is how the tree dots spent two
+  // sessions never being added to the map at all.
+  return ctx.getImageData(0, 0, size, size)
 }
+
+// Fruit vs timber, told by shape as well as colour — a round canopy against a
+// conifer. At 11px on a satellite photo, colour alone is not a distinction anyone
+// can rely on; the silhouette is what actually reads.
+const FRUIT_ICON =
+  `<svg width="10" height="12" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><circle cx="5" cy="4" r="3.6" fill="#4ADE80" stroke="rgba(0,0,0,0.5)" stroke-width="0.6"/><rect x="4.2" y="6.6" width="1.6" height="5" rx="0.6" fill="#4ADE80"/></svg>`
+const TIMBER_ICON =
+  `<svg width="10" height="12" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><path d="M5 0.6 8.8 7.2 1.2 7.2Z" fill="#C08B4A" stroke="rgba(0,0,0,0.5)" stroke-width="0.6" stroke-linejoin="round"/><rect x="4.2" y="7" width="1.6" height="4.6" rx="0.6" fill="#C08B4A"/></svg>`
 
 function getCentroid(feature) {
   const coords = feature?.geometry?.coordinates?.[0]
@@ -446,18 +458,10 @@ export default function Field() {
     map.current.addSource('plots', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'plot-fill',    type:'fill',   source:'plots', paint:{ 'fill-color':['get','color'], 'fill-opacity':1 } })
     map.current.addLayer({ id:'plot-outline', type:'line',   source:'plots', paint:{ 'line-color':['get','outline'], 'line-width':1.8, 'line-opacity':0.95 } })
-    // Diagonal stripe overlay for mixed-crop plots
-    map.current.addImage('mixed-hatch', createHatchCanvas())
-    map.current.addLayer({ id:'plot-hatch', type:'fill', source:'plots',
-      filter: ['==', ['get', 'is_mixed'], true],
-      paint:  { 'fill-pattern': 'mixed-hatch' },
-    })
     // Trees. These dots are synthesized from a planting's count and location, not
     // surveyed, so they are meant to read as texture ("trees are along here"), never
-    // as pins ("this tree is here"). The first cut leaned so far into that — 1px,
-    // 55% opacity — that green dots on a green satellite tile were invisible, which
-    // is a worse lie than being slightly too bold. A dark halo does the restraint
-    // instead: the dots stay small, but they separate from the imagery.
+    // as pins ("this tree is here"). Green for fruit, brown for timber — the colour
+    // is carried per-feature, from the species.
     map.current.addSource('trees', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'tree-dots', type:'circle', source:'trees',
       paint: {
@@ -468,6 +472,15 @@ export default function Field() {
         'circle-stroke-color': 'rgba(0,0,0,0.65)',
       },
     })
+    // Diagonal stripe overlay for mixed-crop plots. Purely decorative, and it lives
+    // last and inside a try: nothing else on this map should ever die with it.
+    try {
+      map.current.addImage('mixed-hatch', createHatchCanvas())
+      map.current.addLayer({ id:'plot-hatch', type:'fill', source:'plots',
+        filter: ['==', ['get', 'is_mixed'], true],
+        paint:  { 'fill-pattern': 'mixed-hatch' },
+      })
+    } catch (_) {}
     // labels rendered as HTML markers — no glyph server dependency
     map.current.on('click', 'plot-fill', (e) => {
       const raw = e.features[0]?.properties?.__raw
@@ -492,8 +505,14 @@ export default function Field() {
       el.style.pointerEvents = 'none'
       el.style.textAlign = 'center'
       const t = treeByPlotRef.current[p.id]
-      const treeBadge = t
-        ? `<div style="margin-top:2px;display:inline-flex;align-items:center;gap:3px;background:rgba(20,60,35,0.85);border:1px solid rgba(74,222,128,0.45);border-radius:999px;padding:1px 6px"><span style="font-size:9px">🌳</span><span style="color:#86EFAC;font-size:10px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.3">${t.total.toLocaleString('en-IN')}</span></div>`
+      const seg = (icon, n, color) =>
+        `<span style="display:inline-flex;align-items:center;gap:2px">${icon}<span style="color:${color};font-size:10px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.3">${n.toLocaleString('en-IN')}</span></span>`
+      const parts = t
+        ? [ t.fruit  ? seg(FRUIT_ICON,  t.fruit,  '#86EFAC') : '',
+            t.timber ? seg(TIMBER_ICON, t.timber, '#E0B080') : '' ].filter(Boolean)
+        : []
+      const treeBadge = parts.length
+        ? `<div style="margin-top:2px;display:inline-flex;align-items:center;gap:5px;background:rgba(0,0,0,0.72);border:1px solid rgba(255,255,255,0.22);border-radius:999px;padding:1.5px 7px">${parts.join('<span style="width:1px;height:9px;background:rgba(255,255,255,0.2)"></span>')}</div>`
         : ''
       el.innerHTML = `<div style="white-space:nowrap"><div style="background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 6px;border:1px solid rgba(255,255,255,0.18)"><span style="color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;display:block;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,1)">${p.label}</span>${p.sub_label ? `<span style="color:rgba(255,255,255,0.82);font-size:10px;font-family:system-ui,sans-serif;display:block;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,1)">${p.sub_label}</span>` : ''}</div>${treeBadge}</div>`
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
@@ -764,11 +783,11 @@ export default function Field() {
               Trees · {treeTotals.total.toLocaleString('en-IN')}
             </p>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block border border-black/40 shrink-0" style={{ background:'#4ADE80' }}/>
+              <span className="shrink-0" dangerouslySetInnerHTML={{ __html: FRUIT_ICON }}/>
               <span className="text-white/80">Fruit · {treeTotals.fruit.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full inline-block border border-black/40 shrink-0" style={{ background:'#C08B4A' }}/>
+              <span className="shrink-0" dangerouslySetInnerHTML={{ __html: TIMBER_ICON }}/>
               <span className="text-white/80">Timber · {treeTotals.timber.toLocaleString('en-IN')}</span>
             </div>
           </div>
