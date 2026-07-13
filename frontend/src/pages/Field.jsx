@@ -400,6 +400,42 @@ export default function Field() {
     map.current?.getSource('trees')?.setData(treeDots)
   }, [treeDots])
 
+  // Trees per plot, for the badge on the plot label.
+  //
+  // The dots are a nice-to-have; this is the guarantee. Dots are synthesized
+  // geometry drawn through a GeoJSON layer, and if anything in that path is off the
+  // map silently shows nothing. The count is a number attached to the plot label,
+  // which is an HTML marker — the same mechanism that already puts "Plot F" on the
+  // map. If the label renders, the tree count renders with it.
+  const treeByPlot = useMemo(() => {
+    const speciesById = Object.fromEntries(treeSpecies.map(s => [s.id, s]))
+    const acc = {}
+    for (const p of treePlantings) {
+      if (!p.plotId || !p.count) continue
+      const sp = speciesById[p.speciesId]
+      const e = acc[p.plotId] || (acc[p.plotId] = { total: 0, fruit: 0, timber: 0, names: [] })
+      e.total += p.count
+      if (sp?.purpose === 'timber') e.timber += p.count
+      else                          e.fruit  += p.count
+      if (sp) e.names.push(`${sp.nameEn || sp.nameLocal} ${p.count}`)
+    }
+    return acc
+  }, [treePlantings, treeSpecies])
+
+  const treeTotals = useMemo(() => {
+    const t = Object.values(treeByPlot).reduce(
+      (a, e) => ({ fruit: a.fruit + e.fruit, timber: a.timber + e.timber }), { fruit: 0, timber: 0 }
+    )
+    return { ...t, total: t.fruit + t.timber }
+  }, [treeByPlot])
+
+  // Labels are drawn from the map's load handler too, so the same ref trick applies.
+  const treeByPlotRef = useRef(treeByPlot)
+  useEffect(() => {
+    treeByPlotRef.current = treeByPlot
+    if (map.current?.getSource('plots')) refreshLabels(livePlots)
+  }, [treeByPlot])
+
   const addPlotLayers = () => {
     map.current.addSource('farm-boundary', { type:'geojson', data:{
       type:'Feature', geometry:{ type:'Polygon', coordinates:[FARM_BOUNDARY_COORDS] }
@@ -416,16 +452,20 @@ export default function Field() {
       filter: ['==', ['get', 'is_mixed'], true],
       paint:  { 'fill-pattern': 'mixed-hatch' },
     })
-    // Trees. Deliberately small, soft and translucent: these dots are synthesized
-    // from a planting's count and location, not surveyed. They must read as
-    // texture ("trees are along here"), never as pins ("this tree is here").
+    // Trees. These dots are synthesized from a planting's count and location, not
+    // surveyed, so they are meant to read as texture ("trees are along here"), never
+    // as pins ("this tree is here"). The first cut leaned so far into that — 1px,
+    // 55% opacity — that green dots on a green satellite tile were invisible, which
+    // is a worse lie than being slightly too bold. A dark halo does the restraint
+    // instead: the dots stay small, but they separate from the imagery.
     map.current.addSource('trees', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'tree-dots', type:'circle', source:'trees',
       paint: {
         'circle-color': ['get', 'color'],
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 1, 16, 2.4, 19, 5],
-        'circle-opacity': 0.55,
-        'circle-stroke-width': 0,
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2, 16, 4, 19, 7],
+        'circle-opacity': 0.95,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': 'rgba(0,0,0,0.65)',
       },
     })
     // labels rendered as HTML markers — no glyph server dependency
@@ -451,7 +491,11 @@ export default function Field() {
       const el = document.createElement('div')
       el.style.pointerEvents = 'none'
       el.style.textAlign = 'center'
-      el.innerHTML = `<div style="background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 6px;border:1px solid rgba(255,255,255,0.18);white-space:nowrap"><span style="color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;display:block;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,1)">${p.label}</span>${p.sub_label ? `<span style="color:rgba(255,255,255,0.82);font-size:10px;font-family:system-ui,sans-serif;display:block;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,1)">${p.sub_label}</span>` : ''}</div>`
+      const t = treeByPlotRef.current[p.id]
+      const treeBadge = t
+        ? `<div style="margin-top:2px;display:inline-flex;align-items:center;gap:3px;background:rgba(20,60,35,0.85);border:1px solid rgba(74,222,128,0.45);border-radius:999px;padding:1px 6px"><span style="font-size:9px">🌳</span><span style="color:#86EFAC;font-size:10px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.3">${t.total.toLocaleString('en-IN')}</span></div>`
+        : ''
+      el.innerHTML = `<div style="white-space:nowrap"><div style="background:rgba(0,0,0,0.6);border-radius:6px;padding:2px 6px;border:1px solid rgba(255,255,255,0.18)"><span style="color:#fff;font-size:12px;font-weight:700;font-family:system-ui,sans-serif;display:block;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,1)">${p.label}</span>${p.sub_label ? `<span style="color:rgba(255,255,255,0.82);font-size:10px;font-family:system-ui,sans-serif;display:block;line-height:1.2;text-shadow:0 1px 2px rgba(0,0,0,1)">${p.sub_label}</span>` : ''}</div>${treeBadge}</div>`
       const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat(center)
         .addTo(map.current)
@@ -713,6 +757,22 @@ export default function Field() {
             <span className="text-white/80">{label}</span>
           </div>
         ))}
+
+        {treeTotals.total > 0 && (
+          <div className="pt-2 mt-1 border-t border-white/10 space-y-1.5">
+            <p className="text-white/40 text-[10px] uppercase tracking-wide">
+              Trees · {treeTotals.total.toLocaleString('en-IN')}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full inline-block border border-black/40 shrink-0" style={{ background:'#4ADE80' }}/>
+              <span className="text-white/80">Fruit · {treeTotals.fruit.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full inline-block border border-black/40 shrink-0" style={{ background:'#C08B4A' }}/>
+              <span className="text-white/80">Timber · {treeTotals.timber.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {selectedPlot && <PlotDetailPanel plot={selectedPlot} onClose={() => setSelectedPlot(null)} />}
