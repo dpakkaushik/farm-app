@@ -18,6 +18,7 @@ import FarmOnboarding from './pages/FarmOnboarding'
 import FarmSettings  from './pages/FarmSettings'
 import AcceptInvite  from './pages/AcceptInvite'
 import Profile       from './pages/Profile'
+import ResetPassword from './pages/ResetPassword'
 import SuperAdmin    from './pages/SuperAdmin'
 import ProfileMenu   from './components/ProfileMenu'
 
@@ -75,6 +76,14 @@ export default function App() {
         <Route path="/invite/:token" element={<AcceptInvite />} />
       </Routes>
     )
+  }
+
+  // Password reset — must come before the auth & profile guards.
+  // The recovery link establishes a session, so without this the user would be
+  // let straight into the app (or captured by the profile gate) and never get
+  // the chance to actually set a new password.
+  if (location.pathname.startsWith('/reset-password')) {
+    return <ResetPassword />
   }
 
   if (loading) return <LoadingScreen />

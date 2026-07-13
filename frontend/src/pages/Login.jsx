@@ -8,13 +8,29 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
-  const [mode,     setMode]     = useState('password')  // 'password' | 'magic'
+  const [mode,     setMode]     = useState('password')  // 'password' | 'magic' | 'reset'
   const [magicSent, setMagicSent] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   const submit = async (e) => {
     e.preventDefault()
     setLoading(true); setError('')
     try { await login(email, password) } catch (err) { setError(err.message) }
+    setLoading(false)
+  }
+
+  const sendReset = async (e) => {
+    e.preventDefault()
+    setLoading(true); setError('')
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      })
+      if (error) throw error
+      setResetSent(true)
+    } catch (err) {
+      setError(err.message || 'Failed to send reset link')
+    }
     setLoading(false)
   }
 
@@ -81,10 +97,55 @@ export default function Login() {
                 className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
                 {loading ? 'Signing in…' : 'Sign In'}
               </button>
+              <button type="button" onClick={() => { setMode('reset'); setError('') }}
+                className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', paddingTop: '4px' }}>
+                Forgot password?
+              </button>
               <button type="button" onClick={() => { setMode('magic'); setError('') }}
-                className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: 'var(--c-muted)', cursor: 'pointer', paddingTop: '4px' }}>
+                className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: 'var(--c-muted)', cursor: 'pointer' }}>
                 No password? Send me a login link →
               </button>
+            </form>
+          )}
+
+          {/* Forgot password mode */}
+          {mode === 'reset' && (
+            <form onSubmit={sendReset} className="space-y-4">
+              {resetSent ? (
+                <div className="text-center py-4">
+                  <div className="text-4xl mb-3">🔑</div>
+                  <div className="font-bold text-sm mb-2" style={{ color: 'var(--c-text)' }}>Check your inbox</div>
+                  <div className="text-xs" style={{ color: 'var(--c-muted)', lineHeight: 1.6 }}>
+                    We sent a password reset link to<br />
+                    <strong style={{ color: 'var(--c-text)' }}>{email}</strong><br />
+                    Click it to choose a new password.
+                  </div>
+                  <button type="button" onClick={() => setResetSent(false)}
+                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', textDecoration: 'underline' }}>
+                    Resend link
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs" style={{ color: 'var(--c-muted)', lineHeight: 1.5 }}>
+                    Enter your email and we'll send you a link to set a new password.
+                  </p>
+                  <div>
+                    <label className="text-xs block mb-1.5" style={{ color: 'var(--c-muted)' }}>Email</label>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="you@example.com" required className={inputCls} style={inputStyle} />
+                  </div>
+                  {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
+                  <button type="submit" disabled={loading}
+                    className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    {loading ? 'Sending…' : '🔑 Send Reset Link'}
+                  </button>
+                  <button type="button" onClick={() => { setMode('password'); setError('') }}
+                    className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: 'var(--c-muted)', cursor: 'pointer' }}>
+                    ← Back to sign in
+                  </button>
+                </>
+              )}
             </form>
           )}
 
