@@ -174,9 +174,27 @@ const useAuthStore = create((set, get) => ({
   updateFarmDetails: async ({ name, location, total_acres }) => {
     const { activeFarmId } = get()
     if (!activeFarmId) throw new Error('No active farm')
+    await get().updateFarm(activeFarmId, { name, location, total_acres })
+  },
+
+  // Edit a specific farm by id (used by Manage Farms). RLS farms_update
+  // restricts writes to admins of that farm.
+  updateFarm: async (farmId, { name, location, total_acres }) => {
+    if (!farmId) throw new Error('No farm specified')
     const { error } = await supabase.from('farms')
       .update({ name, location, total_acres: parseFloat(total_acres) || 0 })
-      .eq('id', activeFarmId)
+      .eq('id', farmId)
+    if (error) throw error
+    await get().refreshFarms()
+  },
+
+  // Permanently delete a farm and — via ON DELETE CASCADE on all 37 farm-scoped
+  // foreign keys — every plot, crop, ledger, diary and media row under it. RLS
+  // farms_delete restricts this to admins; the typed-name confirmation lives in
+  // the UI as an accident guard, not a security boundary.
+  deleteFarm: async (farmId) => {
+    if (!farmId) throw new Error('No farm specified')
+    const { error } = await supabase.from('farms').delete().eq('id', farmId)
     if (error) throw error
     await get().refreshFarms()
   },

@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, Bird, BarChart3, Sun, Moon, LogOut, Plus, Check } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, Bird, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useThemeStore } from '../store/theme'
-import CreateFarmModal from './CreateFarmModal'
+import ManageFarmsModal from './ManageFarmsModal'
+import AboutModal from './AboutModal'
+
+const SUPPORT_EMAIL = 'deepakkaushik@pallitrans.com'
 
 const NAV_ITEMS = [
   { to: '/resources', label: 'Resources', Icon: Package    },
@@ -39,7 +42,8 @@ function SectionLabel({ children }) {
 
 export default function ProfileMenu() {
   const [open, setOpen] = useState(false)
-  const [showCreate, setShowCreate] = useState(false)
+  const [showManage, setShowManage] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const ref = useRef(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -126,7 +130,8 @@ export default function ProfileMenu() {
               {f.farm_id === activeFarmId && <Check size={15} style={{ color: '#1D9E75' }} />}
             </button>
           ))}
-          <Row icon={Plus} label="Add New Farm" onClick={() => { setShowCreate(true); setOpen(false) }} />
+          <Row icon={Pencil} label="Manage Farms" sub="Edit, add or delete a farm"
+            onClick={() => { setShowManage(true); setOpen(false) }} />
 
           <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
 
@@ -154,6 +159,13 @@ export default function ProfileMenu() {
 
           <SectionLabel>Preferences</SectionLabel>
           <Row icon={isDark ? Sun : Moon} label={isDark ? 'Light Mode' : 'Dark Mode'} onClick={toggle} />
+
+          <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
+
+          <SectionLabel>Support</SectionLabel>
+          <Row icon={Info} label="About" onClick={() => { setShowAbout(true); setOpen(false) }} />
+          <Row icon={LifeBuoy} label="Help & Support" sub="Reach out to the app team"
+            onClick={() => { window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Farm Manager — help request')}` }} />
         </div>
 
         {/* Logout — pinned to bottom */}
@@ -162,7 +174,8 @@ export default function ProfileMenu() {
         </div>
       </div>
 
-      {showCreate && <CreateFarmModal onClose={() => setShowCreate(false)} />}
+      {showManage && <ManageFarmsModal onClose={() => setShowManage(false)} />}
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} />}
     </div>
   )
 }
