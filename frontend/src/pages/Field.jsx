@@ -4,7 +4,6 @@ import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
-import { buildTreeDots } from '../lib/treeDots'
 import { farmApi } from '../api/client'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -93,9 +92,9 @@ function createHatchCanvas() {
 // conifer. At 11px on a satellite photo, colour alone is not a distinction anyone
 // can rely on; the silhouette is what actually reads.
 const FRUIT_ICON =
-  `<svg width="10" height="12" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><circle cx="5" cy="4" r="3.6" fill="#4ADE80" stroke="rgba(0,0,0,0.5)" stroke-width="0.6"/><rect x="4.2" y="6.6" width="1.6" height="5" rx="0.6" fill="#4ADE80"/></svg>`
+  `<svg width="12" height="14" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><circle cx="5" cy="4" r="3.7" fill="#4ADE80" stroke="rgba(0,0,0,0.55)" stroke-width="0.6"/><rect x="4.2" y="6.6" width="1.6" height="5" rx="0.6" fill="#4ADE80"/></svg>`
 const TIMBER_ICON =
-  `<svg width="10" height="12" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><path d="M5 0.6 8.8 7.2 1.2 7.2Z" fill="#C08B4A" stroke="rgba(0,0,0,0.5)" stroke-width="0.6" stroke-linejoin="round"/><rect x="4.2" y="7" width="1.6" height="4.6" rx="0.6" fill="#C08B4A"/></svg>`
+  `<svg width="12" height="14" viewBox="0 0 10 12" style="display:block;flex-shrink:0"><path d="M5 0.6 8.8 7.2 1.2 7.2Z" fill="#C08B4A" stroke="rgba(0,0,0,0.55)" stroke-width="0.6" stroke-linejoin="round"/><rect x="4.2" y="7" width="1.6" height="4.6" rx="0.6" fill="#C08B4A"/></svg>`
 
 function getCentroid(feature) {
   const coords = feature?.geometry?.coordinates?.[0]
@@ -394,31 +393,13 @@ export default function Field() {
 
   useEffect(() => { loadTrees().catch(() => {}) }, [activeFarmId])
 
-  const treeDots = useMemo(() => {
-    const rings = Object.fromEntries(
-      livePlots.filter(p => p.geo_polygon).map(p => [p.id, p.geo_polygon])
-    )
-    return buildTreeDots(treePlantings, treeSpecies, rings, FARM_BOUNDARY_COORDS)
-  }, [treePlantings, treeSpecies, livePlots])
-
-  // The dots and the map style load independently, and either can win. Whichever
-  // does, the other has to be able to find the latest dots — so they live in a ref
-  // that addPlotLayers reads at style-load time. Reading `treeDots` there instead
-  // would capture the value from the render that registered the load handler, which
-  // is always the first one, when no trees have loaded yet: an empty map, forever.
-  const treeDotsRef = useRef(treeDots)
-  useEffect(() => {
-    treeDotsRef.current = treeDots
-    map.current?.getSource('trees')?.setData(treeDots)
-  }, [treeDots])
-
-  // Trees per plot, for the badge on the plot label.
+  // Trees per plot: one icon and a count, on the plot's label.
   //
-  // The dots are a nice-to-have; this is the guarantee. Dots are synthesized
-  // geometry drawn through a GeoJSON layer, and if anything in that path is off the
-  // map silently shows nothing. The count is a number attached to the plot label,
-  // which is an HTML marker — the same mechanism that already puts "Plot F" on the
-  // map. If the label renders, the tree count renders with it.
+  // There was a dot per tree here for a while — a synthesized point for each of the
+  // 1,657 eucalyptus in Plot A. It was honest about where trees are and useless to
+  // look at: a wash of speckle that buried the map without telling you anything you
+  // could act on. The count is the fact worth showing, and the plot is the unit it
+  // belongs to.
   const treeByPlot = useMemo(() => {
     const speciesById = Object.fromEntries(treeSpecies.map(s => [s.id, s]))
     const acc = {}
@@ -458,22 +439,11 @@ export default function Field() {
     map.current.addSource('plots', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
     map.current.addLayer({ id:'plot-fill',    type:'fill',   source:'plots', paint:{ 'fill-color':['get','color'], 'fill-opacity':1 } })
     map.current.addLayer({ id:'plot-outline', type:'line',   source:'plots', paint:{ 'line-color':['get','outline'], 'line-width':1.8, 'line-opacity':0.95 } })
-    // Trees. These dots are synthesized from a planting's count and location, not
-    // surveyed, so they are meant to read as texture ("trees are along here"), never
-    // as pins ("this tree is here"). Green for fruit, brown for timber — the colour
-    // is carried per-feature, from the species.
-    map.current.addSource('trees', { type:'geojson', data:{ type:'FeatureCollection', features:[] } })
-    map.current.addLayer({ id:'tree-dots', type:'circle', source:'trees',
-      paint: {
-        'circle-color': ['get', 'color'],
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 2, 16, 4, 19, 7],
-        'circle-opacity': 0.95,
-        'circle-stroke-width': 1,
-        'circle-stroke-color': 'rgba(0,0,0,0.65)',
-      },
-    })
+    // Trees are drawn as a badge on the plot label, not as a layer — see treeByPlot.
+    //
     // Diagonal stripe overlay for mixed-crop plots. Purely decorative, and it lives
     // last and inside a try: nothing else on this map should ever die with it.
+    // (It threw for months on a raw <canvas>, and took the layers below it down.)
     try {
       map.current.addImage('mixed-hatch', createHatchCanvas())
       map.current.addLayer({ id:'plot-hatch', type:'fill', source:'plots',
@@ -490,7 +460,6 @@ export default function Field() {
     map.current.on('mouseleave', 'plot-fill', () => { map.current.getCanvas().style.cursor = '' })
     refreshPlotLayers(livePlots)
     refreshLabels(livePlots)
-    map.current.getSource('trees').setData(treeDotsRef.current)
   }
 
   const refreshLabels = (plotData) => {
@@ -506,7 +475,7 @@ export default function Field() {
       el.style.textAlign = 'center'
       const t = treeByPlotRef.current[p.id]
       const seg = (icon, n, color) =>
-        `<span style="display:inline-flex;align-items:center;gap:2px">${icon}<span style="color:${color};font-size:10px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.3">${n.toLocaleString('en-IN')}</span></span>`
+        `<span style="display:inline-flex;align-items:center;gap:3px">${icon}<span style="color:${color};font-size:11px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.3">${n.toLocaleString('en-IN')}</span></span>`
       const parts = t
         ? [ t.fruit  ? seg(FRUIT_ICON,  t.fruit,  '#86EFAC') : '',
             t.timber ? seg(TIMBER_ICON, t.timber, '#E0B080') : '' ].filter(Boolean)
