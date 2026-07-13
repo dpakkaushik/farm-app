@@ -28,6 +28,13 @@
 alter table public.user_profiles add column if not exists phone      text;
 alter table public.user_profiles add column if not exists avatar_url text;
 
+-- full_name was NOT NULL. That constraint is unsatisfiable at signup: a user
+-- invited by email has no name yet, and the DB cannot invent one. It is what
+-- forced 0001 to fabricate a name from the email local-part. Drop it — the
+-- app's profile gate enforces a real name at the only layer that can ASK for
+-- one, and blocks entry until it has it.
+alter table public.user_profiles alter column full_name drop not null;
+
 
 -- ── 2. Stop inventing names from email addresses ────────────────────────────
 -- Only use a real name if the signup actually supplied one. Otherwise NULL,
