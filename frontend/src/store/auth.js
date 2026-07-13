@@ -254,41 +254,15 @@ const useAuthStore = create((set, get) => ({
   },
 
   // ── Accept invitation (public route handler) ──────────────────────────────
+  // Validation lives in the accept_invitation() RPC, not here — client-side
+  // checks enforce nothing. See supabase/PLAN_0004_rls_holes.md.
   acceptInvitation: async (token) => {
-    const { user } = get()
-    if (!user) throw new Error('Must be logged in to accept invitation')
-
-    const { data: invite, error: iErr } = await supabase
-      .from('farm_invitations')
-      .select('*, farms(id, name)')
-      .eq('token', token)
-      .is('accepted_at', null)
-      .single()
-    if (iErr || !invite) throw new Error('Invitation not found or already used')
-    if (new Date(invite.expires_at) < new Date()) {
-      throw new Error('This invitation has expired. Ask the farm admin to send a new one.')
-    }
-    if (invite.email && invite.email.toLowerCase() !== user.email?.toLowerCase()) {
-      throw new Error(`This invitation was sent to ${invite.email}. Please sign in with that email to accept.`)
-    }
-
-    const { error: mErr } = await supabase.from('farm_memberships').insert({
-      farm_id:    invite.farm_id,
-      user_id:    user.id,
-      role:       invite.role,
-      status:     'active',
-      invited_by: invite.invited_by,
-    })
-    // Ignore duplicate — user may already be a member
-    if (mErr && !mErr.message.includes('duplicate') && !mErr.code === '23505') throw mErr
-
-    await supabase.from('farm_invitations')
-      .update({ accepted_at: new Date().toISOString() })
-      .eq('id', invite.id)
+    const { data: farm, error } = await supabase.rpc('accept_invitation', { p_token: token })
+    if (error) throw new Error(error.message)
 
     await get().refreshFarms()
-    get().switchFarm(invite.farm_id)
-    return invite.farms
+    get().switchFarm(farm.id)
+    return farm
   },
 
   // ── Own profile (self-service) ────────────────────────────────────────────
