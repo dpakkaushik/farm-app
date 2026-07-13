@@ -130,7 +130,15 @@ function DeleteFarm({ farm, deleteFarm, onCancel, onDeleted }) {
   const [typed, setTyped]   = useState('')
   const [busy, setBusy]     = useState(false)
   const [error, setError]   = useState('')
-  const confirmed = typed.trim() === farm.farm_name
+
+  // The confirmation phrase is "delete <farm name>" — the word forces the user to
+  // spell out the action, not just echo a name. Whitespace is collapsed and case
+  // ignored on both sides so a stray trailing space in the stored name (or mobile
+  // auto-capitalisation) can't leave the button permanently disabled.
+  const norm    = (s) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase()
+  const farmName = (farm.farm_name || '').replace(/\s+/g, ' ').trim()
+  const phrase   = `delete ${farmName}`
+  const confirmed = norm(typed) === norm(phrase)
 
   const run = async () => {
     if (!confirmed) return
@@ -149,7 +157,7 @@ function DeleteFarm({ farm, deleteFarm, onCancel, onDeleted }) {
       <div className="flex gap-3 p-3 rounded-lg" style={{ background: 'rgba(226,75,74,0.1)', border: '1px solid rgba(226,75,74,0.3)' }}>
         <AlertTriangle size={20} style={{ color: '#E24B4A', flexShrink: 0, marginTop: 1 }} />
         <div className="text-[13px] leading-relaxed" style={{ color: 'var(--c-text)' }}>
-          This permanently deletes <strong>{farm.farm_name}</strong> and <strong>everything in it</strong> —
+          This permanently deletes <strong>{farmName}</strong> and <strong>everything in it</strong> —
           plots, crops, activity logs, inventory, labour records, livestock, the full financial ledger,
           diaries and photos. This <strong>cannot be undone</strong> and the data cannot be recovered.
         </div>
@@ -159,12 +167,12 @@ function DeleteFarm({ farm, deleteFarm, onCancel, onDeleted }) {
 
       <div>
         <label className="text-[13px] font-semibold block mb-1.5" style={{ color: 'var(--c-text)' }}>
-          Type <span style={{ color: '#E24B4A', fontWeight: 700 }}>{farm.farm_name}</span> to confirm
+          Type <span style={{ color: '#E24B4A', fontWeight: 700 }}>{phrase}</span> to confirm
         </label>
         <input
           value={typed}
           onChange={e => setTyped(e.target.value)}
-          placeholder={farm.farm_name}
+          placeholder={phrase}
           autoFocus
           autoCapitalize="off" autoCorrect="off" spellCheck={false}
           style={input}
