@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Camera, Check } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
+import ImageCropper from '../components/ImageCropper'
+import { uploadAttachment, resolveUrl } from '../lib/attachments'
 
 // Serves two roles:
 //   <Profile mustComplete />  → the gate. Invited users arrive with only an
@@ -18,6 +20,7 @@ export default function Profile({ mustComplete = false }) {
   const [avatar,   setAvatar]   = useState(profile?.avatar_url || null)
   const [saving,   setSaving]   = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [cropFile, setCropFile] = useState(null)
   const [error,    setError]    = useState('')
   const [saved,    setSaved]    = useState(false)
   const fileRef = useRef(null)
@@ -26,17 +29,14 @@ export default function Profile({ mustComplete = false }) {
   const phoneOk = /^[0-9]{10}$/.test(phone.replace(/\D/g, ''))
   const canSave = nameOk && phoneOk && !saving && !uploading
 
+  // An avatar renders in a circle, so it goes through the cropper before it is uploaded.
   const pickPhoto = async (file) => {
     if (!file) return
     setUploading(true)
     setError('')
     try {
-      const ext  = file.name?.includes('.') ? file.name.split('.').pop() : 'jpg'
-      const path = `avatars/${user.id}-${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage
-        .from('farm-photos').upload(path, file, { upsert: true })
-      if (upErr) throw new Error(upErr.message)
-      setAvatar(supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl)
+      const path = await uploadAttachment(file, { folder: 'avatars', entityId: user.id })
+      setAvatar(resolveUrl(path))
     } catch (e) {
       setError('Photo upload failed: ' + e.message)
     }
@@ -109,8 +109,13 @@ export default function Profile({ mustComplete = false }) {
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={e => pickPhoto(e.target.files?.[0])}
+            onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setCropFile(f) }}
           />
+          {cropFile && (
+            <ImageCropper file={cropFile}
+              onDone={f => { setCropFile(null); pickPhoto(f) }}
+              onCancel={() => setCropFile(null)} />
+          )}
           <p className="text-[11px] mt-2" style={{ color: 'var(--c-faint)' }}>
             {uploading ? 'Uploading…' : 'Tap to add a photo (optional)'}
           </p>

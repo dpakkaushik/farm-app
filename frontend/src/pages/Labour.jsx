@@ -4,6 +4,8 @@ import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
+import FilePicker from '../components/FilePicker'
+import Attachment from '../components/Attachment'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
 const TODAY_LABEL = format(new Date(), 'EEEE, d MMMM yyyy')
@@ -804,8 +806,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                           </p>
                         )}
                         {p.attachmentUrl && (
-                          <a href={p.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-[9px] text-[#1D9E75]">📎 View proof</a>
+                          <Attachment variant="chip" value={p.attachmentUrl} name="View proof" />
                         )}
                       </div>
                     </div>
@@ -839,8 +840,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                           </p>
                         )}
                         {a.attachmentUrl && (
-                          <a href={a.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-[9px] text-[#1D9E75]">📎 View proof</a>
+                          <Attachment variant="chip" value={a.attachmentUrl} name="View proof" />
                         )}
                       </div>
                     </div>
@@ -978,11 +978,8 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
               </div>
             </FRow>
             <FRow label="Attachment (optional)">
-              <label className="finput flex items-center gap-2 cursor-pointer" style={{ padding: '8px 14px' }}>
-                <span className="text-[var(--c-muted)]">{form.attachment ? form.attachment.name : '📎 Tap to attach proof (photo/PDF)'}</span>
-                <input type="file" accept="image/*,application/pdf" className="hidden"
-                  onChange={e => setForm(p => ({ ...p, attachment: e.target.files[0] || null }))} />
-              </label>
+              <FilePicker accept="image/*,application/pdf" file={form.attachment}
+                onFile={f => setForm(p => ({ ...p, attachment: f }))} />
             </FRow>
             <button onClick={submitPayment} disabled={saving || !form.amount}
               className="w-full py-3 text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40"

@@ -3,6 +3,8 @@ import { CheckCircle2, X, Plus, AlertTriangle, Pencil, Building2 } from 'lucide-
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { isManager, getActiveFarmRole } from '../store/auth'
+import FilePicker from '../components/FilePicker'
+import Attachment from '../components/Attachment'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -581,8 +583,7 @@ export default function Harvest() {
                           </span>
                         )}
                         {session.parchiAttachmentPath && (
-                          <a href={attachmentUrl(session.parchiAttachmentPath)} target="_blank" rel="noreferrer"
-                            className="text-[10px] text-[#1D9E75] underline">⚖️ Weighing Slip</a>
+                          <Attachment variant="chip" value={session.parchiAttachmentPath} name="Weighing Slip" />
                         )}
                       </div>
                     </div>
@@ -666,8 +667,9 @@ export default function Harvest() {
                     </p>
                   )}
                   {sale?.paymentAttachmentPath && (
-                    <a href={attachmentUrl(sale.paymentAttachmentPath)} target="_blank" rel="noreferrer"
-                      className="text-[10px] text-[#1D9E75] underline mt-0.5 block">🧾 View Receipt</a>
+                    <div className="mt-0.5">
+                      <Attachment variant="chip" value={sale.paymentAttachmentPath} name="View Receipt" />
+                    </div>
                   )}
 
                   {/* Residuals (still actionable if open) */}
@@ -791,9 +793,8 @@ export default function Harvest() {
               {/* Weighing slip */}
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Weighing slip <span className="text-[#E24B4A]">*</span></label>
-                <input type="file" accept="image/*,application/pdf"
-                  onChange={e => { setWeighingSlip(e.target.files[0] || null); setRecordError('') }}
-                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                <FilePicker accept="image/*,application/pdf" file={weighingSlip}
+                  onFile={f => { setWeighingSlip(f); setRecordError('') }} />
                 {!weighingSlip && <p className="text-[10px] text-[#BA7517] mt-1">Required — photo or PDF of weighing slip</p>}
               </div>
 
@@ -1105,9 +1106,7 @@ export default function Harvest() {
 
                 <div>
                   <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt <span className="text-[#E24B4A]">*</span></label>
-                  <input type="file" accept="image/*,application/pdf"
-                    onChange={e => setCropPayFile(e.target.files[0] || null)}
-                    className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                  <FilePicker accept="image/*,application/pdf" file={cropPayFile} onFile={setCropPayFile} />
                   {!cropPayFile && <p className="text-[10px] text-[#BA7517] mt-1">Receipt required to confirm payment</p>}
                 </div>
                 {canMarkPayment ? (
@@ -1214,8 +1213,7 @@ export default function Harvest() {
               )}
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Parchi attachment (optional)</label>
-                <input type="file" accept="image/*,application/pdf" onChange={e => setParchiFile(e.target.files[0] || null)}
-                  className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                <FilePicker accept="image/*,application/pdf" file={parchiFile} onFile={setParchiFile} />
               </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
                 <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
@@ -1252,7 +1250,7 @@ export default function Harvest() {
                   </div>
                 ))}
                 {payModal.supply.parchiAttachmentPath && (
-                  <a href={attachmentUrl(payModal.supply.parchiAttachmentPath)} target="_blank" rel="noreferrer" className="text-[10px] text-[#1D9E75] underline">📄 View Parchi</a>
+                  <Attachment variant="chip" value={payModal.supply.parchiAttachmentPath} name="View Parchi" />
                 )}
               </div>
               {payModal.sale?.paymentStatus === 'paid' ? (
@@ -1261,7 +1259,11 @@ export default function Harvest() {
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">Date: {payModal.sale.paymentDate}</p>
                   {payModal.sale.deductions > 0 && <p className="text-xs text-[var(--c-muted)] mt-0.5">Deductions: ₹{payModal.sale.deductions.toLocaleString('en-IN')}{payModal.sale.deductionsNote && ` (${payModal.sale.deductionsNote})`}</p>}
                   <p className="text-sm font-bold text-[#1D9E75] mt-1">Net: ₹{payModal.sale.netAmount?.toLocaleString('en-IN')}</p>
-                  {payModal.sale.paymentAttachmentPath && <a href={attachmentUrl(payModal.sale.paymentAttachmentPath)} target="_blank" rel="noreferrer" className="text-[10px] text-[#1D9E75] underline mt-1 block">🧾 View Receipt</a>}
+                  {payModal.sale.paymentAttachmentPath && (
+                    <div className="mt-1">
+                      <Attachment variant="chip" value={payModal.sale.paymentAttachmentPath} name="View Receipt" />
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
@@ -1279,8 +1281,7 @@ export default function Harvest() {
                   )}
                   <div>
                     <label className="text-xs text-[var(--c-sub)] block mb-1">Payment receipt (optional)</label>
-                    <input type="file" accept="image/*,application/pdf" onChange={e => setPayFile(e.target.files[0] || null)}
-                      className="finput text-[var(--c-muted)] file:mr-2 file:text-xs file:border-0 file:bg-[#1D9E75]/20 file:text-[#1D9E75] file:rounded-lg file:px-2 file:py-1"/>
+                    <FilePicker accept="image/*,application/pdf" file={payFile} onFile={setPayFile} />
                   </div>
                   {canMarkPayment ? (
                     <button onClick={confirmPayment} disabled={saving}

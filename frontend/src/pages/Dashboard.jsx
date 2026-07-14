@@ -4,6 +4,7 @@ import { format, differenceInDays } from 'date-fns'
 import { useAuthStore } from '../store/auth'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import Attachment from '../components/Attachment'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
                 {fmtK(Math.abs(row.balance))}{row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
               </span>
               <span className="text-center text-[11px]">
-                {docUrl && <a href={docUrl} target="_blank" rel="noreferrer">{isPay ? '🧾' : '📄'}</a>}
+                {docUrl && <Attachment variant="chip" value={docUrl} icon={isPay ? '🧾' : '📄'} name="" />}
               </span>
             </div>
           )
@@ -453,8 +454,8 @@ export default function Dashboard() {
                               <StatusBadge status={sale?.paymentStatus || 'pending'} />
                             </div>
                             <div className="flex flex-col items-center gap-0.5">
-                              {parchiUrl  && <a href={parchiUrl}  target="_blank" rel="noreferrer" className="text-[10px]">📄</a>}
-                              {receiptUrl && <a href={receiptUrl} target="_blank" rel="noreferrer" className="text-[10px]">🧾</a>}
+                              {parchiUrl  && <Attachment variant="chip" value={parchiUrl}  icon="📄" name="" />}
+                              {receiptUrl && <Attachment variant="chip" value={receiptUrl} icon="🧾" name="" />}
                             </div>
                           </div>
                         )

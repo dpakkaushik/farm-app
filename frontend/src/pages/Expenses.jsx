@@ -2,7 +2,11 @@ import React, { useState, useRef } from 'react'
 import { Plus, Trash2, Paperclip, X } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import FilePicker from '../components/FilePicker'
+import Attachment from '../components/Attachment'
+import { uploadAttachment, BUCKETS } from '../lib/attachments'
 
+const DOCS  = BUCKETS.docs
 const TODAY = new Date().toISOString().slice(0, 10)
 
 const EXPENSE_CATS = [
@@ -58,38 +62,19 @@ function FRow({ label, children }) {
   )
 }
 
+// FilePicker handles crop-on-pick, tap-to-expand, change and remove. The upload still
+// fires as soon as a file is chosen, so `value` stays a storage path as before.
 function AttachmentRow({ value, onChange, uploading, onUpload }) {
-  const fileRef = useRef()
   return (
-    <FRow label="Attachment (receipt / proof)">
-      {value ? (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--c-border)] bg-[var(--c-ghost)]">
-          <Paperclip size={14} style={{ color: 'var(--c-muted)' }} />
-          <span className="flex-1 text-xs truncate" style={{ color: 'var(--c-text)' }}>
-            {value.split('/').pop()}
-          </span>
-          <button onClick={() => onChange(null)} style={{ color: 'var(--c-muted)' }}><X size={14} /></button>
-        </div>
-      ) : (
-        <button onClick={() => fileRef.current?.click()} disabled={uploading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed text-sm transition-colors"
-          style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
-          <Paperclip size={14} />
-          {uploading ? 'Uploading…' : 'Attach file'}
-        </button>
-      )}
-      <input ref={fileRef} type="file" accept="image/*,application/pdf" className="hidden"
-        onChange={e => onUpload(e.target.files[0])} />
+    <FRow label={uploading ? 'Attachment — uploading…' : 'Attachment (receipt / proof)'}>
+      <FilePicker
+        accept="image/*,application/pdf"
+        bucket={DOCS}
+        preview={value}
+        onFile={f => (f ? onUpload(f) : onChange(null))}
+      />
     </FRow>
   )
-}
-
-async function uploadAttachment(file) {
-  const ext  = file.name.split('.').pop()
-  const path = `expense-docs/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-  const { error } = await supabase.storage.from('expense-docs').upload(path, file)
-  if (error) throw error
-  return path
 }
 
 function AddExpenseModal({ animals, onClose }) {
@@ -117,7 +102,7 @@ function AddExpenseModal({ animals, onClose }) {
   async function handleUpload(file) {
     if (!file) return
     setUploading(true)
-    try { setAttachPath(await uploadAttachment(file)) }
+    try { setAttachPath(await uploadAttachment(file, { folder: 'expense-docs', bucket: DOCS })) }
     catch (e) { alert('Upload failed: ' + e.message) }
     finally { setUploading(false) }
   }
@@ -342,8 +327,9 @@ export default function Expenses() {
                       {e.paymentMode}
                     </span>
                   )}
+                  {/* A saved receipt is an audit record: expand only — no change, no remove. */}
                   {e.attachmentPath && (
-                    <span className="flex items-center gap-1"><Paperclip size={10} /> Receipt attached</span>
+                    <Attachment variant="chip" value={e.attachmentPath} bucket={DOCS} name="View receipt" />
                   )}
                 </div>
               )}

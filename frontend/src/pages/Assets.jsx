@@ -2,6 +2,9 @@ import React, { useState, useRef } from 'react'
 import { Wrench, Boxes, Bird, ChevronDown, ChevronUp, Plus, Minus, Camera, Pencil } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import ImageViewer from '../components/ImageViewer'
+import ImageCropper from '../components/ImageCropper'
+import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const MACHINE_TYPES = ['tractor','implement','generator','engine','sprayer','water_motor','trailer','grass_cutter','wood_cutter','vehicle','other']
@@ -639,26 +642,45 @@ export default function Assets() {
   const [toast,        setToast]        = useState(null)
   const photoInputRef  = useRef()
   const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [cropFile,     setCropFile]     = useState(null)
+  const [photoView,    setPhotoView]    = useState(null)
 
   const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
 
-  const handlePhotoClick = (table, item) => { setPendingPhoto({ table, id: item.id }); photoInputRef.current?.click() }
+  // A photo that exists opens in the viewer (which carries Change and Remove).
+  // Only an empty slot jumps straight to the picker.
+  const handlePhotoClick = (table, item) => {
+    if (item.photoUrl) return setPhotoView({ table, item })
+    setPendingPhoto({ table, id: item.id })
+    photoInputRef.current?.click()
+  }
 
-  const handlePhotoChange = async (e) => {
+  // Picked from an empty slot → crop before it ever reaches Storage.
+  const handlePhotoChange = (e) => {
     const file = e.target.files?.[0]
-    if (!file || !pendingPhoto) return
+    e.target.value = ''
+    if (file && pendingPhoto) setCropFile(file)
+  }
+
+  const savePhoto = async (table, id, file, oldUrl) => {
     setSaving(true)
     try {
-      const ext  = file.name.split('.').pop()
-      const path = `asset_photos/${pendingPhoto.table}/${pendingPhoto.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('farm-photos').upload(path, file)
-      if (upErr) throw new Error(`Storage: ${upErr.message} (status ${upErr.statusCode})`)
-
-      const { data: { publicUrl } } = supabase.storage.from('farm-photos').getPublicUrl(path)
-      await updateAssetPhoto(pendingPhoto.table, pendingPhoto.id, publicUrl)
+      const path = await uploadAttachment(file, { folder: `asset_photos/${table}`, entityId: id })
+      await updateAssetPhoto(table, id, resolveUrl(path))
+      if (oldUrl) await deleteAttachment(oldUrl)   // don't orphan the file we just replaced
       showToast('Photo updated')
-    } catch (err) { showToast('Upload failed: ' + err.message, 'error') }
-    setSaving(false); setPendingPhoto(null); e.target.value = ''
+    } catch (err) { showToast('Upload failed: ' + err.message, 'error'); throw err }
+    finally { setSaving(false); setPendingPhoto(null); setCropFile(null) }
+  }
+
+  const removePhoto = async (table, id, oldUrl) => {
+    setSaving(true)
+    try {
+      await updateAssetPhoto(table, id, null)
+      if (oldUrl) await deleteAttachment(oldUrl)
+      showToast('Photo removed')
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); throw err }
+    finally { setSaving(false) }
   }
 
   const confirmEdit = async (data) => {
@@ -715,6 +737,23 @@ export default function Assets() {
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--c-bg)' }}>
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+
+      {/* Crop on the way in, for a photo picked into an empty slot */}
+      {cropFile && pendingPhoto && (
+        <ImageCropper file={cropFile}
+          onDone={f => savePhoto(pendingPhoto.table, pendingPhoto.id, f, null)}
+          onCancel={() => { setCropFile(null); setPendingPhoto(null) }} />
+      )}
+
+      {/* Tapping an existing photo expands it; Change and Remove live in the viewer */}
+      {photoView && (
+        <ImageViewer
+          value={photoView.item.photoUrl}
+          name={photoView.item.name}
+          onClose={() => setPhotoView(null)}
+          onReplace={f => savePhoto(photoView.table, photoView.item.id, f, photoView.item.photoUrl)}
+          onRemove={() => removePhoto(photoView.table, photoView.item.id, photoView.item.photoUrl)} />
+      )}
 
       {/* Tab bar */}
       <div className="flex border-b shrink-0" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
