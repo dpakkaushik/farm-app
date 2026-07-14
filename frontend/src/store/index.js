@@ -180,6 +180,10 @@ function mapActivity(a) {
     workers:            a.worker_count || 0,
     regularWorkerIds:   a.regular_worker_ids || [],
     outsideLabourCount: a.outside_labour_count || 0,
+    // Ploughing only. The driver is deliberately NOT in regularWorkerIds — he is
+    // salaried staff, not a daily-wage worker. See migration 0015.
+    driverId:           a.driver_id    || null,
+    machineryId:        a.machinery_id || null,
   }
 }
 
@@ -229,6 +233,7 @@ function mapRegularLabourer(l) {
   return {
     id:             l.id,
     name:           l.name,
+    designation:    l.designation || '',
     workType:       'Farm Worker',
     ratePerDay:     Number(l.daily_base_rate) || 400,
     phone:          l.phone || '',
@@ -1659,7 +1664,8 @@ const useAppStore = create((set, get) => ({
 
   // ── Activity log ────────────────────────────────────────────────────────────
   logActivity: async (act) => {
-    const isEvent = act.type === 'events'
+    const isEvent     = act.type === 'events'
+    const isPloughing = act.type === 'ploughing'
     const cycleId = act.cropCycleId || (() => {
       const cycle = get().cropCycles.find(c => c.plotId === act.plotId && c.status === 'active')
       return cycle?.id || null
@@ -1676,6 +1682,8 @@ const useAppStore = create((set, get) => ({
       worker_count:         act.workers || 0,
       regular_worker_ids:   act.regularWorkerIds   || [],
       outside_labour_count: act.outsideLabourCount || 0,
+      driver_id:            isPloughing ? (act.driverId    || null) : null,
+      machinery_id:         isPloughing ? (act.machineryId || null) : null,
       status:               'done',
       notes:                act.notes || null,
     }).select('*, plots(name)').single()
@@ -1687,8 +1695,9 @@ const useAppStore = create((set, get) => ({
   // Creates one activity record per plot
   logActivities: async (plotIds, actData) => {
     const { cropCycles, plots } = get()
-    const today      = new Date().toISOString().slice(0, 10)
-    const isEvent    = actData.type === 'events'
+    const today       = new Date().toISOString().slice(0, 10)
+    const isEvent     = actData.type === 'events'
+    const isPloughing = actData.type === 'ploughing'
     const n          = plotIds.length
     const totalOut   = actData.outsideLabourCount || 0
     const namedCount = (actData.regularWorkerIds || []).length
@@ -1727,6 +1736,10 @@ const useAppStore = create((set, get) => ({
         worker_count:         namedCount + outside,
         regular_worker_ids:   actData.regularWorkerIds || [],
         outside_labour_count: outside,
+        // Ploughing only, and never a worker: the driver is salaried staff, so he
+        // stays out of regular_worker_ids and out of worker_count. See 0015.
+        driver_id:            isPloughing ? (actData.driverId    || null) : null,
+        machinery_id:         isPloughing ? (actData.machineryId || null) : null,
         status:               'done',
         notes:                actData.notes || null,
       }
@@ -2210,6 +2223,30 @@ const useAppStore = create((set, get) => ({
   },
 }))
 
+// ── Selectors ────────────────────────────────────────────────────────────────
+// Plain functions over state, not getters on the store object: set() does a
+// shallow merge, so a getter would not survive the first write.
+
+// Who may be picked to log farm work. Active regular labourers, always — no
+// attendance filter, because on contract days no attendance is punched, and no
+// permanent staff, because the cook and the peon do not plough fields.
+const selectFieldWorkers = (s) =>
+  s.regularLabourers
+    .filter(l => l.isActive)
+    .map(l => ({ id: l.id, name: l.name }))
+
+// Designations in the data carry trailing spaces and inconsistent case.
+const selectDrivers = (s) =>
+  [...s.permanentStaff, ...s.regularLabourers]
+    .filter(w => w.isActive && (w.designation || '').trim().toLowerCase() === 'driver')
+    .map(w => ({ id: w.id, name: w.name }))
+
+// Every tractor is named "Tractor" — only the registration number tells them apart.
+const selectTractors = (s) =>
+  s.machineryMaster
+    .filter(m => m.type === 'tractor' && m.isActive)
+    .map(m => ({ id: m.id, label: m.regNo || m.name }))
+
 // Legacy store (kept for Field.jsx compatibility)
 const useFarmStore = create((set) => ({
   farm: null, plots: [], alerts: [], diary: null,
@@ -2220,3 +2257,4 @@ const useFarmStore = create((set) => ({
 }))
 
 export { useMapStore, useAppStore, useFarmStore }
+export { selectFieldWorkers, selectDrivers, selectTractors }

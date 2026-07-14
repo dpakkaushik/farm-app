@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat } from 'lucide-react'
-import { useAppStore } from '../store'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor } from 'lucide-react'
+import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
 import { buildDayBundle, datesInRange } from './today/dayBundle'
@@ -18,8 +18,8 @@ const HISTORY_WARN_DAYS = 90
 export default function Today() {
   const {
     cropCycles, cropMaster, activities, plots,
-    permanentStaff, regularLabourers,
-    activityTypes, todayAttendance,
+    permanentStaff, regularLabourers, machineryMaster,
+    activityTypes,
     purchases, issues, harvestSessions, sales, cropResiduals,
     labourLogs, advances, salaryPayments,
     livestockCountLogs, livestockMaster, farmExpenses, livestockRevenue,
@@ -38,6 +38,8 @@ export default function Today() {
   const [actType,       setActType]       = useState('irrigation')
   const [selWorkers,    setSelWorkers]    = useState(new Set())  // labour_master IDs
   const [outsideLabour, setOutsideLabour] = useState(0)          // headcount
+  const [selDriver,     setSelDriver]     = useState('')         // ploughing only
+  const [selMachinery,  setSelMachinery]  = useState('')         // ploughing only
   const [actNotes,      setActNotes]      = useState('')
   const [doneTasks,     setDoneTasks]     = useState(new Set())
   const [saving,        setSaving]        = useState(false)
@@ -51,18 +53,17 @@ export default function Today() {
   const [historyError,      setHistoryError]      = useState('')
   const [confirmLargeRange, setConfirmLargeRange] = useState(false)
 
-  // Only workers marked present or half-day today
-  const allNamedWorkers = useMemo(() => {
-    const present = new Set(
-      Object.entries(todayAttendance)
-        .filter(([, a]) => a.status === 'present' || a.status === 'half_day')
-        .map(([id]) => id)
-    )
-    return [
-      ...permanentStaff.map(s  => ({ id: s.id, name: s.name, tag: 'S' })),
-      ...regularLabourers.map(l => ({ id: l.id, name: l.name, tag: 'L' })),
-    ].filter(w => present.has(w.id))
-  }, [permanentStaff, regularLabourers, todayAttendance])
+  // Every active regular labourer, whether or not attendance was punched. On a
+  // contract day it deliberately isn't — the manager only learns in the evening
+  // how much ground was covered. Gating on attendance hid exactly the people who
+  // did the work. Permanent staff are out entirely: the cook and the peon have
+  // attendance, but no business in a field-activity picker.
+  const allNamedWorkers = useMemo(() => selectFieldWorkers({ regularLabourers }), [regularLabourers])
+
+  // Ploughing only.
+  const isPloughing = actType === 'ploughing'
+  const drivers  = useMemo(() => selectDrivers({ permanentStaff, regularLabourers }), [permanentStaff, regularLabourers])
+  const tractors = useMemo(() => selectTractors({ machineryMaster }), [machineryMaster])
 
   // Active plots (one per plot with an active cycle)
   const activePlots = useMemo(() => {
@@ -211,9 +212,13 @@ export default function Today() {
     setSaving(true)
     await logActivities(plotIds, {
       type:               actType,
+      // The driver is NOT counted here — he is salaried staff, not a daily-wage
+      // worker. A ploughing with one driver and no labourers is zero workers.
       workers:            selWorkers.size + outsideLabour,
       regularWorkerIds:   [...selWorkers],
       outsideLabourCount: outsideLabour,
+      driverId:           isPloughing ? (selDriver    || null) : null,
+      machineryId:        isPloughing ? (selMachinery || null) : null,
       date:               getTodayStr(),
       notes:              actNotes.trim(),
     })
@@ -223,7 +228,16 @@ export default function Today() {
     setSelWorkers(new Set())
     setOutsideLabour(0)
     setActType('irrigation')
+    setSelDriver('')
+    setSelMachinery('')
     setActNotes('')
+  }
+
+  // Switching away from ploughing drops the driver and tractor — they mean nothing
+  // on an irrigation. logActivities nulls them regardless; this keeps the two in step.
+  const changeActType = (next) => {
+    setActType(next)
+    if (next !== 'ploughing') { setSelDriver(''); setSelMachinery('') }
   }
 
   const togglePlot   = id => setSelPlots(prev   => { const n = new Set(prev);   n.has(id) ? n.delete(id) : n.add(id); return n })
@@ -451,7 +465,7 @@ export default function Today() {
                   Activity Type
                 </label>
                 <div className="relative">
-                  <select value={actType} onChange={e => setActType(e.target.value)}
+                  <select value={actType} onChange={e => changeActType(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
                     style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
                     {activityTypes.map(t => (
@@ -463,6 +477,51 @@ export default function Today() {
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
                 </div>
               </div>
+
+              {/* Driver + Tractor — ploughing only */}
+              {isPloughing && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <Users size={12} style={{ color: '#f59e0b' }} />
+                        Driver
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <select value={selDriver} onChange={e => setSelDriver(e.target.value)}
+                        className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
+                        style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                        <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.id} style={{ background: 'var(--c-surface)' }}>{d.name}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <Tractor size={12} style={{ color: '#f59e0b' }} />
+                        Tractor
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <select value={selMachinery} onChange={e => setSelMachinery(e.target.value)}
+                        className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
+                        style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                        <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
+                        {tractors.map(t => (
+                          <option key={t.id} value={t.id} style={{ background: 'var(--c-surface)' }}>{t.label}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Named Workers — multiselect */}
               <div>
@@ -479,7 +538,7 @@ export default function Today() {
                 </label>
                 {allNamedWorkers.length === 0 ? (
                   <p className="text-xs text-[var(--c-faint)] italic py-1">
-                    No named workers added yet — go to Manpower → Master
+                    No active labourers — go to Manpower → Master
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -501,7 +560,6 @@ export default function Today() {
                             {w.name.charAt(0).toUpperCase()}
                           </span>
                           {w.name.split(' ')[0]}
-                          <span className="text-[9px] opacity-40">·{w.tag}</span>
                         </button>
                       )
                     })}
