@@ -88,28 +88,57 @@ export default function Login() {
   const inputCls = 'w-full rounded-xl px-4 py-3 text-sm outline-none border focus:border-[#1D9E75]'
   const inputStyle = { background: 'var(--c-ghost)', borderColor: 'var(--c-border-md)', color: 'var(--c-text)' }
 
+  // Everything that isn't signup is a way of getting back into an existing account.
+  const signingIn = mode !== 'signup'
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--c-bg)' }}>
+    // Centred, but allowed to grow and scroll — the card is tall enough on a small
+    // phone that a fixed h-screen clipped its footer clean off.
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: 'var(--c-bg)' }}>
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+        <div className="text-center mb-7">
           <div className="text-5xl mb-3">🌾</div>
           <h1 className="text-xl font-bold" style={{ color: 'var(--c-text)' }}>Farm Manager</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--c-faint)' }}>Sign in to continue</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--c-faint)' }}>
+            {signingIn ? 'Sign in to continue' : 'Set up your farm in a few minutes'}
+          </p>
         </div>
 
         <div className="rounded-2xl border p-6" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
 
-          {/* Mode tabs — only for the two ways to sign in. Reset and signup are
-              destinations you arrive at from a link below, not siblings of these. */}
+          {/* The primary choice: do you have an account, or not? This used to be a
+              text link under the form, which read as fine print — new owners didn't
+              see that signing up was even an option. Password vs Email Link is the
+              *lesser* choice and moves below, inside Sign In. */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl mb-5" style={{ background: 'var(--c-ghost)' }}>
+            {[
+              { key: 'password', label: 'Sign In',        active: signingIn },
+              { key: 'signup',   label: 'Create Account', active: !signingIn },
+            ].map(t => (
+              <button key={t.key} onClick={() => switchMode(t.key)}
+                className="py-2.5 text-sm font-bold rounded-lg transition-all"
+                style={{
+                  background: t.active ? '#1D9E75' : 'transparent',
+                  color:      t.active ? '#fff'    : 'var(--c-muted)',
+                  border: 'none', cursor: 'pointer',
+                  boxShadow: t.active ? '0 2px 8px rgba(29,158,117,0.35)' : 'none',
+                }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sub-choice — how you'd like to sign in. Quiet on purpose. */}
           {(mode === 'password' || mode === 'magic') && (
-            <div className="flex rounded-xl overflow-hidden border mb-5" style={{ borderColor: 'var(--c-border-md)' }}>
+            <div className="flex gap-2 mb-5">
               {['password', 'magic'].map(m => (
                 <button key={m} onClick={() => switchMode(m)}
-                  className="flex-1 py-2 text-xs font-semibold transition-colors"
+                  className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors"
                   style={{
-                    background: mode === m ? '#1D9E75' : 'transparent',
-                    color: mode === m ? '#fff' : 'var(--c-muted)',
-                    border: 'none', cursor: 'pointer',
+                    background:  mode === m ? '#1D9E7518' : 'transparent',
+                    borderColor: mode === m ? '#1D9E7560' : 'var(--c-border-md)',
+                    color:       mode === m ? '#1D9E75'   : 'var(--c-muted)',
+                    cursor: 'pointer',
                   }}>
                   {m === 'password' ? '🔑 Password' : '📧 Email Link'}
                 </button>
@@ -143,13 +172,6 @@ export default function Login() {
                 className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: 'var(--c-muted)', cursor: 'pointer' }}>
                 No password? Send me a login link →
               </button>
-              <div className="pt-3 mt-1 border-t text-center" style={{ borderColor: 'var(--c-border-md)' }}>
-                <span className="text-xs" style={{ color: 'var(--c-muted)' }}>New to Farm Manager? </span>
-                <button type="button" onClick={() => switchMode('signup')}
-                  className="text-xs font-semibold" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer' }}>
-                  Create your farm →
-                </button>
-              </div>
             </form>
           )}
 
@@ -195,11 +217,7 @@ export default function Login() {
                   {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
                   <button type="submit" disabled={loading}
                     className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
-                    {loading ? 'Creating account…' : 'Create Account'}
-                  </button>
-                  <button type="button" onClick={() => switchMode('password')}
-                    className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: 'var(--c-muted)', cursor: 'pointer' }}>
-                    ← Already have an account? Sign in
+                    {loading ? 'Creating account…' : 'Create Account →'}
                   </button>
                 </>
               )}
@@ -285,8 +303,12 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-[10px] mt-6" style={{ color: 'var(--c-faint)' }}>
-          Contact your admin if you don't have access
+        {/* Was "Contact your admin if you don't have access" — true when the app was
+            invite-only, misleading now that anyone can start a farm. The two ways in
+            are still distinct, so name both. */}
+        <p className="text-center text-[11px] mt-6 leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+          Starting your own farm? Tap <span style={{ color: 'var(--c-muted)', fontWeight: 600 }}>Create Account</span>.<br />
+          Joining an existing one? Ask its admin to invite you.
         </p>
       </div>
     </div>
