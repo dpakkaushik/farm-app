@@ -11,7 +11,8 @@ import Admin         from './pages/Admin'
 import Media         from './pages/Media'
 import Login         from './pages/Login'
 import ResourcesPage from './pages/ResourcesPage'
-import ReportsPage   from './pages/ReportsPage'
+import Harvest       from './pages/Harvest'
+import Dashboard     from './pages/Dashboard'
 import Livestock     from './pages/Livestock'
 import Trees         from './pages/Trees'
 import LedgerPage    from './pages/LedgerPage'
@@ -118,7 +119,8 @@ export default function App() {
           <Route path="/today"        element={<Today />} />
           <Route path="/resources"    element={<ResourcesPage />} />
           <Route path="/labour"       element={<Labour />} />
-          <Route path="/reports"      element={<ReportsPage />} />
+          <Route path="/harvest"      element={<Harvest />} />
+          <Route path="/reports"      element={<Dashboard />} />
           <Route path="/livestock"    element={<Livestock />} />
           <Route path="/trees"        element={<Trees />} />
           <Route path="/ledger"       element={<LedgerPage />} />
@@ -130,7 +132,6 @@ export default function App() {
           {/* Legacy redirects */}
           <Route path="/inventory"    element={<Navigate to="/resources" replace />} />
           <Route path="/assets"       element={<Navigate to="/resources" replace />} />
-          <Route path="/harvest"      element={<Navigate to="/reports" replace />} />
           <Route path="/owner"        element={<Navigate to="/reports" replace />} />
           <Route path="/dashboard"    element={<Navigate to="/reports" replace />} />
           <Route path="/diary"        element={<Navigate to="/today" replace />} />

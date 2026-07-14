@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
@@ -13,8 +13,13 @@ const NAV_ITEMS = [
   { to: '/labour',     label: 'People',    Icon: Users      },
   { to: '/livestock',  label: 'Livestock', Icon: Bird       },
   { to: '/trees',      label: 'Trees',     Icon: TreePine   },
+  { to: '/harvest',    label: 'Harvest',   Icon: Wheat      },
   { to: '/reports',    label: 'Reports',   Icon: BarChart3  },
 ]
+
+// Harvest and Reports are read-only views the owner needs — everything else in
+// NAV_ITEMS is a manager-only workflow.
+const VIEWER_PATHS = new Set(['/harvest', '/reports'])
 
 function Row({ icon: Icon, label, sub, onClick, active, danger }) {
   return (
@@ -137,7 +142,7 @@ export default function ProfileMenu() {
           <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
 
           <SectionLabel>Navigate</SectionLabel>
-          {NAV_ITEMS.filter(item => item.to === '/reports' || manager).map(({ to, label, Icon }) => (
+          {NAV_ITEMS.filter(item => VIEWER_PATHS.has(item.to) || manager).map(({ to, label, Icon }) => (
             <Row key={to} icon={Icon} label={label} onClick={() => go(to)} active={location.pathname === to} />
           ))}
 
