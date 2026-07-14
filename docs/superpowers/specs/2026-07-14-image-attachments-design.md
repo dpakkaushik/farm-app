@@ -25,6 +25,22 @@ photos, avatars — was built independently. The result:
 Explicitly decided: crop belongs to the upload flow. Tapping a saved image only expands it;
 re-cropping a saved image is done by replacing it, which re-enters the upload flow.
 
+### Financial documents are immutable
+
+**A bill, receipt, parchi or payment proof cannot be changed or deleted once saved.** These
+are audit records — the point of attaching them is that they can be trusted later. Once the
+record is saved they can be expanded, and nothing else: no Change, no Remove.
+
+Removal exists only *before* the record is saved, while the manager is still filling the form.
+
+This does **not** apply to asset, machinery, livestock, worker or avatar photos. Those are
+descriptive, not evidentiary — a blurry tractor photo should be replaceable. They keep Change
+and Remove.
+
+Enforced structurally rather than by convention: `Attachment` and `ImageViewer` render the
+Change and Remove buttons only when handed `onReplace` / `onRemove`. Saved financial documents
+are simply never handed them, so the affordance does not exist to be misused.
+
 ## Architecture
 
 ### `lib/attachments.js` — the storage layer
