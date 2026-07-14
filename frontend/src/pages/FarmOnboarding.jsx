@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useAppStore } from '../store'
+import MapPicker, { polygonAcres } from '../components/MapPicker'
 
 // First-run wizard for a brand-new owner: farm → plots → done.
 //
@@ -10,12 +11,14 @@ import { useAppStore } from '../store'
 // which would otherwise drop the user straight into the app before they ever
 // reached the plots step.
 //
-// Plots here are name + acreage only. addPlot() takes GPS corner points but treats
-// them as optional, and boundaries are far easier to draw on the satellite map than
-// to type as coordinates — so the wizard gets the plots into the system, and Field
-// is where they get their shape.
+// Both steps capture coordinates on a satellite map, because without them the farm
+// has no shape and the Field map — the whole point of the product — opens on an
+// empty world. Step 1 drops a pin for the farm centre (farms.map_state); step 2 taps
+// four corners per plot (plots.point_a..d). Both are optional and can be done later
+// from Admin → Plots, but the map makes them cheap enough to do now.
 
 const STEPS = ['farm', 'plots', 'done']
+const EMPTY_PLOT_FORM = { name: '', area_acres: '', corners: [] }
 
 export default function FarmOnboarding() {
   const navigate = useNavigate()
@@ -25,9 +28,26 @@ export default function FarmOnboarding() {
   const [step, setStep]         = useState('farm')
   const [form, setForm]         = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
   const [draftPlots, setDrafts] = useState([])              // held locally, written on Continue
-  const [plotForm, setPlotForm] = useState({ name: '', area_acres: '' })
+  const [plotForm, setPlotForm] = useState(EMPTY_PLOT_FORM)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+
+  // The farm centre, in the two shapes that need it: an object for the picker,
+  // a [lng, lat] pair to open step 2's map on. Memoised because the picker rebuilds
+  // its marker whenever this identity changes — without it, every keystroke in the
+  // name field would tear the pin off the map and put it back.
+  const centre = useMemo(
+    () => (form.lat !== '' && form.lng !== '' ? { lat: parseFloat(form.lat), lng: parseFloat(form.lng) } : null),
+    [form.lat, form.lng],
+  )
+  const centreLngLat = useMemo(() => (centre ? [centre.lng, centre.lat] : undefined), [centre])
+
+  // Plots already drawn, shown under the one being drawn so the owner can see
+  // what he has covered and where the next field butts up against it.
+  const drawnPlots = useMemo(
+    () => draftPlots.filter(p => p.corners?.length === 4).map(p => ({ name: p.name, points: p.corners })),
+    [draftPlots],
+  )
 
   // Hold the wizard open until the user finishes or reloads.
   useEffect(() => { setOnboarding(true) }, [])
@@ -54,18 +74,41 @@ export default function FarmOnboarding() {
   const addDraft = () => {
     if (!plotForm.name.trim()) { setError('Give the plot a name'); return }
     setError('')
-    setDrafts(ps => [...ps, { name: plotForm.name.trim(), area_acres: plotForm.area_acres }])
-    setPlotForm({ name: '', area_acres: '' })
+
+    // A drawn boundary already knows the acreage. Only fall back to it if he
+    // didn't type one — a typed number is a deliberate statement and wins.
+    const mapped = plotForm.corners.length === 4 ? polygonAcres(plotForm.corners) : 0
+    const acres  = plotForm.area_acres !== '' ? plotForm.area_acres
+                 : mapped                     ? mapped.toFixed(2)
+                 : ''
+
+    setDrafts(ps => [...ps, { name: plotForm.name.trim(), area_acres: acres, corners: plotForm.corners }])
+    setPlotForm(EMPTY_PLOT_FORM)
   }
 
   const removeDraft = (idx) => setDrafts(ps => ps.filter((_, i) => i !== idx))
+
+  // corners [A,B,C,D] -> the eight flat columns plots actually stores.
+  const toPlotRow = ({ name, area_acres, corners }) => {
+    const row = { name, area_acres }
+    if (corners?.length === 4) {
+      const [a, b, c, d] = corners
+      Object.assign(row, {
+        point_a_lat: a.lat, point_a_lng: a.lng,
+        point_b_lat: b.lat, point_b_lng: b.lng,
+        point_c_lat: c.lat, point_c_lng: c.lng,
+        point_d_lat: d.lat, point_d_lng: d.lng,
+      })
+    }
+    return row
+  }
 
   const handleSavePlots = async () => {
     if (draftPlots.length === 0) { setStep('done'); return }
     setLoading(true)
     setError('')
     try {
-      for (const p of draftPlots) await addPlot(p)
+      for (const p of draftPlots) await addPlot(toPlotRow(p))
       setStep('done')
     } catch (err) {
       setError(err.message || 'Failed to save plots. You can add them later from Admin.')
@@ -117,8 +160,27 @@ export default function FarmOnboarding() {
                   onChange={e => setForm(f => ({ ...f, total_acres: e.target.value }))}
                   placeholder="e.g. 75" style={input} />
               </Field>
+
+              <Field label="Where is it?">
+                <p style={fieldHint}>
+                  Search for the nearest town, then tap your farm on the satellite map. This
+                  is what the Field map opens on — you can move it later.
+                </p>
+                <MapPicker
+                  mode="point"
+                  value={centre}
+                  onChange={pt => setForm(f => ({
+                    ...f,
+                    lat: pt ? pt.lat : '',
+                    lng: pt ? pt.lng : '',
+                  }))}
+                />
+              </Field>
+
               <button type="submit" disabled={loading} style={primaryBtn(loading)}>
-                {loading ? 'Creating your farm…' : 'Continue →'}
+                {loading ? 'Creating your farm…'
+                  : centre ? 'Continue →'
+                  : 'Continue without a location →'}
               </button>
             </form>
           </>
@@ -132,8 +194,8 @@ export default function FarmOnboarding() {
               <h1 style={title}>Add your plots</h1>
               <p style={sub}>
                 Step 2 of 3 — a plot is a field you want to track separately. Every crop, cost and
-                harvest is recorded against one. Just name them and give a rough size; you'll draw
-                their boundaries on the map afterwards.
+                harvest is recorded against one. Name it, then trace its four corners on the map so
+                it shows up on your Field view.
               </p>
             </div>
 
@@ -143,11 +205,12 @@ export default function FarmOnboarding() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                 {draftPlots.map((p, i) => (
                   <div key={i} style={plotRow}>
-                    <span style={{ fontSize: '18px' }}>🌱</span>
+                    <span style={{ fontSize: '18px' }}>{p.corners?.length === 4 ? '🗺️' : '🌱'}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{p.name}</div>
                       <div style={{ fontSize: '12px', color: '#6b7280' }}>
                         {p.area_acres ? `${p.area_acres} acres` : 'Size not set'}
+                        {p.corners?.length === 4 ? ' · boundary drawn' : ' · no boundary yet'}
                       </div>
                     </div>
                     <button onClick={() => removeDraft(i)} style={removeBtn} aria-label={`Remove ${p.name}`}>✕</button>
@@ -176,9 +239,25 @@ export default function FarmOnboarding() {
                   <input type="number" min="0" step="0.5" value={plotForm.area_acres}
                     onChange={e => setPlotForm(f => ({ ...f, area_acres: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDraft() } }}
-                    placeholder="12" style={input} />
+                    placeholder={plotForm.corners.length === 4 ? polygonAcres(plotForm.corners).toFixed(1) : '12'}
+                    style={input} />
                 </Field>
               </div>
+            </div>
+
+            <div style={{ marginBottom: '10px' }}>
+              <p style={fieldHint}>
+                Tap the four corners of this plot, in order around its edge. Leave the acres box
+                empty and we'll take the size from the shape.
+              </p>
+              <MapPicker
+                mode="corners"
+                value={plotForm.corners}
+                onChange={corners => setPlotForm(f => ({ ...f, corners }))}
+                center={centreLngLat}
+                existing={drawnPlots}
+                height={280}
+              />
             </div>
 
             <button onClick={addDraft} style={secondaryBtn}>+ Add Plot</button>
@@ -201,8 +280,13 @@ export default function FarmOnboarding() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
-              <NextStep icon="✏️" title="Draw your plot boundaries"
-                body="Open the Field map and trace each plot on the satellite view. That's what colours the map and powers the plot-wise reports." />
+              {drawnPlots.length === draftPlots.length && draftPlots.length > 0 ? (
+                <NextStep icon="🗺️" title="Your plots are on the map"
+                  body="Every plot you added has a boundary, so the Field view will show them straight away. Admin → Plots is where you edit them." />
+              ) : (
+                <NextStep icon="✏️" title="Draw your plot boundaries"
+                  body="Some plots have no shape yet. Admin → Plots lets you trace them on the satellite map — that's what colours the Field view and powers the plot-wise reports." />
+              )}
               <NextStep icon="👥" title="Invite your manager"
                 body="Settings → Invite Someone. Managers log the daily work; you can also make someone else an admin." />
               <NextStep icon="🌱" title="Start a crop cycle"
@@ -270,6 +354,7 @@ const errBox = {
   background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px',
   padding: '12px 16px', color: '#dc2626', fontSize: '13px', marginBottom: '20px',
 }
+const fieldHint = { margin: '0 0 8px', fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }
 const plotRow = {
   display: 'flex', alignItems: 'center', gap: '10px',
   padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px',
