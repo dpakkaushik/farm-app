@@ -241,7 +241,9 @@ function TasksDueSection({ tasksDue, onMarkDone }) {
 }
 
 // ── The shared day card — renders identically for "today" and every History day ─
-export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone }) {
+// `action` is an optional control rendered on the date row — today's card passes
+// Log Activity; History cards pass nothing, so it stays off past days.
+export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone, action }) {
   const tasksDueCount = tasksDue ? (tasksDue.overdue?.length || 0) + (tasksDue.today?.length || 0) + (tasksDue.done?.length || 0) : 0
   return (
     <div className="rounded-2xl border p-3.5 space-y-3.5" style={{ background: 'var(--c-card)', borderColor: 'var(--c-border)' }}>
@@ -252,6 +254,7 @@ export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone })
             Today
           </span>
         )}
+        {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
 
       <TasksDueSection tasksDue={tasksDue} onMarkDone={onMarkDone} />

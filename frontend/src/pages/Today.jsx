@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell } from 'lucide-react'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
@@ -14,6 +14,13 @@ const TODAY_DATE   = getTodayDate()
 const TODAY_STR    = getTodayStr()
 
 const HISTORY_WARN_DAYS = 90
+
+// How long a missed task keeps nagging. It used to be 3 days, which meant a task
+// ignored for four days vanished from the app entirely — no card, no count,
+// nowhere. Thirty days is long enough that nothing real slips through, and short
+// enough that tasks from finished seasons (the farm has 31 of them, the oldest
+// 272 days) stay out of the notification count instead of drowning it.
+const OVERDUE_WINDOW_DAYS = 30
 
 export default function Today() {
   const {
@@ -34,6 +41,7 @@ export default function Today() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const [showModal,     setShowModal]     = useState(false)
+  const [showNotif,     setShowNotif]     = useState(false)
   const [selPlots,      setSelPlots]      = useState(new Set())
   const [actType,       setActType]       = useState('irrigation')
   const [selWorkers,    setSelWorkers]    = useState(new Set())  // labour_master IDs
@@ -120,7 +128,7 @@ export default function Today() {
         }
         if      (daysUntil === 0)                   todayTasks.push(task)
         else if (daysUntil === 1)                   tomorrow.push(task)
-        else if (daysUntil < 0 && daysUntil >= -3) overdue.push({ ...task, daysOverdue: -daysUntil })
+        else if (daysUntil < 0 && daysUntil >= -OVERDUE_WINDOW_DAYS) overdue.push({ ...task, daysOverdue: -daysUntil })
         else if (daysUntil > 1 && daysUntil <= 7)  upcoming.push(task)
       })
     })
@@ -131,6 +139,10 @@ export default function Today() {
   const pendingToday   = todayTasks.filter(t => !doneTasks.has(t.id))
   const completedToday = todayTasks.filter(t =>  doneTasks.has(t.id))
   const pendingOverdue = overdue.filter(t => !doneTasks.has(t.id))
+
+  // The bell counts what was missed and what is coming. Today's own scheduled
+  // tasks are not counted — they are already on the day card, in front of you.
+  const notifCount = pendingOverdue.length + tomorrow.length + upcoming.length
 
   // Today's labour summary across all logged activities
   const todayRegularCount = useMemo(() => {
@@ -258,14 +270,46 @@ export default function Today() {
           </h1>
           <p className="text-sm text-[var(--c-muted)]">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
-        {isManager(activeFarmRole) && (
+        {/* Notifications — what was missed and what is coming. Log Activity now
+            lives on the day card's date row, where the day it writes to is named. */}
+        <div className="relative">
           <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold"
-            style={{ background: '#1D9E75', color: '#fff' }}>
-            <Plus size={14} strokeWidth={2.5} /> Log Activity
+            onClick={() => setShowNotif(o => !o)}
+            aria-label={`${notifCount} task${notifCount === 1 ? '' : 's'} overdue or upcoming`}
+            className="relative w-10 h-10 flex items-center justify-center rounded-xl border transition-colors hover:border-white/30"
+            style={{ background: 'var(--c-card)', borderColor: 'var(--c-border-md)' }}>
+            <Bell size={17} className="text-[var(--c-sub)]" />
+            {notifCount > 0 && (
+              <span
+                className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold"
+                style={{ background: pendingOverdue.length > 0 ? '#E24B4A' : '#1D9E75', color: '#fff' }}>
+                {notifCount}
+              </span>
+            )}
           </button>
-        )}
+
+          {showNotif && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)} />
+              <div
+                className="absolute right-0 mt-2 z-50 w-[min(92vw,22rem)] rounded-2xl border p-3.5 shadow-2xl"
+                style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border-md)', maxHeight: '70vh', overflowY: 'auto' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
+                    Upcoming
+                  </p>
+                  <button onClick={() => setShowNotif(false)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)]">
+                    <X size={13} />
+                  </button>
+                </div>
+                <UpcomingBlock
+                  overdue={pendingOverdue} tomorrow={tomorrow} upcoming={upcoming}
+                  onMarkDone={isManager(activeFarmRole) ? markDone : undefined} />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Summary rows — Farm Activity + Manpower */}
@@ -314,9 +358,15 @@ export default function Today() {
 
         <DayCard date={TODAY_STR} isToday bundle={todayBundle}
           tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
-          onMarkDone={markDone} />
-
-        <UpcomingBlock tomorrow={tomorrow} upcoming={upcoming} />
+          onMarkDone={markDone}
+          action={isManager(activeFarmRole) ? (
+            <button
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+              style={{ background: '#1D9E75', color: '#fff' }}>
+              <Plus size={13} strokeWidth={2.5} /> Log Activity
+            </button>
+          ) : null} />
 
         {/* History — gated behind an explicit date range + Fetch */}
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--c-border)' }}>
