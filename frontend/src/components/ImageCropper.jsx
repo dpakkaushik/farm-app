@@ -83,10 +83,12 @@ export default function ImageCropper({ file, onDone, onCancel }) {
         />
       </div>
 
-      <div className="shrink-0 px-4 py-3 space-y-3" style={{ background: 'var(--c-nav)' }}>
+      {/* Dark chrome, both themes. The controls are white-on-translucent, so a themed
+          surface (white in light mode) would render them invisible. */}
+      <div className="shrink-0 px-4 py-3 space-y-3" style={{ background: '#141414' }}>
         <div className="flex items-center gap-3">
-          <button onClick={() => setRotation(r => (r + 90) % 360)}
-            className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center shrink-0">
+          <button onClick={() => setRotation(r => (r + 90) % 360)} title="Rotate"
+            className="w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center shrink-0 active:bg-white/25">
             <RotateCw size={15} />
           </button>
           <input type="range" min={1} max={3} step={0.01} value={zoom}
@@ -96,8 +98,10 @@ export default function ImageCropper({ file, onDone, onCancel }) {
         <div className="flex gap-2">
           {ASPECTS.map(a => (
             <button key={a.key} onClick={() => setAspect(a.key)}
-              className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-colors ${
-                aspect === a.key ? 'bg-[#1D9E75] text-white' : 'bg-white/10 text-white/70'}`}>
+              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+                aspect === a.key
+                  ? 'bg-[#1D9E75] text-white'
+                  : 'bg-white/15 text-white/80 active:bg-white/25'}`}>
               {a.label}
             </button>
           ))}
