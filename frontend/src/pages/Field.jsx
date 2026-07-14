@@ -143,6 +143,7 @@ export default function Field() {
   const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
   const { activeFarm, activeFarmId } = useAuthStore()
   const location = useLocation()
+  const navigate = useNavigate()
   const [showNewFarmBanner, setShowNewFarmBanner] = useState(false)
   useEffect(() => {
     if (new URLSearchParams(location.search).get('newFarm') === '1') setShowNewFarmBanner(true)

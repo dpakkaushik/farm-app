@@ -613,8 +613,9 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
             </thead>
             <tbody>
               {sorted.map((row, i) => {
-                const badge = sourceBadge(row.source_type)
-                const paid  = isCollected(row)
+                const badge   = sourceBadge(row.source_type)
+                const paid    = (row.payment_status || 'paid') === 'paid'
+                const partial = !paid && Number(row.amount_received || 0) > 0
                 return (
                   <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                     <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>
@@ -634,12 +635,12 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
                     </td>
                     <td className="px-3 py-2 font-bold" style={{ color: '#1D9E75' }}>{fmt(row.amount)}</td>
                     <td className="px-3 py-2">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
                         style={{
                           background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
                           color:      paid ? '#1D9E75'               : '#BA7517',
                         }}>
-                        {paid ? 'Collected' : 'Pending'}
+                        {paid ? 'Collected' : partial ? `Part — ${fmt(row.amount_received)}` : 'Pending'}
                       </span>
                     </td>
                   </tr>
