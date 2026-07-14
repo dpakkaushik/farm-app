@@ -61,8 +61,8 @@ const fyOptions = (count = 5) => {
 const CATEGORY_LABELS = {
   feed:              'Feed & Fodder',
   veterinary:        'Veterinary',
-  labour:            'Daily Labour',
-  salary:            'Staff Salary',
+  labour:            'Outside Labour (Daily)',
+  salary:            'Staff & Regular Salary',
   inventory_purchase:'Inventory Purchase',
   farm_expense:      'General Expenses',
   machinery:         'Machinery / Hired Equipment',
@@ -1131,7 +1131,16 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
 }
 
 // ── Tab: Expense Accounts ─────────────────────────────────────────────────────
-function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPayRow }) {
+// One rule decides where anything is paid: whoever has a khata is settled in the
+// khata (vendors → Party Ledger, staff/regular workers → Labour → Salary); only
+// khata-less entries (outside labour, general expenses) are paid on the row here.
+const GROUP_HINTS = {
+  vendor_purchase: 'Settled against the vendor khata in Party Ledger',
+  salary:          'Records of payments made from Labour → Salary — born paid',
+  labour:          'Outside workers with no khata — settle each entry here',
+}
+
+function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPayRow, onGoVendors }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1177,6 +1186,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPay
                 <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
                   {data.rows.length} entries · Pending: {fmt(pending)}
                 </span>
+                {GROUP_HINTS[key] && (
+                  <span className="text-[9px] italic" style={{ color: 'var(--c-faint)' }}>
+                    {GROUP_HINTS[key]}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
@@ -1209,7 +1223,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPay
                         <td className="px-3 py-2 font-medium" style={{ color: 'var(--c-text)' }}>{fmt(row.amount)}</td>
                         <td className="px-3 py-2">
                           {key === 'vendor_purchase' ? (
-                            <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}>See Party Ledger</span>
+                            <button onClick={onGoVendors}
+                              className="text-[9px] font-semibold underline"
+                              style={{ color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer' }}>
+                              Pay in Party Ledger →
+                            </button>
                           ) : row.is_paid ? (
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
                               style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
@@ -1657,6 +1675,7 @@ export default function LedgerPage() {
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
             canPay={canManage}
+            onGoVendors={() => setTab('vendors')}
             onPayRow={async (row) => {
               if (!confirm(`Pay ${row.description} — ₹${Math.round(row.amount).toLocaleString('en-IN')} in cash today?`)) return
               try {
