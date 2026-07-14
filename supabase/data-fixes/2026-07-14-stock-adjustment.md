@@ -28,6 +28,10 @@ deleted — all real purchase and issue data is intact). Each carries:
 - `unit_price = 0` → `total_cost` (generated) = 0, so no money enters the books
 - `vendor_name = 'STOCK ADJUSTMENT (not a real vendor)'`, `vendor_id = NULL`
   → matches no vendor, so it creates no payable in the vendor ledger
+- `purchase_date = 2026-04-01` (FY start). Originally dated 2026-07-14, which surfaced
+  them in the Today feed as ₹0 purchases. Backdated because a reconciliation *is* an
+  opening balance, not something that happened today. Date does not affect stock — the
+  trigger sums quantities and ignores dates.
 
 | Item | Qty added | Stock now |
 |---|---|---|
