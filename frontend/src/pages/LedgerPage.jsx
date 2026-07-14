@@ -278,7 +278,8 @@ function AddVendorModal({ onClose, onSave }) {
 }
 
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
-function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables, totalWageDues = 0, monthlySummary }) {
+function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables,
+                      totalWageDues = 0, totalSalaryDues = 0, onGoSalary, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -344,9 +345,27 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
           color={netProfit >= 0 ? '#1D9E75' : '#E24B4A'} />
         <MetricCard label="Vendor Dues" value={fmt(totalVendorDues)} color="#BA7517" />
         <MetricCard label="Receivables Due" value={fmt(totalReceivables)} color="#1D9E75" />
+        <MetricCard label="Salary Dues" value={fmt(totalSalaryDues)} color="#BA7517"
+          sub={totalSalaryDues > 0 ? 'Staff & regular workers' : undefined} />
         <MetricCard label="Unpaid Wages & Expenses" value={fmt(totalWageDues)} color="#BA7517"
-          sub={totalWageDues > 0 ? 'Settle from Expenses tab' : undefined} />
+          sub={totalWageDues > 0 ? 'Outside labour — Expenses tab' : undefined} />
       </div>
+
+      {totalSalaryDues > 0 && (
+        <button onClick={onGoSalary}
+          className="flex items-start gap-2 rounded-xl px-3 py-2.5 text-left w-full"
+          style={{ background: 'rgba(186,117,23,0.1)', border: '0.5px solid rgba(186,117,23,0.3)' }}>
+          <AlertCircle size={14} color="#BA7517" className="mt-0.5 shrink-0" />
+          <div>
+            <div className="text-xs font-medium" style={{ color: '#BA7517' }}>
+              Salary dues outstanding: {fmt(totalSalaryDues)}
+            </div>
+            <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+              Wages earned but not yet paid — tap to settle in Labour → Salary
+            </div>
+          </div>
+        </button>
+      )}
       <div className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
         Income/Expenses reflect the period selected above. Cash Balance, dues, and Receivables are always as of today, regardless of period.
       </div>
@@ -1136,11 +1155,12 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
 // khata-less entries (outside labour, general expenses) are paid on the row here.
 const GROUP_HINTS = {
   vendor_purchase: 'Settled against the vendor khata in Party Ledger',
-  salary:          'Records of payments made from Labour → Salary — born paid',
+  salary:          'Wages earned by staff & regular workers — settled in Labour → Salary',
   labour:          'Outside workers with no khata — settle each entry here',
 }
 
-function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPayRow, onGoVendors }) {
+function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
+                       canPay = false, onPayRow, onGoVendors, onGoSalary }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1159,6 +1179,12 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPay
   })
   if (grouped.vendor_purchase) {
     grouped.vendor_purchase.paid = Math.min(grouped.vendor_purchase.total, totalVendorPaid)
+  }
+  // Same shape as vendors: salary accrues per worker-month but is settled in lump
+  // sums against the khata, so "Paid" is the real cash handed over, not a per-row
+  // flag — which would otherwise read ₹0 forever.
+  if (grouped.salary) {
+    grouped.salary.paid = Math.min(grouped.salary.total, salaryPaidTotal)
   }
 
   const [expanded, setExpanded] = useState(null)
@@ -1227,6 +1253,12 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], canPay = false, onPay
                               className="text-[9px] font-semibold underline"
                               style={{ color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer' }}>
                               Pay in Party Ledger →
+                            </button>
+                          ) : key === 'salary' ? (
+                            <button onClick={onGoSalary}
+                              className="text-[9px] font-semibold underline"
+                              style={{ color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer' }}>
+                              Pay in Labour → Salary →
                             </button>
                           ) : row.is_paid ? (
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
@@ -1394,10 +1426,11 @@ export default function LedgerPage() {
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
-    markLabourPaid, addExpensePayment,
+    markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
   } = useAppStore()
 
   const canManage = isManager(getActiveFarmRole())
+  const navigate  = useNavigate()
 
   // Tree deals are receivables like any crop sale, but they live in the lazy
   // tree store — pulled in here so the khata and Receivables see them.
@@ -1446,11 +1479,18 @@ export default function LedgerPage() {
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
-  // Wages and general expenses incurred but not yet handed over — a real
-  // liability, so it sits beside Vendor Dues (all-time, like every position fact).
+  // Outside labour + general expenses incurred but not yet handed over. Salary is
+  // NOT here — rostered workers settle through their khata, counted below.
   const totalWageDues = expenseLedger
     .filter(r => !r.is_paid && (r.expense_type === 'labour' || r.expense_type === 'farm_expense'))
     .reduce((s, r) => s + Number(r.amount || 0), 0)
+
+  // Salary khata: only workers the farm actually owes. A worker carrying a
+  // negative balance (over-drawn on advances) owes the FARM — netting him against
+  // the others would hide real wage debt, so only positive balances are summed.
+  const totalSalaryDues = salaryDues
+    .reduce((s, w) => s + Math.max(0, Number(w.balance_due || 0)), 0)
+  const salaryPaidTotal = salaryPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
   // Receivable = what remains after partial payments, across crop and tree deals.
   const totalReceivables = [...sales, ...treeKhataRows]
     .filter(s => s.paymentStatus !== 'paid')
@@ -1507,10 +1547,11 @@ export default function LedgerPage() {
       ['Net Profit',     num(totalIncome - totalExpenses)],
       [],
       ['POSITION AS OF TODAY'],
-      ['Cash Balance',                num(cashBalance)],
-      ['Vendor Dues (farm owes)',     num(totalVendorDues)],
-      ['Unpaid Wages & Expenses',     num(totalWageDues)],
-      ['Receivables (owed to farm)',  num(totalReceivables)],
+      ['Cash Balance',                    num(cashBalance)],
+      ['Vendor Dues (farm owes)',         num(totalVendorDues)],
+      ['Salary Dues (farm owes workers)', num(totalSalaryDues)],
+      ['Unpaid Wages & Expenses',         num(totalWageDues)],
+      ['Receivables (owed to farm)',      num(totalReceivables)],
       [],
       ['MONTH-WISE'],
       ['Month', 'Income', 'Expenses', 'Profit'],
@@ -1556,6 +1597,17 @@ export default function LedgerPage() {
         v.vendor_name, v.category || '', num(v.total_purchased), num(v.total_paid), num(v.balance_due),
       ]),
     ], [26, 16, 12, 12, 12])
+
+    sheet('Salary Khata', [
+      ['Worker', 'Type', 'Opening', 'Earned', 'Advances', 'Paid', 'Balance Due'],
+      ...[...salaryDues]
+        .sort((a, b) => Number(b.balance_due || 0) - Number(a.balance_due || 0))
+        .map(w => [
+          w.name, w.sub_type === 'permanent' ? 'Staff' : 'Regular',
+          num(w.opening_balance), num(w.total_earned), num(w.total_advances),
+          num(w.total_paid), num(w.balance_due),
+        ]),
+    ], [22, 10, 12, 12, 12, 12, 13])
 
     // Buyer khata: same grouping the Buyer Khata tab shows — crop and tree deals
     // together, partial payments counted.
@@ -1640,6 +1692,8 @@ export default function LedgerPage() {
             totalVendorDues={totalVendorDues}
             totalReceivables={totalReceivables}
             totalWageDues={totalWageDues}
+            totalSalaryDues={totalSalaryDues}
+            onGoSalary={() => navigate('/labour')}
             monthlySummary={monthlySummary}
           />
         )}
@@ -1674,8 +1728,10 @@ export default function LedgerPage() {
         {tab === 'expenses' && (
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
+            salaryPaidTotal={salaryPaidTotal}
             canPay={canManage}
             onGoVendors={() => setTab('vendors')}
+            onGoSalary={() => navigate('/labour')}
             onPayRow={async (row) => {
               if (!confirm(`Pay ${row.description} — ₹${Math.round(row.amount).toLocaleString('en-IN')} in cash today?`)) return
               try {

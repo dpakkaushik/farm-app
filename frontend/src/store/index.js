@@ -457,6 +457,7 @@ const useAppStore = create((set, get) => ({
   todayAttendance:   {},   // { [labourerId]: { id, status } }
   advances:          [],   // salary_advances rows
   salaryPayments:    [],   // salary_payments rows
+  salaryDues:        [],   // v_salary_dues — khata balance per worker
   machineryMaster:   [],
   farmAssets:        [],
   livestockMaster:   [],
@@ -2068,6 +2069,7 @@ const useAppStore = create((set, get) => ({
       { data: monthlyRaw },
       { data: livestockPnlRaw },
       { data: cropPnlRaw },
+      { data: salaryDuesRaw },
     ] = await Promise.all([
       supabase.from('vendors').select('*').eq('farm_id', farmId).order('name'),
       supabase.from('vendor_payments').select('*, vendors(name)').eq('farm_id', farmId).order('payment_date', { ascending: false }),
@@ -2080,8 +2082,10 @@ const useAppStore = create((set, get) => ({
       supabase.from('v_monthly_summary').select('*'),
       supabase.from('v_livestock_pnl').select('*'),
       supabase.from('v_crop_pnl').select('*'),
+      supabase.from('v_salary_dues').select('*'),
     ])
     set({
+      salaryDues:       salaryDuesRaw       || [],
       vendors:          vendorsRaw          || [],
       vendorPayments:   vendorPaymentsRaw   || [],
       ownerCashEntries: ownerCashRaw        || [],
