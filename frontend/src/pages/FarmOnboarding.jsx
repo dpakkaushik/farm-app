@@ -1,152 +1,293 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import { useMapStore } from '../store'
+import { useAppStore } from '../store'
+
+// First-run wizard for a brand-new owner: farm → plots → done.
+//
+// It stays mounted across all three steps because App.jsx also checks the auth
+// store's `onboarding` flag — creating the farm takes farms.length from 0 to 1,
+// which would otherwise drop the user straight into the app before they ever
+// reached the plots step.
+//
+// Plots here are name + acreage only. addPlot() takes GPS corner points but treats
+// them as optional, and boundaries are far easier to draw on the satellite map than
+// to type as coordinates — so the wizard gets the plots into the system, and Field
+// is where they get their shape.
+
+const STEPS = ['farm', 'plots', 'done']
 
 export default function FarmOnboarding() {
   const navigate = useNavigate()
-  const { createFarm, logout, user } = useAuthStore()
-  const [form, setForm]       = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
-  const [pickMode, setPickMode] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const { createFarm, logout, user, setOnboarding } = useAuthStore()
+  const { addPlot } = useAppStore()
 
-  const handleSubmit = async (e) => {
+  const [step, setStep]         = useState('farm')
+  const [form, setForm]         = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
+  const [draftPlots, setDrafts] = useState([])              // held locally, written on Continue
+  const [plotForm, setPlotForm] = useState({ name: '', area_acres: '' })
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+
+  // Hold the wizard open until the user finishes or reloads.
+  useEffect(() => { setOnboarding(true) }, [])
+
+  const finish = () => {
+    setOnboarding(false)
+    navigate('/field?newFarm=1')
+  }
+
+  const handleCreateFarm = async (e) => {
     e.preventDefault()
     if (!form.name.trim()) { setError('Farm name is required'); return }
     setLoading(true)
     setError('')
     try {
       await createFarm(form)
-      navigate('/field?newFarm=1')
+      setStep('plots')
     } catch (err) {
       setError(err.message || 'Failed to create farm. Please try again.')
-      setLoading(false)
     }
+    setLoading(false)
   }
 
+  const addDraft = () => {
+    if (!plotForm.name.trim()) { setError('Give the plot a name'); return }
+    setError('')
+    setDrafts(ps => [...ps, { name: plotForm.name.trim(), area_acres: plotForm.area_acres }])
+    setPlotForm({ name: '', area_acres: '' })
+  }
+
+  const removeDraft = (idx) => setDrafts(ps => ps.filter((_, i) => i !== idx))
+
+  const handleSavePlots = async () => {
+    if (draftPlots.length === 0) { setStep('done'); return }
+    setLoading(true)
+    setError('')
+    try {
+      for (const p of draftPlots) await addPlot(p)
+      setStep('done')
+    } catch (err) {
+      setError(err.message || 'Failed to save plots. You can add them later from Admin.')
+    }
+    setLoading(false)
+  }
+
+  const plotAcres = draftPlots.reduce((sum, p) => sum + (parseFloat(p.area_acres) || 0), 0)
+  const farmAcres = parseFloat(form.total_acres) || 0
+  const stepIdx   = STEPS.indexOf(step)
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f4c35 0%, #1D9E75 60%, #2dd4a0 100%)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '24px',
-    }}>
-      <div style={{
-        background: '#fff',
-        borderRadius: '20px',
-        padding: '40px 36px',
-        width: '100%',
-        maxWidth: '440px',
-        boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>🌾</div>
-          <h1 style={{ margin: '0 0 8px', fontSize: '24px', fontWeight: 800, color: '#111827' }}>
-            Welcome to FarmApp
-          </h1>
-          <p style={{ margin: 0, color: '#6b7280', fontSize: '15px', lineHeight: 1.5 }}>
-            Let's set up your first farm. You can manage multiple farms later.
-          </p>
+    <div style={wrap}>
+      <div style={card}>
+
+        {/* Progress */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '24px' }}>
+          {STEPS.map((s, i) => (
+            <div key={s} style={{
+              flex: 1, height: '4px', borderRadius: '99px',
+              background: i <= stepIdx ? '#1D9E75' : '#e5e7eb',
+              transition: 'background 0.3s',
+            }} />
+          ))}
         </div>
 
-        {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px',
-            padding: '12px 16px', color: '#dc2626', fontSize: '13px', marginBottom: '20px',
-          }}>
-            {error}
-          </div>
+        {/* ── Step 1 — the farm ───────────────────────────────────────────── */}
+        {step === 'farm' && (
+          <>
+            <div style={header}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🌾</div>
+              <h1 style={title}>Welcome to Farm Manager</h1>
+              <p style={sub}>Step 1 of 3 — let's set up your farm. You'll be its admin, and can invite your manager later.</p>
+            </div>
+
+            {error && <div style={errBox}>{error}</div>}
+
+            <form onSubmit={handleCreateFarm} style={formCol}>
+              <Field label="Farm Name *">
+                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Sharma Farm" style={input} autoFocus />
+              </Field>
+              <Field label="Location">
+                <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+                  placeholder="e.g. Pilibhit, Uttar Pradesh" style={input} />
+              </Field>
+              <Field label="Total Acres">
+                <input type="number" min="0" step="0.5" value={form.total_acres}
+                  onChange={e => setForm(f => ({ ...f, total_acres: e.target.value }))}
+                  placeholder="e.g. 75" style={input} />
+              </Field>
+              <button type="submit" disabled={loading} style={primaryBtn(loading)}>
+                {loading ? 'Creating your farm…' : 'Continue →'}
+              </button>
+            </form>
+          </>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>
-              Farm Name *
-            </label>
-            <input
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Sharma Farm"
-              style={{
-                width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db',
-                borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box',
-                outline: 'none',
-              }}
-              autoFocus
-            />
-          </div>
+        {/* ── Step 2 — the plots ──────────────────────────────────────────── */}
+        {step === 'plots' && (
+          <>
+            <div style={header}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🗺️</div>
+              <h1 style={title}>Add your plots</h1>
+              <p style={sub}>
+                Step 2 of 3 — a plot is a field you want to track separately. Every crop, cost and
+                harvest is recorded against one. Just name them and give a rough size; you'll draw
+                their boundaries on the map afterwards.
+              </p>
+            </div>
 
-          <div>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>
-              Location
-            </label>
-            <input
-              value={form.location}
-              onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-              placeholder="e.g. Pilibhit, Uttar Pradesh"
-              style={{
-                width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db',
-                borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box',
-              }}
-            />
-          </div>
+            {error && <div style={errBox}>{error}</div>}
 
-          <div>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>
-              Total Acres
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              value={form.total_acres}
-              onChange={e => setForm(f => ({ ...f, total_acres: e.target.value }))}
-              placeholder="e.g. 75"
-              style={{
-                width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db',
-                borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box',
-              }}
-            />
-          </div>
+            {draftPlots.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                {draftPlots.map((p, i) => (
+                  <div key={i} style={plotRow}>
+                    <span style={{ fontSize: '18px' }}>🌱</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{p.name}</div>
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {p.area_acres ? `${p.area_acres} acres` : 'Size not set'}
+                      </div>
+                    </div>
+                    <button onClick={() => removeDraft(i)} style={removeBtn} aria-label={`Remove ${p.name}`}>✕</button>
+                  </div>
+                ))}
+                {farmAcres > 0 && (
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: plotAcres > farmAcres ? '#b45309' : '#6b7280' }}>
+                    {plotAcres} of {farmAcres} acres assigned
+                    {plotAcres > farmAcres && ' — that\'s more than the farm\'s total, but we\'ll allow it'}
+                  </p>
+                )}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: '8px',
-              padding: '14px',
-              border: 'none',
-              borderRadius: '10px',
-              background: loading ? '#9ca3af' : '#1D9E75',
-              color: '#fff',
-              fontSize: '16px',
-              fontWeight: 700,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background 0.2s',
-            }}
-          >
-            {loading ? 'Setting up your farm…' : 'Create My Farm →'}
-          </button>
-        </form>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', marginBottom: '8px' }}>
+              <div style={{ flex: 2 }}>
+                <Field label="Plot Name">
+                  <input value={plotForm.name}
+                    onChange={e => setPlotForm(f => ({ ...f, name: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDraft() } }}
+                    placeholder="e.g. North Field" style={input} />
+                </Field>
+              </div>
+              <div style={{ flex: 1 }}>
+                <Field label="Acres">
+                  <input type="number" min="0" step="0.5" value={plotForm.area_acres}
+                    onChange={e => setPlotForm(f => ({ ...f, area_acres: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addDraft() } }}
+                    placeholder="12" style={input} />
+                </Field>
+              </div>
+            </div>
 
-        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#9ca3af' }}>
-            Signed in as {user?.email}
-          </p>
-          <button
-            onClick={logout}
-            style={{
-              background: 'none', border: 'none', color: '#6b7280', fontSize: '12px',
-              cursor: 'pointer', textDecoration: 'underline',
-            }}
-          >
-            Sign out
-          </button>
+            <button onClick={addDraft} style={secondaryBtn}>+ Add Plot</button>
+
+            <button onClick={handleSavePlots} disabled={loading} style={{ ...primaryBtn(loading), marginTop: '16px' }}>
+              {loading ? 'Saving plots…'
+                : draftPlots.length > 0 ? `Continue with ${draftPlots.length} plot${draftPlots.length > 1 ? 's' : ''} →`
+                : 'Skip for now →'}
+            </button>
+          </>
+        )}
+
+        {/* ── Step 3 — done ───────────────────────────────────────────────── */}
+        {step === 'done' && (
+          <>
+            <div style={header}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
+              <h1 style={title}>{form.name} is ready</h1>
+              <p style={sub}>Step 3 of 3 — you're the admin of this farm. Here's what's next.</p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+              <NextStep icon="✏️" title="Draw your plot boundaries"
+                body="Open the Field map and trace each plot on the satellite view. That's what colours the map and powers the plot-wise reports." />
+              <NextStep icon="👥" title="Invite your manager"
+                body="Settings → Invite Someone. Managers log the daily work; you can also make someone else an admin." />
+              <NextStep icon="🌱" title="Start a crop cycle"
+                body="Issuing seed from inventory to a plot starts the cycle and schedules its activities automatically." />
+            </div>
+
+            <button onClick={finish} style={primaryBtn(false)}>Go to my farm →</button>
+          </>
+        )}
+
+        <div style={footer}>
+          <p style={{ margin: '0 0 4px', fontSize: '12px', color: '#9ca3af' }}>Signed in as {user?.email}</p>
+          <button onClick={logout} style={linkBtn}>Sign out</button>
         </div>
       </div>
     </div>
   )
 }
+
+// ── Bits ──────────────────────────────────────────────────────────────────────
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'block', marginBottom: '6px' }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+function NextStep({ icon, title, body }) {
+  return (
+    <div style={{ display: 'flex', gap: '12px', padding: '12px 14px', background: '#f9fafb', borderRadius: '10px', textAlign: 'left' }}>
+      <span style={{ fontSize: '20px', lineHeight: 1.2 }}>{icon}</span>
+      <div>
+        <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', marginBottom: '2px' }}>{title}</div>
+        <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: 1.5 }}>{body}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const wrap = {
+  minHeight: '100vh',
+  background: 'linear-gradient(135deg, #0f4c35 0%, #1D9E75 60%, #2dd4a0 100%)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+}
+const card = {
+  background: '#fff', borderRadius: '20px', padding: '36px',
+  width: '100%', maxWidth: '440px', boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
+}
+const header  = { textAlign: 'center', marginBottom: '24px' }
+const title   = { margin: '0 0 8px', fontSize: '24px', fontWeight: 800, color: '#111827' }
+const sub     = { margin: 0, color: '#6b7280', fontSize: '14px', lineHeight: 1.55 }
+const formCol = { display: 'flex', flexDirection: 'column', gap: '16px' }
+const input   = {
+  width: '100%', padding: '12px 14px', border: '1.5px solid #d1d5db',
+  borderRadius: '10px', fontSize: '15px', boxSizing: 'border-box', outline: 'none',
+}
+const errBox = {
+  background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '10px',
+  padding: '12px 16px', color: '#dc2626', fontSize: '13px', marginBottom: '20px',
+}
+const plotRow = {
+  display: 'flex', alignItems: 'center', gap: '10px',
+  padding: '10px 12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px',
+}
+const removeBtn = {
+  background: 'none', border: 'none', color: '#9ca3af',
+  fontSize: '14px', cursor: 'pointer', padding: '4px 6px', flexShrink: 0,
+}
+const primaryBtn = (busy) => ({
+  marginTop: '8px', padding: '14px', border: 'none', borderRadius: '10px',
+  background: busy ? '#9ca3af' : '#1D9E75', color: '#fff',
+  fontSize: '16px', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+  width: '100%', transition: 'background 0.2s',
+})
+const secondaryBtn = {
+  width: '100%', padding: '11px', borderRadius: '10px',
+  border: '1.5px dashed #1D9E75', background: '#f0fdf4', color: '#1D9E75',
+  fontSize: '14px', fontWeight: 700, cursor: 'pointer',
+}
+const footer  = { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #f3f4f6', textAlign: 'center' }
+const linkBtn = { background: 'none', border: 'none', color: '#6b7280', fontSize: '12px', cursor: 'pointer', textDecoration: 'underline' }

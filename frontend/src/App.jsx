@@ -43,7 +43,7 @@ function LoadingScreen() {
 }
 
 export default function App() {
-  const { user, profile, loading, farms, activeFarmId, init } = useAuthStore()
+  const { user, profile, loading, farms, activeFarmId, onboarding, init } = useAuthStore()
   // Compute role directly — Zustand getters don't survive set() shallow-merge
   const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const { mediaItems } = useAppStore()
@@ -96,8 +96,9 @@ export default function App() {
   // activity they log. Catches anyone who slipped in without a profile too.
   if (!profile.full_name || !profile.phone) return <Profile mustComplete />
 
-  // New user — no farms yet → onboarding
-  if (farms.length === 0) return <FarmOnboarding />
+  // New user — no farms yet → onboarding. `onboarding` keeps the wizard on screen
+  // after the farm is created (farms.length becomes 1) so it can go on to plots.
+  if (farms.length === 0 || onboarding) return <FarmOnboarding />
 
   const role  = activeFarmRole            // 'admin' | 'manager' | 'view_only'
   const admin = isAdmin(role)

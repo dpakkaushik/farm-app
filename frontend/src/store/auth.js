@@ -53,6 +53,14 @@ const useAuthStore = create((set, get) => ({
   activeFarmId: null,
   activeFarm:   null,     // the membership object matching activeFarmId
 
+  // True while the first-run wizard is walking a new owner through farm → plots.
+  // It has to exist because creating the farm flips farms.length from 0 to 1, and
+  // App.jsx gates the wizard on farms.length === 0 — so without this the wizard
+  // would be torn off the screen the instant the farm saved, before any plot was
+  // added. In memory only: abandoning the wizard and reloading lands you in the
+  // app with your farm, which is the right place to be.
+  onboarding:   false,
+
   // ── Computed helpers (read from state, not reactive) ──────────────────────
   get isSuperAdmin() { return get().profile?.is_super_admin === true },
   get activeFarmRole() {
@@ -122,6 +130,8 @@ const useAuthStore = create((set, get) => ({
     storeActiveFarmId(null)
     set({ user: null, profile: null, farms: [], activeFarmId: null, activeFarm: null })
   },
+
+  setOnboarding: (v) => set({ onboarding: v }),
 
   // ── Farm switching ────────────────────────────────────────────────────────
   switchFarm: (farmId) => {
