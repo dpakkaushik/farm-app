@@ -135,7 +135,8 @@ function InventorySection({ inventory }) {
           right={`₹${r.totalCost.toLocaleString('en-IN')}`} />
       ) : (
         <Row key={`i-${idx}`} icon="📤" iconBg="#3b82f622"
-          title={`Issued ${r.qty} ${r.itemName} → ${r.plotLabel}`} detail={r.purpose}
+          title={`Issued ${r.qty} ${r.itemName}`}
+          detail={[r.plotLabels.join(', '), r.purposes.join(', ')].filter(Boolean).join(' · ') || null}
           right={`₹${r.totalCost.toLocaleString('en-IN')}`} />
       ))}
       <MoreToggle hidden={hidden} expanded={expanded} onToggle={toggle} />

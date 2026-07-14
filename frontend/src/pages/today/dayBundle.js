@@ -124,11 +124,46 @@ function buildMediaSummary(dateStr, mediaItems) {
   return { count: dayItems.length, plotLabels, photoCount: dayItems.filter(m => m.type === 'photo').length, videoCount: dayItems.filter(m => m.type === 'video').length }
 }
 
+// Two decimals is enough for every unit the farm issues (bags, litres, kg), and
+// it clears the float dust that summing them leaves behind — 0.1 + 0.2 = 0.30000000000000004.
+const round2 = n => Math.round(n * 100) / 100
+
+// One inventory_issues row per plot is correct in the database — plot-wise rows are
+// what make plot-wise cost attribution possible, and they stay. But they read badly
+// on the card: urea issued to six plots became six near-identical lines. So for the
+// card, group by item — name once, quantity and cost combined, plots listed. This is
+// a display fold only; it changes nothing about how issues are stored or costed.
+function groupIssuesByItem(dayIssues, itemName) {
+  const byItem = new Map()
+
+  for (const i of dayIssues) {
+    if (!byItem.has(i.itemId)) {
+      byItem.set(i.itemId, { itemName: itemName(i.itemId), qty: 0, totalCost: 0, plotLabels: new Set(), purposes: new Set() })
+    }
+    const g = byItem.get(i.itemId)
+    g.qty       += Number(i.qty)       || 0
+    g.totalCost += Number(i.totalCost) || 0
+    // '—' is the store's stand-in for an issue with no plot. Naming it adds nothing.
+    if (i.plotLabel && i.plotLabel !== '—') g.plotLabels.add(i.plotLabel)
+    if (i.purpose) g.purposes.add(i.purpose)
+  }
+
+  return [...byItem.values()]
+    .map(g => ({
+      itemName:   g.itemName,
+      qty:        round2(g.qty),
+      totalCost:  round2(g.totalCost),
+      plotLabels: [...g.plotLabels].sort(),
+      purposes:   [...g.purposes],
+    }))
+    .sort((a, b) => a.itemName.localeCompare(b.itemName))
+}
+
 function buildInventoryRows(dateStr, { purchases, issues }, { inventoryMaster }) {
   const itemName = id => inventoryMaster.find(i => i.id === id)?.name || 'Item'
   return {
     purchases: purchases.filter(p => p.date === dateStr).map(p => ({ itemName: itemName(p.itemId), qty: p.qty, vendor: p.vendor, totalCost: p.totalCost })),
-    issues:    issues.filter(i => i.date === dateStr).map(i => ({ itemName: itemName(i.itemId), qty: i.qty, plotLabel: i.plotLabel, purpose: i.purpose, totalCost: i.totalCost })),
+    issues:    groupIssuesByItem(issues.filter(i => i.date === dateStr), itemName),
   }
 }
 
