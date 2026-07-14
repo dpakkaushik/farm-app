@@ -65,19 +65,22 @@ export default function Today() {
   const drivers  = useMemo(() => selectDrivers({ permanentStaff, regularLabourers }), [permanentStaff, regularLabourers])
   const tractors = useMemo(() => selectTractors({ machineryMaster }), [machineryMaster])
 
-  // Active plots (one per plot with an active cycle)
-  const activePlots = useMemo(() => {
-    const seen = new Set()
-    return cropCycles
-      .filter(c => c.status === 'active')
-      .filter(c => { if (seen.has(c.plotId)) return false; seen.add(c.plotId); return true })
-      .map(c => ({
-        plotId: c.plotId,
-        label:  c.plotLabel,
-        crop:   cropMaster.find(m => m.id === c.cropId)?.name || '',
-      }))
+  // Every plot, not just the ones carrying a crop. Work happens on empty land —
+  // ploughing above all, which by definition follows a harvest and precedes a
+  // sowing. Listing only plots with an active cycle hid exactly the plots that
+  // could be ploughed. A plot with no active cycle logs against no cycle.
+  const selectablePlots = useMemo(() => {
+    return plots
+      .map(p => {
+        const cycle = cropCycles.find(c => c.plotId === p.id && c.status === 'active')
+        return {
+          plotId: p.id,
+          label:  p.name,
+          crop:   cycle ? (cropMaster.find(m => m.id === cycle.cropId)?.name || '') : 'Fallow',
+        }
+      })
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [cropCycles, cropMaster])
+  }, [plots, cropCycles, cropMaster])
 
   // Scheduled tasks derived from crop templates
   const { overdue, todayTasks, tomorrow, upcoming } = useMemo(() => {
@@ -437,7 +440,7 @@ export default function Today() {
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {activePlots.map(p => {
+                    {selectablePlots.map(p => {
                       const sel = selPlots.has(p.plotId)
                       return (
                         <button key={p.plotId} onClick={() => togglePlot(p.plotId)}
@@ -452,8 +455,8 @@ export default function Today() {
                         </button>
                       )
                     })}
-                    {activePlots.length === 0 && (
-                      <p className="text-xs text-[var(--c-faint)] italic">No active crop cycles found</p>
+                    {selectablePlots.length === 0 && (
+                      <p className="text-xs text-[var(--c-faint)] italic">No plots found</p>
                     )}
                   </div>
                 )}

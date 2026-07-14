@@ -1664,13 +1664,14 @@ const useAppStore = create((set, get) => ({
 
   // ── Activity log ────────────────────────────────────────────────────────────
   logActivity: async (act) => {
-    const isEvent     = act.type === 'events'
     const isPloughing = act.type === 'ploughing'
+    // A plot with no active cycle logs against no cycle. Work happens on empty
+    // land — ploughing follows a harvest and precedes a sowing — so requiring a
+    // cycle here silently discarded exactly the rows that mattered.
     const cycleId = act.cropCycleId || (() => {
       const cycle = get().cropCycles.find(c => c.plotId === act.plotId && c.status === 'active')
       return cycle?.id || null
     })()
-    if (!cycleId && !isEvent) return  // non-events require a cycle
 
     const { data, error } = await supabase.from('activity_logs').insert({
       farm_id:              getFarmId(),
@@ -1696,7 +1697,6 @@ const useAppStore = create((set, get) => ({
   logActivities: async (plotIds, actData) => {
     const { cropCycles, plots } = get()
     const today       = new Date().toISOString().slice(0, 10)
-    const isEvent     = actData.type === 'events'
     const isPloughing = actData.type === 'ploughing'
     const n          = plotIds.length
     const totalOut   = actData.outsideLabourCount || 0
@@ -1723,8 +1723,8 @@ const useAppStore = create((set, get) => ({
 
     const farmId = getFarmId()
     const rows = plotIds.map((plotId, idx) => {
+      // No active cycle → cycle_id null. Fallow and harvested plots are loggable.
       const cycle   = cropCycles.find(c => c.plotId === plotId && c.status === 'active')
-      if (!cycle && !isEvent) return null
       const outside = outsidePerPlot[idx]
       return {
         farm_id:              farmId,
@@ -1743,7 +1743,7 @@ const useAppStore = create((set, get) => ({
         status:               'done',
         notes:                actData.notes || null,
       }
-    }).filter(Boolean)
+    })
 
     if (!rows.length) return
     const { data, error } = await supabase.from('activity_logs').insert(rows).select('*, plots(name)')
