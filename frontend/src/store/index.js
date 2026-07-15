@@ -417,7 +417,11 @@ function mapCountLog(l) {
 // ── Map store (persisted separately for map state) ────────────────────────────
 const useMapStore = create(
   (set) => ({
-    zoom: 15, center: [80.486362, 28.506379], bearing: 0, pitch: 0,
+    // Neutral wide-India view. This is only the fallback for a farm with no saved
+    // map_state — the real position comes from the farm's own centre (the onboarding
+    // pin, or wherever an admin last left the map). It must NOT be any one farm's
+    // coordinates, or every new farm opens on that farm's location.
+    zoom: 4.2, center: [78.9629, 22.5937], bearing: 0, pitch: 0,
     setMapState: (state) => set(state),
     overlay: null,
     setOverlay: (overlay) => set({ overlay }),

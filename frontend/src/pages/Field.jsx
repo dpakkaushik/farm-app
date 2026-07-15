@@ -352,7 +352,13 @@ export default function Field() {
         { id:'labels',    type:'raster', source:'esri-labels', paint:{ 'raster-opacity':0.85 } },
       ],
     }
-    map.current = new maplibregl.Map({ container: mapContainer.current, style: STYLE, center, zoom, bearing, pitch, attributionControl: false })
+    // Open on the active farm's saved centre when it has one, so a new farm never
+    // even briefly shows the demo farm's location. The store default (a neutral
+    // India view) is used only until the owner sets a centre.
+    const savedMS    = useAuthStore.getState().activeFarm?.map_state
+    const initCenter = savedMS?.center || center
+    const initZoom   = savedMS?.zoom   || zoom
+    map.current = new maplibregl.Map({ container: mapContainer.current, style: STYLE, center: initCenter, zoom: initZoom, bearing, pitch, attributionControl: false })
     map.current.addControl(new maplibregl.AttributionControl({ compact:true }), 'bottom-right')
     map.current.addControl(new maplibregl.ScaleControl(), 'bottom-left')
     map.current.on('load', () => {
@@ -368,7 +374,7 @@ export default function Field() {
       const state = { zoom:z, center:[c.lng,c.lat], bearing:map.current.getBearing(), pitch:map.current.getPitch() }
       setMapState(state)
       clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => farmApi.saveMapState?.('demo', state)?.catch?.(()=>{}), 1000)
+      saveTimer.current = setTimeout(() => useAuthStore.getState().saveActiveFarmMapState(state), 1000)
     })
     return () => { clearTimeout(saveTimer.current); markersRef.current.forEach(m => m.remove()); map.current?.remove(); map.current = null }
   }, [])

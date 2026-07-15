@@ -198,6 +198,28 @@ const useAuthStore = create((set, get) => ({
     await get().refreshFarms()
   },
 
+  // Persist the Field map's last position to the active farm, so it reopens where
+  // you left it instead of on a hardcoded default. Called (debounced) on pan/zoom.
+  //
+  // RLS farms_update is admin-only: a manager's pan is rejected and swallowed here —
+  // the home position is a farm setting, and they simply don't get to change it. The
+  // local map still moved for their session; only persistence is denied. Patches the
+  // in-memory farm rather than refetching, because this fires on every pan.
+  saveActiveFarmMapState: async (mapState) => {
+    const { activeFarmId } = get()
+    if (!activeFarmId || !mapState) return
+    const { error } = await supabase.from('farms')
+      .update({ map_state: mapState })
+      .eq('id', activeFarmId)
+    if (error) return   // non-fatal: non-admin (RLS), offline, etc.
+    set(s => ({
+      farms: s.farms.map(f => f.farm_id === activeFarmId ? { ...f, map_state: mapState } : f),
+      activeFarm: s.activeFarm && s.activeFarm.farm_id === activeFarmId
+        ? { ...s.activeFarm, map_state: mapState }
+        : s.activeFarm,
+    }))
+  },
+
   // Permanently delete a farm and — via ON DELETE CASCADE on all 37 farm-scoped
   // foreign keys — every plot, crop, ledger, diary and media row under it. RLS
   // farms_delete restricts this to admins; the typed-name confirmation lives in
