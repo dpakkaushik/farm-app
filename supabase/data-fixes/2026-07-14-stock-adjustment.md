@@ -1,6 +1,12 @@
 # 2026-07-14 — Stock reconciliation after purchase rows were deleted
 
-**Status: temporary. Replace with the real bills, then delete the adjustment rows.**
+**Status: REVERTED 2026-07-15.** The owner deleted the nine `STOCK-ADJ-20260714`
+rows (and the orphan ₹840 urea issue of 2026-04-15) ahead of re-entering all
+purchase data from April onward. Until that re-entry lands, stock is knowingly
+negative again (Diesel −585.99, Wheat Seeds −530, Sugarcane Setts −400,
+Paddy Seeds −80, DAP −32, Zinc Sulphate −15, Mustard Seeds −10; Urea 44,
+Potash 9). Bill scans for the lost purchases are in Storage under
+`inventory-docs/bills/` (25–29 Jun, 6 Jul).
 
 ## What went wrong
 
