@@ -2097,8 +2097,8 @@ const useAppStore = create((set, get) => ({
       supabase.from('v_income_ledger').select('*').order('entry_date', { ascending: false }),
       supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false }),
       supabase.from('v_monthly_summary').select('*'),
-      supabase.from('v_livestock_pnl').select('*'),
-      supabase.from('v_crop_pnl').select('*'),
+      supabase.from('v_livestock_pnl').select('*').eq('farm_id', farmId),
+      supabase.from('v_crop_pnl').select('*').eq('farm_id', farmId),
       supabase.from('v_salary_dues').select('*'),
     ])
     set({

@@ -1300,8 +1300,42 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
 }
 
 // ── Tab: P&L ──────────────────────────────────────────────────────────────────
+
+// One crop can stand in five plots; at crop level those cycles merge into a
+// single line. Margin is actual once revenue exists, expected until then.
+function mergeByCrop(cropPnl) {
+  const byCrop = {}
+  for (const row of cropPnl) {
+    const key = row.crop_name || '—'
+    const agg = byCrop[key] || { crop: key, cycles: 0, acres: 0, cost: 0, revenue: 0, expected: 0 }
+    byCrop[key] = {
+      ...agg,
+      cycles:   agg.cycles + 1,
+      acres:    agg.acres + Number(row.acres || 0),
+      cost:     agg.cost + Number(row.total_cost || 0),
+      revenue:  agg.revenue + Number(row.revenue || 0),
+      expected: agg.expected + Number(row.expected_revenue || 0),
+    }
+  }
+  return Object.values(byCrop).sort((a, b) => b.cost - a.cost)
+}
+
+function MarginPill({ actualPct, expectedPct, isActual }) {
+  const pct = isActual ? Number(actualPct || 0) : Number(expectedPct || 0)
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
+      style={{
+        background: pct >= 0 ? '#1D9E75/15' : '#E24B4A/15',
+        color:      pct >= 0 ? '#1D9E75'    : '#E24B4A',
+      }}>
+      {pct}%{isActual ? '' : ' est.'}
+    </span>
+  )
+}
+
 function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
   const net = totalIncome - totalExpenses
+  const cropMerged = mergeByCrop(cropPnl)
   return (
     <div className="flex flex-col gap-3 pt-3">
       {/* Overall */}
@@ -1366,11 +1400,54 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
         </Card>
       )}
 
-      {/* Crop P&L */}
+      {/* Crop P&L — merged at crop level across plots */}
+      {cropMerged.length > 0 && (
+        <Card className="p-0">
+          <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
+            Crops — P&L (all plots merged)
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                {['Crop','Cost','Revenue','Margin'].map(h => (
+                  <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cropMerged.map((row) => {
+                const isActual = row.revenue > 0
+                const rev      = isActual ? row.revenue : row.expected
+                const pct      = rev > 0 ? Math.round((rev - row.cost) / rev * 1000) / 10 : 0
+                return (
+                  <tr key={row.crop} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    <td className="px-3 py-2">
+                      <div className="font-medium" style={{ color: 'var(--c-text)' }}>{row.crop}</div>
+                      <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>
+                        {row.cycles} plot{row.cycles !== 1 ? 's' : ''} · {row.acres} ac
+                      </div>
+                    </td>
+                    <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.cost)}</td>
+                    <td className="px-3 py-2" style={{ color: '#1D9E75' }}>
+                      {fmt(rev)}
+                      {!isActual && <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}> est.</span>}
+                    </td>
+                    <td className="px-3 py-2">
+                      <MarginPill actualPct={pct} expectedPct={pct} isActual={isActual} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+
+      {/* Crop P&L — per cycle (plot) */}
       {cropPnl.length > 0 && (
         <Card className="p-0">
           <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-            Crop Cycles — P&L
+            Crop Cycles — P&L (per plot)
           </div>
           <table className="w-full text-xs">
             <thead>
@@ -1392,13 +1469,8 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
                   <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.total_cost)}</td>
                   <td className="px-3 py-2" style={{ color: '#1D9E75' }}>{fmt(row.revenue)}</td>
                   <td className="px-3 py-2">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold`}
-                      style={{
-                        background: Number(row.margin_pct) >= 0 ? '#1D9E75/15' : '#E24B4A/15',
-                        color:      Number(row.margin_pct) >= 0 ? '#1D9E75'    : '#E24B4A',
-                      }}>
-                      {row.margin_pct}%
-                    </span>
+                    <MarginPill actualPct={row.margin_pct} expectedPct={row.expected_margin_pct}
+                      isActual={Number(row.revenue) > 0} />
                   </td>
                 </tr>
               ))}

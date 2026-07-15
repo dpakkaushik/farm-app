@@ -230,18 +230,26 @@ export default function Dashboard() {
   const caneRevPaid    = sales.filter(s => s.paymentStatus === 'paid').reduce((n, s) => n + s.netAmount, 0)
   const caneRevPending = sales.filter(s => s.paymentStatus !== 'paid').reduce((n, s) => n + s.grossAmount, 0)
 
-  // Estimated revenue for non-cane active cycles
+  // Estimated revenue for non-cane active cycles — grain plus residuals
+  // (bhoosa, parali): both are real revenue the standing crop will bring.
   const otherEstRev = activeCycles
     .filter(c => !caneSessionCycleIds.has(c.id))
     .reduce((n, c) => {
       const crop = cropMaster.find(cr => cr.id === c.cropId)
-      return n + (crop ? (c.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) : 0)
+      if (!crop) return n
+      const residualPerAcre = (crop.residuals || []).reduce(
+        (r, d) => r + (Number(d.qty_per_acre) || 0) * (Number(d.expected_rate) || 0), 0)
+      return n + (c.acres || 0) * ((crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) + residualPerAcre)
     }, 0)
 
   const totalExpectedRevenue = caneGrossTotal + otherEstRev
 
   // ── Expense totals ──
-  const totalInputCost  = issues.reduce((n, i) => n + (i.totalCost || 0), 0)
+  // Stock corrections rebalance inventory after data mishaps; they are not
+  // spend, so they must not inflate the owner's season-cost number.
+  const totalInputCost  = issues
+    .filter(i => i.purpose !== 'stock_correction' && i.purpose !== 'historical_correction')
+    .reduce((n, i) => n + (i.totalCost || 0), 0)
   const totalLabourCost = labourLogs.reduce((n, l) => n + (l.totalCost || 0), 0)
   const totalExpense    = totalInputCost + totalLabourCost
   const netPosition     = caneRevPaid - totalExpense
