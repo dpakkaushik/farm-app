@@ -26,6 +26,14 @@
 >    - Note: Pallia's opening *stock* is already reconciled by hand
 >      (supabase/data-fixes/2026-07-21-opening-stock-reconciliation.md) — only
 >      its crop `opening_cost` values still need entering, through this UI.
+>
+> **Superseded in part, 2026-07-31 (owner: "don't create dual ways"):** Form 2
+> was built, then removed. Standing crops live in ONE place — the Cycles master
+> (Admin → Cycles): its new-cycle form offers "spent before the app ₹" whenever
+> the sow date predates the farm's signup (farms.created_at is the cutoff), and
+> each pre-app active cycle carries an inline opening-cost editor. The checklist
+> keeps Form 1 (opening stock, which no cycle can own) and points its "Standing
+> crops" row at /admin?tab=Cycles.
 
 ## The problem
 

@@ -31,7 +31,11 @@ const CROP_NAME_LIST = [
 ]
 
 export default function Admin() {
-  const [tab, setTab] = useState('Crops')
+  // ?tab=Cycles deep-links straight to a master — the opening-balances
+  // checklist points its "Standing crops" row here instead of duplicating
+  // the cycle form. Initial-state only; in-page switching stays local.
+  const requested = new URLSearchParams(window.location.search).get('tab')
+  const [tab, setTab] = useState(TABS.includes(requested) ? requested : 'Crops')
   return (
     <div className="h-full flex flex-col bg-[var(--c-bg)]">
       <div className="shrink-0 px-4 pt-4 pb-0">
