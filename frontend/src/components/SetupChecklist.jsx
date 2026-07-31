@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, ChevronLeft, Package, Sprout, Check } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
@@ -117,9 +118,13 @@ function CardButton({ done, label, onClick }) {
 }
 
 // ── Bottom sheet shared by all three views ────────────────────────────────────
+// Portalled to <body>: on Field this component mounts inside an absolutely
+// positioned wrapper that uses a translate transform, and a transformed
+// ancestor becomes the containing block for position:fixed descendants — the
+// sheet would lay itself out inside that zero-height box and never be seen.
 
 function Sheet({ onClose, children }) {
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center">
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />
       <div className="relative w-full overflow-y-auto rounded-t-2xl"
@@ -127,7 +132,8 @@ function Sheet({ onClose, children }) {
                  paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
