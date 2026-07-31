@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { format } from 'date-fns'
 import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell } from 'lucide-react'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
@@ -12,6 +12,12 @@ const getTodayStr  = () => new Date().toISOString().slice(0, 10)
 const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
 const TODAY_DATE   = getTodayDate()
 const TODAY_STR    = getTodayStr()
+
+// The week behind today, shown by default under the day card — yesterday back
+// to seven days ago. Anything older stays behind the explicit History fetch.
+const dateStrDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
+const LAST7_START = dateStrDaysAgo(7)
+const LAST7_END   = dateStrDaysAgo(1)
 
 const HISTORY_WARN_DAYS = 90
 
@@ -175,6 +181,36 @@ export default function Today() {
        livestockRevenue, mediaItems])
 
   const todayBundle = useMemo(() => buildDayBundle(TODAY_STR, todaySlices, resolvers), [todaySlices, resolvers])
+
+  // ── Last 7 days — shown by default, no Fetch needed ─────────────────────────
+  // Same slices and day-bundle logic as History. The store already holds every
+  // slice in full except advances (it only keeps outstanding ones), so recovered
+  // advances for the window are fetched once here — the same gap fetchHistory
+  // plugs for its range. Until (or if ever) that lands, the store's own advances
+  // stand in.
+  const [recentAdvances, setRecentAdvances] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    supabase.from('salary_advances').select('*')
+      .eq('farm_id', activeFarmId)
+      .gte('advance_date', LAST7_START)
+      .lte('advance_date', LAST7_END)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        setRecentAdvances(data.map(a => ({
+          id: a.id, labourerId: a.labourer_id, date: a.advance_date,
+          amount: Number(a.amount), reason: a.reason || '',
+        })))
+      })
+    return () => { cancelled = true }
+  }, [activeFarmId])
+
+  const last7Days = useMemo(() => {
+    const slices = recentAdvances ? { ...todaySlices, advances: recentAdvances } : todaySlices
+    return datesInRange(slices, LAST7_START, LAST7_END)
+      .map(d => ({ date: d, bundle: buildDayBundle(d, slices, resolvers) }))
+      .filter(r => !r.bundle.isEmpty)
+  }, [todaySlices, resolvers, recentAdvances])
 
   const rangeDays = (historyStart && historyEnd && historyStart <= historyEnd)
     ? Math.round((new Date(historyEnd) - new Date(historyStart)) / 86400000) + 1
@@ -367,6 +403,16 @@ export default function Today() {
               <Plus size={13} strokeWidth={2.5} /> Log Activity
             </button>
           ) : null} />
+
+        {/* Last 7 days — always visible; older days live behind History below */}
+        {last7Days.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
+              Last 7 Days
+            </p>
+            {last7Days.map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)}
+          </div>
+        )}
 
         {/* History — gated behind an explicit date range + Fetch */}
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--c-border)' }}>
