@@ -2,11 +2,27 @@
 
 > Status: **final design, not started.** Simplified 2026-07-20 to the smallest
 > version that keeps the numbers honest. Supersedes the earlier CSV/books-start-date
-> draft.
+> draft. Amended 2026-07-31: must also serve an **already-running farm** (see below).
 >
-> Resume prompt: "Read docs/PLAN-mid-year-onboarding.md and build it. Apply
-> migration 0017 first — it's committed but not yet on the live DB (see
-> docs/AUDIT-ledger-2026-07-15.md)."
+> Resume prompt: "Read docs/PLAN-mid-year-onboarding.md and build it. Migration
+> 0017 is already applied to the live DB (verified 2026-07-21), so 0018 can go
+> straight on top."
+>
+> **Owner requirement added 2026-07-31 — provision for BOTH cases:**
+> 1. **A brand-new farm** (separate owner) — the original design below.
+> 2. **The current farm (Pallia)** — it started in the app in June, so its
+>    sugarcane cycles carry real pre-app expenses that are not showing in P&L.
+>    Pallia already has 19 cycles and live stock, so the "looks un-set-up" card
+>    visibility rule would never fire there. Therefore:
+>    - **Form 2 must also list plots with EXISTING active cycles** and let the
+>      owner enter/edit "spent before the app ₹" — written to `opening_cost` on
+>      that existing cycle (update, not create).
+>    - **Add a manual entry point** for set-up farms: a "Opening balances /
+>      Finish setup" item in the profile menu (ProfileMenu.jsx) that opens the
+>      same SetupChecklist, so the card being auto-hidden doesn't lock owners out.
+>    - Note: Pallia's opening *stock* is already reconciled by hand
+>      (supabase/data-fixes/2026-07-21-opening-stock-reconciliation.md) — only
+>      its crop `opening_cost` values still need entering, through this UI.
 
 ## The problem
 
