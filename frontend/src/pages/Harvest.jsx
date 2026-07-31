@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { CheckCircle2, X, Plus, AlertTriangle, Pencil, Building2 } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
-import { isManager, getActiveFarmRole } from '../store/auth'
+import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 
@@ -157,6 +157,11 @@ export default function Harvest() {
   }
 
   // ── New cycle ─────────────────────────────────────────────────────────────────
+  // The farm's signup date is the cutoff: sown earlier than that means the crop
+  // predates the app, so the form offers "spent before the app ₹" → opening_cost.
+  const farmJoined   = useAuthStore(s => s.activeFarm?.farm_created_at)
+  const preAppSowing = !!(form?.sowDate && farmJoined && form.sowDate < farmJoined.slice(0, 10))
+
   const openNewCycle = () => {
     setForm({ plotId: '', cropId: '', sowDate: new Date().toISOString().slice(0, 10) })
     setModal('newCycle')
@@ -175,6 +180,7 @@ export default function Harvest() {
         plotId: plot.id, cropId: form.cropId,
         sowDate: form.sowDate, harvestDate: harvestDate.toISOString().slice(0, 10),
         season: computeSeason(form.sowDate),
+        openingCost: preAppSowing ? (parseFloat(form.openingCost) || null) : null,
       })
       showToast('Crop cycle started!')
       setModal(null)
@@ -863,6 +869,17 @@ export default function Harvest() {
               )}
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Sowing date</label>
                 <input type="date" value={form.sowDate || ''} onChange={e => f('sowDate', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
+              {preAppSowing && (
+                <div className="bg-[#BA7517]/8 border border-[#BA7517]/20 rounded-xl px-3 py-2.5">
+                  <label className="text-xs text-[var(--c-sub)] block mb-1">Spent before the app ₹ (optional)</label>
+                  <input type="number" min="0" inputMode="decimal" placeholder="What this crop already cost"
+                    value={form.openingCost || ''} onChange={e => f('openingCost', e.target.value)} className="finput" />
+                  <p className="text-[10px] text-[var(--c-faint)] mt-1.5 leading-relaxed">
+                    This crop was sown before the farm joined the app. Money already spent on it
+                    (inputs, labour) is counted into its P&L cost so the margin stays honest.
+                  </p>
+                </div>
+              )}
               {form.cropId && form.sowDate && (() => {
                 const crop = cropMaster.find(c => c.id === form.cropId)
                 if (!crop) return null

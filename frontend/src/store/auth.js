@@ -10,7 +10,7 @@ async function fetchProfile(userId) {
 async function fetchMemberships(userId) {
   const { data } = await supabase
     .from('farm_memberships')
-    .select('farm_id, role, status, farms(id, name, location, total_acres, map_state, overlay_config)')
+    .select('farm_id, role, status, farms(id, name, location, total_acres, map_state, overlay_config, created_at)')
     .eq('user_id', userId)
     .eq('status', 'active')
   return (data || []).map(m => ({
@@ -21,6 +21,9 @@ async function fetchMemberships(userId) {
     total_acres:    m.farms?.total_acres || 0,
     map_state:      m.farms?.map_state || null,
     overlay_config: m.farms?.overlay_config || null,
+    // When the farm joined the app — the cutoff for "pre-app" history. A crop
+    // sown before this date can carry an opening cost (mid-year onboarding).
+    farm_created_at: m.farms?.created_at || null,
   }))
 }
 

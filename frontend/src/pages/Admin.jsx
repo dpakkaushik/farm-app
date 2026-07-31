@@ -2136,6 +2136,11 @@ function CyclesMaster() {
 
   const activePlotIds = new Set(cropCycles.filter(c => c.status === 'active').map(c => c.plotId))
 
+  // The farm's signup date is the cutoff: sown earlier than that means the crop
+  // predates the app, so the form offers "spent before the app ₹" → opening_cost.
+  const farmJoined   = useAuthStore(s => s.activeFarm?.farm_created_at)
+  const preAppSowing = !!(form?.sowDate && farmJoined && form.sowDate < farmJoined.slice(0, 10))
+
   const save = async () => {
     if (!form.plotId || !form.cropId || !form.sowDate || !form.season) {
       return showToast('Fill all fields', 'warn')
@@ -2156,6 +2161,7 @@ function CyclesMaster() {
         sowDate:     form.sowDate,
         harvestDate: harv.toISOString().slice(0, 10),
         budget:      parseFloat(form.budget) || null,
+        openingCost: preAppSowing ? (parseFloat(form.openingCost) || null) : null,
       })
       showToast('Crop cycle started ✓')
       setForm(null)
@@ -2236,6 +2242,16 @@ function CyclesMaster() {
           <FRow label="Budget (₹, optional)">
             <input type="number" className="finput" placeholder="Expected spend" value={form.budget || ''} onChange={e => setForm(p => ({ ...p, budget: e.target.value }))} />
           </FRow>
+
+          {preAppSowing && (
+            <FRow label="Spent before the app (₹, optional)">
+              <input type="number" className="finput" placeholder="Cost already sunk into this crop"
+                value={form.openingCost || ''} onChange={e => setForm(p => ({ ...p, openingCost: e.target.value }))} />
+              <p className="text-[10px] text-[var(--c-faint)] mt-1 leading-relaxed">
+                Sown before the farm joined the app — this money is counted into the crop's P&L cost.
+              </p>
+            </FRow>
+          )}
 
           {form.cropId && form.sowDate && (() => {
             const crop = cropMaster.find(c => c.id === form.cropId)
