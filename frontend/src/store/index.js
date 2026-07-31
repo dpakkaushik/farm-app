@@ -63,6 +63,7 @@ function mapCycle(c) {
     parentCycleId:     c.parent_cycle_id || null,
     millName:          c.mill_name   || null,
     growerCode:        c.grower_code || null,
+    openingCost:       c.opening_cost != null ? Number(c.opening_cost) : null,
   }
 }
 
@@ -441,6 +442,14 @@ const useAppStore = create((set, get) => ({
     localStorage.setItem('manpower_settings', JSON.stringify(s))
     set({ manpowerSettings: s })
   },
+
+  // ── Setup checklist (mid-year onboarding) ───────────────────────────────────
+  // ProfileMenu sets this to force the checklist open on a farm that no longer
+  // "looks un-set-up" (e.g. Pallia — live stock and cycles, but crop opening
+  // costs still to enter). SetupChecklist reads it and clears it on close.
+  setupChecklistOpen:  false,
+  openSetupChecklist:  () => set({ setupChecklistOpen: true }),
+  closeSetupChecklist: () => set({ setupChecklistOpen: false }),
 
   // ── State — all loaded from Supabase ────────────────────────────────────────
   plots:             [],
@@ -1176,6 +1185,37 @@ const useAppStore = create((set, get) => ({
         i.id === purchase.itemId ? { ...i, currentStock: newStock, costPerUnit: newWAC } : i
       ),
     }))
+  },
+
+  // ── Opening stock (mid-year onboarding) ─────────────────────────────────────
+  // What's already in the store when a farm joins mid-season. Saved as ordinary
+  // backdated purchases — marker invoice 'OPENING-STOCK', vendor name only (no
+  // vendor id, so no payable is created) — dated the day before the current
+  // financial year starts, so stock and weighted-average cost are right but
+  // this season's expenses are untouched. rows: [{ itemId, qty, unitPrice }].
+  //
+  // One opening entry per item, ever: items that already have an OPENING-STOCK
+  // purchase are skipped, so a retry after a mid-batch failure (the successful
+  // rows are already in state) or a revisit via ProfileMenu can never double
+  // an item's opening quantity or skew its weighted-average cost.
+  recordOpeningStock: async (rows) => {
+    const already = new Set(
+      get().purchases.filter(p => p.invoiceNo === 'OPENING-STOCK').map(p => p.itemId)
+    )
+    // Indian FY starts 1 April; the opening date is the 31 March just before it.
+    const now      = new Date()
+    const fyStart  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+    const date     = `${fyStart}-03-31`
+    for (const r of rows.filter(r => !already.has(r.itemId))) {
+      await get().recordPurchase({
+        itemId:    r.itemId,
+        qty:       r.qty,
+        unitPrice: r.unitPrice,
+        date,
+        vendor:    'Opening balance',
+        invoiceNo: 'OPENING-STOCK',
+      })
+    }
   },
 
   // ── Purchase Bill — multi-item, one bill record ─────────────────────────────
@@ -1959,6 +1999,7 @@ const useAppStore = create((set, get) => ({
       status:               'active',
       budget:               cycle.budget || null,
       parent_cycle_id:      cycle.parentCycleId || null,
+      opening_cost:         cycle.openingCost || null,
     }).select('*, plots(name, area_acres), crops(name, color, icon)').single()
     if (error) throw error
 
@@ -1995,6 +2036,17 @@ const useAppStore = create((set, get) => ({
     const { error } = await supabase.from('crop_cycles').update(updates).eq('id', id)
     if (error) throw error
     set(s => ({ cropCycles: s.cropCycles.map(c => c.id === id ? { ...c, ...data } : c) }))
+  },
+
+  // Mid-year onboarding: "spent before the app ₹" on a cycle that already
+  // existed when the farm joined. v_crop_pnl adds it into the cycle's cost.
+  setCycleOpeningCost: async (cycleId, amount) => {
+    const openingCost = amount === null || amount === '' ? null : parseFloat(amount)
+    const { error } = await supabase.from('crop_cycles')
+      .update({ opening_cost: openingCost })
+      .eq('id', cycleId)
+    if (error) throw error
+    set(s => ({ cropCycles: s.cropCycles.map(c => c.id === cycleId ? { ...c, openingCost } : c) }))
   },
 
   addPlot: async (data) => {

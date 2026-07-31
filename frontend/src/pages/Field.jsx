@@ -5,6 +5,7 @@ import { useMapStore, useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import { farmApi } from '../api/client'
+import SetupChecklist from '../components/SetupChecklist'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
   Eye, EyeOff, CheckCircle2, Clock, AlertTriangle,
@@ -545,10 +546,10 @@ export default function Field() {
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
 
-      {/* New-farm welcome banner */}
-      {showNewFarmBanner && (
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
-          style={{ width: 'calc(100% - 24px)', maxWidth: '420px' }}>
+      {/* New-farm welcome banner + mid-year setup card, stacked */}
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col gap-2"
+        style={{ width: 'calc(100% - 24px)', maxWidth: '420px' }}>
+        {showNewFarmBanner && (
           <div style={{ background: '#1D9E75', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
             <span style={{ fontSize: '22px', lineHeight: 1 }}>🎉</span>
             <div style={{ flex: 1 }}>
@@ -568,8 +569,9 @@ export default function Field() {
               ×
             </button>
           </div>
-        </div>
-      )}
+        )}
+        <SetupChecklist />
+      </div>
 
       {/* Greeting + Weather — compact top-left pills */}
       <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none" style={{ maxWidth: '175px' }}>

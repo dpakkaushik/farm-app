@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
+import { useAppStore } from '../store'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
 import AboutModal from './AboutModal'
@@ -154,6 +155,11 @@ export default function ProfileMenu() {
                 onClick={() => go('/admin')} active={location.pathname === '/admin'} />
               <Row icon={Settings} label="Farm Settings" sub="Members, roles, farm info"
                 onClick={() => go('/settings')} active={location.pathname === '/settings'} />
+              {/* Mid-year onboarding for a farm that's already set up — the
+                  Field/Dashboard card auto-hides once cycles and stock exist,
+                  so this is the way back in (e.g. to enter crop opening costs). */}
+              <Row icon={ClipboardList} label="Opening balances" sub="Finish setup — stock & standing crops"
+                onClick={() => { go('/field'); useAppStore.getState().openSetupChecklist() }} />
               {profile?.is_super_admin && (
                 <Row icon={Shield} label="Super Admin" sub="All farms & users"
                   onClick={() => go('/super-admin')} active={location.pathname === '/super-admin'} />

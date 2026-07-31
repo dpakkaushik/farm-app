@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/auth'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import Attachment from '../components/Attachment'
+import SetupChecklist from '../components/SetupChecklist'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -325,6 +326,9 @@ export default function Dashboard() {
       </div>
 
       <div className="px-4 pt-4 space-y-4">
+
+        {/* Mid-year onboarding — shows only while the farm looks un-set-up */}
+        <SetupChecklist />
 
         {/* ── Row 1: 3 revenue KPIs ── */}
         <div className="grid grid-cols-3 gap-2">

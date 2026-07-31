@@ -1,12 +1,15 @@
 # Plan — onboarding a farm that joins mid-year
 
-> Status: **final design, not started.** Simplified 2026-07-20 to the smallest
-> version that keeps the numbers honest. Supersedes the earlier CSV/books-start-date
-> draft. Amended 2026-07-31: must also serve an **already-running farm** (see below).
+> Status: **built 2026-07-31.** Migration 0018 applied to the live DB; the
+> setup card + both forms shipped in `frontend/src/components/SetupChecklist.jsx`,
+> with the manual entry point in ProfileMenu → Opening balances. One rule added
+> during review, on top of this design: **one opening-stock entry per item,
+> ever** — items with an existing OPENING-STOCK purchase are skipped on save and
+> shown as done, so a retry or revisit can never double stock or skew WAC.
 >
-> Resume prompt: "Read docs/PLAN-mid-year-onboarding.md and build it. Migration
-> 0017 is already applied to the live DB (verified 2026-07-21), so 0018 can go
-> straight on top."
+> History: simplified 2026-07-20 to the smallest version that keeps the numbers
+> honest (superseding the earlier CSV/books-start-date draft); amended 2026-07-31
+> to also serve an **already-running farm** (see below).
 >
 > **Owner requirement added 2026-07-31 — provision for BOTH cases:**
 > 1. **A brand-new farm** (separate owner) — the original design below.

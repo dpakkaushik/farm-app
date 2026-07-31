@@ -289,8 +289,8 @@ export default function FarmOnboarding() {
               )}
               <NextStep icon="👥" title="Invite your manager"
                 body="Settings → Invite Someone. Managers log the daily work; you can also make someone else an admin." />
-              <NextStep icon="🌱" title="Start a crop cycle"
-                body="Issuing seed from inventory to a plot starts the cycle and schedules its activities automatically." />
+              <NextStep icon="🌱" title="Record what's already there"
+                body="Already farming? The 'Finish setting up' card on your farm records opening stock and standing crops — with what each crop has cost so far, so profit is honest from day one." />
             </div>
 
             <button onClick={finish} style={primaryBtn(false)}>Go to my farm →</button>
