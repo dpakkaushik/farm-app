@@ -2123,9 +2123,10 @@ function PartnersMaster() {
 
 // ── Cycles Master — start / view crop cycles ───────────────────────────────────
 function CyclesMaster() {
-  const { cropCycles, cropMaster, plots, addCropCycle, updateCropCycle } = useAppStore()
+  const { cropCycles, cropMaster, plots, addCropCycle, updateCropCycle, setCycleOpeningCost } = useAppStore()
   const [form,   setForm]   = useState(null)
   const [saving, setSaving] = useState(false)
+  const [editCost, setEditCost] = useState(null)   // { cycleId, value } — pre-app spend edit
   const [toast,  setToast]  = useState(null)
   const [toastType, setToastType] = useState('success')
   const [confirm, setConfirm] = useState(null)
@@ -2167,6 +2168,14 @@ function CyclesMaster() {
       setForm(null)
     } catch (e) { showToast('Failed: ' + e.message, 'warn') }
     setSaving(false)
+  }
+
+  const saveOpeningCost = async () => {
+    try {
+      await setCycleOpeningCost(editCost.cycleId, editCost.value === '' ? null : parseFloat(editCost.value))
+      showToast('Pre-app spend saved ✓')
+      setEditCost(null)
+    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
   }
 
   const handleEndCycle = (c) => {
@@ -2295,6 +2304,29 @@ function CyclesMaster() {
                   <p className="text-sm font-semibold text-[var(--c-text)]">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
                   <p className="text-[10px] text-[var(--c-muted)]">Sown {c.sowDate} · Day {days} · {left}d left</p>
                   <p className="text-[10px] text-[var(--c-faint)]">{c.season}</p>
+                  {/* Cycles sown before the farm joined can carry pre-app spend
+                      (crop_cycles.opening_cost) — editable right here. */}
+                  {farmJoined && c.sowDate < farmJoined.slice(0, 10) && (
+                    editCost?.cycleId === c.id ? (
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <input type="number" min="0" inputMode="decimal" autoFocus
+                          className="finput" style={{ width: '130px', padding: '4px 8px', fontSize: '11px' }}
+                          placeholder="Spent before app ₹"
+                          value={editCost.value}
+                          onChange={e => setEditCost(ec => ({ ...ec, value: e.target.value }))} />
+                        <button onClick={saveOpeningCost}
+                          className="px-2.5 py-1 text-[10px] font-bold rounded-lg"
+                          style={{ background: '#1D9E75', color: '#fff' }}>Save</button>
+                        <button onClick={() => setEditCost(null)}
+                          className="px-1.5 py-1 text-[10px] rounded-lg text-[var(--c-muted)]">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setEditCost({ cycleId: c.id, value: c.openingCost ?? '' })}
+                        className="mt-1 text-[10px] font-semibold" style={{ color: '#BA7517' }}>
+                        Spent before app: {c.openingCost != null ? `₹${Number(c.openingCost).toLocaleString('en-IN')}` : 'not set'} · edit
+                      </button>
+                    )
+                  )}
                 </div>
                 <button onClick={() => handleEndCycle(c)}
                   className="shrink-0 px-2 py-1.5 text-[10px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10 transition-colors">
