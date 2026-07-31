@@ -45,10 +45,15 @@ export default function SetupChecklist() {
 
   useEffect(() => { setDismissed(!!localStorage.getItem(dismissKey(activeFarmId))) }, [activeFarmId])
 
-  // ProfileMenu's "Opening balances" item — open even on a fully set-up farm.
-  useEffect(() => {
-    if (setupChecklistOpen) { setView('menu'); closeSetupChecklist() }
-  }, [setupChecklistOpen])
+  // ProfileMenu's "Opening balances" item sets setupChecklistOpen; the flag IS
+  // the open state, cleared only by an explicit close. It must not be consumed
+  // in a mount effect: ProfileMenu also navigates to /field, and router
+  // navigation is a low-priority transition — the page being left could see the
+  // flag first, open, clear it, then unmount, and the Field instance would
+  // mount to a flag already false. Deriving the view keeps the sheet open no
+  // matter which instance ends up on screen.
+  const effectiveView = view || (setupChecklistOpen ? 'menu' : null)
+  const close = () => { setView(null); closeSetupChecklist() }
 
   const looksUnSetUp = cropCycles.length === 0 || inventoryMaster.every(i => !i.currentStock)
   const stockDone    = purchases.some(p => p.invoiceNo === 'OPENING-STOCK') || inventoryMaster.some(i => i.currentStock > 0)
@@ -84,13 +89,14 @@ export default function SetupChecklist() {
         </div>
       )}
 
-      {view && (
-        <Sheet onClose={() => setView(null)}>
-          {view === 'menu'  && <MenuView stockDone={stockDone} cropsDone={cropsDone} onPick={setView} />}
-          {view === 'stock' && <StockForm items={inventoryMaster} purchases={purchases}
-            onBack={() => setView('menu')} onSave={recordOpeningStock} onDone={() => setView(null)} />}
-          {view === 'crops' && <CropsForm plots={plots} cropCycles={cropCycles} cropMaster={cropMaster}
-            onBack={() => setView('menu')} onDone={() => setView(null)}
+      {effectiveView && (
+        <Sheet onClose={close}>
+          {effectiveView === 'menu'  && <MenuView stockDone={stockDone} cropsDone={cropsDone}
+            onPick={setView} onClose={close} />}
+          {effectiveView === 'stock' && <StockForm items={inventoryMaster} purchases={purchases}
+            onBack={() => setView('menu')} onSave={recordOpeningStock} onDone={close} />}
+          {effectiveView === 'crops' && <CropsForm plots={plots} cropCycles={cropCycles} cropMaster={cropMaster}
+            onBack={() => setView('menu')} onDone={close}
             addCropCycle={addCropCycle} setCycleOpeningCost={setCycleOpeningCost} />}
         </Sheet>
       )}
@@ -187,7 +193,7 @@ const inputStyle = {
 
 // ── Menu (opened from ProfileMenu) ────────────────────────────────────────────
 
-function MenuView({ stockDone, cropsDone, onPick }) {
+function MenuView({ stockDone, cropsDone, onPick, onClose }) {
   const rows = [
     { key: 'stock', Icon: Package, done: stockDone, title: 'Opening stock',
       body: "What's in your store today — quantity and the rate you paid." },
@@ -198,7 +204,7 @@ function MenuView({ stockDone, cropsDone, onPick }) {
     <>
       <SheetHeader title="Opening balances"
         sub="For a farm that was already running before it joined the app."
-        onClose={() => onPick(null)} />
+        onClose={onClose} />
       <div className="p-4 flex flex-col gap-2.5">
         {rows.map(({ key, Icon, done, title, body }) => (
           <button key={key} onClick={() => onPick(key)}
