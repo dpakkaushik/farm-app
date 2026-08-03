@@ -1,5 +1,12 @@
 // Livestock money, scoped to the group on screen.
 //
+// Revenue and Expenses are two tabs of their own now, not one Finance tab with a
+// toggle inside it, so this renders one side at a time — `mode` says which. What
+// it deliberately does not split is the summary strip: Expenses / Revenue / Net
+// stays on both sides. Net is the number that answers "is this flock paying for
+// itself", and pulling the two lists apart would otherwise have been the thing
+// that hid it.
+//
 // Two treatments, because two questions. A herd and a flock earn: milk, eggs,
 // meat, the animal itself — so they get expenses against revenue and a per-animal
 // verdict on which one is paying for itself. A pet only ever costs, so it gets a
@@ -12,7 +19,7 @@
 // wherever it appears, with a footnote, so the two faces are never added together.
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { TrendingDown, TrendingUp, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import Attachment from '../../components/Attachment'
 import { RevenueModal } from './modals'
@@ -64,14 +71,13 @@ function Row({ emoji, title, sub, amount, color, date, chip, attachment, onDelet
   )
 }
 
-export default function FinanceTab({ animals, face }) {
+export default function FinanceTab({ animals, face, mode }) {
   const { farmExpenses, livestockRevenue, deleteLivestockRevenue } = useAppStore(s => ({
     farmExpenses:           s.farmExpenses,
     livestockRevenue:       s.livestockRevenue,
     deleteLivestockRevenue: s.deleteLivestockRevenue,
   }))
   const navigate                      = useNavigate()
-  const [sub, setSub]                 = useState('revenue')
   const [showRevenue, setShowRevenue] = useState(false)
 
   const ids       = new Set(animals.map(a => a.id))
@@ -169,24 +175,8 @@ export default function FinanceTab({ animals, face }) {
         </div>
       )}
 
-      {/* Sub-tab toggle — nothing to toggle when there is no revenue side */}
-      {!spendOnly && (
-        <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-          <button onClick={() => setSub('revenue')}
-            className="flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-1"
-            style={{ background: sub === 'revenue' ? '#1D9E75' : 'var(--c-ghost)', color: sub === 'revenue' ? '#fff' : 'var(--c-muted)' }}>
-            <TrendingUp size={13} /> Revenue
-          </button>
-          <button onClick={() => setSub('expenses')}
-            className="flex-1 py-2 text-xs font-semibold flex items-center justify-center gap-1"
-            style={{ background: sub === 'expenses' ? '#E24B4A' : 'var(--c-ghost)', color: sub === 'expenses' ? '#fff' : 'var(--c-muted)' }}>
-            <TrendingDown size={13} /> Expenses
-          </button>
-        </div>
-      )}
-
-      {/* Expenses — read-only, add goes to Resources → Expenses */}
-      {(spendOnly || sub === 'expenses') && (
+      {/* Expenses — read-only, add goes to Today → Expenses */}
+      {mode === 'expenses' && (
         <>
           {/* This was a line of text naming where to go — "Resources →
               Expenses" — and not a link, because that tab lived in local state
@@ -207,7 +197,7 @@ export default function FinanceTab({ animals, face }) {
       )}
 
       {/* Revenue — add button here */}
-      {!spendOnly && sub === 'revenue' && (
+      {mode === 'revenue' && !spendOnly && (
         <>
           <button onClick={() => setShowRevenue(true)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
@@ -241,8 +231,9 @@ export default function FinanceTab({ animals, face }) {
       {/* Per animal — the same arithmetic as the v_livestock_pnl view, computed
           from data already in the store: what an animal cost against what it
           earned. Answers the question the totals above cannot — which animal is
-          actually paying for itself. */}
-      {earners.length > 0 && (
+          actually paying for itself. Lives on Revenue because that is the side
+          with the earnings in it; the Expenses tab is a spend register. */}
+      {mode === 'revenue' && earners.length > 0 && (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
           <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
             style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>{face.perTitle}</p>

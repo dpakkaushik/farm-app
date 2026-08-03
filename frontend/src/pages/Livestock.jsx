@@ -28,10 +28,20 @@ import {
   GROUP_KEYS, groupOf, faceOf, isActive, costToDate, animalLabel, fmtK,
 } from './livestock/ui'
 
-// The URL keys never change with the group — 'animals' is the list tab and
-// 'finance' the money tab whatever the face calls them — so a bookmark and the
-// profile menu's deep link both keep working.
-const TAB_KEYS = ['animals', 'health', 'finance']
+// Which tabs a page has is a property of the face, declared on GROUPS — the faces
+// genuinely diverge, and a pet has no revenue side to show. The URL key is stable
+// across faces though ('animals' is the list tab whatever it is called on screen),
+// so a bookmark keeps working.
+//
+// 'finance' is no longer a tab. It was the one that held Revenue and Expenses
+// behind a toggle inside itself, and any link made before the split still says it,
+// so it resolves to whichever half the face leads with.
+const resolveTab = (face, want) => {
+  const keys = face.tabs.map(t => t.key)
+  if (keys.includes(want)) return want
+  if (want === 'finance')  return keys.includes('revenue') ? 'revenue' : 'expenses'
+  return 'animals'
+}
 
 export default function Livestock() {
   const {
@@ -48,11 +58,17 @@ export default function Livestock() {
   // all three shared one route, still land on the right page.
   const { group: routeGroup } = useParams()
   const [params, setParams]   = useSearchParams()
-  const tab   = TAB_KEYS.includes(params.get('tab')) ? params.get('tab') : 'animals'
   const group = GROUP_KEYS.includes(routeGroup)          ? routeGroup
               : GROUP_KEYS.includes(params.get('group')) ? params.get('group')
               : 'animals'
-  const setTab = t => setParams(t === 'animals' ? {} : { tab: t }, { replace: true })
+  const face  = faceOf(group)
+  const tab   = resolveTab(face, params.get('tab'))
+
+  // Setting the tab rewrites the whole query string, so a legacy link that carries
+  // the group there has to have it written back — otherwise the first tab tap drops
+  // ?group=birds and quietly moves you to the herd.
+  const keepGroup = routeGroup ? {} : GROUP_KEYS.includes(params.get('group')) ? { group } : {}
+  const setTab = t => setParams({ ...keepGroup, ...(t === 'animals' ? {} : { tab: t }) }, { replace: true })
 
   const [editModal,  setEditModal]  = useState(null)
   const [countModal, setCountModal] = useState(null)
@@ -156,7 +172,6 @@ export default function Livestock() {
     setSaving(false)
   }
 
-  const face        = faceOf(group)
   const groupAll    = livestockMaster.filter(l => groupOf(l) === group)
   const groupActive = groupAll.filter(isActive)
   const groupClosed = groupAll.filter(l => !isActive(l))
@@ -219,14 +234,11 @@ export default function Livestock() {
         {/* No group switcher here by design. Pets, Birds and Herd are three
             pages reached from the profile menu; listing all three names on each
             of them is what made them read as one shared screen. */}
+        {/* Four tabs on a phone need the smaller type to stay on one line each. */}
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-          {[
-            { key: 'animals', label: face.listTab  },
-            { key: 'health',  label: '🩺 Health'   },
-            { key: 'finance', label: face.moneyTab },
-          ].map(({ key, label }) => (
+          {face.tabs.map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)}
-              className="flex-1 py-2 text-xs font-semibold transition-colors"
+              className={`flex-1 py-2 font-semibold whitespace-nowrap transition-colors ${face.tabs.length > 3 ? 'text-[10px]' : 'text-xs'}`}
               style={{ background: tab === key ? '#1D9E75' : 'var(--c-ghost)', color: tab === key ? '#fff' : 'var(--c-muted)' }}>
               {label}
             </button>
@@ -251,8 +263,10 @@ export default function Livestock() {
             onAdd={() => setAddModal(true)}
             onClose={setCloseModal} />
         )}
-        {tab === 'health'  && <HealthTab animals={groupActive} allAnimals={livestockMaster} face={face} />}
-        {tab === 'finance' && <FinanceTab animals={groupAll} face={face} />}
+        {tab === 'health' && <HealthTab animals={groupActive} allAnimals={livestockMaster} face={face} />}
+        {(tab === 'revenue' || tab === 'expenses') && (
+          <FinanceTab animals={groupAll} face={face} mode={tab} />
+        )}
       </div>
 
       {editModal  && <EditLivestockModal item={editModal} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}

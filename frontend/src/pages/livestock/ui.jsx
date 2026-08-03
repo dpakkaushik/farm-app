@@ -122,19 +122,37 @@ export const isActive = l => (l.status || 'active') === 'active'
 // fall between them and disappear from the screen.
 //
 // One route, three faces. Everything a face changes is declared here: what the
-// page is called, what its three tabs are named, and whether money is a
-// two-sided account or a spend list. A flock is a number, an animal is a name
+// page is called, which tabs it has and what they are named, and whether money is
+// a two-sided account or a spend list. A flock is a number, an animal is a name
 // that earns, a pet is a name that only costs — the same tab bar over all three
 // is what the owner rejected.
+//
+// `tabs` is a list and not a fixed triple because the faces do not agree on how
+// many they need. Money used to be one tab called Finance with Revenue and
+// Expenses behind a toggle inside it, which put the two things a manager records
+// most often one level deeper than everything else; they are top-level now. A pet
+// has no revenue side at all, so its money tab is the spend list and is named for
+// what it is.
 export const GROUPS = [
   { key: 'pets',    label: 'Pets',    Icon: Dog,  title: 'Pets',
-    listTab: '🐕 Pets',   moneyTab: '💰 Costs',   money: 'costs',
+    money: 'costs',
+    tabs: [{ key: 'animals',  label: '🐕 Pets'    },
+           { key: 'expenses', label: '🧾 Costs'   },
+           { key: 'health',   label: '🩺 Health'  }],
     add: 'Add Pet',    empty: 'No pets recorded',                 unit: 'pets',   perTitle: 'Per pet'    },
   { key: 'birds',   label: 'Birds',   Icon: Bird, title: 'Birds',
-    listTab: '🐓 Flocks', moneyTab: '💰 Finance', money: 'finance',
+    money: 'finance',
+    tabs: [{ key: 'animals',  label: '🐓 Flocks'  },
+           { key: 'revenue',  label: '💰 Revenue' },
+           { key: 'expenses', label: '🧾 Expenses' },
+           { key: 'health',   label: '🩺 Health'  }],
     add: 'Add Flock',  empty: 'No flocks recorded',               unit: 'flocks', perTitle: 'Per flock'  },
   { key: 'animals', label: 'Animals', Icon: Beef, title: 'Herd',
-    listTab: '🐄 Herd',   moneyTab: '💰 Finance', money: 'finance',
+    money: 'finance',
+    tabs: [{ key: 'animals',  label: '🐄 Herd'    },
+           { key: 'revenue',  label: '💰 Revenue' },
+           { key: 'expenses', label: '🧾 Expenses' },
+           { key: 'health',   label: '🩺 Health'  }],
     add: 'Add Animal', empty: 'No animals in the herd right now', unit: 'head',   perTitle: 'Per animal' },
 ]
 export const GROUP_KEYS = GROUPS.map(g => g.key)

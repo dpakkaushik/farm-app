@@ -30,33 +30,33 @@ Written 2026-08-03 at the end of a long session. Everything below is either
 
 ## Pending — in the order I'd do it
 
-### 1. Livestock tab restructure (agreed with owner, not started)
+### 1. Livestock tab restructure — ✅ DONE
 
-The owner's critique: Health should not be a top-level tab, and Expense/Revenue
-should be. They are currently a **sub-toggle inside Finance**
-(`livestock/finance.jsx`, the `sub` state), one level too deep to find.
+Revenue and Expenses are top-level tabs. `GROUPS` in `livestock/ui.jsx` now
+declares a `tabs: [{key,label}]` array per face; `Livestock.jsx` builds the bar
+from it and `resolveTab()` lands old `?tab=finance` links on Revenue (or on Costs
+for pets). `finance.jsx` takes `mode` and has no internal toggle; the
+Expenses / Revenue / Net strip renders on both modes, per-animal P&L on Revenue
+only, per-pet costs on Costs.
 
-Target shape — the faces diverge, which is consistent with how this screen is built:
+**One deviation, which item 2 must close:** Health is still a tab on Birds and
+Pets, so the shape is currently
 
 | Face | Tabs |
 |---|---|
-| Birds | 🐓 Flocks · 💰 Revenue · 🧾 Expenses |
+| Birds | 🐓 Flocks · 💰 Revenue · 🧾 Expenses · 🩺 Health |
 | Herd | 🐄 Herd · 💰 Revenue · 🧾 Expenses · 🩺 Health |
-| Pets | 🐕 Pets · 🧾 Costs |
+| Pets | 🐕 Pets · 🧾 Costs · 🩺 Health |
 
-Work:
+Removing it before the cards can hold visit history would have made bird and pet
+health reachable only via Herd → Health → All animals, and left `CheckupBanner`
+on those two pages linking at a tab that no longer exists. Item 2 deletes the
+`health` entry from the `pets` and `birds` `tabs` arrays — that is now a two-line
+change once the card work is done. The four-tab bar drops to `text-[10px]`
+automatically (`face.tabs.length > 3`), so it reverts on its own.
 
-- `livestock/ui.jsx` — replace each `GROUPS` entry's `listTab` / `moneyTab` with a
-  `tabs: [{key,label}]` array. Those two properties exist only to build the tab
-  bar in `Livestock.jsx`, so they can go.
-- `Livestock.jsx` — build the tab bar from `face.tabs`. Keep back-compat:
-  `?tab=finance` from an old link must land on `revenue`, the same way `?group=`
-  is still honoured after the three-page split.
-- `livestock/finance.jsx` — take a `mode` prop (`'revenue' | 'expenses'`) and drop
-  the internal sub-toggle. **Keep the Expenses / Revenue / Net strip on both
-  modes** — Net is the number that answers "is this flock paying for itself", and
-  splitting the tabs would otherwise lose it. Per-animal P&L table belongs on
-  Revenue; the per-pet cost table on Costs.
+Also fixed in passing: a legacy `/livestock?group=birds` link used to lose its
+group on the first tab tap, because `setTab` rewrites the whole query string.
 
 ### 2. Health onto the cards for Birds and Pets (Herd keeps its tab)
 
