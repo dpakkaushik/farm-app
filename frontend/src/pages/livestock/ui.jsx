@@ -21,6 +21,9 @@ export const EXPENSE_CATS = [
   ['other',          '📦', 'Other'],
 ]
 
+// The master list. This stays complete because it is also the lookup used to
+// render any stored revenue row — including historical ones whose type the face
+// no longer offers.
 export const REVENUE_TYPES = [
   ['milk',  '🥛', 'Milk'],
   ['egg',   '🥚', 'Eggs'],
@@ -30,6 +33,34 @@ export const REVENUE_TYPES = [
   ['wool',  '🧶', 'Wool'],
   ['other', '📦', 'Other'],
 ]
+
+// What each face actually offers, which is not the same thing.
+//
+// The master list was being rendered unfiltered on all three faces, so the Add
+// Revenue form invited you to record milk and wool from a poultry flock and eggs
+// from a buffalo. Every other per-face difference is declared on GROUPS below;
+// this one had simply never been given the same treatment.
+const REVENUE_BY_GROUP = {
+  birds: [
+    ['egg',   '🥚', 'Eggs'],
+    ['meat',  '🍖', 'Meat'],
+    ['sale',  '💰', 'Sale (closes flock)'],
+    ['dung',  '🌿', 'Manure'],
+    ['other', '📦', 'Other'],
+  ],
+  animals: [
+    ['milk',  '🥛', 'Milk'],
+    ['meat',  '🍖', 'Meat'],
+    ['sale',  '💰', 'Sale (closes animal)'],
+    ['dung',  '🌿', 'Dung / Manure'],
+    ['wool',  '🧶', 'Wool'],
+    ['other', '📦', 'Other'],
+  ],
+  // A pet earns nothing, so its face has no revenue side to reach this at all.
+  pets: [],
+}
+
+export const revenueTypesFor = key => REVENUE_BY_GROUP[key] || REVENUE_BY_GROUP.animals
 
 export const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 

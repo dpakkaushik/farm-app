@@ -265,7 +265,7 @@ export default function FinanceTab({ animals, face }) {
         </div>
       )}
 
-      {showRevenue && <RevenueModal animals={animals} onClose={() => setShowRevenue(false)} />}
+      {showRevenue && <RevenueModal animals={animals} group={face.key} onClose={() => setShowRevenue(false)} />}
     </div>
   )
 }

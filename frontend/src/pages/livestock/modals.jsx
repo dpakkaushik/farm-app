@@ -6,7 +6,7 @@ import { useAppStore } from '../../store'
 import { uploadAttachment } from '../../lib/attachments'
 import FilePicker from '../../components/FilePicker'
 import {
-  DOCS, TODAY, REVENUE_TYPES, PAY_MODES,
+  DOCS, TODAY, PAY_MODES, revenueTypesFor,
   animalLabel, isActive, groupOf, fmt, inp, Modal, FRow, SegPicker,
 } from './ui'
 
@@ -275,7 +275,10 @@ export function CloseModal({ animal, onClose, onConfirm, saving }) {
 }
 
 // ── Revenue Modal ─────────────────────────────────────────────────────────────
-export function RevenueModal({ animals, onClose }) {
+export function RevenueModal({ animals, group, onClose }) {
+  // Only the types this face can actually produce. A flock has no milk.
+  const types = revenueTypesFor(group)
+  const unit  = group === 'birds' ? 'flock' : 'animal'
   const addLivestockRevenue = useAppStore(s => s.addLivestockRevenue)
   const [form, setForm] = useState({
     revenueDate: TODAY, revenueType: '', amount: '', quantity: '', unit: '',
@@ -323,7 +326,7 @@ export function RevenueModal({ animals, onClose }) {
 
       <FRow label="Revenue Type">
         <div className="grid grid-cols-3 gap-1.5">
-          {REVENUE_TYPES.map(([v, emoji, label]) => (
+          {types.map(([v, emoji, label]) => (
             <button key={v} onClick={() => set('revenueType', v)}
               className="py-2 rounded-xl text-xs font-medium transition-colors"
               style={{
@@ -337,14 +340,14 @@ export function RevenueModal({ animals, onClose }) {
         </div>
         {isSale && (
           <p className="text-[10px] mt-1" style={{ color: '#BA7517' }}>
-            ⚠ Sale will mark the selected animal as Sold and close its account.
+            ⚠ Sale will mark the selected {unit} as Sold and close its account.
           </p>
         )}
       </FRow>
 
-      <FRow label="Animal">
+      <FRow label={group === 'birds' ? 'Flock' : 'Animal'}>
         <select className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
-          <option value="">— Herd / General —</option>
+          <option value="">{group === 'birds' ? '— Flock / General —' : '— Herd / General —'}</option>
           {animals.filter(isActive).map(a => (
             <option key={a.id} value={a.id}>{animalLabel(a)} ({a.species})</option>
           ))}
