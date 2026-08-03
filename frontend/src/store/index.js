@@ -1644,6 +1644,32 @@ const useAppStore = create((set, get) => ({
     set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : l) }))
   },
 
+  // Close an animal's account without any money changing hands — it died, it was
+  // rehomed, it was given away. Until this existed the only way to close anything
+  // was to record a sale, which meant a dog that died had to be entered as sold.
+  //
+  // livestock_master has three columns for a close: status, sold_date and notes.
+  // There is no reason column and no amount column (farm_assets has disposal_*;
+  // this table does not), so the reason is appended to notes rather than
+  // replacing what is already there. A close that does involve money goes through
+  // addLivestockRevenue instead, which has somewhere real to put the figure.
+  closeLivestock: async (id, { status, date, reason, notes }) => {
+    const current = get().livestockMaster.find(l => l.id === id)
+    const line    = `Closed ${date} — ${reason}${notes ? `: ${notes}` : ''}`
+    const merged  = [current?.notes?.trim(), line].filter(Boolean).join('\n')
+
+    const { error } = await supabase.from('livestock_master')
+      .update({ status, sold_date: date, is_active: false, notes: merged })
+      .eq('id', id)
+    if (error) throw error
+
+    set(s => ({
+      livestockMaster: s.livestockMaster.map(l =>
+        l.id === id ? { ...l, status, soldDate: date, isActive: false, notes: merged } : l
+      ),
+    }))
+  },
+
   // ── Farm Expenses ────────────────────────────────────────────────────────────
   addFarmExpense: async (exp) => {
     const { data, error } = await supabase.from('farm_expenses').insert({

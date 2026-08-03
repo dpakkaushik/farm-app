@@ -137,7 +137,10 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
 }
 
 // ── Health Tab ────────────────────────────────────────────────────────────────
-export default function HealthTab({ animals }) {
+// Scoped to the group on screen — a dog's vaccination record has no business in
+// the buffalo shed's history. But one vet visit really does cover the buffalo and
+// the dog on the same trip, so the whole farm is always one tap away.
+export default function HealthTab({ animals, allAnimals, face }) {
   const { livestockHealthLogs, addLivestockHealthLog, deleteLivestockHealthLog } = useAppStore(s => ({
     livestockHealthLogs:     s.livestockHealthLogs,
     addLivestockHealthLog:   s.addLivestockHealthLog,
@@ -146,12 +149,18 @@ export default function HealthTab({ animals }) {
   const [showAdd, setShowAdd] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [filter,  setFilter]  = useState('all')
+  const [wide,    setWide]    = useState(false)
 
-  const checkups = pendingCheckups(animals, livestockHealthLogs)
+  const inScope   = wide ? allAnimals : animals
+  const scopeIds  = new Set(inScope.map(a => a.id))
+  const scopeLogs = livestockHealthLogs.filter(h => scopeIds.has(h.livestockId))
+
+  const checkups = pendingCheckups(inScope, livestockHealthLogs)
   const due      = checkups.filter(isDue)
-  const logs     = filter === 'all'
-    ? livestockHealthLogs
-    : livestockHealthLogs.filter(h => h.livestockId === filter)
+  const logs     = filter === 'all' ? scopeLogs : scopeLogs.filter(h => h.livestockId === filter)
+
+  // Widening or narrowing invalidates a single-animal filter, so drop it.
+  const setScope = v => { setWide(v); setFilter('all') }
 
   const open  = () => setShowAdd(true)
   const close = () => setShowAdd(false)
@@ -170,6 +179,21 @@ export default function HealthTab({ animals }) {
 
   return (
     <div className="space-y-3 pb-4">
+      {/* Scope. One tap, because a vet trip that covers the whole farm is real. */}
+      <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
+        {[[false, face.title], [true, 'All animals']].map(([v, label]) => (
+          <button key={label} onClick={() => setScope(v)}
+            className="flex-1 py-2 text-[11px] font-semibold transition-colors"
+            style={{
+              background: wide === v ? '#1D9E7514' : 'var(--c-ghost)',
+              color:      wide === v ? '#1D9E75'   : 'var(--c-muted)',
+              boxShadow:  wide === v ? 'inset 0 -2px 0 #1D9E75' : 'none',
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       <button onClick={open}
         className="w-full py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
         style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
@@ -201,12 +225,12 @@ export default function HealthTab({ animals }) {
         </div>
       )}
 
-      {/* Filter by animal */}
-      {livestockHealthLogs.length > 0 && (
+      {/* Filter to one animal inside the current scope */}
+      {scopeLogs.length > 0 && (
         <select className={inp} value={filter} onChange={e => setFilter(e.target.value)}
           style={{ background: 'var(--c-ghost)' }}>
-          <option value="all">All animals</option>
-          {animals.map(a => <option key={a.id} value={a.id}>{animalLabel(a)}</option>)}
+          <option value="all">{wide ? 'All animals' : `All ${face.title.toLowerCase()}`}</option>
+          {inScope.map(a => <option key={a.id} value={a.id}>{animalLabel(a)}</option>)}
         </select>
       )}
 
@@ -214,12 +238,14 @@ export default function HealthTab({ animals }) {
         <div className="text-center py-10">
           <Stethoscope size={28} style={{ color: 'var(--c-faint)' }} className="mx-auto mb-2" />
           <p className="text-sm" style={{ color: 'var(--c-muted)' }}>
-            {livestockHealthLogs.length === 0 ? 'No vet visits recorded' : 'No visits for this animal'}
+            {scopeLogs.length === 0
+              ? `No vet visits recorded${wide ? '' : ` for ${face.title.toLowerCase()}`}`
+              : 'No visits for this animal'}
           </p>
         </div>
       ) : (
         logs.map(h => {
-          const animal = animals.find(a => a.id === h.livestockId)
+          const animal = inScope.find(a => a.id === h.livestockId)
           return (
             <div key={h.id} className="p-4 rounded-2xl border"
               style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
@@ -260,7 +286,7 @@ export default function HealthTab({ animals }) {
       )}
 
       {showAdd && (
-        <AddHealthModal animals={animals} onClose={close} onConfirm={confirmAdd} saving={saving} />
+        <AddHealthModal animals={inScope} onClose={close} onConfirm={confirmAdd} saving={saving} />
       )}
     </div>
   )

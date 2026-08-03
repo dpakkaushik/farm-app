@@ -1,6 +1,7 @@
 // Shared primitives for the Livestock screen. Extracted so the health tab could
 // have its own file without either half growing past the 800-line ceiling.
 import React from 'react'
+import { Beef, Bird, Dog } from 'lucide-react'
 import { BUCKETS } from '../../lib/attachments'
 
 export const DOCS  = BUCKETS.docs
@@ -32,11 +33,16 @@ export const REVENUE_TYPES = [
 
 export const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 
+// `dateLabel` is how sold_date reads once the account is closed. The column is
+// named for a sale because that used to be the only way to close an animal; it
+// now holds the date of whatever ended the record, so a deceased buffalo must
+// not display "Sold 2026-07-04".
 export const STATUS_STYLE = {
-  active:   { bg: '#1D9E7518', color: '#1D9E75', label: 'Active'   },
-  sold:     { bg: '#88888820', color: '#888',    label: 'Sold'     },
-  deceased: { bg: '#E24B4A18', color: '#E24B4A', label: 'Deceased' },
-  culled:   { bg: '#88888820', color: '#888',    label: 'Culled'   },
+  active:   { bg: '#1D9E7518', color: '#1D9E75', label: 'Active',   dateLabel: null     },
+  sold:     { bg: '#88888820', color: '#888',    label: 'Sold',     dateLabel: 'Sold'   },
+  rehomed:  { bg: '#4169E118', color: '#4169E1', label: 'Rehomed',  dateLabel: 'Left'   },
+  deceased: { bg: '#E24B4A18', color: '#E24B4A', label: 'Deceased', dateLabel: 'Died'   },
+  culled:   { bg: '#88888820', color: '#888',    label: 'Culled',   dateLabel: 'Culled' },
 }
 
 // under_treatment is what the vet records already in the database use, so it has
@@ -79,19 +85,43 @@ export const isCattle = l => anySpecies(l, CATTLE_SPECIES)
 
 export const isActive = l => (l.status || 'active') === 'active'
 
-// The three groups the Animals tab splits into, and the one function that decides
+// The three faces of the Livestock screen, and the one function that decides
 // which an animal belongs to. Written as an if-else chain rather than three
 // independent filters so the groups are exhaustive by construction — nothing can
 // fall between them and disappear from the screen.
+//
+// One route, three faces. Everything a face changes is declared here: what the
+// page is called, what its three tabs are named, and whether money is a
+// two-sided account or a spend list. A flock is a number, an animal is a name
+// that earns, a pet is a name that only costs — the same tab bar over all three
+// is what the owner rejected.
 export const GROUPS = [
-  { key: 'pets',    label: '🐕 Pets',    add: 'Add Pet',            empty: 'No pets recorded'   },
-  { key: 'birds',   label: '🐓 Birds',   add: 'Add Flock',          empty: 'No flocks recorded' },
-  { key: 'animals', label: '🐄 Animals', add: 'Add Animal',         empty: 'No animals in the herd right now' },
+  { key: 'pets',    label: 'Pets',    Icon: Dog,  title: 'Pets',
+    listTab: '🐕 Pets',   moneyTab: '💰 Costs',   money: 'costs',
+    add: 'Add Pet',    empty: 'No pets recorded',                 unit: 'pets',   perTitle: 'Per pet'    },
+  { key: 'birds',   label: 'Birds',   Icon: Bird, title: 'Birds',
+    listTab: '🐓 Flocks', moneyTab: '💰 Finance', money: 'finance',
+    add: 'Add Flock',  empty: 'No flocks recorded',               unit: 'flocks', perTitle: 'Per flock'  },
+  { key: 'animals', label: 'Animals', Icon: Beef, title: 'Herd',
+    listTab: '🐄 Herd',   moneyTab: '💰 Finance', money: 'finance',
+    add: 'Add Animal', empty: 'No animals in the herd right now', unit: 'head',   perTitle: 'Per animal' },
 ]
 export const GROUP_KEYS = GROUPS.map(g => g.key)
 export const groupOf = l => isPet(l) ? 'pets' : isPoultry(l) ? 'birds' : 'animals'
+export const faceOf  = key => GROUPS.find(g => g.key === key) || GROUPS[GROUPS.length - 1]
 
 export const animalLabel = a => a ? (a.name || a.tagId) : null
+
+export const speciesEmoji = l => isPet(l)     ? (speciesOf(l).includes('cat') ? '🐈' : '🐕')
+                               : isPoultry(l) ? '🐓'
+                               : speciesOf(l).includes('cow') ? '🐄' : '🐃'
+
+// What one animal has cost so far: what it was bought for plus every livestock
+// expense tagged to it. For a pet this is the whole story — it earns nothing,
+// which is why pets are left out of the per-animal profit lists.
+export const costToDate = (l, expenses) => (l.purchasePrice || 0) + expenses
+  .filter(e => e.attributedTo === 'livestock' && e.livestockId === l.id)
+  .reduce((s, e) => s + e.amount, 0)
 
 export const fmt  = n => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—'
 export const fmtK = n => n >= 1000 ? `₹${(n / 1000).toFixed(1)}K` : fmt(n)
