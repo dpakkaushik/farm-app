@@ -5,123 +5,13 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import ImageViewer from '../components/ImageViewer'
 import ImageCropper from '../components/ImageCropper'
-import { uploadAttachment, deleteAttachment, resolveUrl, BUCKETS } from '../lib/attachments'
-
-const DOCS  = BUCKETS.docs
-const TODAY = new Date().toISOString().slice(0, 10)
-
-const EXPENSE_CATS = [
-  ['feed',           '🌾', 'Feed'],
-  ['veterinary',     '💉', 'Veterinary'],
-  ['livestock_care', '🪢', 'Livestock Care'],
-  ['maintenance',    '🔧', 'Maintenance'],
-  ['infrastructure', '🏗',  'Infrastructure'],
-  ['utilities',      '⚡', 'Utilities'],
-  ['event',          '🎉', 'Event'],
-  ['administrative', '📋', 'Administrative'],
-  ['other',          '📦', 'Other'],
-]
-
-const REVENUE_TYPES = [
-  ['milk',  '🥛', 'Milk'],
-  ['egg',   '🥚', 'Eggs'],
-  ['meat',  '🍖', 'Meat'],
-  ['sale',  '💰', 'Sale (closes animal)'],
-  ['dung',  '🌿', 'Dung / Manure'],
-  ['wool',  '🧶', 'Wool'],
-  ['other', '📦', 'Other'],
-]
-
-const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
-
-const STATUS_STYLE = {
-  active:   { bg: '#1D9E7518', color: '#1D9E75', label: 'Active'   },
-  sold:     { bg: '#88888820', color: '#888',    label: 'Sold'     },
-  deceased: { bg: '#E24B4A18', color: '#E24B4A', label: 'Deceased' },
-  culled:   { bg: '#88888820', color: '#888',    label: 'Culled'   },
-}
-
-const HEALTH_STYLE = {
-  healthy:    { color: '#1D9E75', label: '✓ Healthy'    },
-  sick:       { color: '#E24B4A', label: '⚠ Sick'       },
-  recovering: { color: '#BA7517', label: '~ Recovering' },
-}
-
-const CATTLE_SPECIES  = ['buffalo','cow','bull','bullock','ox']
-const POULTRY_SPECIES = ['hen','cock','chicken','poultry','bird','rooster']
-const isPoultry = l => l.trackingMode === 'count' || POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
-// Anything individually tracked that isn't poultry counts as cattle, so a goat or
-// a sheep still lands in a section instead of vanishing between the two.
-const isCattle  = l => CATTLE_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
-                    || (!POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s)) && l.trackingMode === 'individual')
-
-const isActive = l => (l.status || 'active') === 'active'
-
-const fmt  = n => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—'
-const fmtK = n => n >= 1000 ? `₹${(n / 1000).toFixed(1)}K` : fmt(n)
-
-// ── Shared UI ─────────────────────────────────────────────────────────────────
-const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
-
-function Modal({ title, onClose, children }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
-      <div className="w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4"
-        style={{ background: 'var(--c-nav)', maxHeight: '92vh', overflowY: 'auto' }}>
-        <div className="flex items-center justify-between">
-          <p className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>{title}</p>
-          <button onClick={onClose} className="text-lg" style={{ color: 'var(--c-muted)' }}>✕</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function FRow({ label, children }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
-      {children}
-    </div>
-  )
-}
-
-function Pill({ status }) {
-  const s = STATUS_STYLE[status] || STATUS_STYLE.active
-  return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-      style={{ background: s.bg, color: s.color }}>{s.label}</span>
-  )
-}
-
-function SegPicker({ value, options, onChange, danger }) {
-  return (
-    <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-      {options.map(([v, l]) => (
-        <button key={v} onClick={() => onChange(v)}
-          className="flex-1 py-2 text-xs font-semibold transition-colors"
-          style={{ background: value === v ? (danger ? '#E24B4A' : '#1D9E75') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
-          {l}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ActionBar({ actions }) {
-  return (
-    <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
-      {actions.map(({ label, icon, color, onClick }) => (
-        <button key={label} onClick={onClick}
-          className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1"
-          style={{ color: color || 'var(--c-muted)' }}>
-          {icon}{label}
-        </button>
-      ))}
-    </div>
-  )
-}
+import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
+import HealthTab, { CheckupBanner, pendingCheckups } from './livestock/health'
+import {
+  DOCS, TODAY, HEALTH_STYLE, EXPENSE_CATS, REVENUE_TYPES, PAY_MODES,
+  isCattle, isPoultry, isActive,
+  fmt, fmtK, inp, Modal, FRow, Pill, SegPicker, ActionBar,
+} from './livestock/ui'
 
 // FilePicker handles crop-on-pick, tap-to-expand, change and remove. Removal is only
 // possible here, before the record is saved — a saved receipt is immutable.
@@ -741,6 +631,42 @@ function FinanceTab({ animals }) {
         </>
       )}
 
+      {/* Per animal — the same arithmetic as the v_livestock_pnl view, computed
+          from data already in the store: what an animal cost against what it
+          earned. Answers the question the totals above cannot — which animal
+          is actually paying for itself. */}
+      {animals.length > 0 && (
+        <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
+          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>Per animal</p>
+          <div className="divide-y divide-[var(--c-border)]">
+            {animals.map(a => {
+              const cost = (a.purchasePrice || 0)
+                + livestockExpenses.filter(e => e.livestockId === a.id).reduce((s, e) => s + e.amount, 0)
+              const rev = livestockRevenue.filter(r => r.livestockId === a.id).reduce((s, r) => s + r.amount, 0)
+              const net = rev - cost
+              return (
+                <div key={a.id} className="flex items-center justify-between px-4 py-2.5 gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{a.name || a.tagId}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+                      Cost {fmtK(cost)} · Earned {fmtK(rev)}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold shrink-0" style={{ color: net >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    {net >= 0 ? '+' : '−'}{fmtK(Math.abs(net))}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+          <p className="px-4 py-2 text-[9px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+            Only expenses tagged to one animal count here. Feed bought for the whole
+            herd sits in the totals above, not against any single animal.
+          </p>
+        </div>
+      )}
+
       {showRevenue && <RevenueModal animals={animals} onClose={() => setShowRevenue(false)} />}
     </div>
   )
@@ -749,7 +675,7 @@ function FinanceTab({ animals }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Livestock() {
   const {
-    livestockMaster, livestockCountLogs,
+    livestockMaster, livestockCountLogs, livestockHealthLogs,
     addLivestock, updateLivestock, addLivestockCountLog, updateAssetPhoto,
   } = useAppStore()
 
@@ -831,9 +757,11 @@ export default function Livestock() {
     setSaving(false)
   }
 
-  const herd    = livestockMaster.filter(isActive)
-  const cattle  = herd.filter(isCattle).length
-  const poultry = herd.filter(isPoultry).length
+  const herd      = livestockMaster.filter(isActive)
+  const cattle    = herd.filter(isCattle).length
+  const poultry   = herd.filter(isPoultry).length
+  const herdValue = herd.reduce((s, l) => s + (l.purchasePrice || 0), 0)
+  const checkups  = pendingCheckups(livestockMaster, livestockHealthLogs)
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--c-bg)' }}>
@@ -860,15 +788,20 @@ export default function Livestock() {
         <div className="flex items-center gap-2 mb-3">
           <Bird size={20} style={{ color: '#1D9E75' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>Livestock</p>
-          <div className="flex gap-1.5 ml-auto text-[10px]">
+          <div className="flex gap-1.5 ml-auto text-[10px] items-center">
             {cattle  > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐄 {cattle}</span>}
             {poultry > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐔 {poultry}</span>}
+            {herdValue > 0 && <span className="font-bold" style={{ color: '#1D9E75' }}>{fmtK(herdValue)}</span>}
             {herd.length === 0 && <span style={{ color: 'var(--c-muted)' }}>No animals</span>}
           </div>
         </div>
 
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
-          {[{ key: 'animals', label: '🐄 Animals' }, { key: 'finance', label: '💰 Finance' }].map(({ key, label }) => (
+          {[
+            { key: 'animals', label: '🐄 Animals' },
+            { key: 'health',  label: '🩺 Health'  },
+            { key: 'finance', label: '💰 Finance' },
+          ].map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)}
               className="flex-1 py-2 text-xs font-semibold transition-colors"
               style={{ background: tab === key ? '#1D9E75' : 'var(--c-ghost)', color: tab === key ? '#fff' : 'var(--c-muted)' }}>
@@ -876,6 +809,10 @@ export default function Livestock() {
             </button>
           ))}
         </div>
+
+        {/* A checkup that has fallen due is the one thing on this screen worth
+            interrupting for, so it sits above the tabs' content wherever you are. */}
+        {tab !== 'health' && <CheckupBanner checkups={checkups} onOpen={() => setTab('health')} />}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4">
@@ -888,6 +825,7 @@ export default function Livestock() {
             onPhoto={handlePhotoClick}
             onAdd={() => setAddModal(true)} />
         )}
+        {tab === 'health'  && <HealthTab animals={livestockMaster} />}
         {tab === 'finance' && <FinanceTab animals={livestockMaster} />}
       </div>
 

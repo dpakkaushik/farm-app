@@ -415,6 +415,20 @@ function mapCountLog(l) {
   }
 }
 
+function mapHealthLog(h) {
+  return {
+    id:           h.id,
+    livestockId:  h.livestock_id,
+    date:         h.log_date,
+    healthStatus: h.health_status || 'healthy',
+    symptoms:     h.symptoms  || '',
+    treatment:    h.treatment || '',
+    vetName:      h.vet_name  || '',
+    nextCheckup:  h.next_checkup || null,
+    notes:        h.notes || '',
+  }
+}
+
 // ── Map store (persisted separately for map state) ────────────────────────────
 const useMapStore = create(
   (set) => ({
@@ -480,6 +494,7 @@ const useAppStore = create((set, get) => ({
   farmAssets:        [],
   livestockMaster:   [],
   livestockCountLogs: [],
+  livestockHealthLogs: [],
   farmExpenses:      [],
   livestockRevenue:  [],
   cropResiduals:     [],
@@ -525,6 +540,7 @@ const useAppStore = create((set, get) => ({
         { data: farmAssetsRaw },
         { data: livestockRaw },
         { data: countLogsRaw },
+        { data: healthLogsRaw },
         { data: harvestSessionsRaw },
         { data: salesRaw },
         { data: buyersRaw },
@@ -579,6 +595,7 @@ const useAppStore = create((set, get) => ({
         supabase.from('farm_assets').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
         supabase.from('livestock_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('livestock_count_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
+        supabase.from('livestock_health_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
         supabase.from('harvest_sessions').select('*').eq('farm_id', farmId).order('harvest_date'),
         supabase.from('sales').select('*').eq('farm_id', farmId).order('sale_date'),
         supabase.from('buyers').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
@@ -619,6 +636,7 @@ const useAppStore = create((set, get) => ({
         farmAssets:         (farmAssetsRaw || []).map(mapFarmAsset),
         livestockMaster:    (livestockRaw || []).map(mapLivestock),
         livestockCountLogs: (countLogsRaw || []).map(mapCountLog),
+        livestockHealthLogs:(healthLogsRaw || []).map(mapHealthLog),
         harvestSessions:    (harvestSessionsRaw || []).map(mapSession),
         sales:              (salesRaw || []).map(mapSale),
         buyers:             (buyersRaw || []).map(mapBuyer),
@@ -1704,6 +1722,49 @@ const useAppStore = create((set, get) => ({
     if (error) throw error
     await get().removeCashEntriesFor(id)
     set(s => ({ livestockRevenue: s.livestockRevenue.filter(r => r.id !== id) }))
+  },
+
+  // ── Livestock Health ─────────────────────────────────────────────────────────
+  // A visit is the record; the animal's health_status is only ever the latest
+  // visit's verdict. Writing both keeps the herd list honest without making the
+  // card read from a join.
+  addLivestockHealthLog: async (log) => {
+    const { data, error } = await supabase.from('livestock_health_logs').insert({
+      farm_id:       getFarmId(),
+      livestock_id:  log.livestockId,
+      log_date:      log.date,
+      health_status: log.healthStatus,
+      symptoms:      log.symptoms  || null,
+      treatment:     log.treatment || null,
+      vet_name:      log.vetName   || null,
+      next_checkup:  log.nextCheckup || null,
+      notes:         log.notes || null,
+    }).select().single()
+    if (error) throw error
+
+    // Only a later visit may move the animal's current status backwards in time.
+    const newer = get().livestockHealthLogs
+      .filter(h => h.livestockId === log.livestockId)
+      .some(h => h.date > log.date)
+    if (!newer) {
+      const { error: upErr } = await supabase.from('livestock_master')
+        .update({ health_status: log.healthStatus }).eq('id', log.livestockId)
+      if (upErr) throw upErr
+    }
+
+    set(s => ({
+      livestockHealthLogs: [mapHealthLog(data), ...s.livestockHealthLogs]
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+      livestockMaster: newer ? s.livestockMaster : s.livestockMaster.map(l =>
+        l.id === log.livestockId ? { ...l, healthStatus: log.healthStatus } : l
+      ),
+    }))
+  },
+
+  deleteLivestockHealthLog: async (id) => {
+    const { error } = await supabase.from('livestock_health_logs').delete().eq('id', id)
+    if (error) throw error
+    set(s => ({ livestockHealthLogs: s.livestockHealthLogs.filter(h => h.id !== id) }))
   },
 
   // ── Activity log ────────────────────────────────────────────────────────────
