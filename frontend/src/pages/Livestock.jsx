@@ -171,7 +171,7 @@ export default function Livestock() {
       } else {
         await closeLivestock(closeModal.id, { status, date, reason: word, notes })
       }
-      showToast(`${animalLabel(closeModal)} closed`)
+      showToast(`${animalLabel(closeModal)} marked off farm`)
       setCloseModal(null)
     } catch (e) { showToast('Failed: ' + e.message, 'error') }
     setSaving(false)

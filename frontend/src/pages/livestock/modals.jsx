@@ -122,7 +122,7 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
   const [f, setF] = useState({
     name: item.name || '', species: item.species || item.animal_type || 'buffalo',
     gender: item.gender || 'female', breed: item.breed || '', dob: item.dob || '',
-    healthStatus: item.healthStatus || 'healthy', acquisitionType: item.acquisitionType || 'purchased',
+    acquisitionType: item.acquisitionType || 'purchased',
     purchaseDate: item.purchaseDate || '', purchasePrice: item.purchasePrice || '',
     plotId: item.plotId || '', notes: item.notes || '',
   })
@@ -142,9 +142,9 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
         <FRow label="Breed"><input className={inp} placeholder="e.g. Murrah" value={f.breed} onChange={e => u('breed', e.target.value)} /></FRow>
         <FRow label="Date of Birth"><input type="date" className={inp} value={f.dob} onChange={e => u('dob', e.target.value)} /></FRow>
       </div>
-      <FRow label="Health Status">
-        <SegPicker value={f.healthStatus} options={[['healthy','✓ Healthy'],['recovering','~ Recovering'],['sick','⚠ Sick']]} onChange={v => u('healthStatus', v)} />
-      </FRow>
+      {/* No health picker. A vet visit sets the status now, and this form offered a
+          second way to set it that did not even include under_treatment — so an
+          edit made to fix a price could quietly mark a treated animal healthy. */}
       <FRow label="Acquisition">
         <SegPicker value={f.acquisitionType} options={[['purchased','💰 Purchased'],['born','🐣 Born on Farm']]} onChange={v => u('acquisitionType', v)} />
       </FRow>
@@ -221,7 +221,7 @@ export function CloseModal({ animal, onClose, onConfirm, saving }) {
   const isSale = f.reason === 'sold'
 
   return (
-    <Modal title={`Close — ${animalLabel(animal)}`} onClose={onClose}>
+    <Modal title={`${animalLabel(animal)} — off the farm`} onClose={onClose}>
       <FRow label="What happened *">
         <div className="grid grid-cols-2 gap-2">
           {CLOSE_REASONS.map(r => (
@@ -260,15 +260,16 @@ export function CloseModal({ animal, onClose, onConfirm, saving }) {
       </FRow>
 
       <p className="text-[10px] leading-relaxed" style={{ color: '#BA7517' }}>
-        ⚠ This closes the account. {animalLabel(animal)} drops out of the list into
-        Sold / Closed, and stops counting as working stock. The record is kept.
+        ⚠ {animalLabel(animal)} drops out of the list into "No longer on the farm"
+        and stops counting as working stock. Nothing is deleted — the record, and
+        every cost and sale against it, is kept.
       </p>
 
       <button onClick={() => onConfirm({ ...reason, date: f.date, amount: f.amount, notes: f.notes })}
         disabled={saving}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
         style={{ background: '#E24B4A' }}>
-        {saving ? 'Saving…' : isSale && f.amount ? 'Record Sale & Close' : 'Close Account'}
+        {saving ? 'Saving…' : isSale && f.amount ? 'Record Sale & Mark Off Farm' : 'Mark Off Farm'}
       </button>
     </Modal>
   )

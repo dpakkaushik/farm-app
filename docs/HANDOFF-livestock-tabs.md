@@ -77,6 +77,36 @@ Health tab where there is one and to the list where there isn't.
 Not browser-verified — build is green, but nobody has tapped a flock's health pill
 on a real phone yet.
 
+### 2b. Card action bars, after owner review — ✅ DONE
+
+The owner looked at the herd card and asked why Edit was a primary action, why
+there was a Photo button when the photo opens on tap, and what "Close" was meant
+to mean. Outcome:
+
+- **Health is on every card now, herd included.** The Health tab is not a
+  substitute — it answers farm-wide questions, the card answers "what is Ganga's
+  record". `cardHealth` is gone; only the cross-animal **Checkups due** list is
+  still gated (`groupDueList`), because that *would* duplicate the tab.
+- **The pill is read-only again.** The action bar carries Health, and two doors to
+  one panel is the same fault the Photo button had.
+- **Edit demoted to a pencil by the name.** It is still needed — late purchase
+  prices, breed/DOB, plot moves, and above all species, which is free text and
+  decides which of the three pages an animal lands on. There is **no livestock
+  section in Admin**, so this card is the only editor; removing it outright would
+  orphan all four. A proper Admin → Livestock master is the eventual answer.
+- **Photo button dropped.** `handlePhotoClick` already opens the viewer for an
+  existing photo and the picker for an empty slot.
+- **Close → Off Farm**, in the button, modal title, confirm button, the
+  "No longer on the farm (N)" section and the toast. `closeLivestock` and the
+  `status` values are untouched — this was wording only.
+- **The Edit form no longer sets health status, and neither does the store.**
+  `updateLivestock` wrote `health_status: data.healthStatus || 'healthy'`, and the
+  form's picker had no `under_treatment` option — so an edit made to fix a price
+  could quietly mark a treated animal healthy. The vet log owns that column now.
+
+Bars ended up: herd/pets `🩺 Health · 🐄 Off Farm`, flock
+`+ Add · Remove · Health · Off Farm`.
+
 ### 2. Health onto the cards for Birds and Pets (Herd keeps its tab)
 
 **Do not simply delete the Health tab.** Two things on it cannot live on a card,

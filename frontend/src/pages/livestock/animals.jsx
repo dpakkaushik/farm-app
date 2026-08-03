@@ -4,7 +4,7 @@
 // against it. A pet is a name with only a running cost. Same table, three cards,
 // because they answer three different questions.
 import React, { useState } from 'react'
-import { Plus, Minus, Camera, Pencil, ChevronDown, ChevronUp, Archive } from 'lucide-react'
+import { Plus, Minus, Pencil, ChevronDown, ChevronUp, Archive, Stethoscope } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { DueList, HealthPanel, pendingCheckups, isDue } from './health'
 import {
@@ -26,11 +26,15 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
 
   const isPets = face.key === 'pets'
 
-  // Health lives on the card exactly where the face has no Health tab, so the two
-  // can never both be on screen and neither can go missing. Herd has the tab.
-  const cardHealth = !face.tabs.some(t => t.key === 'health')
-  const checkups   = cardHealth ? pendingCheckups(animals, livestockHealthLogs) : []
-  const dueBy      = new Map(checkups.filter(isDue).map(c => [c.animal.id, c]))
+  // Health is on every card, herd included. The Herd's Health tab is not a
+  // substitute: the tab answers farm-wide questions — one vet trip across species,
+  // everything the farm owes — and the card answers "what is Ganga's record".
+  const checkups = pendingCheckups(animals, livestockHealthLogs)
+  const dueBy    = new Map(checkups.filter(isDue).map(c => [c.animal.id, c]))
+
+  // The cross-animal due list would be a second copy of what that tab already
+  // shows, so it appears only on the faces without one.
+  const groupDueList = !face.tabs.some(t => t.key === 'health')
 
   const toggle = (id, panel) => setOpen(o => o === panelKey(id, panel) ? null : panelKey(id, panel))
 
@@ -41,36 +45,42 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
     document.getElementById(`ls-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
-  // The pill doubles as the way into the record behind it — the same trick the bird
-  // count uses, which keeps the action bar from growing a fifth button.
+  // Read-only. The way into the record is the Health button on the action bar, and
+  // a second door to the same panel is exactly what made the old Photo button
+  // redundant with the photo itself.
   const healthChip = (l, h) => {
     const due = dueBy.get(l.id)
-    if (!cardHealth) {
-      return (
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-          style={{ background: h.color + '18', color: h.color }}>{h.label}</span>
-      )
-    }
-    const isOpen = open === panelKey(l.id, 'health')
     return (
       <>
-        <button onClick={() => toggle(l.id, 'health')}
-          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
-          style={{ background: h.color + '18', color: h.color }}>
-          {h.label}{isOpen ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-        </button>
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+          style={{ background: h.color + '18', color: h.color }}>{h.label}</span>
         {due && (
-          <button onClick={() => toggle(l.id, 'health')}
-            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
             style={{ background: (due.days < 0 ? '#E24B4A' : '#BA7517') + '18', color: due.days < 0 ? '#E24B4A' : '#BA7517' }}>
             {due.days < 0 ? `${Math.abs(due.days)}d overdue` : `checkup in ${due.days}d`}
-          </button>
+          </span>
         )}
       </>
     )
   }
 
-  const healthPanel = l => cardHealth && open === panelKey(l.id, 'health')
+  // Master data — name, species, breed, price, which plot it is kept on. Real, but
+  // rare, so it is a pencil by the name and not a quarter of the action bar beside
+  // the things a manager does daily. Species is the one that matters most: it is
+  // free text, and it decides which of the three pages an animal appears on.
+  const editPencil = l => (
+    <button onClick={() => onEdit(l)} className="p-0.5" title="Edit details"
+      style={{ color: 'var(--c-muted)' }}>
+      <Pencil size={12} />
+    </button>
+  )
+
+  // "Close" was accounting language for four different events — sold, rehomed,
+  // died, culled. What they share is that the animal is no longer on the farm.
+  const offFarm = l => ({ label: 'Off Farm', icon: <Archive size={11} />, color: '#E24B4A', onClick: () => onClose(l) })
+  const health  = l => ({ label: 'Health', icon: <Stethoscope size={11} />, color: '#1D9E75', onClick: () => toggle(l.id, 'health') })
+
+  const healthPanel = l => open === panelKey(l.id, 'health')
     ? <HealthPanel animal={l} animals={animals} />
     : null
 
@@ -94,6 +104,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{l.name || l.tagId}</p>
+              {editPencil(l)}
               {healthChip(l, h)}
             </div>
             <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
@@ -118,11 +129,9 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
             )}
           </div>
         </div>
-        <ActionBar actions={[
-          { label: 'Edit',  icon: <Pencil  size={11} />, color: '#4169E1', onClick: () => onEdit(l) },
-          { label: 'Photo', icon: <Camera  size={11} />,                   onClick: () => onPhoto('livestock_master', l) },
-          { label: 'Close', icon: <Archive size={11} />, color: '#E24B4A', onClick: () => onClose(l) },
-        ]} />
+        {/* No Photo button: the photo itself already opens — the viewer if there is
+            one, the picker if the slot is empty. Two doors to the same thing. */}
+        <ActionBar actions={[health(l), offFarm(l)]} />
         {healthPanel(l)}
       </div>
     )
@@ -144,10 +153,12 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
             }
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{l.name || 'Flock'}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{l.name || 'Flock'}</p>
+              {editPencil(l)}
+            </div>
             <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{(l.species||'Poultry').charAt(0).toUpperCase()+(l.species||'Poultry').slice(1)}</p>
-            {/* The flock had no health showing at all while Health was a tab of its
-                own. It is on the card now, so the pill has to be here to open it. */}
+            {/* The flock showed no health at all while Health was a tab of its own. */}
             <div className="flex items-center gap-1 flex-wrap mt-1">{healthChip(l, h)}</div>
           </div>
           <button onClick={() => toggle(l.id, 'counts')} className="text-right shrink-0">
@@ -158,10 +169,10 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           </button>
         </div>
         <ActionBar actions={[
-          { label: 'Edit',     icon: <Pencil  size={11} />, color: '#4169E1', onClick: () => onEdit(l) },
-          { label: '+ Add',    icon: <Plus    size={11} />, color: '#1D9E75', onClick: () => onCount(l, 'add')    },
-          { label: 'Remove',   icon: <Minus   size={11} />, color: '#BA7517', onClick: () => onCount(l, 'reduce') },
-          { label: 'Close',    icon: <Archive size={11} />, color: '#E24B4A', onClick: () => onClose(l) },
+          { label: '+ Add',  icon: <Plus  size={11} />, color: '#1D9E75', onClick: () => onCount(l, 'add')    },
+          { label: 'Remove', icon: <Minus size={11} />, color: '#BA7517', onClick: () => onCount(l, 'reduce') },
+          health(l),
+          offFarm(l),
         ]} />
         {isOpen && (
           <div className="border-t border-[var(--c-border)] divide-y divide-[var(--c-border)]">
@@ -215,7 +226,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
       {/* What is owed across the whole group. On the herd this lives on the Health
           tab; here that tab is gone, and a card cannot hold a list about several
           animals, so it sits above them. */}
-      {cardHealth && (
+      {groupDueList && (
         <div className="mb-3"><DueList checkups={checkups} onPick={jumpToHealth} /></div>
       )}
 
@@ -230,7 +241,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           <button onClick={() => setShowInactive(v => !v)}
             className="w-full mt-3 mb-2 flex items-center justify-between px-4 py-2 rounded-xl text-xs font-semibold"
             style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-            <span>Closed ({closed.length})</span>
+            <span>No longer on the farm ({closed.length})</span>
             {showInactive ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
           {showInactive && closed.map(closedCard)}

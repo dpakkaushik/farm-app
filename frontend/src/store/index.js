@@ -1635,7 +1635,10 @@ const useAppStore = create((set, get) => ({
       gender:           data.gender || null,
       breed:            data.breed || null,
       dob:              data.dob || null,
-      health_status:    data.healthStatus || 'healthy',
+      // health_status is deliberately absent. The vet log owns it — a visit sets it
+      // and nothing else should. While the Edit form carried a health picker this
+      // wrote `data.healthStatus || 'healthy'`, so saving an edit for any other
+      // reason could quietly downgrade an animal that was under treatment.
       acquisition_type: data.acquisitionType || 'purchased',
       purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
       purchase_price:   data.acquisitionType !== 'born' && data.purchasePrice ? parseFloat(data.purchasePrice) : null,
@@ -1644,7 +1647,7 @@ const useAppStore = create((set, get) => ({
     }
     const { error } = await supabase.from('livestock_master').update(payload).eq('id', id)
     if (error) throw error
-    set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, plotId: payload.plot_id, notes: payload.notes } : l) }))
+    set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, plotId: payload.plot_id, notes: payload.notes } : l) }))
   },
 
   // Close an animal's account without any money changing hands — it died, it was
