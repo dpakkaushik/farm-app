@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell, Receipt } from 'lucide-react'
+import Expenses from './Expenses'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
@@ -28,7 +30,7 @@ const HISTORY_WARN_DAYS = 90
 // 272 days) stay out of the notification count instead of drowning it.
 const OVERDUE_WINDOW_DAYS = 30
 
-export default function Today() {
+function TodayBoard() {
   const {
     cropCycles, cropMaster, activities, plots,
     permanentStaff, regularLabourers, machineryMaster,
@@ -742,6 +744,51 @@ function Pill({ count, label, color, dim, icon }) {
       {icon && <span style={{ color }}>{icon}</span>}
       <span className="text-sm font-bold" style={{ color }}>{count}</span>
       <span className="text-xs font-medium" style={{ color }}>{label}</span>
+    </div>
+  )
+}
+
+// ── Today, with Expenses alongside it ─────────────────────────────────────────
+// Expenses used to be the third tab inside Resources — next to Inventory and
+// Assets — which put the farm's money entry behind a screen named for its stock.
+// It also had no route of its own: Resources holds its tab in local state, so
+// nothing could link to it, which is why Livestock could only print the words
+// "Resources → Expenses" instead of taking you there.
+//
+// It lives here now, next to the day the spend happened. The tab is in the URL
+// (?tab=expenses) precisely so other screens can send you straight to it.
+const TABS = [
+  { key: 'today',    label: 'Today',    Icon: ClipboardList },
+  { key: 'expenses', label: 'Expenses', Icon: Receipt       },
+]
+
+export default function Today() {
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'expenses' ? 'expenses' : 'today'
+
+  // Replace rather than push: Back should leave Today, not walk its two tabs.
+  const setTab = k => setParams(k === 'today' ? {} : { tab: k }, { replace: true })
+
+  return (
+    <div className="h-full flex flex-col" style={{ background: 'var(--c-bg)' }}>
+      <div className="shrink-0 flex gap-2 px-3 py-2 border-b"
+        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
+        {TABS.map(({ key, label, Icon }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all"
+            style={tab === key
+              ? { background: '#1D9E75', color: '#fff' }
+              : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }
+            }>
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {tab === 'today'    ? <TodayBoard /> : <Expenses />}
+      </div>
     </div>
   )
 }

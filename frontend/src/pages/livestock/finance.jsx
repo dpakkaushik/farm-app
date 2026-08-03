@@ -11,6 +11,7 @@
 // farm would otherwise never see its own feed bills. It is labelled Shared
 // wherever it appears, with a footnote, so the two faces are never added together.
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { TrendingDown, TrendingUp, Plus, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../store'
 import Attachment from '../../components/Attachment'
@@ -69,6 +70,7 @@ export default function FinanceTab({ animals, face }) {
     livestockRevenue:       s.livestockRevenue,
     deleteLivestockRevenue: s.deleteLivestockRevenue,
   }))
+  const navigate                      = useNavigate()
   const [sub, setSub]                 = useState('revenue')
   const [showRevenue, setShowRevenue] = useState(false)
 
@@ -186,10 +188,19 @@ export default function FinanceTab({ animals, face }) {
       {/* Expenses — read-only, add goes to Resources → Expenses */}
       {(spendOnly || sub === 'expenses') && (
         <>
+          {/* This was a line of text naming where to go — "Resources →
+              Expenses" — and not a link, because that tab lived in local state
+              and had no route. Expenses is on Today now, with its tab in the
+              URL, so this can finally be the way there instead of directions. */}
+          <button onClick={() => navigate('/today?tab=expenses')}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
+            style={{ borderColor: '#E24B4A', color: '#E24B4A', background: 'transparent' }}>
+            <Plus size={15} /> Add Expense
+          </button>
           <p className="text-[10px] text-center px-4" style={{ color: 'var(--c-muted)' }}>
             {spendOnly
-              ? 'Add spend from Resources → Expenses, tagged to the pet'
-              : `Showing ${face.title.toLowerCase()} spend and shared livestock spend · Add from Resources → Expenses`}
+              ? 'Opens Today → Expenses. Tag the spend to the pet and it lands here.'
+              : `Showing ${face.title.toLowerCase()} spend and shared livestock spend`}
           </p>
           {expenseRows}
         </>

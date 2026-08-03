@@ -139,6 +139,7 @@ export default function App() {
           {/* Legacy redirects */}
           <Route path="/inventory"    element={<Navigate to="/resources" replace />} />
           <Route path="/assets"       element={<Navigate to="/resources" replace />} />
+          <Route path="/expenses"     element={<Navigate to="/today?tab=expenses" replace />} />
           <Route path="/owner"        element={<Navigate to="/reports" replace />} />
           <Route path="/dashboard"    element={<Navigate to="/reports" replace />} />
           <Route path="/diary"        element={<Navigate to="/today" replace />} />

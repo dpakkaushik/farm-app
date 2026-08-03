@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Package, Wrench, Receipt } from 'lucide-react'
+import { Package, Wrench } from 'lucide-react'
 import Inventory from './Inventory'
 import Assets    from './Assets'
-import Expenses  from './Expenses'
 
+// Expenses was the third tab here. It moved to Today, next to the day the spend
+// happened — see the note on Today.jsx's shell. Resources is the two registers of
+// things the farm owns; money entry is a daily act, not a register.
 const TABS = [
   { key: 'inventory', label: 'Inventory', Icon: Package },
   { key: 'assets',    label: 'Assets',    Icon: Wrench  },
-  { key: 'expenses',  label: 'Expenses',  Icon: Receipt },
 ]
 
 export default function ResourcesPage() {
@@ -35,7 +36,6 @@ export default function ResourcesPage() {
       <div className="flex-1 min-h-0 overflow-hidden">
         {tab === 'inventory' && <Inventory />}
         {tab === 'assets'    && <Assets />}
-        {tab === 'expenses'  && <Expenses />}
       </div>
     </div>
   )
