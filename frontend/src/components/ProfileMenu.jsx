@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, Bird, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, PawPrint, Dog, Bird, Beef, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useAppStore } from '../store'
 import { useThemeStore } from '../store/theme'
@@ -9,10 +9,17 @@ import AboutModal from './AboutModal'
 
 const SUPPORT_EMAIL = 'deepakkaushik@pallitrans.com'
 
+// A row with `children` expands in place instead of navigating; each child deep-
+// links to one sub-tab of the page. Livestock has three kinds of animal that
+// share a screen but not a question, so this is the way to land on the right one.
 const NAV_ITEMS = [
   { to: '/resources', label: 'Resources', Icon: Package    },
   { to: '/labour',     label: 'People',    Icon: Users      },
-  { to: '/livestock',  label: 'Livestock', Icon: Bird       },
+  { to: '/livestock',  label: 'Livestock', Icon: PawPrint, children: [
+      { group: 'pets',    label: 'Pets',    Icon: Dog  },
+      { group: 'birds',   label: 'Birds',   Icon: Bird },
+      { group: 'animals', label: 'Animals', Icon: Beef },
+  ] },
   { to: '/trees',      label: 'Trees',     Icon: TreePine   },
   { to: '/harvest',    label: 'Harvest',   Icon: Wheat      },
   { to: '/reports',    label: 'Reports',   Icon: BarChart3  },
@@ -22,19 +29,23 @@ const NAV_ITEMS = [
 // NAV_ITEMS is a manager-only workflow.
 const VIEWER_PATHS = new Set(['/harvest', '/reports'])
 
-function Row({ icon: Icon, label, sub, onClick, active, danger }) {
+function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent }) {
   return (
     <button onClick={onClick}
-      className="w-full flex items-center gap-3 px-5 py-3 text-left transition-colors"
+      className="w-full flex items-center gap-3 py-3 text-left transition-colors"
       style={{
+        paddingLeft: indent ? '2.75rem' : '1.25rem',
+        paddingRight: '1.25rem',
         background: active ? 'var(--c-ghost)' : 'transparent',
         borderLeft: active ? '3px solid #1D9E75' : '3px solid transparent',
       }}>
-      <Icon size={17} style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-muted)' }} />
+      <Icon size={indent ? 15 : 17} style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-muted)' }} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate" style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-text)' }}>{label}</p>
+        <p className={`${indent ? 'text-[13px]' : 'text-sm'} font-semibold truncate`}
+          style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-text)' }}>{label}</p>
         {sub && <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       </div>
+      {trailing}
     </button>
   )
 }
@@ -76,6 +87,18 @@ export default function ProfileMenu() {
 
   const go = (path) => { navigate(path); setOpen(false) }
   const initial = (profile?.full_name || profile?.email || '?')[0].toUpperCase()
+
+  // An expandable row starts revealed when you're already on its page, and
+  // toggles from there. '' is "explicitly closed", distinct from the null default.
+  const [navOpen, setNavOpen] = useState(null)
+  const isNavOpen = to => navOpen === null ? location.pathname === to : navOpen === to
+  const toggleNav = to => setNavOpen(isNavOpen(to) ? '' : to)
+
+  // A child is the active one only while its group is the one showing. On a
+  // sibling page-level tab (?tab=health) nothing under Livestock is current.
+  const q = new URLSearchParams(location.search)
+  const isChildActive = (parent, child) => location.pathname === parent.to
+    && !q.get('tab') && (q.get('group') || 'animals') === child.group
 
   return (
     <div ref={ref}>
@@ -143,9 +166,25 @@ export default function ProfileMenu() {
           <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
 
           <SectionLabel>Navigate</SectionLabel>
-          {NAV_ITEMS.filter(item => VIEWER_PATHS.has(item.to) || manager).map(({ to, label, Icon }) => (
-            <Row key={to} icon={Icon} label={label} onClick={() => go(to)} active={location.pathname === to} />
-          ))}
+          {NAV_ITEMS.filter(item => VIEWER_PATHS.has(item.to) || manager).map(item => {
+            const { to, label, Icon, children } = item
+            if (!children)
+              return <Row key={to} icon={Icon} label={label} onClick={() => go(to)} active={location.pathname === to} />
+            const expanded = isNavOpen(to)
+            const Chevron  = expanded ? ChevronUp : ChevronDown
+            return (
+              <div key={to}>
+                <Row icon={Icon} label={label} onClick={() => toggleNav(to)}
+                  active={location.pathname === to}
+                  trailing={<Chevron size={15} style={{ color: 'var(--c-faint)' }} />} />
+                {expanded && children.map(child => (
+                  <Row key={child.group} indent icon={child.Icon} label={child.label}
+                    onClick={() => go(`${to}?group=${child.group}`)}
+                    active={isChildActive(item, child)} />
+                ))}
+              </div>
+            )
+          })}
 
           {admin && (
             <>

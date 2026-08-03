@@ -9,6 +9,8 @@ export const TODAY = new Date().toISOString().slice(0, 10)
 export const EXPENSE_CATS = [
   ['feed',           '🌾', 'Feed'],
   ['veterinary',     '💉', 'Veterinary'],
+  ['medicine',       '💊', 'Medicine'],
+  ['accessories',    '🦴', 'Accessories'],
   ['livestock_care', '🪢', 'Livestock Care'],
   ['maintenance',    '🔧', 'Maintenance'],
   ['infrastructure', '🏗',  'Infrastructure'],
@@ -56,15 +58,38 @@ export const HEALTH_OPTIONS = [
 const CATTLE_SPECIES  = ['buffalo','cow','bull','bullock','ox']
 const POULTRY_SPECIES = ['hen','cock','chicken','poultry','bird','rooster']
 
-export const isPoultry = l => l.trackingMode === 'count'
-  || POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
+const speciesOf   = l => (l.species || l.animal_type || '').toLowerCase()
+const anySpecies  = (l, list) => list.some(s => speciesOf(l).includes(s))
+// Whole words only, so the free-text species field on the Edit modal can hold
+// "cattle" without the 'cat' inside it turning a buffalo into a pet.
+const PET_SPECIES = /\b(dog|cat|puppy|kitten|pup)\b/
 
-// Anything individually tracked that isn't poultry counts as cattle, so a goat or
-// a sheep still lands in a section instead of vanishing between the two.
-export const isCattle = l => CATTLE_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
-  || (!POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s)) && l.trackingMode === 'individual')
+// A pet is individually tracked like cattle but earns nothing, so it is its own
+// group: excluded from the per-animal profit list, costed on its own card.
+export const isPet = l => PET_SPECIES.test(speciesOf(l))
+
+export const isPoultry = l => !isPet(l)
+  && (l.trackingMode === 'count' || anySpecies(l, POULTRY_SPECIES))
+
+// Anything individually tracked that is neither poultry nor a pet counts as
+// cattle, so a goat or a sheep still lands in a section instead of vanishing
+// between them.
+export const isCattle = l => anySpecies(l, CATTLE_SPECIES)
+  || (!isPet(l) && !anySpecies(l, POULTRY_SPECIES) && l.trackingMode === 'individual')
 
 export const isActive = l => (l.status || 'active') === 'active'
+
+// The three groups the Animals tab splits into, and the one function that decides
+// which an animal belongs to. Written as an if-else chain rather than three
+// independent filters so the groups are exhaustive by construction — nothing can
+// fall between them and disappear from the screen.
+export const GROUPS = [
+  { key: 'pets',    label: '🐕 Pets',    add: 'Add Pet',            empty: 'No pets recorded'   },
+  { key: 'birds',   label: '🐓 Birds',   add: 'Add Flock',          empty: 'No flocks recorded' },
+  { key: 'animals', label: '🐄 Animals', add: 'Add Animal',         empty: 'No animals in the herd right now' },
+]
+export const GROUP_KEYS = GROUPS.map(g => g.key)
+export const groupOf = l => isPet(l) ? 'pets' : isPoultry(l) ? 'birds' : 'animals'
 
 export const animalLabel = a => a ? (a.name || a.tagId) : null
 

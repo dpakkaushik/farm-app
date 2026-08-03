@@ -9,9 +9,13 @@ import { uploadAttachment, BUCKETS } from '../lib/attachments'
 const DOCS  = BUCKETS.docs
 const TODAY = new Date().toISOString().slice(0, 10)
 
+// Must stay in sync with the farm_expenses_category_check constraint (migration
+// 0019) — a category offered here but missing there fails the insert with 23514.
 const EXPENSE_CATS = [
   ['feed',           '🌾', 'Feed'],
   ['veterinary',     '💉', 'Veterinary'],
+  ['medicine',       '💊', 'Medicine'],
+  ['accessories',    '🦴', 'Accessories'],
   ['livestock_care', '🪢', 'Livestock Care'],
   ['machinery',      '🚜', 'Machinery / Hired Equipment'],
   ['maintenance',    '🔧', 'Maintenance'],
@@ -24,7 +28,9 @@ const EXPENSE_CATS = [
 ]
 
 const EXPENSE_TYPES = [
-  { key: 'livestock',      emoji: '🐄', label: 'Livestock',      attributedTo: 'livestock', cats: ['feed', 'veterinary', 'livestock_care'] },
+  // Pets live on the Livestock screen too, and their spend is food, accessories,
+  // vet and medicine — hence the last two.
+  { key: 'livestock',      emoji: '🐄', label: 'Livestock',      attributedTo: 'livestock', cats: ['feed', 'veterinary', 'medicine', 'accessories', 'livestock_care'] },
   { key: 'crop_field',     emoji: '🌾', label: 'Crop / Field',   attributedTo: 'general',   cats: ['machinery', 'maintenance'] },
   { key: 'infrastructure', emoji: '🏗', label: 'Infrastructure', attributedTo: 'asset',     cats: ['infrastructure', 'construction', 'maintenance'] },
   { key: 'admin',          emoji: '📋', label: 'Administrative', attributedTo: 'general',   cats: ['administrative', 'utilities', 'event'] },

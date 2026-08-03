@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
 import { isManager, getActiveFarmRole } from '../store/auth'
+import { isPet } from './livestock/ui'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -1336,6 +1337,7 @@ function MarginPill({ actualPct, expectedPct, isActual }) {
 function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
   const net = totalIncome - totalExpenses
   const cropMerged = mergeByCrop(cropPnl)
+  const animalPnl  = livestockPnl.filter(row => !isPet(row))
   return (
     <div className="flex flex-col gap-3 pt-3">
       {/* Overall */}
@@ -1365,8 +1367,11 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
         </div>
       </Card>
 
-      {/* Livestock P&L */}
-      {livestockPnl.length > 0 && (
+      {/* Livestock P&L — pets dropped. v_livestock_pnl reports every animal, but a
+          pet has no revenue side, so its row can only ever read as a loss the
+          size of its upkeep. Its cost still counts in the totals above; the
+          running figure lives on the pet's card under Livestock → Pets. */}
+      {animalPnl.length > 0 && (
         <Card className="p-0">
           <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
             Livestock — Individual P&L
@@ -1380,7 +1385,7 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
               </tr>
             </thead>
             <tbody>
-              {livestockPnl.map((row, i) => (
+              {animalPnl.map((row, i) => (
                 <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                   <td className="px-3 py-2">
                     <div className="font-medium" style={{ color: 'var(--c-text)' }}>{row.animal_name || '—'}</div>
@@ -1479,7 +1484,7 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
         </Card>
       )}
 
-      {livestockPnl.length === 0 && cropPnl.length === 0 && (
+      {animalPnl.length === 0 && cropPnl.length === 0 && (
         <Card>
           <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
             No livestock or crop cycle data available for P&L.

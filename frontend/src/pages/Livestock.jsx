@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
-import { Bird, TrendingDown, TrendingUp, Plus, Minus, Trash2, Camera, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { PawPrint, TrendingDown, TrendingUp, Plus, Minus, Trash2, Camera, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAppStore } from '../store'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
@@ -9,9 +10,14 @@ import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachmen
 import HealthTab, { CheckupBanner, pendingCheckups } from './livestock/health'
 import {
   DOCS, TODAY, HEALTH_STYLE, EXPENSE_CATS, REVENUE_TYPES, PAY_MODES,
-  isCattle, isPoultry, isActive,
+  GROUPS, GROUP_KEYS, groupOf, isPet, isPoultry, isActive,
   fmt, fmtK, inp, Modal, FRow, Pill, SegPicker, ActionBar,
 } from './livestock/ui'
+
+const TAB_KEYS = ['animals', 'health', 'finance']
+
+// Header count chips double as shortcuts into the matching sub-tab.
+const GROUP_EMOJI = { pets: '🐕', birds: '🐔', animals: '🐄' }
 
 // FilePicker handles crop-on-pick, tap-to-expand, change and remove. Removal is only
 // possible here, before the record is saved — a saved receipt is immutable.
@@ -29,15 +35,29 @@ function AttachmentRow({ value, onChange, uploading, onUpload }) {
 }
 
 // ── Add Livestock Modal ───────────────────────────────────────────────────────
-function AddLivestockModal({ onClose, onConfirm, saving }) {
-  const [f, setF] = useState({ name:'', species:'buffalo', gender:'female', breed:'', dob:'', trackingMode:'individual', currentCount:'1', acquisitionType:'purchased', purchaseDate:TODAY, purchasePrice:'', notes:'' })
+// Scoped to the group you're adding into: a bird is counted, never named; a pet is
+// a dog or a cat. Tracking mode follows the group, not the species pick, so a
+// duck can't accidentally become an individually-named animal. Anything not
+// listed here can still be typed into the Edit modal's free-text species field.
+const GROUP_FORM = {
+  animals: { title: 'Add Animal', trackingMode: 'individual', bornLabel: '🐣 Born on Farm',  namePlaceholder: 'e.g. Nimmi',
+             types: [['buffalo','🐃 Buffalo'], ['cow','🐄 Cow'], ['goat','🐐 Goat']] },
+  birds:   { title: 'Add Flock',  trackingMode: 'count',      bornLabel: '🐣 Hatched',        namePlaceholder: 'e.g. Hen Flock',
+             types: [['poultry','🐓 Poultry'], ['hen','🐔 Hen'], ['duck','🦆 Duck']] },
+  pets:    { title: 'Add Pet',    trackingMode: 'individual', bornLabel: '🐾 Born / Adopted', namePlaceholder: 'e.g. Sheru',
+             types: [['dog','🐕 Dog'], ['cat','🐈 Cat']] },
+}
+
+function AddLivestockModal({ group, onClose, onConfirm, saving }) {
+  const g = GROUP_FORM[group] || GROUP_FORM.animals
+  const [f, setF] = useState({ name:'', species:g.types[0][0], gender:'female', breed:'', dob:'', trackingMode:g.trackingMode, currentCount:'1', acquisitionType:'purchased', purchaseDate:TODAY, purchasePrice:'', notes:'' })
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
-    <Modal title="Add Animal / Flock" onClose={onClose}>
+    <Modal title={g.title} onClose={onClose}>
       <FRow label="Type">
         <div className="flex gap-2">
-          {[['buffalo','🐃 Buffalo'],['cow','🐄 Cow'],['poultry','🐓 Poultry']].map(([s, l]) => (
-            <button key={s} onClick={() => { u('species', s); u('trackingMode', s === 'poultry' ? 'count' : 'individual') }}
+          {g.types.map(([s, l]) => (
+            <button key={s} onClick={() => u('species', s)}
               className="flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors"
               style={{ background: f.species===s ? '#1D9E7518' : 'var(--c-ghost)', borderColor: f.species===s ? '#1D9E75' : 'var(--c-border)', color: f.species===s ? '#1D9E75' : 'var(--c-muted)' }}>
               {l}
@@ -46,7 +66,7 @@ function AddLivestockModal({ onClose, onConfirm, saving }) {
         </div>
       </FRow>
       <FRow label="Name *">
-        <input className={inp} placeholder={f.trackingMode === 'count' ? 'e.g. Hen Flock' : 'e.g. Nimmi'} value={f.name} onChange={e => u('name', e.target.value)} />
+        <input className={inp} placeholder={g.namePlaceholder} value={f.name} onChange={e => u('name', e.target.value)} />
       </FRow>
       {f.trackingMode === 'individual' ? (
         <>
@@ -64,7 +84,7 @@ function AddLivestockModal({ onClose, onConfirm, saving }) {
         <FRow label="Current Count"><input type="number" className={inp} min="0" value={f.currentCount} onChange={e => u('currentCount', e.target.value)} /></FRow>
       )}
       <FRow label="Acquisition">
-        <SegPicker value={f.acquisitionType} options={[['purchased','💰 Purchased'],['born','🐣 Born / Hatched']]} onChange={v => u('acquisitionType', v)} />
+        <SegPicker value={f.acquisitionType} options={[['purchased','💰 Purchased'],['born', g.bornLabel]]} onChange={v => u('acquisitionType', v)} />
       </FRow>
       {f.acquisitionType === 'purchased' && (
         <div className="grid grid-cols-2 gap-3">
@@ -75,7 +95,7 @@ function AddLivestockModal({ onClose, onConfirm, saving }) {
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
-        {saving ? 'Saving…' : 'Add Animal'}
+        {saving ? 'Saving…' : g.title}
       </button>
     </Modal>
   )
@@ -300,28 +320,38 @@ function RevenueModal({ animals, onClose }) {
 
 // ── Animals Tab ───────────────────────────────────────────────────────────────
 // The livestock master, moved here from Resources → Assets so animals live in one
-// place. Sold and deceased animals drop out of the herd sections into a collapsed
-// group: the Finance tab one tab over can close an animal's account with a sale,
-// and a closed animal must not keep reading as part of the working herd.
-function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
+// place. Split into three sub-groups — Pets, Birds, Animals — because they answer
+// different questions: a flock is a number, an animal is a name that earns, and a
+// pet is a name that only costs. Sold and deceased animals drop out of the group
+// into a collapsed list: the Finance tab one tab over can close an animal's
+// account with a sale, and a closed animal must not keep reading as working stock.
+function AnimalsTab({ livestock, countLogs, group, onGroupChange, onEdit, onCount, onPhoto, onAdd }) {
+  const farmExpenses = useAppStore(s => s.farmExpenses)
   const [expanded,     setExpanded]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
 
-  const active      = livestock.filter(isActive)
-  const inactive    = livestock.filter(l => !isActive(l))
-  const cattleList  = active.filter(isCattle)
-  const poultryList = active.filter(isPoultry)
+  const g        = GROUPS.find(x => x.key === group) || GROUPS[GROUPS.length - 1]
+  const inGroup  = l => groupOf(l) === group
+  const active   = livestock.filter(l => isActive(l)  && inGroup(l))
+  const inactive = livestock.filter(l => !isActive(l) && inGroup(l))
 
-  const sectionHeader = (emoji, title, count) => (
-    <div className="flex items-center gap-2 mt-3 mb-2">
-      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--c-muted)' }}>{emoji} {title}</p>
-      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-faint)' }}>{count}</span>
-      <div className="flex-1 h-px" style={{ background: 'var(--c-border)' }} />
-    </div>
-  )
+  // What a pet has cost so far: what it was bought for plus every livestock
+  // expense tagged to it. A pet earns nothing, so this is the whole story — and
+  // the reason pets sit out of the per-animal profit list on the Finance tab.
+  const costToDate = l => (l.purchasePrice || 0) + farmExpenses
+    .filter(e => e.attributedTo === 'livestock' && e.livestockId === l.id)
+    .reduce((s, e) => s + e.amount, 0)
 
-  const cattleCard = l => {
-    const h = HEALTH_STYLE[l.healthStatus] || HEALTH_STYLE.healthy
+  const speciesEmoji = l => isPet(l)
+    ? ((l.species || '').includes('cat') ? '🐈' : '🐕')
+    : ((l.species || '').includes('cow') ? '🐄' : '🐃')
+
+  // One card for everything individually tracked. Cattle and pets differ in one
+  // line only: cattle show what they cost to buy, pets what they cost to keep.
+  const individualCard = l => {
+    const h    = HEALTH_STYLE[l.healthStatus] || HEALTH_STYLE.healthy
+    const pet  = isPet(l)
+    const cost = pet ? costToDate(l) : 0
     return (
       <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
         <div className="p-4 flex gap-4">
@@ -329,7 +359,7 @@ function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
             {l.photoUrl
               ? <img src={l.photoUrl} alt={l.name} className="w-16 h-16 rounded-2xl object-cover border-2" style={{ borderColor: h.color+'50' }} />
               : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl border-2 border-dashed" style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
-                  {(l.species||'').includes('cow') ? '🐄' : '🐃'}
+                  {speciesEmoji(l)}
                 </div>
             }
             <p className="text-[8px] mt-1" style={{ color: 'var(--c-faint)' }}>📷 Photo</p>
@@ -345,9 +375,20 @@ function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
               {l.gender ? ` · ${l.gender.charAt(0).toUpperCase()+l.gender.slice(1)}` : ''}
             </p>
             {l.dob && <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>Born: {l.dob}</p>}
-            <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
-              {l.purchasePrice ? fmt(l.purchasePrice) : l.acquisitionType === 'born' ? '🐣 Born on farm' : 'Tap ✏ Edit to set price'}
-            </p>
+            {pet ? (
+              <>
+                <p className="text-[11px] mt-1 font-bold" style={{ color: cost ? '#E24B4A' : 'var(--c-faint)' }}>
+                  {cost ? `Cost to date ${fmt(cost)}` : 'No spend logged yet'}
+                </p>
+                <p className="text-[9px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
+                  Purchase + food, vet, medicine & accessories tagged here
+                </p>
+              </>
+            ) : (
+              <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
+                {l.purchasePrice ? fmt(l.purchasePrice) : l.acquisitionType === 'born' ? '🐣 Born on farm' : 'Tap ✏ Edit to set price'}
+              </p>
+            )}
           </div>
         </div>
         <ActionBar actions={[
@@ -404,7 +445,7 @@ function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
     <div key={a.id} className="p-4 rounded-2xl border mb-2" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xl">{isPoultry(a) ? '🐔' : '🐄'}</span>
+          <span className="text-xl">{isPoultry(a) ? '🐔' : speciesEmoji(a)}</span>
           <div>
             <p className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>{a.name || a.tagId}</p>
             <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
@@ -423,29 +464,35 @@ function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
 
   return (
     <div className="pb-4">
-      <button onClick={onAdd} className="w-full mb-2 py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
+      {/* Sub-tabs, tinted rather than solid so they read as nested under the
+          page tabs above and not as a second set of peers. */}
+      <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)] mb-3">
+        {GROUPS.map(({ key, label }) => {
+          const n  = livestock.filter(l => isActive(l) && groupOf(l) === key).length
+          const on = group === key
+          return (
+            <button key={key} onClick={() => onGroupChange(key)}
+              className="flex-1 py-2 text-[11px] font-semibold transition-colors"
+              style={{
+                background: on ? '#1D9E7514' : 'var(--c-ghost)',
+                color:      on ? '#1D9E75'   : 'var(--c-muted)',
+                boxShadow:  on ? 'inset 0 -2px 0 #1D9E75' : 'none',
+              }}>
+              {label}{n > 0 ? ` · ${n}` : ''}
+            </button>
+          )
+        })}
+      </div>
+
+      <button onClick={onAdd} className="w-full mb-3 py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
         style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
-        <Plus size={14} /> Add Animal / Flock
+        <Plus size={14} /> {g.add}
       </button>
 
-      {cattleList.length > 0 && (
-        <>
-          {sectionHeader('🐃', 'Cattle', cattleList.length)}
-          {cattleList.map(cattleCard)}
-        </>
-      )}
-
-      {poultryList.length > 0 && (
-        <>
-          {sectionHeader('🐓', 'Poultry', poultryList.length)}
-          {poultryList.map(poultryCard)}
-        </>
-      )}
+      {active.map(group === 'birds' ? poultryCard : individualCard)}
 
       {active.length === 0 && (
-        <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>
-          {inactive.length > 0 ? 'No animals in the herd right now' : 'No livestock records'}
-        </p>
+        <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>{g.empty}</p>
       )}
 
       {inactive.length > 0 && (
@@ -475,6 +522,9 @@ function FinanceTab({ animals }) {
 
   // Only livestock-attributed expenses
   const livestockExpenses = farmExpenses.filter(e => e.attributedTo === 'livestock')
+  // Everything that can earn. Pet spend still counts in the totals below — it is
+  // real money off the farm — but a pet has no revenue side to weigh it against.
+  const earners           = animals.filter(a => !isPet(a))
   const totalExpenses     = livestockExpenses.reduce((s, e) => s + e.amount, 0)
   const totalRevenue      = livestockRevenue.reduce((s, r) => s + r.amount, 0)
   const net               = totalRevenue - totalExpenses
@@ -634,13 +684,15 @@ function FinanceTab({ animals }) {
       {/* Per animal — the same arithmetic as the v_livestock_pnl view, computed
           from data already in the store: what an animal cost against what it
           earned. Answers the question the totals above cannot — which animal
-          is actually paying for itself. */}
-      {animals.length > 0 && (
+          is actually paying for itself. Pets are excluded: they have no revenue
+          side, so a profit row for one would only ever read as a loss. Their
+          running cost lives on the pet's own card under Animals → Pets. */}
+      {earners.length > 0 && (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
           <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
             style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>Per animal</p>
           <div className="divide-y divide-[var(--c-border)]">
-            {animals.map(a => {
+            {earners.map(a => {
               const cost = (a.purchasePrice || 0)
                 + livestockExpenses.filter(e => e.livestockId === a.id).reduce((s, e) => s + e.amount, 0)
               const rev = livestockRevenue.filter(r => r.livestockId === a.id).reduce((s, r) => s + r.amount, 0)
@@ -662,7 +714,8 @@ function FinanceTab({ animals }) {
           </div>
           <p className="px-4 py-2 text-[9px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
             Only expenses tagged to one animal count here. Feed bought for the whole
-            herd sits in the totals above, not against any single animal.
+            herd sits in the totals above, not against any single animal. Pets are
+            left out — see their cost on the pet's card under Animals → Pets.
           </p>
         </div>
       )}
@@ -679,7 +732,21 @@ export default function Livestock() {
     addLivestock, updateLivestock, addLivestockCountLog, updateAssetPhoto,
   } = useAppStore()
 
-  const [tab,        setTab]        = useState('animals')
+  // Both the page tab and the Animals sub-group live in the URL, so the profile
+  // menu can deep-link straight to Pets (/livestock?group=pets) and land on the
+  // right sub-tab even when the last visit ended on Finance. Switching replaces
+  // rather than pushes: Back should leave the screen, not walk the tabs.
+  const [params, setParams] = useSearchParams()
+  const tab   = TAB_KEYS.includes(params.get('tab'))     ? params.get('tab')   : 'animals'
+  const group = GROUP_KEYS.includes(params.get('group')) ? params.get('group') : 'animals'
+  const goTo = (nextTab, nextGroup) => {
+    const q = {}
+    if (nextTab   !== 'animals') q.tab   = nextTab
+    if (nextGroup !== 'animals') q.group = nextGroup
+    setParams(q, { replace: true })
+  }
+  const setTab = t => goTo(t, group)
+
   const [editModal,  setEditModal]  = useState(null)
   const [countModal, setCountModal] = useState(null)
   const [addModal,   setAddModal]   = useState(false)
@@ -758,8 +825,7 @@ export default function Livestock() {
   }
 
   const herd      = livestockMaster.filter(isActive)
-  const cattle    = herd.filter(isCattle).length
-  const poultry   = herd.filter(isPoultry).length
+  const counts    = GROUPS.map(g => [g.key, herd.filter(l => groupOf(l) === g.key).length])
   const herdValue = herd.reduce((s, l) => s + (l.purchasePrice || 0), 0)
   const checkups  = pendingCheckups(livestockMaster, livestockHealthLogs)
 
@@ -786,11 +852,15 @@ export default function Livestock() {
 
       <div className="shrink-0 px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--c-border)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <Bird size={20} style={{ color: '#1D9E75' }} />
+          <PawPrint size={20} style={{ color: '#1D9E75' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>Livestock</p>
           <div className="flex gap-1.5 ml-auto text-[10px] items-center">
-            {cattle  > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐄 {cattle}</span>}
-            {poultry > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐔 {poultry}</span>}
+            {counts.filter(([, n]) => n > 0).map(([key, n]) => (
+              <button key={key} onClick={() => goTo('animals', key)}
+                className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+                {GROUP_EMOJI[key]} {n}
+              </button>
+            ))}
             {herdValue > 0 && <span className="font-bold" style={{ color: '#1D9E75' }}>{fmtK(herdValue)}</span>}
             {herd.length === 0 && <span style={{ color: 'var(--c-muted)' }}>No animals</span>}
           </div>
@@ -820,6 +890,8 @@ export default function Livestock() {
           <AnimalsTab
             livestock={livestockMaster}
             countLogs={livestockCountLogs}
+            group={group}
+            onGroupChange={g => goTo('animals', g)}
             onEdit={setEditModal}
             onCount={(animal, changeType) => setCountModal({ animal, changeType })}
             onPhoto={handlePhotoClick}
@@ -831,7 +903,7 @@ export default function Livestock() {
 
       {editModal  && <EditLivestockModal item={editModal} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}
       {countModal && <CountModal animal={countModal.animal} changeType={countModal.changeType} onClose={() => setCountModal(null)} onConfirm={confirmCount} saving={saving} />}
-      {addModal   && <AddLivestockModal onClose={() => setAddModal(false)} onConfirm={confirmAdd} saving={saving} />}
+      {addModal   && <AddLivestockModal group={group} onClose={() => setAddModal(false)} onConfirm={confirmAdd} saving={saving} />}
 
       {toast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-lg text-white"
