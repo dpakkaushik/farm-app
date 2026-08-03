@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react'
-import { Bird, TrendingDown, TrendingUp, Plus, Trash2, Paperclip, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Bird, TrendingDown, TrendingUp, Plus, Minus, Trash2, Camera, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
 import { useAppStore } from '../store'
-import { supabase } from '../lib/supabase'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
-import { uploadAttachment, BUCKETS } from '../lib/attachments'
+import ImageViewer from '../components/ImageViewer'
+import ImageCropper from '../components/ImageCropper'
+import { uploadAttachment, deleteAttachment, resolveUrl, BUCKETS } from '../lib/attachments'
 
 const DOCS  = BUCKETS.docs
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -40,10 +41,21 @@ const STATUS_STYLE = {
   culled:   { bg: '#88888820', color: '#888',    label: 'Culled'   },
 }
 
+const HEALTH_STYLE = {
+  healthy:    { color: '#1D9E75', label: '✓ Healthy'    },
+  sick:       { color: '#E24B4A', label: '⚠ Sick'       },
+  recovering: { color: '#BA7517', label: '~ Recovering' },
+}
+
 const CATTLE_SPECIES  = ['buffalo','cow','bull','bullock','ox']
 const POULTRY_SPECIES = ['hen','cock','chicken','poultry','bird','rooster']
-const isCattle  = l => CATTLE_SPECIES.some(s => (l.species || '').toLowerCase().includes(s))
-const isPoultry = l => l.trackingMode === 'count' || POULTRY_SPECIES.some(s => (l.species || '').toLowerCase().includes(s))
+const isPoultry = l => l.trackingMode === 'count' || POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
+// Anything individually tracked that isn't poultry counts as cattle, so a goat or
+// a sheep still lands in a section instead of vanishing between the two.
+const isCattle  = l => CATTLE_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s))
+                    || (!POULTRY_SPECIES.some(s => (l.species || l.animal_type || '').toLowerCase().includes(s)) && l.trackingMode === 'individual')
+
+const isActive = l => (l.status || 'active') === 'active'
 
 const fmt  = n => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—'
 const fmtK = n => n >= 1000 ? `₹${(n / 1000).toFixed(1)}K` : fmt(n)
@@ -83,6 +95,34 @@ function Pill({ status }) {
   )
 }
 
+function SegPicker({ value, options, onChange, danger }) {
+  return (
+    <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
+      {options.map(([v, l]) => (
+        <button key={v} onClick={() => onChange(v)}
+          className="flex-1 py-2 text-xs font-semibold transition-colors"
+          style={{ background: value === v ? (danger ? '#E24B4A' : '#1D9E75') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
+          {l}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ActionBar({ actions }) {
+  return (
+    <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
+      {actions.map(({ label, icon, color, onClick }) => (
+        <button key={label} onClick={onClick}
+          className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1"
+          style={{ color: color || 'var(--c-muted)' }}>
+          {icon}{label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // FilePicker handles crop-on-pick, tap-to-expand, change and remove. Removal is only
 // possible here, before the record is saved — a saved receipt is immutable.
 function AttachmentRow({ value, onChange, uploading, onUpload }) {
@@ -95,6 +135,135 @@ function AttachmentRow({ value, onChange, uploading, onUpload }) {
         onFile={f => (f ? onUpload(f) : onChange(null))}
       />
     </FRow>
+  )
+}
+
+// ── Add Livestock Modal ───────────────────────────────────────────────────────
+function AddLivestockModal({ onClose, onConfirm, saving }) {
+  const [f, setF] = useState({ name:'', species:'buffalo', gender:'female', breed:'', dob:'', trackingMode:'individual', currentCount:'1', acquisitionType:'purchased', purchaseDate:TODAY, purchasePrice:'', notes:'' })
+  const u = (k, v) => setF(p => ({ ...p, [k]: v }))
+  return (
+    <Modal title="Add Animal / Flock" onClose={onClose}>
+      <FRow label="Type">
+        <div className="flex gap-2">
+          {[['buffalo','🐃 Buffalo'],['cow','🐄 Cow'],['poultry','🐓 Poultry']].map(([s, l]) => (
+            <button key={s} onClick={() => { u('species', s); u('trackingMode', s === 'poultry' ? 'count' : 'individual') }}
+              className="flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors"
+              style={{ background: f.species===s ? '#1D9E7518' : 'var(--c-ghost)', borderColor: f.species===s ? '#1D9E75' : 'var(--c-border)', color: f.species===s ? '#1D9E75' : 'var(--c-muted)' }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </FRow>
+      <FRow label="Name *">
+        <input className={inp} placeholder={f.trackingMode === 'count' ? 'e.g. Hen Flock' : 'e.g. Nimmi'} value={f.name} onChange={e => u('name', e.target.value)} />
+      </FRow>
+      {f.trackingMode === 'individual' ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <FRow label="Gender">
+              <select className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+                <option value="female">Female</option><option value="male">Male</option>
+              </select>
+            </FRow>
+            <FRow label="Breed"><input className={inp} placeholder="e.g. Murrah" value={f.breed} onChange={e => u('breed', e.target.value)} /></FRow>
+          </div>
+          <FRow label="Date of Birth"><input type="date" className={inp} value={f.dob} onChange={e => u('dob', e.target.value)} /></FRow>
+        </>
+      ) : (
+        <FRow label="Current Count"><input type="number" className={inp} min="0" value={f.currentCount} onChange={e => u('currentCount', e.target.value)} /></FRow>
+      )}
+      <FRow label="Acquisition">
+        <SegPicker value={f.acquisitionType} options={[['purchased','💰 Purchased'],['born','🐣 Born / Hatched']]} onChange={v => u('acquisitionType', v)} />
+      </FRow>
+      {f.acquisitionType === 'purchased' && (
+        <div className="grid grid-cols-2 gap-3">
+          <FRow label="Purchase Date"><input type="date" className={inp} value={f.purchaseDate} onChange={e => u('purchaseDate', e.target.value)} /></FRow>
+          <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="e.g. 45000" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
+        </div>
+      )}
+      <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
+      <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        {saving ? 'Saving…' : 'Add Animal'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Edit Livestock Modal ──────────────────────────────────────────────────────
+function EditLivestockModal({ item, onClose, onSave, saving }) {
+  const [f, setF] = useState({
+    name: item.name || '', species: item.species || item.animal_type || 'buffalo',
+    gender: item.gender || 'female', breed: item.breed || '', dob: item.dob || '',
+    healthStatus: item.healthStatus || 'healthy', acquisitionType: item.acquisitionType || 'purchased',
+    purchaseDate: item.purchaseDate || '', purchasePrice: item.purchasePrice || '', notes: item.notes || '',
+  })
+  const u = (k, v) => setF(p => ({ ...p, [k]: v }))
+  return (
+    <Modal title={`Edit — ${item.name || item.tagId}`} onClose={onClose}>
+      <FRow label="Name"><input className={inp} value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
+      <div className="grid grid-cols-2 gap-3">
+        <FRow label="Species"><input className={inp} placeholder="buffalo, cow, ox…" value={f.species} onChange={e => u('species', e.target.value)} /></FRow>
+        <FRow label="Gender">
+          <select className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+            <option value="female">Female</option><option value="male">Male</option>
+          </select>
+        </FRow>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <FRow label="Breed"><input className={inp} placeholder="e.g. Murrah" value={f.breed} onChange={e => u('breed', e.target.value)} /></FRow>
+        <FRow label="Date of Birth"><input type="date" className={inp} value={f.dob} onChange={e => u('dob', e.target.value)} /></FRow>
+      </div>
+      <FRow label="Health Status">
+        <SegPicker value={f.healthStatus} options={[['healthy','✓ Healthy'],['recovering','~ Recovering'],['sick','⚠ Sick']]} onChange={v => u('healthStatus', v)} />
+      </FRow>
+      <FRow label="Acquisition">
+        <SegPicker value={f.acquisitionType} options={[['purchased','💰 Purchased'],['born','🐣 Born on Farm']]} onChange={v => u('acquisitionType', v)} />
+      </FRow>
+      {f.acquisitionType === 'purchased' && (
+        <div className="grid grid-cols-2 gap-3">
+          <FRow label="Purchase Date"><input type="date" className={inp} value={f.purchaseDate} onChange={e => u('purchaseDate', e.target.value)} /></FRow>
+          <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="e.g. 55000" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
+        </div>
+      )}
+      <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
+      <button onClick={() => onSave(f)} disabled={saving || !f.name}
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        {saving ? 'Saving…' : 'Save Changes'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Count Modal ───────────────────────────────────────────────────────────────
+function CountModal({ animal, changeType, onClose, onConfirm, saving }) {
+  const [form, setForm] = useState({ date: TODAY, reason: changeType === 'add' ? 'purchased' : 'consumed', quantity: '', notes: '' })
+  const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const reasons = changeType === 'add' ? ['purchased','born'] : ['consumed','dead','sold']
+  const REASON_LABEL = { purchased:'Purchased', born:'Born', consumed:'Consumed (meat)', dead:'Dead', sold:'Sold' }
+  return (
+    <Modal title={`${changeType === 'add' ? '+ Add' : '- Reduce'}: ${animal.name || animal.tagId}`} onClose={onClose}>
+      <FRow label="Date"><input type="date" className={inp} value={form.date} onChange={e => f('date', e.target.value)} /></FRow>
+      <FRow label="Reason">
+        <div className="flex flex-wrap gap-2">
+          {reasons.map(r => (
+            <button key={r} onClick={() => f('reason', r)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors"
+              style={{ background: form.reason === r ? (changeType==='add' ? '#1D9E7518' : '#E24B4A18') : 'var(--c-ghost)', borderColor: form.reason === r ? (changeType==='add' ? '#1D9E75' : '#E24B4A') : 'var(--c-border)', color: form.reason === r ? (changeType==='add' ? '#1D9E75' : '#E24B4A') : 'var(--c-muted)' }}>
+              {REASON_LABEL[r]}
+            </button>
+          ))}
+        </div>
+      </FRow>
+      <FRow label="Quantity"><input type="number" className={inp} placeholder="e.g. 3" min="1" value={form.quantity} onChange={e => f('quantity', e.target.value)} /></FRow>
+      <FRow label="Notes"><input type="text" className={inp} placeholder="Remarks" value={form.notes} onChange={e => f('notes', e.target.value)} /></FRow>
+      <button onClick={() => onConfirm(form)} disabled={saving || !form.quantity}
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
+        style={{ background: changeType === 'add' ? '#1D9E75' : '#E24B4A' }}>
+        {saving ? 'Saving…' : 'Confirm'}
+      </button>
+    </Modal>
   )
 }
 
@@ -240,57 +409,164 @@ function RevenueModal({ animals, onClose }) {
 }
 
 // ── Animals Tab ───────────────────────────────────────────────────────────────
-function AnimalsTab({ animals }) {
+// The livestock master, moved here from Resources → Assets so animals live in one
+// place. Sold and deceased animals drop out of the herd sections into a collapsed
+// group: the Finance tab one tab over can close an animal's account with a sale,
+// and a closed animal must not keep reading as part of the working herd.
+function AnimalsTab({ livestock, countLogs, onEdit, onCount, onPhoto, onAdd }) {
+  const [expanded,     setExpanded]     = useState(null)
   const [showInactive, setShowInactive] = useState(false)
-  const active   = animals.filter(a => a.status === 'active')
-  const inactive = animals.filter(a => a.status !== 'active')
 
-  function AnimalCard({ a }) {
-    const poultry = isPoultry(a)
+  const active      = livestock.filter(isActive)
+  const inactive    = livestock.filter(l => !isActive(l))
+  const cattleList  = active.filter(isCattle)
+  const poultryList = active.filter(isPoultry)
+
+  const sectionHeader = (emoji, title, count) => (
+    <div className="flex items-center gap-2 mt-3 mb-2">
+      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--c-muted)' }}>{emoji} {title}</p>
+      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-faint)' }}>{count}</span>
+      <div className="flex-1 h-px" style={{ background: 'var(--c-border)' }} />
+    </div>
+  )
+
+  const cattleCard = l => {
+    const h = HEALTH_STYLE[l.healthStatus] || HEALTH_STYLE.healthy
     return (
-      <div className="p-4 rounded-2xl border" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">{poultry ? '🐔' : '🐄'}</span>
-            <div>
-              <p className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>
-                {a.name || a.tagId}
-              </p>
-              <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-                {a.species}{a.breed ? ` · ${a.breed}` : ''}{a.gender ? ` · ${a.gender}` : ''}
-              </p>
+      <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
+        <div className="p-4 flex gap-4">
+          <button onClick={() => onPhoto('livestock_master', l)} className="shrink-0 flex flex-col items-center">
+            {l.photoUrl
+              ? <img src={l.photoUrl} alt={l.name} className="w-16 h-16 rounded-2xl object-cover border-2" style={{ borderColor: h.color+'50' }} />
+              : <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl border-2 border-dashed" style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
+                  {(l.species||'').includes('cow') ? '🐄' : '🐃'}
+                </div>
+            }
+            <p className="text-[8px] mt-1" style={{ color: 'var(--c-faint)' }}>📷 Photo</p>
+          </button>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{l.name || l.tagId}</p>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: h.color+'18', color: h.color }}>{h.label}</span>
             </div>
+            <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+              {(l.species||'Buffalo').charAt(0).toUpperCase()+(l.species||'Buffalo').slice(1)}
+              {l.breed  ? ` · ${l.breed}`  : ''}
+              {l.gender ? ` · ${l.gender.charAt(0).toUpperCase()+l.gender.slice(1)}` : ''}
+            </p>
+            {l.dob && <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>Born: {l.dob}</p>}
+            <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
+              {l.purchasePrice ? fmt(l.purchasePrice) : l.acquisitionType === 'born' ? '🐣 Born on farm' : 'Tap ✏ Edit to set price'}
+            </p>
           </div>
-          <Pill status={a.status} />
         </div>
-        <div className="mt-2 flex gap-3 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
-          {a.purchasePrice && <span>Bought {fmt(a.purchasePrice)}</span>}
-          {a.purchaseDate  && <span>{a.purchaseDate}</span>}
-          {a.soldDate      && <span>Sold {a.soldDate}</span>}
-          {a.trackingMode === 'count' && a.currentCount != null && (
-            <span>Count: {a.currentCount}</span>
-          )}
-        </div>
+        <ActionBar actions={[
+          { label: 'Edit',  icon: <Pencil size={11} />, color: '#4169E1', onClick: () => onEdit(l) },
+          { label: 'Photo', icon: <Camera size={11} />,                   onClick: () => onPhoto('livestock_master', l) },
+        ]} />
       </div>
     )
   }
 
+  const poultryCard = l => {
+    const logs   = countLogs.filter(c => c.livestockId === l.id)
+    const isOpen = expanded === l.id
+    return (
+      <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
+        <div className="p-4 flex items-center gap-3">
+          <button onClick={() => onPhoto('livestock_master', l)} className="shrink-0">
+            {l.photoUrl
+              ? <img src={l.photoUrl} alt={l.name} className="w-14 h-14 rounded-xl object-cover" />
+              : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl" style={{ background: 'var(--c-ghost)' }}>🐓</div>
+            }
+          </button>
+          <div className="flex-1">
+            <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{l.name || 'Flock'}</p>
+            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{(l.species||'Poultry').charAt(0).toUpperCase()+(l.species||'Poultry').slice(1)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold" style={{ color: '#4169E1' }}>{l.currentCount ?? 0}</p>
+            <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>birds</p>
+          </div>
+        </div>
+        <ActionBar actions={[
+          { label: 'Edit',   icon: <Pencil size={11} />, color: '#4169E1',  onClick: () => onEdit(l) },
+          { label: '+ Add',  icon: <Plus   size={11} />, color: '#1D9E75',  onClick: () => onCount(l, 'add')    },
+          { label: '- Remove', icon: <Minus size={11} />, color: '#E24B4A', onClick: () => onCount(l, 'reduce') },
+          { label: isOpen ? 'Hide' : 'Log', icon: isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />, onClick: () => setExpanded(isOpen ? null : l.id) },
+        ]} />
+        {isOpen && logs.length > 0 && (
+          <div className="border-t border-[var(--c-border)] divide-y divide-[var(--c-border)]">
+            {logs.slice(0, 10).map(log => (
+              <div key={log.id} className="flex items-center justify-between px-4 py-2">
+                <p className="text-[10px]" style={{ color: 'var(--c-text)' }}>{log.changeType==='add' ? '+' : '-'}{log.quantity} · {log.reason}</p>
+                <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{log.date}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // A closed account is a record, not a working animal — no photo or count actions.
+  const closedCard = a => (
+    <div key={a.id} className="p-4 rounded-2xl border mb-2" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">{isPoultry(a) ? '🐔' : '🐄'}</span>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>{a.name || a.tagId}</p>
+            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+              {a.species}{a.breed ? ` · ${a.breed}` : ''}{a.gender ? ` · ${a.gender}` : ''}
+            </p>
+          </div>
+        </div>
+        <Pill status={a.status} />
+      </div>
+      <div className="mt-2 flex gap-3 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
+        {a.purchasePrice ? <span>Bought {fmt(a.purchasePrice)}</span> : null}
+        {a.soldDate      ? <span>Sold {a.soldDate}</span>             : null}
+      </div>
+    </div>
+  )
+
   return (
-    <div className="space-y-3 pb-4">
-      {active.length === 0 && (
-        <p className="text-center text-sm py-8" style={{ color: 'var(--c-muted)' }}>No active animals</p>
+    <div className="pb-4">
+      <button onClick={onAdd} className="w-full mb-2 py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
+        style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
+        <Plus size={14} /> Add Animal / Flock
+      </button>
+
+      {cattleList.length > 0 && (
+        <>
+          {sectionHeader('🐃', 'Cattle', cattleList.length)}
+          {cattleList.map(cattleCard)}
+        </>
       )}
-      {active.map(a => <AnimalCard key={a.id} a={a} />)}
+
+      {poultryList.length > 0 && (
+        <>
+          {sectionHeader('🐓', 'Poultry', poultryList.length)}
+          {poultryList.map(poultryCard)}
+        </>
+      )}
+
+      {active.length === 0 && (
+        <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>
+          {inactive.length > 0 ? 'No animals in the herd right now' : 'No livestock records'}
+        </p>
+      )}
 
       {inactive.length > 0 && (
         <>
           <button onClick={() => setShowInactive(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-2 rounded-xl text-xs font-semibold"
+            className="w-full mt-3 mb-2 flex items-center justify-between px-4 py-2 rounded-xl text-xs font-semibold"
             style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-            <span>Sold / Inactive ({inactive.length})</span>
+            <span>Sold / Closed ({inactive.length})</span>
             {showInactive ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
-          {showInactive && inactive.map(a => <AnimalCard key={a.id} a={a} />)}
+          {showInactive && inactive.map(closedCard)}
         </>
       )}
     </div>
@@ -472,15 +748,114 @@ function FinanceTab({ animals }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Livestock() {
-  const animals = useAppStore(s => s.livestockMaster)
-  const [tab, setTab] = useState('finance')
+  const {
+    livestockMaster, livestockCountLogs,
+    addLivestock, updateLivestock, addLivestockCountLog, updateAssetPhoto,
+  } = useAppStore()
 
-  const active  = animals.filter(a => a.status === 'active').length
-  const cattle  = animals.filter(a => isCattle(a)  && a.status === 'active').length
-  const poultry = animals.filter(a => isPoultry(a) && a.status === 'active').length
+  const [tab,        setTab]        = useState('animals')
+  const [editModal,  setEditModal]  = useState(null)
+  const [countModal, setCountModal] = useState(null)
+  const [addModal,   setAddModal]   = useState(false)
+  const [saving,     setSaving]     = useState(false)
+  const [toast,      setToast]      = useState(null)
+  const photoInputRef  = useRef()
+  const [pendingPhoto, setPendingPhoto] = useState(null)
+  const [cropFile,     setCropFile]     = useState(null)
+  const [photoView,    setPhotoView]    = useState(null)
+
+  const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
+
+  // A photo that exists opens in the viewer (which carries Change and Remove).
+  // Only an empty slot jumps straight to the picker.
+  const handlePhotoClick = (table, item) => {
+    if (item.photoUrl) return setPhotoView({ table, item })
+    setPendingPhoto({ table, id: item.id })
+    photoInputRef.current?.click()
+  }
+
+  // Picked from an empty slot → crop before it ever reaches Storage.
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file && pendingPhoto) setCropFile(file)
+  }
+
+  const savePhoto = async (table, id, file, oldUrl) => {
+    setSaving(true)
+    try {
+      const path = await uploadAttachment(file, { folder: `asset_photos/${table}`, entityId: id })
+      await updateAssetPhoto(table, id, resolveUrl(path))
+      if (oldUrl) await deleteAttachment(oldUrl)   // don't orphan the file we just replaced
+      showToast('Photo updated')
+    } catch (err) { showToast('Upload failed: ' + err.message, 'error'); throw err }
+    finally { setSaving(false); setPendingPhoto(null); setCropFile(null) }
+  }
+
+  const removePhoto = async (table, id, oldUrl) => {
+    setSaving(true)
+    try {
+      await updateAssetPhoto(table, id, null)
+      if (oldUrl) await deleteAttachment(oldUrl)
+      showToast('Photo removed')
+    } catch (err) { showToast('Failed: ' + err.message, 'error'); throw err }
+    finally { setSaving(false) }
+  }
+
+  const confirmEdit = async (data) => {
+    if (!editModal) return
+    setSaving(true)
+    try {
+      await updateLivestock(editModal.id, data)
+      showToast('Saved'); setEditModal(null)
+    } catch (e) { showToast('Failed: ' + e.message, 'error') }
+    setSaving(false)
+  }
+
+  const confirmCount = async (form) => {
+    if (!countModal || !form.quantity || Number(form.quantity) <= 0) return showToast('Enter valid quantity', 'warn')
+    setSaving(true)
+    try {
+      await addLivestockCountLog({ livestockId: countModal.animal.id, date: form.date, changeType: countModal.changeType, reason: form.reason, quantity: parseInt(form.quantity), notes: form.notes })
+      showToast('Count updated'); setCountModal(null)
+    } catch (e) { showToast('Failed: ' + e.message, 'error') }
+    setSaving(false)
+  }
+
+  const confirmAdd = async (form) => {
+    setSaving(true)
+    try {
+      await addLivestock(form)
+      showToast(`${form.name} added`); setAddModal(false)
+    } catch (e) { showToast('Failed: ' + e.message, 'error') }
+    setSaving(false)
+  }
+
+  const herd    = livestockMaster.filter(isActive)
+  const cattle  = herd.filter(isCattle).length
+  const poultry = herd.filter(isPoultry).length
 
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--c-bg)' }}>
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+
+      {/* Crop on the way in, for a photo picked into an empty slot */}
+      {cropFile && pendingPhoto && (
+        <ImageCropper file={cropFile}
+          onDone={f => savePhoto(pendingPhoto.table, pendingPhoto.id, f, null)}
+          onCancel={() => { setCropFile(null); setPendingPhoto(null) }} />
+      )}
+
+      {/* Tapping an existing photo expands it; Change and Remove live in the viewer */}
+      {photoView && (
+        <ImageViewer
+          value={photoView.item.photoUrl}
+          name={photoView.item.name}
+          onClose={() => setPhotoView(null)}
+          onReplace={f => savePhoto(photoView.table, photoView.item.id, f, photoView.item.photoUrl)}
+          onRemove={() => removePhoto(photoView.table, photoView.item.id, photoView.item.photoUrl)} />
+      )}
+
       <div className="shrink-0 px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--c-border)' }}>
         <div className="flex items-center gap-2 mb-3">
           <Bird size={20} style={{ color: '#1D9E75' }} />
@@ -488,7 +863,7 @@ export default function Livestock() {
           <div className="flex gap-1.5 ml-auto text-[10px]">
             {cattle  > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐄 {cattle}</span>}
             {poultry > 0 && <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>🐔 {poultry}</span>}
-            {active === 0 && <span style={{ color: 'var(--c-muted)' }}>No animals</span>}
+            {herd.length === 0 && <span style={{ color: 'var(--c-muted)' }}>No animals</span>}
           </div>
         </div>
 
@@ -504,9 +879,28 @@ export default function Livestock() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4">
-        {tab === 'animals' && <AnimalsTab animals={animals} />}
-        {tab === 'finance' && <FinanceTab animals={animals} />}
+        {tab === 'animals' && (
+          <AnimalsTab
+            livestock={livestockMaster}
+            countLogs={livestockCountLogs}
+            onEdit={setEditModal}
+            onCount={(animal, changeType) => setCountModal({ animal, changeType })}
+            onPhoto={handlePhotoClick}
+            onAdd={() => setAddModal(true)} />
+        )}
+        {tab === 'finance' && <FinanceTab animals={livestockMaster} />}
       </div>
+
+      {editModal  && <EditLivestockModal item={editModal} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}
+      {countModal && <CountModal animal={countModal.animal} changeType={countModal.changeType} onClose={() => setCountModal(null)} onConfirm={confirmCount} saving={saving} />}
+      {addModal   && <AddLivestockModal onClose={() => setAddModal(false)} onConfirm={confirmAdd} saving={saving} />}
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-lg text-white"
+          style={{ background: toast.type === 'error' ? '#E24B4A' : toast.type === 'warn' ? '#BA7517' : '#1D9E75' }}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   )
 }
