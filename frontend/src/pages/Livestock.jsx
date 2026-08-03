@@ -1,17 +1,21 @@
-// One route, three faces.
+// Three pages, one component.
 //
-// Pets, Birds and Animals share this screen because they share money and they
-// share the vet: split into three routes and nothing can answer "what did
-// livestock cost me this month", and the single visit that sees the buffalo and
-// the dog on one trip has to be entered twice. So the separation is by content,
-// not navigation — the group in the URL decides the title, the icon, the header
-// counts, what the three tabs are called and how money is treated. A herd is
-// names that earn, a flock is a number, a pet only ever costs.
+// /livestock/pets, /livestock/birds and /livestock/animals are separate pages —
+// each opens with its own title, icon, header counts, tab names and money
+// treatment. A herd is names that earn, a flock is a number, a pet only ever
+// costs, and the owner wanted three doors rather than one door with a switch
+// inside it.
+//
+// They still share this component and the tables underneath, which is what keeps
+// the split from costing anything: the Health tab on every page has an "All
+// animals" toggle, so the single vet trip that sees the buffalo and the dog is
+// one entry from wherever you happen to be; and the farm-wide livestock total
+// stays answerable on Ledger → P&L rather than needing all three pages added up.
 //
 // This file is the shell: URL state, photo plumbing, toast, header, tabs. The
 // tabs themselves live in ./livestock/*.
 import React, { useState, useRef } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { useAppStore } from '../store'
 import ImageViewer from '../components/ImageViewer'
 import ImageCropper from '../components/ImageCropper'
@@ -21,7 +25,7 @@ import AnimalsTab from './livestock/animals'
 import FinanceTab from './livestock/finance'
 import { AddLivestockModal, EditLivestockModal, CountModal, CloseModal } from './livestock/modals'
 import {
-  GROUPS, GROUP_KEYS, groupOf, faceOf, isActive, costToDate, animalLabel, fmtK,
+  GROUP_KEYS, groupOf, faceOf, isActive, costToDate, animalLabel, fmtK,
 } from './livestock/ui'
 
 // The URL keys never change with the group — 'animals' is the list tab and
@@ -36,20 +40,19 @@ export default function Livestock() {
     closeLivestock, updateAssetPhoto,
   } = useAppStore()
 
-  // Both the page tab and the group live in the URL, so the profile menu can
-  // deep-link straight to Pets (/livestock?group=pets) and land on the right
-  // face even when the last visit ended on Finance. Switching replaces rather
-  // than pushes: Back should leave the screen, not walk the tabs.
-  const [params, setParams] = useSearchParams()
-  const tab   = TAB_KEYS.includes(params.get('tab'))     ? params.get('tab')   : 'animals'
-  const group = GROUP_KEYS.includes(params.get('group')) ? params.get('group') : 'animals'
-  const goTo = (nextTab, nextGroup) => {
-    const q = {}
-    if (nextTab   !== 'animals') q.tab   = nextTab
-    if (nextGroup !== 'animals') q.group = nextGroup
-    setParams(q, { replace: true })
-  }
-  const setTab = t => goTo(t, group)
+  // The species is the path — it is which page you are on. The tab within the
+  // page stays a query param, and switching it replaces rather than pushes: Back
+  // should leave the page, not walk its tabs.
+  //
+  // ?group= is still honoured as a fallback so links made before the split, when
+  // all three shared one route, still land on the right page.
+  const { group: routeGroup } = useParams()
+  const [params, setParams]   = useSearchParams()
+  const tab   = TAB_KEYS.includes(params.get('tab')) ? params.get('tab') : 'animals'
+  const group = GROUP_KEYS.includes(routeGroup)          ? routeGroup
+              : GROUP_KEYS.includes(params.get('group')) ? params.get('group')
+              : 'animals'
+  const setTab = t => setParams(t === 'animals' ? {} : { tab: t }, { replace: true })
 
   const [editModal,  setEditModal]  = useState(null)
   const [countModal, setCountModal] = useState(null)
@@ -213,26 +216,9 @@ export default function Livestock() {
           </div>
         </div>
 
-        {/* Which animals. The outer dimension of the screen — it re-titles the
-            page and swaps the tab set, so it sits above the tabs, not inside one. */}
-        <div className="flex gap-1.5 mb-2">
-          {GROUPS.map(({ key, label, Icon }) => {
-            const n  = livestockMaster.filter(l => isActive(l) && groupOf(l) === key).length
-            const on = group === key
-            return (
-              <button key={key} onClick={() => goTo(tab, key)}
-                className="flex-1 py-1.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-1 border transition-colors"
-                style={{
-                  background:  on ? '#1D9E7514' : 'transparent',
-                  borderColor: on ? '#1D9E7560' : 'var(--c-border)',
-                  color:       on ? '#1D9E75'   : 'var(--c-muted)',
-                }}>
-                <Icon size={12} />{label}{n > 0 ? ` ${n}` : ''}
-              </button>
-            )
-          })}
-        </div>
-
+        {/* No group switcher here by design. Pets, Birds and Herd are three
+            pages reached from the profile menu; listing all three names on each
+            of them is what made them read as one shared screen. */}
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
           {[
             { key: 'animals', label: face.listTab  },

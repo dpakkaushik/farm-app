@@ -122,7 +122,13 @@ export default function App() {
           <Route path="/labour"       element={<Labour />} />
           <Route path="/harvest"      element={<Harvest />} />
           <Route path="/reports"      element={<Dashboard />} />
-          <Route path="/livestock"    element={<Livestock />} />
+          {/* One page per species. They share a component because they share the
+              data — the money and the vet record are farm-wide — but Pets, Birds
+              and Herd are three separate pages in the URL and to the owner. */}
+          {/* Bare /livestock still resolves — it falls back to ?group=, then to
+              the herd — so links made before the split keep working. */}
+          <Route path="/livestock"        element={<Livestock />} />
+          <Route path="/livestock/:group" element={<Livestock />} />
           <Route path="/trees"        element={<Trees />} />
           <Route path="/ledger"       element={<LedgerPage />} />
           <Route path="/media"        element={<Media />} />

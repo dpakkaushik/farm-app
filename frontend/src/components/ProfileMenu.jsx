@@ -9,9 +9,10 @@ import AboutModal from './AboutModal'
 
 const SUPPORT_EMAIL = 'deepakkaushik@pallitrans.com'
 
-// A row with `children` expands in place instead of navigating; each child deep-
-// links to one sub-tab of the page. Livestock has three kinds of animal that
-// share a screen but not a question, so this is the way to land on the right one.
+// A row with `children` expands in place instead of navigating; each child is a
+// page of its own under the parent's path. Livestock has three kinds of animal
+// that answer three different questions, so each gets its own page and this is
+// the way in — /livestock/pets, /livestock/birds, /livestock/animals.
 const NAV_ITEMS = [
   { to: '/resources', label: 'Resources', Icon: Package    },
   { to: '/labour',     label: 'People',    Icon: Users      },
@@ -91,14 +92,15 @@ export default function ProfileMenu() {
   // An expandable row starts revealed when you're already on its page, and
   // toggles from there. '' is "explicitly closed", distinct from the null default.
   const [navOpen, setNavOpen] = useState(null)
-  const isNavOpen = to => navOpen === null ? location.pathname === to : navOpen === to
+  const onPath    = to => location.pathname === to || location.pathname.startsWith(to + '/')
+  const isNavOpen = to => navOpen === null ? onPath(to) : navOpen === to
   const toggleNav = to => setNavOpen(isNavOpen(to) ? '' : to)
 
-  // A child is the active one only while its group is the one showing. On a
-  // sibling page-level tab (?tab=health) nothing under Livestock is current.
-  const q = new URLSearchParams(location.search)
-  const isChildActive = (parent, child) => location.pathname === parent.to
-    && !q.get('tab') && (q.get('group') || 'animals') === child.group
+  // The child is a page, so it is current whenever you are on it — whichever of
+  // its own tabs you happen to have open. Bare /livestock falls back to the herd,
+  // which is the page it renders.
+  const isChildActive = (parent, child) => location.pathname === `${parent.to}/${child.group}`
+    || (location.pathname === parent.to && child.group === 'animals')
 
   return (
     <div ref={ref}>
@@ -175,11 +177,11 @@ export default function ProfileMenu() {
             return (
               <div key={to}>
                 <Row icon={Icon} label={label} onClick={() => toggleNav(to)}
-                  active={location.pathname === to}
+                  active={onPath(to)}
                   trailing={<Chevron size={15} style={{ color: 'var(--c-faint)' }} />} />
                 {expanded && children.map(child => (
                   <Row key={child.group} indent icon={child.Icon} label={child.label}
-                    onClick={() => go(`${to}?group=${child.group}`)}
+                    onClick={() => go(`${to}/${child.group}`)}
                     active={isChildActive(item, child)} />
                 ))}
               </div>
