@@ -7,8 +7,32 @@ import { uploadAttachment } from '../../lib/attachments'
 import FilePicker from '../../components/FilePicker'
 import {
   DOCS, TODAY, REVENUE_TYPES, PAY_MODES,
-  animalLabel, isActive, fmt, inp, Modal, FRow, SegPicker,
+  animalLabel, isActive, groupOf, fmt, inp, Modal, FRow, SegPicker,
 } from './ui'
+
+// ── Where an animal is kept ───────────────────────────────────────────────────
+// The plot an animal stands on, so the Field map can answer "what is on this
+// land" with the herd as well as the crop. Offered for birds and animals only:
+// a pet roams the whole farm and pinning a dog to Plot C would be fiction.
+//
+// Always optional. Stock that hasn't been placed yet is a normal state, not a
+// gap to nag about, and "Not on a plot" has to stay reachable so an animal can
+// be moved back off the land it was assigned to.
+function PlotRow({ value, onChange, group }) {
+  const plots = useAppStore(s => s.plots)
+  if (group === 'pets') return null
+  return (
+    <FRow label="Kept on plot">
+      <select className={inp} value={value || ''} onChange={e => onChange(e.target.value || null)}
+        style={{ background: 'var(--c-ghost)' }}>
+        <option value="">— Not on a plot —</option>
+        {plots.map(p => (
+          <option key={p.id} value={p.id}>{p.name} · {Number(p.area_acres) || 0} ac</option>
+        ))}
+      </select>
+    </FRow>
+  )
+}
 
 // FilePicker handles crop-on-pick, tap-to-expand, change and remove. Removal is only
 // possible here, before the record is saved — a saved receipt is immutable.
@@ -41,7 +65,7 @@ const GROUP_FORM = {
 
 export function AddLivestockModal({ group, onClose, onConfirm, saving }) {
   const g = GROUP_FORM[group] || GROUP_FORM.animals
-  const [f, setF] = useState({ name:'', species:g.types[0][0], gender:'female', breed:'', dob:'', trackingMode:g.trackingMode, currentCount:'1', acquisitionType:'purchased', purchaseDate:TODAY, purchasePrice:'', notes:'' })
+  const [f, setF] = useState({ name:'', species:g.types[0][0], gender:'female', breed:'', dob:'', trackingMode:g.trackingMode, currentCount:'1', acquisitionType:'purchased', purchaseDate:TODAY, purchasePrice:'', plotId:'', notes:'' })
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
     <Modal title={g.title} onClose={onClose}>
@@ -83,6 +107,7 @@ export function AddLivestockModal({ group, onClose, onConfirm, saving }) {
           <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="e.g. 45000" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
         </div>
       )}
+      <PlotRow value={f.plotId} onChange={v => u('plotId', v)} group={group} />
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
@@ -98,7 +123,8 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
     name: item.name || '', species: item.species || item.animal_type || 'buffalo',
     gender: item.gender || 'female', breed: item.breed || '', dob: item.dob || '',
     healthStatus: item.healthStatus || 'healthy', acquisitionType: item.acquisitionType || 'purchased',
-    purchaseDate: item.purchaseDate || '', purchasePrice: item.purchasePrice || '', notes: item.notes || '',
+    purchaseDate: item.purchaseDate || '', purchasePrice: item.purchasePrice || '',
+    plotId: item.plotId || '', notes: item.notes || '',
   })
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
@@ -128,6 +154,7 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
           <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="e.g. 55000" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
         </div>
       )}
+      <PlotRow value={f.plotId} onChange={v => u('plotId', v)} group={groupOf(item)} />
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => onSave(f)} disabled={saving || !f.name}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>

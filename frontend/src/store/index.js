@@ -351,6 +351,7 @@ function mapLivestock(l) {
     species:       l.species || l.animal_type || '',
     trackingMode:  l.tracking_mode || 'individual',
     currentCount:  l.current_count != null ? Number(l.current_count) : null,
+    plotId:        l.plot_id || null,
     breed:         l.breed || '',
     gender:        l.gender || '',
     dob:           l.dob || null,
@@ -1551,6 +1552,7 @@ const useAppStore = create((set, get) => ({
       dob:              data.dob || null,
       tracking_mode:    data.trackingMode || 'individual',
       current_count:    0,
+      plot_id:          data.plotId || null,
       acquisition_type: data.acquisitionType || 'purchased',
       purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
       purchase_price:   data.acquisitionType !== 'born' ? (data.purchasePrice ? parseFloat(data.purchasePrice) : null) : null,
@@ -1637,11 +1639,12 @@ const useAppStore = create((set, get) => ({
       acquisition_type: data.acquisitionType || 'purchased',
       purchase_date:    data.acquisitionType !== 'born' ? (data.purchaseDate || null) : null,
       purchase_price:   data.acquisitionType !== 'born' && data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+      plot_id:          data.plotId || null,
       notes:            data.notes || null,
     }
     const { error } = await supabase.from('livestock_master').update(payload).eq('id', id)
     if (error) throw error
-    set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, notes: payload.notes } : l) }))
+    set(s => ({ livestockMaster: s.livestockMaster.map(l => l.id === id ? { ...l, name: payload.name, species: payload.species, gender: payload.gender, breed: payload.breed, dob: payload.dob, healthStatus: payload.health_status, acquisitionType: payload.acquisition_type, purchaseDate: payload.purchase_date, purchasePrice: payload.purchase_price, plotId: payload.plot_id, notes: payload.notes } : l) }))
   },
 
   // Close an animal's account without any money changing hands — it died, it was

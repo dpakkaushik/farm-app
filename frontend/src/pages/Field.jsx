@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
@@ -6,10 +6,11 @@ import { useTreeStore } from '../store/trees'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import { farmApi } from '../api/client'
 import SetupChecklist from '../components/SetupChecklist'
+import { isActive, speciesEmoji, animalLabel } from './livestock/ui'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
-  Eye, EyeOff, CheckCircle2, Clock, AlertTriangle,
-  Wheat, Droplets, Sprout, Package, ChevronRight, Camera, ChevronDown,
+  Eye, EyeOff, CheckCircle2, Clock,
+  Sprout, ChevronRight, Camera, ChevronDown,
 } from 'lucide-react'
 
 // ── Farm infrastructure (boundary outline + internal channel) ─────────────────
@@ -141,7 +142,7 @@ export default function Field() {
   const markersRef   = useRef([])
 
   const { zoom, center, bearing, pitch, setMapState, overlay, setOverlay } = useMapStore()
-  const { cropCycles, cropMaster, activities, issues, labourLogs, plots } = useAppStore()
+  const { cropCycles, cropMaster, activities, issues, labourLogs, plots, livestockMaster } = useAppStore()
   const { activeFarm, activeFarmId } = useAuthStore()
   const location = useLocation()
   const navigate = useNavigate()
@@ -150,7 +151,14 @@ export default function Field() {
     if (new URLSearchParams(location.search).get('newFarm') === '1') setShowNewFarmBanner(true)
   }, [location.search])
 
-  const [selectedPlot, setSelectedPlot]         = useState(null)
+  // The selection is a plot *id*, not a plot object.
+  //
+  // It used to hold the object parsed out of the clicked map feature, which meant
+  // the open card was a snapshot: tapping a second plot while it was open left the
+  // first plot's name and numbers on screen, and logging an activity didn't change
+  // anything the card showed. Keeping the id and looking the plot up in livePlots
+  // on every render fixes both — the card is always the live row.
+  const [selectedPlotId, setSelectedPlotId]     = useState(null)
   const [showCoordPanel, setShowCoordPanel]     = useState(false)
   const [showOverlayPanel, setShowOverlayPanel] = useState(false)
   const [coordInput, setCoordInput]             = useState({ lat: '', lng: '' })
@@ -298,6 +306,10 @@ export default function Field() {
     }).filter(Boolean)
   }, [plots, cropCycles, cropMaster, activities, issues, labourLogs])
 
+  // Looked up fresh on every render rather than stored, so the open card follows
+  // the data: tap a second plot and it swaps, log an activity and it updates.
+  const selectedPlot = selectedPlotId ? livePlots.find(p => p.id === selectedPlotId) : null
+
   // ── Crop summary strip ─────────────────────────────────────────────────────
   const cropSummary = useMemo(() => {
     const groups = {}
@@ -423,6 +435,33 @@ export default function Field() {
     return acc
   }, [treePlantings, treeSpecies])
 
+  // ── Livestock per plot ──────────────────────────────────────────────────────
+  // Who is standing on which field. livestock_master.plot_id arrived in migration
+  // 0021; before that an animal record had no link to land at all.
+  //
+  // Named animals collapse by species — three buffalo are one line reading
+  // "Buffalo · Rani, Kali, Nimmi" — while a flock stays its own line, because a
+  // flock is a headcount and not a name. Closed accounts (sold, deceased,
+  // rehomed) are excluded: a plot shows working stock, not history.
+  const livestockByPlot = useMemo(() => {
+    const acc = {}
+    for (const l of livestockMaster) {
+      if (!l.plotId || !isActive(l)) continue
+      const e = acc[l.plotId] || (acc[l.plotId] = { head: 0, birds: 0, herd: {}, flocks: [] })
+      if (l.trackingMode === 'count') {
+        const n = l.currentCount || 0
+        e.birds += n
+        e.flocks.push({ id: l.id, emoji: speciesEmoji(l), name: animalLabel(l) || 'Flock', count: n })
+      } else {
+        e.head += 1
+        const key = (l.species || 'animal').toLowerCase()
+        const g = e.herd[key] || (e.herd[key] = { emoji: speciesEmoji(l), label: key, names: [] })
+        g.names.push(animalLabel(l) || '—')
+      }
+    }
+    return acc
+  }, [livestockMaster])
+
   const treeTotals = useMemo(() => {
     const t = Object.values(treeByPlot).reduce(
       (a, e) => ({ fruit: a.fruit + e.fruit, timber: a.timber + e.timber }), { fruit: 0, timber: 0 }
@@ -461,8 +500,8 @@ export default function Field() {
     } catch (_) {}
     // labels rendered as HTML markers — no glyph server dependency
     map.current.on('click', 'plot-fill', (e) => {
-      const raw = e.features[0]?.properties?.__raw
-      if (raw) setSelectedPlot(JSON.parse(raw))
+      const id = e.features[0]?.properties?.id
+      if (id) setSelectedPlotId(id)
     })
     map.current.on('mouseenter', 'plot-fill', () => { map.current.getCanvas().style.cursor = 'pointer' })
     map.current.on('mouseleave', 'plot-fill', () => { map.current.getCanvas().style.cursor = '' })
@@ -504,13 +543,13 @@ export default function Field() {
     const features = plotData.filter(p => p.geo_polygon).map(p => ({
       ...p.geo_polygon,
       properties: {
+        id:         p.id,          // the card looks the rest up live off this
         label:      p.label,
         crop_short: p.sub_label || '',
         emoji:      p.crop_emoji || '',
         color:      getFillColor(p),
         outline:    getOutlineColor(p),
         is_mixed:   p.isMixed || false,
-        __raw:      JSON.stringify(p),
       },
     }))
     map.current.getSource('plots').setData({ type:'FeatureCollection', features })
@@ -676,7 +715,9 @@ export default function Field() {
       </>)}
 
       {/* Right controls */}
-      <div className="absolute top-3 right-3 flex flex-col gap-2">
+      {/* z-30 keeps these above the plot card's tap-to-close backdrop (z-10);
+          without it, zooming while a card is open just closed the card. */}
+      <div className="absolute top-3 right-3 z-30 flex flex-col gap-2">
         <button onClick={zoomIn}  className="map-btn"><ZoomIn  size={16}/></button>
         <button onClick={zoomOut} className="map-btn"><ZoomOut size={16}/></button>
         <button onClick={() => { setShowCoordPanel(v=>!v); setShowOverlayPanel(false) }} className="map-btn"><Navigation size={16}/></button>
@@ -685,7 +726,7 @@ export default function Field() {
 
       {/* Coordinate panel */}
       {showCoordPanel && (
-        <div className="absolute top-3 right-14 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-64 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-64 shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Go to Coordinates</span>
             <button onClick={() => setShowCoordPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -700,7 +741,7 @@ export default function Field() {
 
       {/* Overlay panel */}
       {showOverlayPanel && (
-        <div className="absolute top-3 right-14 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-72 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-72 shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Plot Layout Overlay</span>
             <button onClick={() => setShowOverlayPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -772,7 +813,13 @@ export default function Field() {
         )}
       </div>
 
-      {selectedPlot && <PlotDetailPanel plot={selectedPlot} onClose={() => setSelectedPlot(null)} />}
+      {selectedPlot && (
+        <PlotDetailPanel
+          plot={selectedPlot}
+          trees={treeByPlot[selectedPlot.id]}
+          stock={livestockByPlot[selectedPlot.id]}
+          onClose={() => setSelectedPlotId(null)} />
+      )}
 
       <style>{`
         .map-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(26,31,46,0.9);border:1px solid var(--c-border-md);color:#fff;cursor:pointer;backdrop-filter:blur(4px);transition:background 0.15s;}
@@ -789,272 +836,289 @@ export default function Field() {
 }
 
 // ── Plot detail panel ─────────────────────────────────────────────────────────
-function PlotDetailPanel({ plot, onClose }) {
-  const [editing,       setEditing]  = useState(false)
-  const [showLogActivity, setShowLog]  = useState(false)
+// One card, made of sections that each decide whether they have anything to say.
+//
+// This was five sibling components — empty, fallow, active, mixed, harvest-ready
+// — each with its own header, its own stat grid and its own button row. The cost
+// of that shape was invisible until you looked for it: only the "active crop"
+// branch had anywhere to put extra facts, so a fallow plot's card could not tell
+// you about the 1,657 eucalyptus standing on it, and no card at all could tell
+// you about the buffalo. Now the crop is one section among several, and a
+// crop-less plot with trees and animals on it is no longer a blank card.
+//
+// It is also read-only now. The Edit button up here wrote to component state and
+// nothing else: the rename showed on the card, the map label kept saying the old
+// name, and it was gone on close. Naming and geometry belong on Admin → Fields,
+// where they persist.
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+const fmtDay = (iso) => {
+  if (!iso) return null
+  const d = new Date(iso)
+  return isNaN(d) ? null : `${d.getDate()} ${MONTHS[d.getMonth()]}`
+}
+
+const dayPlus = (iso, n) => {
+  if (!iso || n == null) return null
+  const d = new Date(iso)
+  if (isNaN(d)) return null
+  d.setDate(d.getDate() + n)
+  return fmtDay(d)
+}
+
+// Lakhs, because ₹152,000 of expected wheat reads as noise and ₹1.5L doesn't.
+const moneyK = (n) => {
+  const v = Number(n || 0)
+  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`
+  if (v >= 1000)   return `₹${Math.round(v / 1000)}k`
+  return `₹${v.toLocaleString('en-IN')}`
+}
+
+const STAGE = {
+  fallow:        { label: 'Fallow',      color: '#888780' },
+  growing:       { label: 'Growing',     color: '#1D9E75' },
+  seeded:        { label: 'Seeded',      color: '#1D9E75' },
+  pre_harvest:   { label: 'Pre-harvest', color: '#BA7517' },
+  harvest_ready: { label: 'Ready ✓',     color: '#1D9E75' },
+  mixed:         { label: 'Mixed crop',  color: '#4169E1' },
+}
+
+function PlotDetailPanel({ plot, trees, stock, onClose }) {
+  const navigate = useNavigate()
+  const [showLogActivity, setShowLog]   = useState(false)
   const [showIssueInput,  setShowIssue] = useState(false)
-  const [editLabel,     setEditLabel] = useState(plot.label)
-  const [editAcres,     setEditAcres] = useState(String(plot.acres))
-  const [localPlot,     setLocalPlot] = useState(plot)
 
-  const saveEdit = () => {
-    setLocalPlot(p => ({ ...p, label: editLabel.trim() || p.label, acres: parseFloat(editAcres) || p.acres }))
-    setEditing(false)
-  }
+  if (showLogActivity) return <LogActivityModal plot={plot} onClose={() => setShowLog(false)} />
+  if (showIssueInput)  return <IssueInputModal  plot={plot} onClose={() => setShowIssue(false)} />
 
-  if (editing) {
-    return (
-      <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-white">Edit Plot</h3>
-          <button onClick={() => setEditing(false)} className="text-white/40 hover:text-white"><X size={16}/></button>
-        </div>
-        <div className="space-y-3">
-          <div><label className="text-xs text-white/50 mb-1 block">Plot name</label>
-            <input value={editLabel} onChange={e => setEditLabel(e.target.value)} className="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/></div>
-          <div><label className="text-xs text-white/50 mb-1 block">Size (acres)</label>
-            <input type="number" step="0.5" value={editAcres} onChange={e => setEditAcres(e.target.value)} className="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/></div>
-          <button onClick={saveEdit} className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm">Save Changes</button>
-        </div>
-      </div>
-    )
-  }
+  const cycles  = plot.mixedCycles || []
+  const isReady = cycles.some(c => c.isReady)
+  const stage   = STAGE[plot.stage] || STAGE.growing
+  const canLog  = isManager(getActiveFarmRole())
 
-  if (showLogActivity) return <LogActivityModal plot={localPlot} onClose={() => setShowLog(false)} />
-  if (showIssueInput)  return <IssueInputModal  plot={localPlot} onClose={() => setShowIssue(false)} />
-
-  const props = { plot: localPlot, onClose, onEdit: () => setEditing(true),
-    onLogActivity: () => setShowLog(true), onIssueInput: () => setShowIssue(true) }
-
-  const { stage, isMixed } = localPlot
-  if (stage === 'empty')         return <EmptyPlotPanel    {...props} />
-  if (stage === 'fallow')        return <FallowPanel       {...props} />
-  if (isMixed)                   return <MixedCropPanel    {...props} />
-  if (stage === 'harvest_ready') return <HarvestReadyPanel {...props} />
-  return <ActiveCropPanel {...props} />
-}
-
-function EmptyPlotPanel({ plot, onClose, onEdit }) {
   return (
-    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
-          <p className="text-sm text-white/40">{plot.acres} acres · Available</p>
+    <>
+      {/* Tapping the map outside the card closes it. The card used to be
+          dismissable only by the ✕, which on a phone is a small target in a
+          corner. */}
+      <div className="absolute inset-0 z-10" onClick={onClose} />
+
+      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl shadow-2xl border-t border-white/10 animate-slide-up max-h-[78vh]">
+        {/* Header sits outside the scroll area, so ✕ never scrolls away on a
+            plot with a lot on it. */}
+        <div className="shrink-0 flex items-start gap-2 px-5 pt-4 pb-3 border-b border-white/8">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white truncate">{plot.label}</h2>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+                style={{ color: stage.color, borderColor: `${stage.color}40`, background: `${stage.color}18` }}>
+                {stage.label}
+              </span>
+            </div>
+            <p className="text-xs text-white/45 mt-0.5 truncate">
+              {plot.acres} acres{plot.current_crop ? ` · ${plot.current_crop}` : ''}
+            </p>
+          </div>
+          <button onClick={() => navigate(`/media?plot=${plot.id}`)}
+            className="shrink-0 flex items-center gap-1 text-[11px] text-white/40 hover:text-[#1D9E75] px-2 py-1 rounded-lg transition-colors">
+            <Camera size={13}/> Photos
+          </button>
+          <button onClick={onClose} className="shrink-0 text-white/40 hover:text-white p-1"><X size={18}/></button>
         </div>
-        <span className="text-xs bg-white/10 text-white/50 px-2.5 py-1 rounded-full border border-white/10">Empty</span>
+
+        <div className="overflow-y-auto px-5 py-4 space-y-3">
+          {cycles.length === 0 ? (
+            <div className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-2.5">
+              <Sprout size={14} className="text-white/30 shrink-0"/>
+              <p className="text-xs text-white/45">No crop growing here right now.</p>
+            </div>
+          ) : (
+            cycles
+              .slice()
+              .sort((a, b) => b.totalDays - a.totalDays)
+              .map(c => <CropRow key={c.cycleId} c={c} showAcres={cycles.length > 1} />)
+          )}
+
+          {cycles.length > 0 && (
+            <MoneyStrip cost={plot.season_cost} yieldQtl={plot.est_yield_qtl} revenue={plot.est_revenue} />
+          )}
+
+          <TreeBlock trees={trees} />
+          <StockBlock stock={stock} />
+
+          {(plot.today_task || plot.last_task) && (
+            <div className="space-y-2">
+              {plot.today_task && (
+                <TimelineRow icon={<Clock size={13} className="text-[#BA7517]"/>}
+                  label={plot.today_note ? `${plot.today_task} — "${plot.today_note}"` : plot.today_task}
+                  sub="Today" highlight />
+              )}
+              {plot.last_task && (
+                <TimelineRow icon={<CheckCircle2 size={13} className="text-[#1D9E75]"/>}
+                  label={plot.last_task.label}
+                  sub={plot.last_task.days_ago === 0 ? 'Today' : `${plot.last_task.days_ago}d ago`} done />
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            {canLog && <>
+              <button onClick={() => setShowLog(true)}
+                className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
+                Log Activity
+              </button>
+              <button onClick={() => setShowIssue(true)}
+                className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
+                Issue Inputs
+              </button>
+            </>}
+            {isReady && (
+              <button onClick={() => navigate('/harvest')}
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl text-[#1D9E75] border border-[#1D9E75]/30 bg-[#1D9E75]/12 hover:bg-[#1D9E75]/20 transition-colors">
+                🎯 Harvest
+              </button>
+            )}
+          </div>
+        </div>
       </div>
-      <p className="text-xs text-white/35">No active crop cycle. Go to Today → Log Activity to start one.</p>
-    </PanelShell>
+    </>
   )
 }
 
-function FallowPanel({ plot, onClose, onEdit }) {
+// One row per crop cycle, so a single-crop plot and a mixed plot are the same
+// code path — the mixed card used to be a separate component with a 2-up grid.
+function CropRow({ c, showAcres }) {
+  const harvestOn = dayPlus(c.sowDate, c.windowOpenDay)
+  const sownOn    = fmtDay(c.sowDate)
   return (
-    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
-          <p className="text-sm text-white/40">{plot.acres} acres · {plot.current_crop || 'Fallow'}</p>
+    <div className="rounded-xl border p-3"
+      style={{ borderColor: `${c.cropColor}35`, background: `${c.cropColor}10` }}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base leading-none">{c.cropEmoji}</span>
+          <p className="text-sm font-bold text-white truncate">{c.cropName}</p>
+          {showAcres && <span className="text-[10px] text-white/35 shrink-0">{c.acres} ac</span>}
         </div>
-        <span className="text-xs bg-white/10 text-white/40 px-2.5 py-1 rounded-full border border-white/10">Fallow</span>
-      </div>
-      <p className="text-xs text-white/35 mt-3">No active crop cycle.</p>
-    </PanelShell>
-  )
-}
-
-function ActiveCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput }) {
-  const isPreHarvest = plot.stage === 'pre_harvest'
-  const isConcern    = plot.health_status === 'concern'
-  const stageLabel   = { seeded:'Seeded', growing:'Growing', pre_harvest:'Pre-Harvest' }[plot.stage] || 'Active'
-  const stageColor   = isPreHarvest ? '#BA7517' : isConcern ? '#E24B4A' : '#1D9E75'
-
-  return (
-    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
-          <p className="text-sm text-white/50">{plot.acres} ac · {plot.current_crop}</p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full border"
-          style={{ color: stageColor, borderColor: `${stageColor}40`, background: `${stageColor}18` }}>
-          {stageLabel}
+        <span className="text-[11px] font-bold shrink-0"
+          style={{ color: c.isReady ? '#1D9E75' : c.cropColor }}>
+          {c.isReady ? '🎯 Ready' : `${c.daysToWindow}d to harvest`}
         </span>
       </div>
 
-      {isConcern && plot.concern_note && (
-        <div className="flex items-start gap-2 bg-[#E24B4A]/10 border border-[#E24B4A]/25 rounded-xl px-3 py-2.5 mb-3">
-          <AlertTriangle size={14} className="text-[#E24B4A] shrink-0 mt-0.5"/>
-          <p className="text-xs text-[#E24B4A] leading-relaxed">{plot.concern_note}</p>
-        </div>
-      )}
-
-      <div className="mb-4">
-        <div className="flex justify-between text-xs text-white/45 mb-1.5">
-          <span>Day {plot.days_since_sow} of crop cycle</span>
-          <span style={{ color: stageColor }}>
-            {plot.days_to_harvest != null
-              ? isPreHarvest ? `Harvest in ${plot.days_to_harvest}d` : `${plot.days_to_harvest}d to harvest`
-              : 'Long-cycle crop'}
-          </span>
-        </div>
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width:`${plot.progress_pct}%`, background: stageColor }}/>
-        </div>
+      <div className="h-1.5 bg-black/25 rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all"
+          style={{ width: `${c.progressPct}%`, background: c.cropColor }}/>
       </div>
 
-      {plot.today_task && (
-        <div className="flex items-start gap-2.5 rounded-xl px-3 py-2.5 mb-3 border"
-          style={{ background:`${isConcern ? '#E24B4A' : '#BA7517'}15`, borderColor:`${isConcern ? '#E24B4A' : '#BA7517'}30` }}>
-          <Clock size={14} className="shrink-0 mt-0.5" style={{ color: isConcern ? '#E24B4A' : '#BA7517' }}/>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wide mb-0.5" style={{ color: isConcern ? '#E24B4A' : '#BA7517' }}>Today</p>
-            <p className="text-xs text-white/80">{plot.today_task}</p>
-            {plot.today_note && <p className="text-[10px] text-white/50 mt-1 italic">"{plot.today_note}"</p>}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-2 mb-4">
-        {plot.last_task && (
-          <TimelineRow icon={<CheckCircle2 size={13} className="text-[#1D9E75]"/>} label={plot.last_task.label} sub={`${plot.last_task.days_ago}d ago`} done />
-        )}
-        {plot.next_task && (
-          <TimelineRow icon={<Clock size={13} className="text-[#BA7517]"/>} label={plot.next_task.label}
-            sub={plot.next_task.in_days === 0 ? 'Today' : plot.next_task.in_days === 1 ? 'Tomorrow' : `In ${plot.next_task.in_days} days`}
-            highlight={plot.next_task.in_days <= 1}
-          />
-        )}
+      <div className="flex items-center justify-between text-[10px] text-white/40 mt-1.5">
+        <span>Day {c.daysSinceSow} of {c.totalDays}</span>
+        {sownOn && <span>Sown {sownOn}{harvestOn ? ` → ${harvestOn}` : ''}</span>}
       </div>
-
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <Stat label="Season cost" value={`₹${(plot.season_cost||0).toLocaleString()}`}/>
-        <Stat label="Health"      value={isConcern ? 'Concern' : plot.health_status === 'average' ? 'Monitor' : 'Healthy'} color={isConcern ? '#E24B4A' : plot.health_status === 'average' ? '#BA7517' : '#1D9E75'}/>
-        <Stat label="Size"        value={`${plot.acres} ac`}/>
-      </div>
-
-      <div className="flex gap-2">
-        {isManager(getActiveFarmRole()) && <>
-          <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Log Activity</button>
-          <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white transition-colors border border-white/10">Issue Inputs</button>
-        </>}
-        {!isPreHarvest && (
-          <button className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 text-white/40 border border-white/8 opacity-50 cursor-not-allowed" title="Harvest unlocks when crop is ready">
-            Harvest 🔒
-          </button>
-        )}
-        {isPreHarvest && (
-          <button className="flex-1 py-2.5 text-xs font-semibold rounded-xl text-white border"
-            style={{ background:'#BA751720', borderColor:'#BA751740', color:'#BA7517' }}>
-            Prepare
-          </button>
-        )}
-      </div>
-    </PanelShell>
+    </div>
   )
 }
 
-function MixedCropPanel({ plot, onClose, onEdit, onLogActivity, onIssueInput }) {
-  const navigate = useNavigate()
+// Cost is real (issues + labour actually logged); yield and value are the crop
+// master's estimate. The margin is the one number the owner opens this card for,
+// so it gets its own line rather than being left as mental arithmetic.
+function MoneyStrip({ cost, yieldQtl, revenue }) {
+  const margin = Number(revenue || 0) - Number(cost || 0)
+  const good   = margin >= 0
+  const tone   = good ? '#1D9E75' : '#E24B4A'
   return (
-    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
-          <p className="text-sm text-white/50">{plot.acres} ac</p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/10 text-white/70 border border-white/20">🔀 Mixed Crop</span>
+    <div>
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Season cost" value={moneyK(cost)} />
+        <Stat label="Est. yield"  value={`${yieldQtl || 0} qtl`} />
+        <Stat label="Est. value"  value={moneyK(revenue)} />
       </div>
+      {Number(revenue || 0) > 0 && (
+        <div className="flex items-center justify-between mt-2 px-3 py-2 rounded-xl border"
+          style={{ borderColor: `${tone}25`, background: `${tone}10` }}>
+          <span className="text-[11px] text-white/55">Expected margin</span>
+          <span className="text-xs font-bold" style={{ color: tone }}>
+            {good ? '+' : '−'}{moneyK(Math.abs(margin))}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
 
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {plot.mixedCycles?.map(c => (
-          <div key={c.cycleId} className={`rounded-xl p-3 border ${c.isReady ? 'bg-[#1D9E75]/15 border-[#1D9E75]/35' : 'bg-white/5 border-white/10'}`}>
-            <p className="text-base mb-1">{c.cropEmoji}</p>
-            <p className="text-xs font-bold text-white leading-tight">{c.cropName}</p>
-            <p className="text-[10px] text-white/45 mt-1">Day {c.daysSinceSow}</p>
-            <div className="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${c.progressPct}%`, background: c.cropColor }}/>
-            </div>
-            {c.isReady
-              ? <p className="text-[10px] text-[#1D9E75] font-semibold mt-1.5">🎯 Ready</p>
-              : <p className="text-[10px] text-white/40 mt-1.5">{c.daysToWindow}d to harvest</p>}
+// Trees are attached to a plot in the database (tree_plantings.plot_id) and were
+// already counted on the map label. This is the same figure, broken out.
+function TreeBlock({ trees }) {
+  if (!trees?.total) return null
+  return (
+    <Section icon="🌳" title="Trees on this plot" right={`${trees.total.toLocaleString('en-IN')} trees`}>
+      <div className="flex flex-wrap gap-1.5">
+        {trees.fruit  > 0 && <Chip color="#86EFAC">🥭 Fruit {trees.fruit.toLocaleString('en-IN')}</Chip>}
+        {trees.timber > 0 && <Chip color="#E0B080">🪵 Timber {trees.timber.toLocaleString('en-IN')}</Chip>}
+      </div>
+      {trees.names?.length > 0 && (
+        <p className="text-[10px] text-white/35 leading-relaxed mt-2">{trees.names.join(' · ')}</p>
+      )}
+    </Section>
+  )
+}
+
+// Livestock standing on the plot — livestock_master.plot_id, added in 0021.
+// Named animals are grouped by species so "🐃 Buffalo · Rani, Kali" is one line;
+// a flock is a number and gets its own line with its count.
+function StockBlock({ stock }) {
+  const herd   = Object.values(stock?.herd || {})
+  const flocks = stock?.flocks || []
+  if (!herd.length && !flocks.length) return null
+
+  const counts = [
+    stock.head  ? `${stock.head} head`   : null,
+    stock.birds ? `${stock.birds} birds` : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <Section icon="🐄" title="Livestock kept here" right={counts}>
+      <div className="space-y-1.5">
+        {herd.map(g => (
+          <div key={g.label} className="flex items-center gap-2 text-[11px] min-w-0">
+            <span className="shrink-0">{g.emoji}</span>
+            <span className="text-white/70 capitalize shrink-0">{g.label}</span>
+            <span className="text-white/20 shrink-0">·</span>
+            <span className="text-white/45 truncate">{g.names.join(', ')}</span>
+          </div>
+        ))}
+        {flocks.map(f => (
+          <div key={f.id} className="flex items-center gap-2 text-[11px] min-w-0">
+            <span className="shrink-0">{f.emoji}</span>
+            <span className="text-white/70 truncate">{f.name}</span>
+            <span className="text-white/20 shrink-0">·</span>
+            <span className="text-white/45 shrink-0">{f.count} birds</span>
           </div>
         ))}
       </div>
-
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <Stat label="Season cost"  value={`₹${(plot.season_cost || 0).toLocaleString()}`}/>
-        <Stat label="Est. yield"   value={`${plot.est_yield_qtl || 0} qtl`}/>
-      </div>
-
-      <div className="flex gap-2">
-        {isManager(getActiveFarmRole()) && <>
-          <button onClick={onLogActivity} className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Log Activity</button>
-          <button onClick={onIssueInput}  className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">Issue Inputs</button>
-        </>}
-        <button onClick={() => navigate('/harvest')} className="flex-1 py-2.5 text-xs font-medium rounded-xl text-[#1D9E75] border border-[#1D9E75]/30 bg-[#1D9E75]/10 hover:bg-[#1D9E75]/20 transition-colors">
-          → Harvest
-        </button>
-      </div>
-    </PanelShell>
+    </Section>
   )
 }
 
-function HarvestReadyPanel({ plot, onClose, onEdit }) {
+function Section({ icon, title, right, children }) {
   return (
-    <PanelShell onClose={onClose} onEdit={onEdit} plotId={plot.id}>
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h2 className="text-lg font-bold text-white">{plot.label}</h2>
-          <p className="text-sm text-white/50">{plot.acres} ac · {plot.current_crop}</p>
-        </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] border border-[#1D9E75]/30 pulse">Ready ✓</span>
-      </div>
-      <div className="mb-4">
-        <div className="flex justify-between text-xs mb-1.5">
-          <span className="text-white/45">Day {plot.days_since_sow} — harvest window open</span>
-          <span className="text-[#1D9E75] font-medium">100% ✓</span>
-        </div>
-        <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
-          <div className="h-full rounded-full bg-[#1D9E75]" style={{ width:'100%' }}/>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3">
-          <p className="text-[10px] text-[#1D9E75]/70 mb-1">Est. Yield</p>
-          <p className="text-lg font-bold text-[#1D9E75]">{plot.est_yield_qtl} qtl</p>
-        </div>
-        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3">
-          <p className="text-[10px] text-[#1D9E75]/70 mb-1">Est. Revenue</p>
-          <p className="text-lg font-bold text-[#1D9E75]">₹{((plot.est_revenue||0)/1000).toFixed(0)}k</p>
-        </div>
-      </div>
-      {plot.last_task && <TimelineRow icon={<CheckCircle2 size={13} className="text-[#1D9E75]"/>} label={plot.last_task.label} sub={`${plot.last_task.days_ago}d ago`} done />}
-      <div className="mt-4">
-        <button className="w-full py-3 text-sm font-bold rounded-xl text-white" style={{ background:'#1D9E75' }}>
-          Record Harvest
-        </button>
-      </div>
-    </PanelShell>
-  )
-}
-
-function PanelShell({ children, onClose, onEdit, plotId }) {
-  const navigate = useNavigate()
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[75vh] overflow-y-auto">
-      <div className="absolute top-3 right-3 flex items-center gap-2">
-        {plotId && (
-          <button onClick={() => navigate(`/media?plot=${plotId}`)} className="flex items-center gap-1 text-xs text-white/40 hover:text-[#1D9E75] px-2 py-1 rounded-lg transition-colors">
-            <Camera size={13}/> Photos
-          </button>
-        )}
-        {onEdit && <button onClick={onEdit} className="text-xs text-[#1D9E75] hover:text-white px-2 py-1 rounded-lg hover:bg-[#1D9E75]/20 transition-colors">Edit</button>}
-        <button onClick={onClose} className="text-white/40 hover:text-white p-1"><X size={18}/></button>
+    <div className="rounded-xl bg-white/4 border border-white/8 p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-[11px] font-semibold text-white/70 flex items-center gap-1.5">
+          <span>{icon}</span>{title}
+        </p>
+        {right && <span className="text-[10px] font-bold text-white/50 shrink-0">{right}</span>}
       </div>
       {children}
     </div>
+  )
+}
+
+function Chip({ color, children }) {
+  return (
+    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+      style={{ color, background: `${color}18`, border: `1px solid ${color}30` }}>
+      {children}
+    </span>
   )
 }
 
@@ -1062,7 +1126,7 @@ function TimelineRow({ icon, label, sub, done, highlight }) {
   return (
     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${highlight ? 'bg-[#BA7517]/10 border border-[#BA7517]/20' : 'bg-white/4'}`}>
       <span className="shrink-0">{icon}</span>
-      <span className={`flex-1 text-xs ${done ? 'text-white/50' : highlight ? 'text-white' : 'text-white/70'}`}>{label}</span>
+      <span className={`flex-1 text-xs min-w-0 truncate ${done ? 'text-white/50' : highlight ? 'text-white' : 'text-white/70'}`}>{label}</span>
       <span className={`text-[10px] shrink-0 ${highlight ? 'text-[#BA7517] font-semibold' : 'text-white/30'}`}>{sub}</span>
     </div>
   )

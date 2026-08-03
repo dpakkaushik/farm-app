@@ -112,9 +112,18 @@ export const faceOf  = key => GROUPS.find(g => g.key === key) || GROUPS[GROUPS.l
 
 export const animalLabel = a => a ? (a.name || a.tagId) : null
 
-export const speciesEmoji = l => isPet(l)     ? (speciesOf(l).includes('cat') ? '🐈' : '🐕')
-                               : isPoultry(l) ? '🐓'
-                               : speciesOf(l).includes('cow') ? '🐄' : '🐃'
+// Buffalo is the fallback because it is what most of the herd is. The ox and the
+// goat get their own faces because a plot card listing "🐃 Ox · Motu" reads as a
+// mistake — the plot card is where every species now shows up side by side.
+export const speciesEmoji = (l) => {
+  const s = speciesOf(l)
+  if (isPet(l))     return s.includes('cat')  ? '🐈' : '🐕'
+  if (isPoultry(l)) return s.includes('duck') ? '🦆' : '🐓'
+  if (s.includes('cow'))                        return '🐄'
+  if (s.includes('goat') || s.includes('sheep')) return '🐐'
+  if (/\b(ox|bull|bullock)\b/.test(s))          return '🐂'
+  return '🐃'
+}
 
 // What one animal has cost so far: what it was bought for plus every livestock
 // expense tagged to it. For a pet this is the whole story — it earns nothing,
