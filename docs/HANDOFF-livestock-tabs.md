@@ -39,24 +39,43 @@ for pets). `finance.jsx` takes `mode` and has no internal toggle; the
 Expenses / Revenue / Net strip renders on both modes, per-animal P&L on Revenue
 only, per-pet costs on Costs.
 
-**One deviation, which item 2 must close:** Health is still a tab on Birds and
-Pets, so the shape is currently
+Also fixed in passing: a legacy `/livestock?group=birds` link used to lose its
+group on the first tab tap, because `setTab` rewrites the whole query string.
+
+### 2. Health onto the cards for Birds and Pets — ✅ DONE
+
+Final shape:
 
 | Face | Tabs |
 |---|---|
-| Birds | 🐓 Flocks · 💰 Revenue · 🧾 Expenses · 🩺 Health |
+| Birds | 🐓 Flocks · 💰 Revenue · 🧾 Expenses |
 | Herd | 🐄 Herd · 💰 Revenue · 🧾 Expenses · 🩺 Health |
-| Pets | 🐕 Pets · 🧾 Costs · 🩺 Health |
+| Pets | 🐕 Pets · 🧾 Costs |
 
-Removing it before the cards can hold visit history would have made bird and pet
-health reachable only via Herd → Health → All animals, and left `CheckupBanner`
-on those two pages linking at a tab that no longer exists. Item 2 deletes the
-`health` entry from the `pets` and `birds` `tabs` arrays — that is now a two-line
-change once the card work is done. The four-tab bar drops to `text-[10px]`
-automatically (`face.tabs.length > 3`), so it reverts on its own.
+`health.jsx` gained three exports so nothing had to be duplicated:
 
-Also fixed in passing: a legacy `/livestock?group=birds` link used to lose its
-group on the first tab tap, because `setTab` rewrites the whole query string.
+- `VisitRow` — one visit, `framed` for the tab's list, unframed for a card panel.
+  The tab now renders through it too, so a wording change is one edit.
+- `HealthPanel({ animal, animals })` — due-checkup line, full visit history,
+  delete, and a Log visit button that finally passes `AddHealthModal`'s
+  `preselect`.
+- `DueList({ checkups, onPick })` — the cross-animal block, extracted from the tab
+  so the list tab can show it too. `onPick` makes rows tappable.
+
+`animals.jsx` switches card health on by noticing its face has no `health` tab
+(`cardHealth`), so the tab and the card are alternatives by construction and
+neither can go missing. The health pill is the tap target, with a due badge beside
+it; `expanded` became `open` holding `id:panel`, because the flock card now has
+two panels. Cards carry `id="ls-<uuid>"` so a Checkups-due row can scroll to them.
+
+The two objections that kept the tab alive are both still answered: **Checkups
+due** is above the cards on the list tab (a list about several animals can't live
+on one card, but it can live above them), and **All animals** stays on the Herd
+tab, which is the farm-wide health surface. `CheckupBanner` sends you to the
+Health tab where there is one and to the list where there isn't.
+
+Not browser-verified — build is green, but nobody has tapped a flock's health pill
+on a real phone yet.
 
 ### 2. Health onto the cards for Birds and Pets (Herd keeps its tab)
 

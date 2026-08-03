@@ -6,17 +6,73 @@
 import React, { useState } from 'react'
 import { Plus, Minus, Camera, Pencil, ChevronDown, ChevronUp, Archive } from 'lucide-react'
 import { useAppStore } from '../../store'
+import { DueList, HealthPanel, pendingCheckups, isDue } from './health'
 import {
   HEALTH_STYLE, STATUS_STYLE, speciesEmoji, costToDate,
   fmt, Pill, ActionBar,
 } from './ui'
 
+// Two panels can hang off one card now — the bird count and the health record — so
+// what is open is a card id plus which panel, not a bare id.
+const panelKey = (id, panel) => `${id}:${panel}`
+
 export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, onCount, onPhoto, onAdd, onClose }) {
-  const farmExpenses = useAppStore(s => s.farmExpenses)
-  const [expanded,     setExpanded]     = useState(null)
+  const { farmExpenses, livestockHealthLogs } = useAppStore(s => ({
+    farmExpenses:        s.farmExpenses,
+    livestockHealthLogs: s.livestockHealthLogs,
+  }))
+  const [open,         setOpen]         = useState(null)
   const [showInactive, setShowInactive] = useState(false)
 
   const isPets = face.key === 'pets'
+
+  // Health lives on the card exactly where the face has no Health tab, so the two
+  // can never both be on screen and neither can go missing. Herd has the tab.
+  const cardHealth = !face.tabs.some(t => t.key === 'health')
+  const checkups   = cardHealth ? pendingCheckups(animals, livestockHealthLogs) : []
+  const dueBy      = new Map(checkups.filter(isDue).map(c => [c.animal.id, c]))
+
+  const toggle = (id, panel) => setOpen(o => o === panelKey(id, panel) ? null : panelKey(id, panel))
+
+  // A tap on a due row is a request to see that animal, and the row sits above a
+  // list the animal may well be below the fold of.
+  const jumpToHealth = (id) => {
+    setOpen(panelKey(id, 'health'))
+    document.getElementById(`ls-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
+  // The pill doubles as the way into the record behind it — the same trick the bird
+  // count uses, which keeps the action bar from growing a fifth button.
+  const healthChip = (l, h) => {
+    const due = dueBy.get(l.id)
+    if (!cardHealth) {
+      return (
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+          style={{ background: h.color + '18', color: h.color }}>{h.label}</span>
+      )
+    }
+    const isOpen = open === panelKey(l.id, 'health')
+    return (
+      <>
+        <button onClick={() => toggle(l.id, 'health')}
+          className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+          style={{ background: h.color + '18', color: h.color }}>
+          {h.label}{isOpen ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+        </button>
+        {due && (
+          <button onClick={() => toggle(l.id, 'health')}
+            className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+            style={{ background: (due.days < 0 ? '#E24B4A' : '#BA7517') + '18', color: due.days < 0 ? '#E24B4A' : '#BA7517' }}>
+            {due.days < 0 ? `${Math.abs(due.days)}d overdue` : `checkup in ${due.days}d`}
+          </button>
+        )}
+      </>
+    )
+  }
+
+  const healthPanel = l => cardHealth && open === panelKey(l.id, 'health')
+    ? <HealthPanel animal={l} animals={animals} />
+    : null
 
   // One card for everything individually tracked. Cattle and pets differ in one
   // line only: cattle show what they cost to buy, pets what they cost to keep.
@@ -24,7 +80,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
     const h    = HEALTH_STYLE[l.healthStatus] || HEALTH_STYLE.healthy
     const cost = isPets ? costToDate(l, farmExpenses) : 0
     return (
-      <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
+      <div key={l.id} id={`ls-${l.id}`} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
         <div className="p-4 flex gap-4">
           <button onClick={() => onPhoto('livestock_master', l)} className="shrink-0 flex flex-col items-center">
             {l.photoUrl
@@ -38,7 +94,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{l.name || l.tagId}</p>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: h.color+'18', color: h.color }}>{h.label}</span>
+              {healthChip(l, h)}
             </div>
             <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
               {(l.species||'Buffalo').charAt(0).toUpperCase()+(l.species||'Buffalo').slice(1)}
@@ -67,6 +123,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           { label: 'Photo', icon: <Camera  size={11} />,                   onClick: () => onPhoto('livestock_master', l) },
           { label: 'Close', icon: <Archive size={11} />, color: '#E24B4A', onClick: () => onClose(l) },
         ]} />
+        {healthPanel(l)}
       </div>
     )
   }
@@ -75,9 +132,10 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
   // the log behind it — which keeps the action bar down to four taps wide.
   const poultryCard = l => {
     const logs   = countLogs.filter(c => c.livestockId === l.id)
-    const isOpen = expanded === l.id
+    const isOpen = open === panelKey(l.id, 'counts')
+    const h      = HEALTH_STYLE[l.healthStatus] || HEALTH_STYLE.healthy
     return (
-      <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
+      <div key={l.id} id={`ls-${l.id}`} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden mb-3">
         <div className="p-4 flex items-center gap-3">
           <button onClick={() => onPhoto('livestock_master', l)} className="shrink-0">
             {l.photoUrl
@@ -85,11 +143,14 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
               : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl" style={{ background: 'var(--c-ghost)' }}>🐓</div>
             }
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{l.name || 'Flock'}</p>
             <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{(l.species||'Poultry').charAt(0).toUpperCase()+(l.species||'Poultry').slice(1)}</p>
+            {/* The flock had no health showing at all while Health was a tab of its
+                own. It is on the card now, so the pill has to be here to open it. */}
+            <div className="flex items-center gap-1 flex-wrap mt-1">{healthChip(l, h)}</div>
           </div>
-          <button onClick={() => setExpanded(isOpen ? null : l.id)} className="text-right shrink-0">
+          <button onClick={() => toggle(l.id, 'counts')} className="text-right shrink-0">
             <p className="text-2xl font-bold" style={{ color: '#4169E1' }}>{l.currentCount ?? 0}</p>
             <p className="text-[9px] flex items-center gap-0.5 justify-end" style={{ color: 'var(--c-faint)' }}>
               birds {isOpen ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
@@ -114,6 +175,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
             ))}
           </div>
         )}
+        {healthPanel(l)}
       </div>
     )
   }
@@ -149,6 +211,13 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
         style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
         <Plus size={14} /> {face.add}
       </button>
+
+      {/* What is owed across the whole group. On the herd this lives on the Health
+          tab; here that tab is gone, and a card cannot hold a list about several
+          animals, so it sits above them. */}
+      {cardHealth && (
+        <div className="mb-3"><DueList checkups={checkups} onPick={jumpToHealth} /></div>
+      )}
 
       {animals.map(face.key === 'birds' ? poultryCard : individualCard)}
 

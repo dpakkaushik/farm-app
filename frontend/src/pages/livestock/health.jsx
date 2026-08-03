@@ -55,7 +55,165 @@ export function CheckupBanner({ checkups, onOpen }) {
   )
 }
 
+// The cross-animal list of what is owed. It cannot sit on a single animal's card —
+// a due list is inherently about several at once — so on the faces that have no
+// Health tab it goes above the cards on the list tab, the only other surface that
+// sees the whole group. Rows are tappable there and inert here, where the animal
+// is already on screen.
+export function DueList({ checkups, onPick }) {
+  const due = checkups.filter(isDue)
+  if (due.length === 0) return null
+
+  return (
+    <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#BA751740', background: 'var(--c-nav)' }}>
+      <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+        style={{ color: '#BA7517', background: '#BA751710' }}>Checkups due</p>
+      <div className="divide-y divide-[var(--c-border)]">
+        {due.map(c => {
+          const overdue = c.days < 0
+          const Row     = onPick ? 'button' : 'div'
+          return (
+            <Row key={c.animal.id} onClick={onPick ? () => onPick(c.animal.id) : undefined}
+              className="w-full flex items-center justify-between px-4 py-2.5 text-left">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{animalLabel(c.animal)}</p>
+                <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>Due {c.date}</p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+                style={{ background: (overdue ? '#E24B4A' : '#BA7517') + '18', color: overdue ? '#E24B4A' : '#BA7517' }}>
+                {overdue ? `${Math.abs(c.days)}d overdue` : `in ${c.days}d`}
+              </span>
+            </Row>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// One visit, rendered the same way wherever it shows up — the Health tab's history
+// and the panel on a card are the same record, and letting them drift apart would
+// mean two places to change when the wording changes. `framed` is the difference:
+// a standalone card in the list, a divided row inside one.
+export function VisitRow({ log: h, animalName, framed = true, onDelete }) {
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {animalName && (
+              <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{animalName}</p>
+            )}
+            <HealthPill status={h.healthStatus} />
+          </div>
+          <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-muted)' }}>{h.date}</p>
+        </div>
+        {onDelete && (
+          <button onClick={onDelete} className="p-1 shrink-0" style={{ color: 'var(--c-muted)' }}>
+            <Trash2 size={13} />
+          </button>
+        )}
+      </div>
+
+      {h.symptoms  && <p className="text-[11px] mt-2"    style={{ color: 'var(--c-text)'  }}>🩺 {h.symptoms}</p>}
+      {h.treatment && <p className="text-[11px] mt-0.5"  style={{ color: 'var(--c-text)'  }}>💊 {h.treatment}</p>}
+      {h.notes     && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{h.notes}</p>}
+
+      {(h.vetName || h.nextCheckup) && (
+        <div className="mt-2 flex items-center gap-2 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
+          {h.vetName && (
+            <span className="px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>{h.vetName}</span>
+          )}
+          {h.nextCheckup && (
+            <span className="px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>
+              Next: {h.nextCheckup}
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  )
+
+  return framed
+    ? <div className="p-4 rounded-2xl border" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>{body}</div>
+    : <div className="px-4 py-3">{body}</div>
+}
+
+// Health for one animal, folded into its card on the faces with no Health tab.
+//
+// The status pill on its own was never enough. Take the tab away and leave only
+// the pill, and the visit record becomes unreachable from the Birds and Pets
+// pages — so the panel carries the history and the way to add to it, which is
+// what makes dropping the tab safe rather than merely tidier.
+export function HealthPanel({ animal, animals }) {
+  const { livestockHealthLogs, addLivestockHealthLog, deleteLivestockHealthLog } = useAppStore(s => ({
+    livestockHealthLogs:      s.livestockHealthLogs,
+    addLivestockHealthLog:    s.addLivestockHealthLog,
+    deleteLivestockHealthLog: s.deleteLivestockHealthLog,
+  }))
+  const [showAdd, setShowAdd] = useState(false)
+  const [saving,  setSaving]  = useState(false)
+
+  // Newest first, and all of them: on this face there is nowhere else to read the
+  // rest, so a "show more" would just be a dead end.
+  const logs = livestockHealthLogs
+    .filter(h => h.livestockId === animal.id)
+    .sort((x, y) => (x.date < y.date ? 1 : -1))
+  const next = pendingCheckups([animal], livestockHealthLogs)[0]
+
+  async function confirmAdd(form) {
+    setSaving(true)
+    try { await addLivestockHealthLog(form); setShowAdd(false) }
+    catch (e) { alert('Save failed: ' + e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function confirmDelete(id) {
+    if (!confirm('Delete this visit record?')) return
+    try { await deleteLivestockHealthLog(id) } catch (e) { alert(e.message) }
+  }
+
+  return (
+    <div className="border-t border-[var(--c-border)]">
+      {next && (
+        <p className="px-4 pt-3 text-[10px] font-semibold"
+          style={{ color: !isDue(next) ? 'var(--c-muted)' : next.days < 0 ? '#E24B4A' : '#BA7517' }}>
+          {next.days < 0
+            ? `Checkup ${Math.abs(next.days)} days overdue`
+            : `Next checkup in ${next.days} day${next.days === 1 ? '' : 's'}`} · {next.date}
+        </p>
+      )}
+
+      <div className="p-3">
+        <button onClick={() => setShowAdd(true)}
+          className="w-full py-2 rounded-xl text-[11px] font-semibold border-2 border-dashed flex items-center justify-center gap-1.5"
+          style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
+          <Plus size={12} /> Log a Vet Visit
+        </button>
+      </div>
+
+      {logs.length === 0 ? (
+        <p className="px-4 pb-3 text-[10px]" style={{ color: 'var(--c-faint)' }}>No vet visits recorded yet</p>
+      ) : (
+        <div className="border-t border-[var(--c-border)] divide-y divide-[var(--c-border)]">
+          {logs.map(h => (
+            <VisitRow key={h.id} log={h} framed={false} onDelete={() => confirmDelete(h.id)} />
+          ))}
+        </div>
+      )}
+
+      {showAdd && (
+        <AddHealthModal animals={animals} preselect={animal.id}
+          onClose={() => setShowAdd(false)} onConfirm={confirmAdd} saving={saving} />
+      )}
+    </div>
+  )
+}
+
 // ── Add Visit Modal ───────────────────────────────────────────────────────────
+// `preselect` is what a card passes: the visit is about the animal you tapped, so
+// the picker opens on it. The picker itself stays, because the wrong card is an
+// easy tap and correcting it should not mean closing the modal.
 function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
   const [f, setF] = useState({
     livestockId: preselect || '', date: TODAY, healthStatus: 'healthy',
@@ -156,7 +314,6 @@ export default function HealthTab({ animals, allAnimals, face }) {
   const scopeLogs = livestockHealthLogs.filter(h => scopeIds.has(h.livestockId))
 
   const checkups = pendingCheckups(inScope, livestockHealthLogs)
-  const due      = checkups.filter(isDue)
   const logs     = filter === 'all' ? scopeLogs : scopeLogs.filter(h => h.livestockId === filter)
 
   // Widening or narrowing invalidates a single-animal filter, so drop it.
@@ -201,29 +358,7 @@ export default function HealthTab({ animals, allAnimals, face }) {
       </button>
 
       {/* Checkups owed — the reason this tab exists */}
-      {due.length > 0 && (
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#BA751740', background: 'var(--c-nav)' }}>
-          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
-            style={{ color: '#BA7517', background: '#BA751710' }}>Checkups due</p>
-          <div className="divide-y divide-[var(--c-border)]">
-            {due.map(c => {
-              const overdue = c.days < 0
-              return (
-                <div key={c.animal.id} className="flex items-center justify-between px-4 py-2.5">
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{animalLabel(c.animal)}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>Due {c.date}</p>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-full"
-                    style={{ background: (overdue ? '#E24B4A' : '#BA7517') + '18', color: overdue ? '#E24B4A' : '#BA7517' }}>
-                    {overdue ? `${Math.abs(c.days)}d overdue` : `in ${c.days}d`}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <DueList checkups={checkups} />
 
       {/* Filter to one animal inside the current scope */}
       {scopeLogs.length > 0 && (
@@ -244,45 +379,11 @@ export default function HealthTab({ animals, allAnimals, face }) {
           </p>
         </div>
       ) : (
-        logs.map(h => {
-          const animal = inScope.find(a => a.id === h.livestockId)
-          return (
-            <div key={h.id} className="p-4 rounded-2xl border"
-              style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
-                      {animalLabel(animal) || 'Unknown animal'}
-                    </p>
-                    <HealthPill status={h.healthStatus} />
-                  </div>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-muted)' }}>{h.date}</p>
-                </div>
-                <button onClick={() => confirmDelete(h.id)} className="p-1 shrink-0" style={{ color: 'var(--c-muted)' }}>
-                  <Trash2 size={13} />
-                </button>
-              </div>
-
-              {h.symptoms  && <p className="text-[11px] mt-2" style={{ color: 'var(--c-text)' }}>🩺 {h.symptoms}</p>}
-              {h.treatment && <p className="text-[11px] mt-0.5" style={{ color: 'var(--c-text)' }}>💊 {h.treatment}</p>}
-              {h.notes     && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{h.notes}</p>}
-
-              {(h.vetName || h.nextCheckup) && (
-                <div className="mt-2 flex items-center gap-2 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
-                  {h.vetName && (
-                    <span className="px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>{h.vetName}</span>
-                  )}
-                  {h.nextCheckup && (
-                    <span className="px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>
-                      Next: {h.nextCheckup}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })
+        logs.map(h => (
+          <VisitRow key={h.id} log={h}
+            animalName={animalLabel(inScope.find(a => a.id === h.livestockId)) || 'Unknown animal'}
+            onDelete={() => confirmDelete(h.id)} />
+        ))
       )}
 
       {showAdd && (

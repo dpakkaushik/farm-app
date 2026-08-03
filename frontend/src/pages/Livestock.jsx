@@ -7,10 +7,15 @@
 // inside it.
 //
 // They still share this component and the tables underneath, which is what keeps
-// the split from costing anything: the Health tab on every page has an "All
-// animals" toggle, so the single vet trip that sees the buffalo and the dog is
-// one entry from wherever you happen to be; and the farm-wide livestock total
-// stays answerable on Ledger → P&L rather than needing all three pages added up.
+// the split from costing anything: the Herd page's Health tab has an "All animals"
+// toggle, so the single vet trip that sees the buffalo and the dog is one entry;
+// and the farm-wide livestock total stays answerable on Ledger → P&L rather than
+// needing all three pages added up.
+//
+// Only Herd has that tab. Birds and Pets carry health on the card — the pill opens
+// the visit history and a Log visit button — with the cross-animal "Checkups due"
+// list above the cards, since that is the one part of health a single card cannot
+// hold. See the note on GROUPS in ./livestock/ui.
 //
 // This file is the shell: URL state, photo plumbing, toast, header, tabs. The
 // tabs themselves live in ./livestock/*.
@@ -246,8 +251,13 @@ export default function Livestock() {
         </div>
 
         {/* A checkup that has fallen due is the one thing on this screen worth
-            interrupting for, so it sits above the tabs' content wherever you are. */}
-        {tab !== 'health' && <CheckupBanner checkups={checkups} onOpen={() => setTab('health')} />}
+            interrupting for, so it sits above the tabs' content wherever you are.
+            It goes to the Health tab where there is one, and otherwise to the list,
+            which is where the Checkups due block lives on those faces. */}
+        {tab !== 'health' && (
+          <CheckupBanner checkups={checkups}
+            onOpen={() => setTab(face.tabs.some(t => t.key === 'health') ? 'health' : 'animals')} />
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4">

@@ -133,19 +133,23 @@ export const isActive = l => (l.status || 'active') === 'active'
 // most often one level deeper than everything else; they are top-level now. A pet
 // has no revenue side at all, so its money tab is the spend list and is named for
 // what it is.
+//
+// Only the herd has a Health tab. It is the farm-wide health surface — its "All
+// animals" scope reaches the flock and the dog too, which is how one vet trip
+// covering the buffalo and the dog stays a single entry. Birds and Pets carry
+// health on the card instead, and `animals.jsx` switches that on by noticing the
+// tab is absent: the two are alternatives, never both.
 export const GROUPS = [
   { key: 'pets',    label: 'Pets',    Icon: Dog,  title: 'Pets',
     money: 'costs',
     tabs: [{ key: 'animals',  label: '🐕 Pets'    },
-           { key: 'expenses', label: '🧾 Costs'   },
-           { key: 'health',   label: '🩺 Health'  }],
+           { key: 'expenses', label: '🧾 Costs'   }],
     add: 'Add Pet',    empty: 'No pets recorded',                 unit: 'pets',   perTitle: 'Per pet'    },
   { key: 'birds',   label: 'Birds',   Icon: Bird, title: 'Birds',
     money: 'finance',
     tabs: [{ key: 'animals',  label: '🐓 Flocks'  },
            { key: 'revenue',  label: '💰 Revenue' },
-           { key: 'expenses', label: '🧾 Expenses' },
-           { key: 'health',   label: '🩺 Health'  }],
+           { key: 'expenses', label: '🧾 Expenses' }],
     add: 'Add Flock',  empty: 'No flocks recorded',               unit: 'flocks', perTitle: 'Per flock'  },
   { key: 'animals', label: 'Animals', Icon: Beef, title: 'Herd',
     money: 'finance',
