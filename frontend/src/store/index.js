@@ -1276,7 +1276,10 @@ const useAppStore = create((set, get) => ({
         .eq('id', line.itemId)
 
       stockUpdates[line.itemId] = { newStock, newWAC }
-      newPurchaseRows.push({ ...row, bill_id: bill.id })
+      // mapPurchase reads the bill file off the joined inventory_bills row, which a
+      // fresh insert has no way of returning — attach it so the "View bill" chip
+      // appears straight away instead of only after the next full reload.
+      newPurchaseRows.push({ ...row, bill_id: bill.id, inventory_bills: { bill_file_url: bill.bill_file_url } })
     }
 
     set(s => ({

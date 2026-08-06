@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
@@ -674,11 +674,106 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   )
 }
 
+// ── Purchase bills: one document, one ledger entry ────────────────────────────
+// inventory_purchases stores a bill as one row per line item, so a five-item bill
+// used to land in the ledger as five separate debits of the same date — nothing an
+// owner could tie back to the invoice the vendor actually sent. Line items that
+// share a bill collapse into one entry carrying the bill total; the items stay
+// readable one tap below it.
+//
+// Older entries recorded before inventory_bills existed have no bill_id, so they
+// fall back to vendor + date + invoice number, which is the same document by any
+// practical reading. Rows with neither stay on their own — nothing to combine.
+const billKeyOf = (p) => {
+  if (p.billId)    return `bill:${p.billId}`
+  if (p.invoiceNo) return `inv:${(p.vendor || '').trim().toLowerCase()}:${p.date}:${p.invoiceNo}`
+  return null
+}
+
+const itemCount = (n) => `${n} item${n > 1 ? 's' : ''}`
+
+// Purchase line items → khata rows, one per bill.
+function purchasesAsBillRows(lines, vendorName) {
+  const rows = []
+  const byBill = new Map()
+  for (const p of lines) {
+    const key    = billKeyOf(p)
+    const amount = Number(p.totalCost || 0)
+    if (!key) {
+      rows.push({
+        key: `p:${p.id}`, date: p.date, type: 'purchase',
+        particulars: `Purchase — ${p.vendor || vendorName}`,
+        debit: amount, credit: 0, items: [p],
+      })
+      continue
+    }
+    let row = byBill.get(key)
+    if (!row) {
+      row = { key, date: p.date, type: 'purchase', invoiceNo: p.invoiceNo || '',
+              particulars: '', debit: 0, credit: 0, items: [] }
+      byBill.set(key, row)
+      rows.push(row)
+    }
+    row.items.push(p)
+    row.debit += amount
+    if (p.date && p.date < row.date) row.date = p.date
+  }
+  // Written last so the item count is final.
+  for (const row of byBill.values()) {
+    row.particulars = (row.invoiceNo ? `Bill #${row.invoiceNo}` : 'Purchase Bill')
+      + ` — ${itemCount(row.items.length)}`
+  }
+  return rows
+}
+
+// The granular level: what the bill was actually made of.
+function BillLines({ items, inventoryMaster, colSpan }) {
+  return (
+    <tr style={{ background: 'var(--c-ghost)' }}>
+      <td colSpan={colSpan} className="px-3 py-1.5">
+        {items.map(p => {
+          const item = inventoryMaster.find(i => i.id === p.itemId)
+          return (
+            <div key={p.id} className="flex items-center gap-2 py-0.5">
+              <span className="text-[10px] flex-1 min-w-0 truncate" style={{ color: 'var(--c-text)' }}>
+                {item?.name || 'Item'}
+              </span>
+              <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>
+                {p.qty} {item?.unit || ''} × ₹{p.unitPrice}
+              </span>
+              <span className="text-[10px] font-medium shrink-0 w-20 text-right" style={{ color: 'var(--c-text)' }}>
+                {fmt(p.totalCost)}
+              </span>
+            </div>
+          )
+        })}
+      </td>
+    </tr>
+  )
+}
+
+// A particulars cell that opens its bill's line items, when it has any.
+function Particulars({ row, isOpen, onToggle }) {
+  if (!row.items?.length) return <>{row.particulars || row.description}</>
+  return (
+    <button onClick={onToggle} className="flex items-center gap-1 text-left"
+      style={{ color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
+      <span>{row.particulars || row.description}</span>
+      <ChevronDown size={11} style={{
+        color: 'var(--c-faint)', flexShrink: 0,
+        transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
+      }} />
+    </button>
+  )
+}
+
 // ── Tab: Party Ledger (Vendor Khatas) ─────────────────────────────────────────
 function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, canPay, fy }) {
   const [activeId, setActiveId] = useState(null) // null = overview list
   const [monthView, setMonthView] = useState(false)
-  const { vendorPayments, purchases } = useAppStore()
+  const [openRows, setOpenRows] = useState({})   // ledger row key → showing line items
+  const { vendorPayments, purchases, inventoryMaster } = useAppStore()
+  const toggleRow = (key) => setOpenRows(o => ({ ...o, [key]: !o[key] }))
 
   const purchasesFor = (v) => purchases.filter(p => {
     if (p.vendor_id && p.vendor_id === v.id) return true
@@ -704,13 +799,9 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
   const activeVendor = vendors.find(v => v.id === activeId)
 
   const ledgerRowsAll = activeVendor ? [
-    ...purchasesFor(activeVendor).map(p => ({
-      date: p.date, type: 'purchase',
-      particulars: `Purchase — ${p.vendor || activeVendor.name}`,
-      debit: Number(p.totalCost || 0), credit: 0,
-    })),
+    ...purchasesAsBillRows(purchasesFor(activeVendor), activeVendor.name),
     ...paymentsFor(activeVendor).map(p => ({
-      date: p.payment_date, type: 'payment',
+      key: `pay:${p.id}`, date: p.payment_date, type: 'payment',
       particulars: p.notes || 'Cash Payment',
       debit: 0, credit: Number(p.amount || 0),
     })),
@@ -876,20 +967,28 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                     <table className="w-full text-xs">
                       <tbody>
                         {mRows.map((row, i) => (
-                          <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                            <td className="px-3 py-2 whitespace-nowrap w-[72px]" style={{ color: 'var(--c-faint)' }}>
-                              {fmtDate(row.date)}
-                            </td>
-                            <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
-                            <td className="px-3 py-2 text-right w-20 font-medium"
-                              style={{ color: row.debit > 0 ? '#E24B4A' : 'var(--c-faint)' }}>
-                              {row.debit > 0 ? fmt(row.debit) : '—'}
-                            </td>
-                            <td className="px-3 py-2 text-right w-20 font-medium"
-                              style={{ color: row.credit > 0 ? '#1D9E75' : 'var(--c-faint)' }}>
-                              {row.credit > 0 ? fmt(row.credit) : '—'}
-                            </td>
-                          </tr>
+                          <React.Fragment key={row.key || i}>
+                            <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                              <td className="px-3 py-2 whitespace-nowrap w-[72px]" style={{ color: 'var(--c-faint)' }}>
+                                {fmtDate(row.date)}
+                              </td>
+                              <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                                <Particulars row={row} isOpen={!!openRows[row.key]}
+                                  onToggle={() => toggleRow(row.key)} />
+                              </td>
+                              <td className="px-3 py-2 text-right w-20 font-medium"
+                                style={{ color: row.debit > 0 ? '#E24B4A' : 'var(--c-faint)' }}>
+                                {row.debit > 0 ? fmt(row.debit) : '—'}
+                              </td>
+                              <td className="px-3 py-2 text-right w-20 font-medium"
+                                style={{ color: row.credit > 0 ? '#1D9E75' : 'var(--c-faint)' }}>
+                                {row.credit > 0 ? fmt(row.credit) : '—'}
+                              </td>
+                            </tr>
+                            {openRows[row.key] && row.items?.length > 0 && (
+                              <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
+                            )}
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
@@ -923,20 +1022,28 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                     </tr>
                   )}
                   {ledgerWithBal.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
-                      <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.particulars}</td>
-                      <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
-                        {row.debit > 0 ? fmt(row.debit) : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right" style={{ color: '#1D9E75' }}>
-                        {row.credit > 0 ? fmt(row.credit) : '—'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-bold"
-                        style={{ color: row.balance > 0 ? '#E24B4A' : '#1D9E75' }}>
-                        {fmt(row.balance)}
-                      </td>
-                    </tr>
+                    <React.Fragment key={row.key || i}>
+                      <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
+                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                          <Particulars row={row} isOpen={!!openRows[row.key]}
+                            onToggle={() => toggleRow(row.key)} />
+                        </td>
+                        <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
+                          {row.debit > 0 ? fmt(row.debit) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right" style={{ color: '#1D9E75' }}>
+                          {row.credit > 0 ? fmt(row.credit) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold"
+                          style={{ color: row.balance > 0 ? '#E24B4A' : '#1D9E75' }}>
+                          {fmt(row.balance)}
+                        </td>
+                      </tr>
+                      {openRows[row.key] && row.items?.length > 0 && (
+                        <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={5} />
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1160,8 +1267,38 @@ const GROUP_HINTS = {
   labour:          'Outside workers with no khata — settle each entry here',
 }
 
+// v_expense_ledger reports inventory purchases one row per line item — the same
+// bill, split. Collapse those back into one entry per bill so the amount shown is
+// the bill total, with the line items expandable underneath.
+function collapseBills(rows, purchaseById) {
+  const out = []
+  const byBill = new Map()
+  for (const row of rows) {
+    const p   = purchaseById[row.id]
+    const key = p && billKeyOf(p)
+    // No bill to combine with, but if it is a purchase at all its one line is
+    // still worth showing — "Purchase from X" alone never said what was bought.
+    if (!key) { out.push({ ...row, key: `r:${row.id}`, items: p ? [p] : undefined }); continue }
+    let g = byBill.get(key)
+    if (!g) {
+      g = { ...row, key, amount: 0, items: [], invoiceNo: p.invoiceNo || '' }
+      byBill.set(key, g)
+      out.push(g)
+    }
+    g.amount += Number(row.amount || 0)
+    g.items.push(p)
+  }
+  for (const g of byBill.values()) {
+    g.description = g.description
+      + (g.invoiceNo ? ` · Bill #${g.invoiceNo}` : '')
+      + ` — ${itemCount(g.items.length)}`
+  }
+  return out
+}
+
 function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
-                       canPay = false, onPayRow, onGoVendors, onGoSalary }) {
+                       canPay = false, onPayRow, onGoVendors, onGoSalary,
+                       purchases = [], inventoryMaster = [] }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1189,6 +1326,10 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
   }
 
   const [expanded, setExpanded] = useState(null)
+  const [openRows, setOpenRows] = useState({})   // bill key → showing line items
+  const toggleRow = (key) => setOpenRows(o => ({ ...o, [key]: !o[key] }))
+  const purchaseById = useMemo(
+    () => Object.fromEntries(purchases.map(p => [p.id, p])), [purchases])
 
   return (
     <div className="flex flex-col gap-3 pt-3">
@@ -1202,6 +1343,7 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
       {Object.entries(grouped).map(([key, data]) => {
         const pending = data.total - data.paid
         const isOpen = expanded === key
+        const entries = collapseBills(data.rows, purchaseById)
         return (
           <Card key={key} className="p-0">
             <button className="w-full flex items-center justify-between px-4 py-3"
@@ -1211,7 +1353,7 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                   {CATEGORY_LABELS[key] || key}
                 </span>
                 <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-                  {data.rows.length} entries · Pending: {fmt(pending)}
+                  {entries.length} entries · Pending: {fmt(pending)}
                 </span>
                 {GROUP_HINTS[key] && (
                   <span className="text-[9px] italic" style={{ color: 'var(--c-faint)' }}>
@@ -1243,10 +1385,14 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                     </tr>
                   </thead>
                   <tbody>
-                    {data.rows.slice(0, 20).map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                    {entries.slice(0, 20).map((row, i) => (
+                      <React.Fragment key={row.key || i}>
+                      <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                         <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.entry_date)}</td>
-                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>{row.description}</td>
+                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                          <Particulars row={row} isOpen={!!openRows[row.key]}
+                            onToggle={() => toggleRow(row.key)} />
+                        </td>
                         <td className="px-3 py-2 font-medium" style={{ color: 'var(--c-text)' }}>{fmt(row.amount)}</td>
                         <td className="px-3 py-2">
                           {key === 'vendor_purchase' ? (
@@ -1280,6 +1426,10 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                           )}
                         </td>
                       </tr>
+                      {openRows[row.key] && row.items?.length > 0 && (
+                        <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -1499,7 +1649,7 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
 export default function LedgerPage() {
   const {
     vendors, vendorBalances, vendorPayments, cashBook, sales, buyers,
-    harvestSessions, cropCycles, cropMaster,
+    harvestSessions, cropCycles, cropMaster, purchases, inventoryMaster,
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
@@ -1806,6 +1956,7 @@ export default function LedgerPage() {
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
             salaryPaidTotal={salaryPaidTotal}
+            purchases={purchases} inventoryMaster={inventoryMaster}
             canPay={canManage}
             onGoVendors={() => setTab('vendors')}
             onGoSalary={() => navigate('/labour')}

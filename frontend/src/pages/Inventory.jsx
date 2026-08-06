@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Plus, X, CheckCircle2, AlertTriangle, Package, Receipt, FileText,
          Download, Filter, Trash2, ShoppingBag } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
+import Attachment from '../components/Attachment'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 
@@ -565,7 +566,9 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
                     <div className="flex gap-3 mt-0.5 flex-wrap">
                       <p className="text-[10px] text-[var(--c-faint)]">{g.date}</p>
                       {g.invoiceNo && <p className="text-[10px] text-[var(--c-faint)]">#{g.invoiceNo}</p>}
-                      {g.billFileUrl && <p className="text-[10px] text-[#1D9E75]">📎 Bill attached</p>}
+                      {g.billFileUrl && (
+                        <Attachment variant="chip" value={g.billFileUrl} icon="📎" name="View bill" />
+                      )}
                     </div>
                   </div>
                   <p className="text-base font-bold text-[var(--c-text)]">₹{g.billTotal.toLocaleString()}</p>
@@ -601,7 +604,11 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
                     <p className="text-[10px] text-[var(--c-faint)]">{p.invoiceDate || p.date}</p>
                     {p.invoiceNo && <p className="text-[10px] text-[var(--c-faint)]">#{p.invoiceNo}</p>}
                   </div>
-                  {p.billImagePath && <p className="text-[10px] text-[#1D9E75] mt-0.5">📎 Bill attached</p>}
+                  {p.billImagePath && (
+                    <div className="mt-0.5">
+                      <Attachment variant="chip" value={p.billImagePath} icon="📎" name="View bill" />
+                    </div>
+                  )}
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-base font-bold text-[var(--c-text)]">₹{p.totalCost.toLocaleString()}</p>
