@@ -1284,6 +1284,14 @@ const useAppStore = create((set, get) => ({
     const newMachinery    = []
     const newAssets       = []
 
+    // The header has to be written before its lines, because they carry its id —
+    // but a line that fails then leaves a header standing for a bill that was
+    // never saved. The manager sees "Save failed", retries, and leaves another.
+    // That is how invoice 4017 ended up with ten empty headers worth ₹378,500,
+    // harmless while the vendor balance came from lines and not harmless once it
+    // comes from headers. Supabase-js has no transaction, so the header is
+    // removed by hand on the way out and the original error is re-thrown.
+    try {
     for (const line of lineItems.filter(l => (l.kind || 'stock') !== 'stock')) {
       // purchase_price is the unit price — v_capital_purchases reads the amount
       // as qty × price, the same way a bill line does.
@@ -1341,6 +1349,17 @@ const useAppStore = create((set, get) => ({
       // fresh insert has no way of returning — attach it so the "View bill" chip
       // appears straight away instead of only after the next full reload.
       newPurchaseRows.push({ ...row, bill_id: bill.id, inventory_bills: { bill_file_url: bill.bill_file_url } })
+    }
+    } catch (err) {
+      // Only when the bill is genuinely empty. Once a line has been written the
+      // header must stay: deleting it would leave those rows pointing at a bill
+      // that no longer exists, and inventory_purchases.bill_id has no foreign
+      // key to catch that. A partly saved bill keeps its full header total —
+      // the vendor is owed the document — and the missing lines are visible as
+      // a header that does not add up, which is a problem someone can see.
+      const wroteNothing = !newPurchaseRows.length && !newMachinery.length && !newAssets.length
+      if (wroteNothing) await supabase.from('inventory_bills').delete().eq('id', bill.id)
+      throw err
     }
 
     set(s => ({

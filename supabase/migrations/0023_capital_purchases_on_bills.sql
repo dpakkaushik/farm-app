@@ -46,6 +46,20 @@ alter table public.farm_assets
   add column if not exists bill_id           uuid references public.inventory_bills(id) on delete set null,
   add column if not exists useful_life_years integer;
 
+-- inventory_purchases.bill_id has been a bare uuid with nothing enforcing that
+-- it points at a real bill. Harmless while it was only used to group rows for
+-- display; load-bearing now that a bill is the debit. Verified 0 dangling rows
+-- before adding this.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'inventory_purchases_bill_id_fkey') then
+    alter table public.inventory_purchases
+      add constraint inventory_purchases_bill_id_fkey
+      foreign key (bill_id) references public.inventory_bills(id) on delete set null;
+  end if;
+end $$;
+
+create index if not exists idx_inventory_purchases_bill on public.inventory_purchases(bill_id);
 create index if not exists idx_machinery_master_bill   on public.machinery_master(bill_id);
 create index if not exists idx_machinery_master_vendor on public.machinery_master(vendor_id);
 create index if not exists idx_farm_assets_bill        on public.farm_assets(bill_id);
@@ -133,13 +147,24 @@ alter view public.v_capital_purchases set (security_invoker = on);
 --   · bills           — the document total, whatever its lines were
 --   · purchase lines  — only those with no bill (recorded before bills existed)
 --   · capital rows    — only those with no bill (bought without one)
+--
+-- A header with no lines at all is not a bill, it is a failed save. The old
+-- recordBillPurchase wrote the header first and the lines after, with no
+-- transaction, so every retry of a failing save left another header behind —
+-- ten of them for invoice 4017, ₹378,500 of nothing. That was harmless while
+-- the balance came from lines and is not harmless now that it comes from
+-- headers, so an empty header is excluded here as well as being cleaned up.
+-- A partly entered bill still counts in full: the vendor is owed the document.
 
 create or replace view public.v_vendor_balances as
 with bill_debits as (
-  select vendor_id, sum(total_amount) as amt
-    from public.inventory_bills
-   where vendor_id is not null
-   group by vendor_id
+  select b.vendor_id, sum(b.total_amount) as amt
+    from public.inventory_bills b
+   where b.vendor_id is not null
+     and (   exists (select 1 from public.inventory_purchases p where p.bill_id = b.id)
+          or exists (select 1 from public.machinery_master    m where m.bill_id = b.id)
+          or exists (select 1 from public.farm_assets         a where a.bill_id = b.id))
+   group by b.vendor_id
 ), unbilled_purchases as (
   select vendor_id, sum(total_cost) as amt
     from public.inventory_purchases
