@@ -5,8 +5,19 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import { MACHINE_TYPES, ASSET_CATS } from './Assets'
 
 const TODAY_STR = new Date().toISOString().slice(0, 10)
+// A bill line lands in one of three registers. Stock is consumed; machinery and
+// assets are owned, so they leave inventory alone and go to their own master —
+// still carrying this bill, so the vendor is owed the whole document.
+const LINE_KINDS = {
+  stock:     { label: 'Stock',     emoji: '📦' },
+  machinery: { label: 'Machinery', emoji: '🔧' },
+  asset:     { label: 'Asset',     emoji: '🛠' },
+}
+const SUB_TYPES = { machinery: MACHINE_TYPES, asset: ASSET_CATS }
+const BLANK_LINE = { kind: 'stock', itemId: '', name: '', subType: '', qty: '', unitPrice: '' }
 const CATS      = ['seed', 'fertilizer', 'chemical', 'fuel', 'other']
 const CAT_LABEL = { seed: 'Seeds', fertilizer: 'Fertilizers', chemical: 'Chemicals', fuel: 'Fuel', other: 'Other' }
 const CAT_EMOJI = { seed: '🌾', fertilizer: '🧪', chemical: '🧴', fuel: '⛽', other: '📦' }
@@ -34,7 +45,7 @@ export default function Inventory() {
 
   // Bill purchase state
   const [billMeta, setBillMeta] = useState({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
-  const [billLines, setBillLines] = useState([{ itemId: '', qty: '', unitPrice: '' }])
+  const [billLines, setBillLines] = useState([{ ...BLANK_LINE }])
   const [billFile,  setBillFile]  = useState(null)
 
   const showToast = (msg, type = 'success') => {
@@ -45,24 +56,32 @@ export default function Inventory() {
   // ── Bill purchase handlers ─────────────────────────────────────────────────
   const bm = (k, v) => setBillMeta(p => ({ ...p, [k]: v }))
   const updateLine  = (i, k, v) => setBillLines(ls => ls.map((l, idx) => idx === i ? { ...l, [k]: v } : l))
-  const addLine     = () => setBillLines(ls => [...ls, { itemId: '', qty: '', unitPrice: '' }])
+  const addLine     = () => setBillLines(ls => [...ls, { ...BLANK_LINE }])
   const removeLine  = (i) => setBillLines(ls => ls.filter((_, idx) => idx !== i))
 
-  const billTotal = billLines.reduce((s, l) => {
-    const q = parseFloat(l.qty) || 0, r = parseFloat(l.unitPrice) || 0
-    return s + q * r
-  }, 0)
+  // Picking one of the two trailing options in the item dropdown turns that row
+  // into a machine or an asset — a name to type instead of stock to choose. No
+  // extra column, and nothing changes for the ordinary all-stock bill.
+  const setLineKind = (i, kind) => setBillLines(ls => ls.map((l, idx) => idx === i
+    ? { ...l, kind, itemId: '', name: '', subType: kind === 'stock' ? '' : SUB_TYPES[kind][0] }
+    : l))
+
+  const lineAmount   = (l) => (parseFloat(l.qty) || 0) * (parseFloat(l.unitPrice) || 0)
+  const lineFilled   = (l) => (l.kind === 'stock' ? !!l.itemId : !!l.name.trim())
+                              && parseFloat(l.qty) > 0 && parseFloat(l.unitPrice) > 0
+  const billTotal    = billLines.reduce((s, l) => s + lineAmount(l), 0)
+  const capitalTotal = billLines.filter(l => l.kind !== 'stock').reduce((s, l) => s + lineAmount(l), 0)
 
   const openBillModal = () => {
     setBillMeta({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
-    setBillLines([{ itemId: '', qty: '', unitPrice: '' }])
+    setBillLines([{ ...BLANK_LINE }])
     setBillFile(null)
     setModal('bill')
   }
 
   const confirmBill = async () => {
     if (!billMeta.vendor.trim()) return showToast('Enter vendor name', 'warn')
-    const valid = billLines.filter(l => l.itemId && parseFloat(l.qty) > 0 && parseFloat(l.unitPrice) > 0)
+    const valid = billLines.filter(lineFilled)
     if (valid.length === 0) return showToast('Add at least one item with qty and rate', 'warn')
     setSaving(true)
     try {
@@ -79,7 +98,10 @@ export default function Inventory() {
         vendor: billMeta.vendor.trim(),
         invoiceNo: billMeta.invoiceNo.trim(), notes: billMeta.notes.trim(),
         billFileUrl,
-        lineItems: valid.map(l => ({ itemId: l.itemId, qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice) })),
+        lineItems: valid.map(l => ({
+          kind: l.kind, itemId: l.itemId, name: l.name.trim(), subType: l.subType,
+          qty: parseFloat(l.qty), unitPrice: parseFloat(l.unitPrice),
+        })),
       })
       showToast(`Bill saved — ${valid.length} item${valid.length > 1 ? 's' : ''} purchased`)
       setModal(null)
@@ -273,23 +295,57 @@ export default function Inventory() {
 
               <div className="space-y-1.5">
                 {billLines.map((line, i) => {
-                  const amt = (parseFloat(line.qty) || 0) * (parseFloat(line.unitPrice) || 0)
+                  const amt = lineAmount(line)
                   return (
                     <div key={i} className="grid grid-cols-[1fr_64px_80px_56px_28px] gap-1 items-center">
-                      <select className="finput text-xs py-2 px-2" value={line.itemId}
-                        onChange={e => {
-                          const item = inventoryMaster.find(x => x.id === e.target.value)
-                          updateLine(i, 'itemId', e.target.value)
-                          if (item) updateLine(i, 'unitPrice', String(item.costPerUnit || ''))
-                        }}
-                        style={{ background: 'var(--c-surface)' }}>
-                        <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
-                        {inventoryMaster.map(it => (
-                          <option key={it.id} value={it.id} style={{ background: 'var(--c-surface)' }}>
-                            {it.name} ({it.unit})
+                      {line.kind === 'stock' ? (
+                        <select className="finput text-xs py-2 px-2" value={line.itemId}
+                          onChange={e => {
+                            const v = e.target.value
+                            if (v === '__machinery__' || v === '__asset__') {
+                              return setLineKind(i, v === '__machinery__' ? 'machinery' : 'asset')
+                            }
+                            const item = inventoryMaster.find(x => x.id === v)
+                            updateLine(i, 'itemId', v)
+                            if (item) updateLine(i, 'unitPrice', String(item.costPerUnit || ''))
+                          }}
+                          style={{ background: 'var(--c-surface)' }}>
+                          <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
+                          {inventoryMaster.map(it => (
+                            <option key={it.id} value={it.id} style={{ background: 'var(--c-surface)' }}>
+                              {it.name} ({it.unit})
+                            </option>
+                          ))}
+                          <option value="__machinery__" style={{ background: 'var(--c-surface)' }}>
+                            {LINE_KINDS.machinery.emoji} Not stock — machinery…
                           </option>
-                        ))}
-                      </select>
+                          <option value="__asset__" style={{ background: 'var(--c-surface)' }}>
+                            {LINE_KINDS.asset.emoji} Not stock — farm asset…
+                          </option>
+                        </select>
+                      ) : (
+                        <div className="space-y-1">
+                          <input className="finput text-xs py-2 px-2" autoFocus
+                            placeholder={line.kind === 'machinery' ? 'Machine name' : 'Asset name'}
+                            value={line.name} onChange={e => updateLine(i, 'name', e.target.value)} />
+                          <div className="flex items-center gap-1">
+                            <select className="finput text-[10px] py-1 px-1.5 flex-1 min-w-0" value={line.subType}
+                              onChange={e => updateLine(i, 'subType', e.target.value)}
+                              style={{ background: 'var(--c-surface)' }}>
+                              {SUB_TYPES[line.kind].map(t => (
+                                <option key={t} value={t} style={{ background: 'var(--c-surface)' }}>
+                                  {t.replace(/_/g, ' ')}
+                                </option>
+                              ))}
+                            </select>
+                            <button onClick={() => setLineKind(i, 'stock')}
+                              className="shrink-0 text-[9px] px-1.5 py-1 rounded-md"
+                              style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+                              ↩ stock
+                            </button>
+                          </div>
+                        </div>
+                      )}
                       <input type="number" className="finput text-xs py-2 px-2" placeholder="0"
                         value={line.qty} onChange={e => updateLine(i, 'qty', e.target.value)} />
                       <input type="number" className="finput text-xs py-2 px-2" placeholder="₹"
@@ -314,11 +370,21 @@ export default function Inventory() {
               </button>
             </div>
 
-            {/* Total */}
+            {/* Total — the whole document, whichever register each line lands in.
+                The split is spelled out when it is not all stock, so the number
+                here can be checked against the bill in hand. */}
             {billTotal > 0 && (
-              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
-                <p className="text-xs text-[var(--c-sub)]">Bill Total ({billLines.filter(l => l.itemId && parseFloat(l.qty) > 0).length} items)</p>
-                <p className="text-xl font-bold text-[#1D9E75]">₹{billTotal.toLocaleString()}</p>
+              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-4 py-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-[var(--c-sub)]">Bill Total ({billLines.filter(lineFilled).length} items)</p>
+                  <p className="text-xl font-bold text-[#1D9E75]">₹{billTotal.toLocaleString()}</p>
+                </div>
+                {capitalTotal > 0 && (
+                  <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
+                    Stock ₹{(billTotal - capitalTotal).toLocaleString()} · Machinery &amp; assets ₹{capitalTotal.toLocaleString()}
+                    <span className="block">Whole bill is owed to {billMeta.vendor.trim() || 'the vendor'}.</span>
+                  </p>
+                )}
               </div>
             )}
 

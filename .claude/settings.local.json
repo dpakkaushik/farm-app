@@ -26,7 +26,17 @@
       "mcp__claude_ai_Supabase__get_publishable_keys",
       "mcp__claude_ai_Supabase__apply_migration",
       "mcp__claude_ai_Supabase__execute_sql",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(git -C \"c:/Users/Admin/Desktop/Farm_app\" check-ignore -v .mcp.json)",
+      "Bash(echo \"---ignored? exit=$?---\")",
+      "Bash(git -C \"c:/Users/Admin/Desktop/Farm_app\" ls-files --error-unmatch .mcp.json)",
+      "Bash(echo \"---tracked? exit=$?---\")",
+      "Bash(git -C \"c:/Users/Admin/Desktop/Farm_app\" status --short)",
+      "mcp__supabase__get_project_url",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "\\"

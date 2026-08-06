@@ -3,11 +3,14 @@ import { Wrench, Boxes, Plus, Camera, Pencil } from 'lucide-react'
 import { useAppStore } from '../store'
 import ImageViewer from '../components/ImageViewer'
 import ImageCropper from '../components/ImageCropper'
-import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
+import Attachment from '../components/Attachment'
+import { uploadAttachment, deleteAttachment, resolveUrl, BUCKETS } from '../lib/attachments'
 
 const TODAY = new Date().toISOString().slice(0, 10)
-const MACHINE_TYPES = ['tractor','implement','generator','engine','sprayer','water_motor','trailer','grass_cutter','wood_cutter','vehicle','other']
-const ASSET_CATS    = ['equipment','appliance','furniture','other']
+// Exported: the purchase-bill screen offers the same vocabularies when a bill
+// line turns out to be a machine or an asset rather than stock.
+export const MACHINE_TYPES = ['tractor','implement','generator','engine','sprayer','water_motor','trailer','grass_cutter','wood_cutter','vehicle','other']
+export const ASSET_CATS    = ['equipment','appliance','furniture','other']
 const STATUSES_M    = ['in_use','spare','under_repair','disposed','sold']
 const STATUSES_A    = ['in_use','spare','under_repair','disposed','sold']
 const TABS = [
@@ -30,6 +33,18 @@ function StatusPill({ status }) {
   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 const inp = "w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]"
+
+// A machine bought on a vendor bill can show that bill. Nothing renders when it
+// was not bought on one — assets entered by hand have no document behind them.
+function BillChip({ item }) {
+  if (!item.billFileUrl) return null
+  return (
+    <div className="mt-1">
+      <Attachment variant="chip" value={item.billFileUrl} bucket={BUCKETS.photos}
+        name={item.billInvoiceNo ? `Bill #${item.billInvoiceNo}` : 'Bill'} />
+    </div>
+  )
+}
 
 function Modal({ title, onClose, children }) {
   return (
@@ -291,6 +306,7 @@ function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
                 <p className="text-[11px] mt-1 font-bold" style={{ color: m.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
                   {fmt(m.purchasePrice) || 'Tap ✏ Edit to set price'}
                 </p>
+                <BillChip item={m} />
                 {m.notes && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{m.notes}</p>}
               </div>
             </div>
@@ -348,6 +364,7 @@ function FarmAssetsTab({ assets, onEdit, onDispose, onPhoto, onAdd }) {
                 <p className="text-[11px] mt-1 font-bold" style={{ color: a.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
                   {fmt(a.purchasePrice) || 'Tap ✏ Edit to set price'}
                 </p>
+                <BillChip item={a} />
                 {a.notes && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{a.notes}</p>}
               </div>
             </div>

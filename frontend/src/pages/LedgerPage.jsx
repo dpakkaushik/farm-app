@@ -65,6 +65,8 @@ const CATEGORY_LABELS = {
   labour:            'Outside Labour (Daily)',
   salary:            'Staff & Regular Salary',
   inventory_purchase:'Inventory Purchase',
+  capital_purchase:  'Small Tools & Equipment',
+  small_equipment:   'Small Tools & Equipment',
   farm_expense:      'General Expenses',
   machinery:         'Machinery / Hired Equipment',
   maintenance:       'Maintenance',
@@ -702,7 +704,10 @@ function purchasesAsBillRows(lines, vendorName) {
     if (!key) {
       rows.push({
         key: `p:${p.id}`, date: p.date, type: 'purchase',
-        particulars: `Purchase — ${p.vendor || vendorName}`,
+        // A capital line bought without a bill can at least name itself;
+        // a stock line off a bill has only the vendor to go on.
+        particulars: p.capitalKind ? `${p.capitalKind === 'machinery' ? 'Machinery' : 'Asset'} — ${p.name}`
+                                   : `Purchase — ${p.vendor || vendorName}`,
         debit: amount, credit: 0, items: [p],
       })
       continue
@@ -716,6 +721,9 @@ function purchasesAsBillRows(lines, vendorName) {
     }
     row.items.push(p)
     row.debit += amount
+    // A capital line knows its invoice only through the bill, so whichever line
+    // opened the row may be the one without it. Take it from any line that has.
+    if (!row.invoiceNo && p.invoiceNo) row.invoiceNo = p.invoiceNo
     if (p.date && p.date < row.date) row.date = p.date
   }
   // Written last so the item count is final.
@@ -736,10 +744,11 @@ function BillLines({ items, inventoryMaster, colSpan }) {
           return (
             <div key={p.id} className="flex items-center gap-2 py-0.5">
               <span className="text-[10px] flex-1 min-w-0 truncate" style={{ color: 'var(--c-text)' }}>
-                {item?.name || 'Item'}
+                {/* A capital line is not in the item master — it names itself. */}
+                {p.capitalKind ? `${p.capitalKind === 'machinery' ? '🔧' : '🛠'} ${p.name}` : (item?.name || 'Item')}
               </span>
               <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>
-                {p.qty} {item?.unit || ''} × ₹{p.unitPrice}
+                {p.qty} {p.capitalKind ? (p.qty > 1 ? 'nos' : 'no') : (item?.unit || '')} × ₹{p.unitPrice}
               </span>
               <span className="text-[10px] font-medium shrink-0 w-20 text-right" style={{ color: 'var(--c-text)' }}>
                 {fmt(p.totalCost)}
@@ -772,13 +781,38 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
   const [activeId, setActiveId] = useState(null) // null = overview list
   const [monthView, setMonthView] = useState(false)
   const [openRows, setOpenRows] = useState({})   // ledger row key → showing line items
-  const { vendorPayments, purchases, inventoryMaster } = useAppStore()
+  const { vendorPayments, purchases, inventoryMaster, capitalPurchases } = useAppStore()
   const toggleRow = (key) => setOpenRows(o => ({ ...o, [key]: !o[key] }))
 
-  const purchasesFor = (v) => purchases.filter(p => {
-    if (p.vendor_id && p.vendor_id === v.id) return true
-    return p.vendor && v.name && p.vendor.toLowerCase() === v.name.toLowerCase()
-  })
+  // A bill's machinery and asset lines are debits on the same document as its
+  // stock lines — bill #4237 is ₹13,060 to the vendor, not the ₹8,060 that
+  // happened to be fertiliser. Shaped like a purchase line so they group into
+  // the same bill row and settle under the same payment.
+  const capitalAsLines = (v) => capitalPurchases
+    .filter(c => c.vendor_id === v.id)
+    .map(c => ({
+      id:          c.id,
+      billId:      c.bill_id,
+      invoiceNo:   c.bill_invoice_number || '',
+      date:        c.purchase_date,
+      vendor:      v.name,
+      vendor_id:   c.vendor_id,
+      qty:         Number(c.quantity || 1),
+      unitPrice:   Number(c.unit_price || 0),
+      totalCost:   Number(c.amount || 0),
+      itemId:      null,
+      name:        c.name,
+      capitalKind: c.source,
+      billFileUrl: c.bill_file_url || null,
+    }))
+
+  const purchasesFor = (v) => [
+    ...purchases.filter(p => {
+      if (p.vendor_id && p.vendor_id === v.id) return true
+      return p.vendor && v.name && p.vendor.toLowerCase() === v.name.toLowerCase()
+    }),
+    ...capitalAsLines(v),
+  ]
   const paymentsFor = (v) => vendorPayments.filter(p => p.vendor_id === v.id)
 
   // Overview: every vendor, all-time Balance Due (a point-in-time fact) plus
@@ -1263,6 +1297,7 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
 // khata-less entries (outside labour, general expenses) are paid on the row here.
 const GROUP_HINTS = {
   vendor_purchase: 'Settled against the vendor khata in Party Ledger',
+  capital_purchase:'Machines and assets under the farm’s capital threshold — expensed in the month bought. Anything above it is capital and is not in this list.',
   salary:          'Wages earned by staff & regular workers — settled in Labour → Salary',
   labour:          'Outside workers with no khata — settle each entry here',
 }

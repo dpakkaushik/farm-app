@@ -10,7 +10,7 @@ async function fetchProfile(userId) {
 async function fetchMemberships(userId) {
   const { data } = await supabase
     .from('farm_memberships')
-    .select('farm_id, role, status, farms(id, name, location, total_acres, map_state, overlay_config, created_at)')
+    .select('farm_id, role, status, farms(id, name, location, total_acres, capex_threshold, map_state, overlay_config, created_at)')
     .eq('user_id', userId)
     .eq('status', 'active')
   return (data || []).map(m => ({
@@ -19,6 +19,9 @@ async function fetchMemberships(userId) {
     farm_name:      m.farms?.name || 'Unnamed Farm',
     farm_location:  m.farms?.location || '',
     total_acres:    m.farms?.total_acres || 0,
+    // Below this, a machine or asset is expensed in the month bought; at or
+    // above it, it is capital and stays out of the P&L total.
+    capex_threshold: Number(m.farms?.capex_threshold ?? 10000),
     map_state:      m.farms?.map_state || null,
     overlay_config: m.farms?.overlay_config || null,
     // When the farm joined the app — the cutoff for "pre-app" history. A crop
@@ -184,19 +187,25 @@ const useAuthStore = create((set, get) => ({
     return farm
   },
 
-  updateFarmDetails: async ({ name, location, total_acres }) => {
+  updateFarmDetails: async (fields) => {
     const { activeFarmId } = get()
     if (!activeFarmId) throw new Error('No active farm')
-    await get().updateFarm(activeFarmId, { name, location, total_acres })
+    await get().updateFarm(activeFarmId, fields)
   },
 
   // Edit a specific farm by id (used by Manage Farms). RLS farms_update
   // restricts writes to admins of that farm.
-  updateFarm: async (farmId, { name, location, total_acres }) => {
+  //
+  // capex_threshold is only written when the caller passed it — Manage Farms
+  // edits name/location/acres alone, and blindly parsing an absent field would
+  // silently reset a farm's threshold to the default.
+  updateFarm: async (farmId, { name, location, total_acres, capex_threshold }) => {
     if (!farmId) throw new Error('No farm specified')
-    const { error } = await supabase.from('farms')
-      .update({ name, location, total_acres: parseFloat(total_acres) || 0 })
-      .eq('id', farmId)
+    const patch = { name, location, total_acres: parseFloat(total_acres) || 0 }
+    if (capex_threshold !== undefined && capex_threshold !== '') {
+      patch.capex_threshold = Math.max(0, parseFloat(capex_threshold) || 0)
+    }
+    const { error } = await supabase.from('farms').update(patch).eq('id', farmId)
     if (error) throw error
     await get().refreshFarms()
   },

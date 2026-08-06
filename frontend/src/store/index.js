@@ -312,6 +312,11 @@ function mapMachinery(m) {
     photoUrl:       m.photo_url || null,
     notes:          m.notes || '',
     isActive:       m.is_active !== false,
+    vendorId:       m.vendor_id || null,
+    billId:         m.bill_id || null,
+    billFileUrl:    m.inventory_bills?.bill_file_url || null,
+    billInvoiceNo:  m.inventory_bills?.invoice_number || null,
+    usefulLife:     m.useful_life_years || null,
     disposalType:   m.disposal_type || null,
     disposalDate:   m.disposal_date || null,
     disposalAmount: m.disposal_amount ? Number(m.disposal_amount) : null,
@@ -335,6 +340,11 @@ function mapFarmAsset(a) {
     location:      a.location || '',
     notes:         a.notes || '',
     isActive:      a.is_active !== false,
+    vendorId:      a.vendor_id || null,
+    billId:        a.bill_id || null,
+    billFileUrl:   a.inventory_bills?.bill_file_url || null,
+    billInvoiceNo: a.inventory_bills?.invoice_number || null,
+    usefulLife:    a.useful_life_years || null,
     disposalType:   a.disposal_type || null,
     disposalDate:   a.disposal_date || null,
     disposalAmount: a.disposal_amount ? Number(a.disposal_amount) : null,
@@ -506,6 +516,7 @@ const useAppStore = create((set, get) => ({
   expensePayments:   [],
   cashBook:          [],
   vendorBalances:    [],
+  capitalPurchases:  [],
   incomeLedger:      [],
   expenseLedger:     [],
   monthlySummary:    [],
@@ -592,8 +603,10 @@ const useAppStore = create((set, get) => ({
         supabase.from('salary_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
         supabase.from('work_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('activity_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('sort_order'),
-        supabase.from('machinery_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
-        supabase.from('farm_assets').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        // The bill comes along so a machine can show the document it was bought
+        // on — the thing Assets had no way to hold before capital lines existed.
+        supabase.from('machinery_master').select('*, inventory_bills(bill_file_url, invoice_number)').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        supabase.from('farm_assets').select('*, inventory_bills(bill_file_url, invoice_number)').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
         supabase.from('livestock_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('livestock_count_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
         supabase.from('livestock_health_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
@@ -1238,6 +1251,13 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Purchase Bill — multi-item, one bill record ─────────────────────────────
+  //
+  // A bill is one document, but its lines do not all belong in one register. A
+  // line tagged 'machinery' or 'asset' is a thing the farm now owns, not stock
+  // it will consume, so it goes to machinery_master / farm_assets carrying this
+  // bill's id — which is what lets the vendor be owed the whole bill and the
+  // bill image open from the machine it paid for. The bill total covers every
+  // line regardless of where it landed; that total is the vendor's debit.
   recordBillPurchase: async ({ billDate, vendorId, vendor, invoiceNo, notes, billFileUrl, lineItems }) => {
     const totalAmount = lineItems.reduce((s, l) => s + l.qty * l.unitPrice, 0)
 
@@ -1252,8 +1272,40 @@ const useAppStore = create((set, get) => ({
 
     const stockUpdates = {}
     const newPurchaseRows = []
+    const newMachinery    = []
+    const newAssets       = []
 
-    for (const line of lineItems) {
+    for (const line of lineItems.filter(l => (l.kind || 'stock') !== 'stock')) {
+      // purchase_price is the unit price — v_capital_purchases reads the amount
+      // as qty × price, the same way a bill line does.
+      const common = {
+        farm_id:        getFarmId(),
+        name:           line.name,
+        quantity:       Math.max(1, Math.round(line.qty)),
+        status:         'in_use',
+        purchase_date:  billDate,
+        purchase_price: line.unitPrice,
+        vendor_id:      vendorId || null,
+        bill_id:        bill.id,
+        notes:          invoiceNo ? `Bill #${invoiceNo}` : null,
+        is_active:      true,
+      }
+      if (line.kind === 'machinery') {
+        const { data: row, error } = await supabase.from('machinery_master')
+          .insert({ ...common, machinery_type: line.subType || 'other', requires_diesel: false })
+          .select().single()
+        if (error) throw error
+        newMachinery.push(mapMachinery(row))
+      } else {
+        const { data: row, error } = await supabase.from('farm_assets')
+          .insert({ ...common, category: line.subType || 'equipment' })
+          .select().single()
+        if (error) throw error
+        newAssets.push(mapFarmAsset(row))
+      }
+    }
+
+    for (const line of lineItems.filter(l => (l.kind || 'stock') === 'stock')) {
       const item     = get().inventoryMaster.find(i => i.id === line.itemId)
       const oldStock = stockUpdates[line.itemId]?.newStock ?? (item?.currentStock || 0)
       const oldWAC   = stockUpdates[line.itemId]?.newWAC   ?? (item?.costPerUnit  || 0)
@@ -1284,6 +1336,8 @@ const useAppStore = create((set, get) => ({
 
     set(s => ({
       purchases: [...newPurchaseRows.map(mapPurchase), ...s.purchases],
+      machineryMaster: newMachinery.length ? [...s.machineryMaster, ...newMachinery] : s.machineryMaster,
+      farmAssets:      newAssets.length    ? [...s.farmAssets,      ...newAssets]    : s.farmAssets,
       inventoryMaster: s.inventoryMaster.map(i => {
         const u = stockUpdates[i.id]
         return u ? { ...i, currentStock: u.newStock, costPerUnit: u.newWAC } : i
@@ -2229,6 +2283,7 @@ const useAppStore = create((set, get) => ({
       { data: expPaymentsRaw },
       { data: cashBookRaw },
       { data: vendorBalancesRaw },
+      { data: capitalRaw },
       { data: incomeRaw },
       { data: expenseRaw },
       { data: monthlyRaw },
@@ -2242,6 +2297,7 @@ const useAppStore = create((set, get) => ({
       supabase.from('expense_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
       supabase.from('v_cash_book').select('*'),
       supabase.from('v_vendor_balances').select('*'),
+      supabase.from('v_capital_purchases').select('*').order('purchase_date', { ascending: false }),
       supabase.from('v_income_ledger').select('*').order('entry_date', { ascending: false }),
       supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false }),
       supabase.from('v_monthly_summary').select('*'),
@@ -2257,6 +2313,7 @@ const useAppStore = create((set, get) => ({
       expensePayments:  expPaymentsRaw      || [],
       cashBook:         cashBookRaw         || [],
       vendorBalances:   vendorBalancesRaw   || [],
+      capitalPurchases: capitalRaw          || [],
       incomeLedger:     incomeRaw           || [],
       expenseLedger:    expenseRaw          || [],
       monthlySummary:   monthlyRaw          || [],

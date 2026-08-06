@@ -14,7 +14,7 @@ export default function FarmSettings() {
   const [members,     setMembers]     = useState([])
   const [invitations, setInvitations] = useState([])
   const [editFarm,    setEditFarm]    = useState(false)
-  const [farmForm,    setFarmForm]    = useState({ name: '', location: '', total_acres: '' })
+  const [farmForm,    setFarmForm]    = useState({ name: '', location: '', total_acres: '', capex_threshold: '' })
   const [saving,      setSaving]      = useState(false)
   const [inviteRole,    setInviteRole]    = useState('manager')
   const [inviteeEmail,  setInviteeEmail]  = useState('')
@@ -29,7 +29,11 @@ export default function FarmSettings() {
 
   useEffect(() => {
     if (!activeFarm) return
-    setFarmForm({ name: activeFarm.farm_name || '', location: activeFarm.farm_location || '', total_acres: activeFarm.total_acres || '' })
+    setFarmForm({
+      name: activeFarm.farm_name || '', location: activeFarm.farm_location || '',
+      total_acres: activeFarm.total_acres || '',
+      capex_threshold: activeFarm.capex_threshold ?? 10000,
+    })
     loadMembers().then(setMembers)
     loadInvitations().then(invs => {
       setInvitations(invs)
@@ -132,6 +136,13 @@ export default function FarmSettings() {
             <input style={input} placeholder="Farm name" value={farmForm.name} onChange={e => setFarmForm(f => ({ ...f, name: e.target.value }))} />
             <input style={input} placeholder="Location" value={farmForm.location} onChange={e => setFarmForm(f => ({ ...f, location: e.target.value }))} />
             <input style={input} type="number" placeholder="Total acres" value={farmForm.total_acres} onChange={e => setFarmForm(f => ({ ...f, total_acres: e.target.value }))} />
+            <div>
+              <input style={input} type="number" placeholder="Capital threshold (₹)" value={farmForm.capex_threshold} onChange={e => setFarmForm(f => ({ ...f, capex_threshold: e.target.value }))} />
+              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
+                A machine or asset bought for less than this is an expense in the month
+                it was bought. At or above it, it is capital and stays out of the P&amp;L.
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" onClick={() => setEditFarm(false)} style={{ flex: 1, padding: '9px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: '8px', background: '#1D9E75', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
