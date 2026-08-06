@@ -295,7 +295,10 @@ function mapLabourLog(l) {
   }
 }
 
-function mapMachinery(m) {
+// billsById is optional: a machine recorded before it could carry a bill, or a
+// load that ran before the bill columns existed, simply has no bill to show.
+function mapMachinery(m, billsById = {}) {
+  const bill = m.bill_id ? billsById[m.bill_id] : null
   return {
     id:             m.id,
     displayId:      m.display_id || '',
@@ -314,8 +317,8 @@ function mapMachinery(m) {
     isActive:       m.is_active !== false,
     vendorId:       m.vendor_id || null,
     billId:         m.bill_id || null,
-    billFileUrl:    m.inventory_bills?.bill_file_url || null,
-    billInvoiceNo:  m.inventory_bills?.invoice_number || null,
+    billFileUrl:    bill?.bill_file_url || null,
+    billInvoiceNo:  bill?.invoice_number || null,
     usefulLife:     m.useful_life_years || null,
     disposalType:   m.disposal_type || null,
     disposalDate:   m.disposal_date || null,
@@ -325,7 +328,8 @@ function mapMachinery(m) {
   }
 }
 
-function mapFarmAsset(a) {
+function mapFarmAsset(a, billsById = {}) {
+  const bill = a.bill_id ? billsById[a.bill_id] : null
   return {
     id:            a.id,
     displayId:     a.display_id || '',
@@ -342,8 +346,8 @@ function mapFarmAsset(a) {
     isActive:      a.is_active !== false,
     vendorId:      a.vendor_id || null,
     billId:        a.bill_id || null,
-    billFileUrl:   a.inventory_bills?.bill_file_url || null,
-    billInvoiceNo: a.inventory_bills?.invoice_number || null,
+    billFileUrl:   bill?.bill_file_url || null,
+    billInvoiceNo: bill?.invoice_number || null,
     usefulLife:    a.useful_life_years || null,
     disposalType:   a.disposal_type || null,
     disposalDate:   a.disposal_date || null,
@@ -560,6 +564,7 @@ const useAppStore = create((set, get) => ({
         { data: farmExpensesRaw },
         { data: livestockRevenueRaw },
         { data: cropResidualsRaw },
+        { data: billsRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').eq('farm_id', farmId).order('name'),
         supabase.from('crops').select('*').eq('farm_id', farmId).order('name'),
@@ -603,10 +608,8 @@ const useAppStore = create((set, get) => ({
         supabase.from('salary_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
         supabase.from('work_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('activity_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('sort_order'),
-        // The bill comes along so a machine can show the document it was bought
-        // on — the thing Assets had no way to hold before capital lines existed.
-        supabase.from('machinery_master').select('*, inventory_bills(bill_file_url, invoice_number)').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
-        supabase.from('farm_assets').select('*, inventory_bills(bill_file_url, invoice_number)').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        supabase.from('machinery_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
+        supabase.from('farm_assets').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
         supabase.from('livestock_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('livestock_count_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
         supabase.from('livestock_health_logs').select('*').eq('farm_id', farmId).order('log_date', { ascending: false }),
@@ -617,9 +620,15 @@ const useAppStore = create((set, get) => ({
         supabase.from('farm_expenses').select('*').eq('farm_id', farmId).order('expense_date', { ascending: false }),
         supabase.from('livestock_revenue').select('*').eq('farm_id', farmId).order('revenue_date', { ascending: false }),
         supabase.from('crop_residuals').select('*').eq('farm_id', farmId).order('created_at', { ascending: false }),
+        // Bills are read as their own small table rather than embedded into
+        // machinery/assets. An embed needs the foreign key to exist, which ties
+        // the whole farm load to a migration having been applied; this does not,
+        // so the app degrades to "no bill chip" instead of "no data".
+        supabase.from('inventory_bills').select('id, bill_file_url, invoice_number').eq('farm_id', farmId),
       ])
 
       const tpl = templates || []
+      const billsById = Object.fromEntries((billsRaw || []).map(b => [b.id, b]))
       set({
         plots:             plotsRaw || [],
         cropMaster:        (cropsRaw || []).map(c => mapCrop(c, tpl)),
@@ -646,8 +655,8 @@ const useAppStore = create((set, get) => ({
         salaryPayments:    (salaryPaymentsRaw || []).map(mapSalaryPayment),
         workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
         activityTypes:     (activityTypesRaw || []).map(a => ({ id: a.id, name: a.name, label: a.label, emoji: a.emoji, isSystem: a.is_system })),
-        machineryMaster:    (machineryRaw || []).map(mapMachinery),
-        farmAssets:         (farmAssetsRaw || []).map(mapFarmAsset),
+        machineryMaster:    (machineryRaw || []).map(m => mapMachinery(m, billsById)),
+        farmAssets:         (farmAssetsRaw || []).map(a => mapFarmAsset(a, billsById)),
         livestockMaster:    (livestockRaw || []).map(mapLivestock),
         livestockCountLogs: (countLogsRaw || []).map(mapCountLog),
         livestockHealthLogs:(healthLogsRaw || []).map(mapHealthLog),
@@ -1295,13 +1304,13 @@ const useAppStore = create((set, get) => ({
           .insert({ ...common, machinery_type: line.subType || 'other', requires_diesel: false })
           .select().single()
         if (error) throw error
-        newMachinery.push(mapMachinery(row))
+        newMachinery.push(mapMachinery(row, { [bill.id]: bill }))
       } else {
         const { data: row, error } = await supabase.from('farm_assets')
           .insert({ ...common, category: line.subType || 'equipment' })
           .select().single()
         if (error) throw error
-        newAssets.push(mapFarmAsset(row))
+        newAssets.push(mapFarmAsset(row, { [bill.id]: bill }))
       }
     }
 

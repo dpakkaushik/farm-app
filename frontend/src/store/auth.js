@@ -7,21 +7,28 @@ async function fetchProfile(userId) {
   return data
 }
 
+// The critical path: no farms means the app shows onboarding, so this query
+// must fail loudly rather than return an empty list. It once selected a column
+// that a not-yet-applied migration was going to add; PostgREST rejected the
+// whole request, the error was dropped on the floor, and every existing member
+// was shown "Welcome to Farm Manager — let's set up your farm". A query that
+// failed and a user who genuinely has no farm are not the same thing.
+//
+// Keep this select to columns the app cannot run without. Anything optional —
+// a setting, a preference — is read where it is needed, not here.
 async function fetchMemberships(userId) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('farm_memberships')
-    .select('farm_id, role, status, farms(id, name, location, total_acres, capex_threshold, map_state, overlay_config, created_at)')
+    .select('farm_id, role, status, farms(id, name, location, total_acres, map_state, overlay_config, created_at)')
     .eq('user_id', userId)
     .eq('status', 'active')
+  if (error) throw new Error(`Could not load your farms: ${error.message}`)
   return (data || []).map(m => ({
     farm_id:        m.farm_id,
     role:           m.role,
     farm_name:      m.farms?.name || 'Unnamed Farm',
     farm_location:  m.farms?.location || '',
     total_acres:    m.farms?.total_acres || 0,
-    // Below this, a machine or asset is expensed in the month bought; at or
-    // above it, it is capital and stays out of the P&L total.
-    capex_threshold: Number(m.farms?.capex_threshold ?? 10000),
     map_state:      m.farms?.map_state || null,
     overlay_config: m.farms?.overlay_config || null,
     // When the farm joined the app — the cutoff for "pre-app" history. A crop
@@ -58,6 +65,10 @@ const useAuthStore = create((set, get) => ({
   farms:        [],       // array of { farm_id, role, farm_name, ... }
   activeFarmId: null,
   activeFarm:   null,     // the membership object matching activeFarmId
+  // Set when the memberships query itself failed. Distinct from farms: [] —
+  // one means "we could not find out", the other means "you have none", and
+  // only the second should ever open the new-farm wizard.
+  farmsError:   null,
 
   // True while the first-run wizard is walking a new owner through farm → plots.
   // It has to exist because creating the farm flips farms.length from 0 to 1, and
@@ -76,40 +87,36 @@ const useAuthStore = create((set, get) => ({
 
   // ── Initialise on app boot ────────────────────────────────────────────────
   init: async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      const [profile, memberships] = await Promise.all([
-        fetchProfile(session.user.id),
-        fetchMemberships(session.user.id),
-      ])
-      const activeFarmId = resolveActiveFarm(memberships)
-      set({
-        user: session.user, profile, loading: false,
-        farms: memberships, activeFarmId,
-        activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
-      })
-    } else {
-      set({ loading: false })
+    const load = async (user, rest) => {
+      try {
+        const [profile, memberships] = await Promise.all([
+          fetchProfile(user.id),
+          fetchMemberships(user.id),
+        ])
+        const activeFarmId = resolveActiveFarm(memberships)
+        set({
+          user, profile, farmsError: null, ...rest,
+          farms: memberships, activeFarmId,
+          activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
+        })
+      } catch (err) {
+        // Never fall through to farms: [] — that reads as "new user" and opens
+        // the create-a-farm wizard on someone who already has farms.
+        set({ user, farmsError: err.message || 'Could not load your farms', ...rest })
+      }
     }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) await load(session.user, { loading: false })
+    else set({ loading: false })
 
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         storeActiveFarmId(null)
-        set({ user: null, profile: null, farms: [], activeFarmId: null, activeFarm: null })
+        set({ user: null, profile: null, farms: [], activeFarmId: null, activeFarm: null, farmsError: null })
         return
       }
-      if (session?.user) {
-        const [profile, memberships] = await Promise.all([
-          fetchProfile(session.user.id),
-          fetchMemberships(session.user.id),
-        ])
-        const activeFarmId = resolveActiveFarm(memberships)
-        set({
-          user: session.user, profile,
-          farms: memberships, activeFarmId,
-          activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
-        })
-      }
+      if (session?.user) await load(session.user, {})
     })
   },
 
@@ -125,7 +132,7 @@ const useAuthStore = create((set, get) => ({
     if (!profile.is_active) throw new Error('Account deactivated. Contact your admin.')
     const activeFarmId = resolveActiveFarm(memberships)
     set({
-      user: data.user, profile,
+      user: data.user, profile, farmsError: null,
       farms: memberships, activeFarmId,
       activeFarm: memberships.find(f => f.farm_id === activeFarmId) || null,
     })

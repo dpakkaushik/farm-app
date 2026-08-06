@@ -42,8 +42,30 @@ function LoadingScreen() {
   )
 }
 
+// Shown when we could not read the user's farms at all. Deliberately not the
+// onboarding wizard: this user may well have farms, and offering to create one
+// invites a duplicate farm on top of a transient failure.
+function FarmsUnavailable({ message }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--c-bg)' }}>
+      <div className="text-center max-w-sm">
+        <div className="text-4xl mb-3">🌾</div>
+        <p className="text-sm font-semibold mb-1" style={{ color: 'var(--c-text)' }}>Could not load your farms</p>
+        <p className="text-xs mb-4" style={{ color: 'var(--c-faint)' }}>{message}</p>
+        <p className="text-xs mb-4" style={{ color: 'var(--c-faint)' }}>
+          Your data is safe — this is a connection or setup problem, not missing farms.
+        </p>
+        <button onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#1D9E75' }}>
+          Try again
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
-  const { user, profile, loading, farms, activeFarmId, onboarding, init } = useAuthStore()
+  const { user, profile, loading, farms, activeFarmId, onboarding, farmsError, init } = useAuthStore()
   // Compute role directly — Zustand getters don't survive set() shallow-merge
   const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const { mediaItems } = useAppStore()
@@ -95,6 +117,11 @@ export default function App() {
   // before they can enter, so their name (not their email) appears on the
   // activity they log. Catches anyone who slipped in without a profile too.
   if (!profile.full_name || !profile.phone) return <Profile mustComplete />
+
+  // The memberships query failed — we do not know what farms this user has, so
+  // say so. Falling through would show the create-a-farm wizard to someone who
+  // already has farms, which is how a bad deploy once looked like data loss.
+  if (farmsError) return <FarmsUnavailable message={farmsError} />
 
   // New user — no farms yet → onboarding. `onboarding` keeps the wizard on screen
   // after the farm is created (farms.length becomes 1) so it can go on to plots.

@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore, isAdmin } from '../store/auth'
+import { supabase } from '../lib/supabase'
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', view_only: 'View Only' }
+
+// Read on its own rather than with the memberships, so a farm setting can never
+// hold up the query that decides whether the user has any farms at all. Returns
+// null when the column is not there yet, and the field stays hidden.
+async function fetchCapexThreshold(farmId) {
+  const { data, error } = await supabase
+    .from('farms').select('capex_threshold').eq('id', farmId).single()
+  if (error || data?.capex_threshold == null) return null
+  return Number(data.capex_threshold)
+}
 
 export default function FarmSettings() {
   const {
@@ -32,7 +43,11 @@ export default function FarmSettings() {
     setFarmForm({
       name: activeFarm.farm_name || '', location: activeFarm.farm_location || '',
       total_acres: activeFarm.total_acres || '',
-      capex_threshold: activeFarm.capex_threshold ?? 10000,
+      capex_threshold: '',
+    })
+    fetchCapexThreshold(activeFarm.farm_id).then(v => {
+      if (v === null) return
+      setFarmForm(f => ({ ...f, capex_threshold: v }))
     })
     loadMembers().then(setMembers)
     loadInvitations().then(invs => {
@@ -136,13 +151,15 @@ export default function FarmSettings() {
             <input style={input} placeholder="Farm name" value={farmForm.name} onChange={e => setFarmForm(f => ({ ...f, name: e.target.value }))} />
             <input style={input} placeholder="Location" value={farmForm.location} onChange={e => setFarmForm(f => ({ ...f, location: e.target.value }))} />
             <input style={input} type="number" placeholder="Total acres" value={farmForm.total_acres} onChange={e => setFarmForm(f => ({ ...f, total_acres: e.target.value }))} />
-            <div>
-              <input style={input} type="number" placeholder="Capital threshold (₹)" value={farmForm.capex_threshold} onChange={e => setFarmForm(f => ({ ...f, capex_threshold: e.target.value }))} />
-              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
-                A machine or asset bought for less than this is an expense in the month
-                it was bought. At or above it, it is capital and stays out of the P&amp;L.
+            {farmForm.capex_threshold !== '' && (
+              <div>
+                <input style={input} type="number" placeholder="Capital threshold (₹)" value={farmForm.capex_threshold} onChange={e => setFarmForm(f => ({ ...f, capex_threshold: e.target.value }))} />
+                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
+                  A machine or asset bought for less than this is an expense in the month
+                  it was bought. At or above it, it is capital and stays out of the P&amp;L.
+                </div>
               </div>
-            </div>
+            )}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" onClick={() => setEditFarm(false)} style={{ flex: 1, padding: '9px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
               <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: '8px', background: '#1D9E75', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
