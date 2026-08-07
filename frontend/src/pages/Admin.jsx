@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus, Pencil, Wallet } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
+import OpeningCostBreakup from '../components/OpeningCostBreakup'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
@@ -2127,10 +2128,15 @@ function PartnersMaster() {
 
 // ── Cycles Master — start / view crop cycles ───────────────────────────────────
 function CyclesMaster() {
-  const { cropCycles, cropMaster, plots, addCropCycle, updateCropCycle, setCycleOpeningCost } = useAppStore()
+  const { cropCycles, cropMaster, plots, addCropCycle, updateCropCycle,
+          setCycleOpeningCost, loadOpeningCostBreakup, saveOpeningCostBreakup } = useAppStore()
   const [form,   setForm]   = useState(null)
   const [saving, setSaving] = useState(false)
-  const [editCost, setEditCost] = useState(null)   // { cycleId, value } — pre-app spend edit
+  // { cycleId, value, lines, itemised } — pre-app spend edit. `lines` is the
+  // category breakup; `itemised` is false when migration 0024 has not been
+  // applied, in which case the editor falls back to the single number it
+  // always was rather than offering a breakup it cannot save.
+  const [editCost, setEditCost] = useState(null)
   const [toast,  setToast]  = useState(null)
   const [toastType, setToastType] = useState('success')
   const [confirm, setConfirm] = useState(null)
@@ -2159,24 +2165,42 @@ function CyclesMaster() {
       const sow  = new Date(form.sowDate)
       const harv = new Date(sow)
       harv.setDate(harv.getDate() + (crop?.duration_days || 120))
-      await addCropCycle({
+      const breakup = preAppSowing ? (form.openingBreakup || []) : []
+      const openingTotal = breakup.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0)
+      // The total goes on the cycle first because the breakup rows need its id.
+      // If the rows fail — most likely migration 0024 not applied — the total
+      // still stands, so the crop's margin is right and only detail is lost.
+      const created = await addCropCycle({
         plotId:      form.plotId,
         cropId:      form.cropId,
         season:      form.season,
         sowDate:     form.sowDate,
         harvestDate: harv.toISOString().slice(0, 10),
         budget:      parseFloat(form.budget) || null,
-        openingCost: preAppSowing ? (parseFloat(form.openingCost) || null) : null,
+        openingCost: openingTotal > 0 ? openingTotal : null,
       })
+      if (created?.id && breakup.length) {
+        try { await saveOpeningCostBreakup(created.id, breakup) }
+        catch { showToast('Cycle saved — the cost breakup could not be stored', 'warn') }
+      }
       showToast('Crop cycle started ✓')
       setForm(null)
     } catch (e) { showToast('Failed: ' + e.message, 'warn') }
     setSaving(false)
   }
 
+  const openCostEditor = async (c) => {
+    setEditCost({ cycleId: c.id, value: c.openingCost ?? '', lines: [], itemised: false })
+    const lines = await loadOpeningCostBreakup(c.id)
+    // null means the table is not there yet — keep the single-number editor.
+    if (lines === null) return
+    setEditCost(ec => ec?.cycleId === c.id ? { ...ec, lines, itemised: true } : ec)
+  }
+
   const saveOpeningCost = async () => {
     try {
-      await setCycleOpeningCost(editCost.cycleId, editCost.value === '' ? null : parseFloat(editCost.value))
+      if (editCost.itemised) await saveOpeningCostBreakup(editCost.cycleId, editCost.lines)
+      else await setCycleOpeningCost(editCost.cycleId, editCost.value === '' ? null : parseFloat(editCost.value))
       showToast('Pre-app spend saved ✓')
       setEditCost(null)
     } catch (e) { showToast('Failed: ' + e.message, 'warn') }
@@ -2257,12 +2281,15 @@ function CyclesMaster() {
           </FRow>
 
           {preAppSowing && (
-            <FRow label="Spent before the app (₹, optional)">
-              <input type="number" className="finput" placeholder="Cost already sunk into this crop"
-                value={form.openingCost || ''} onChange={e => setForm(p => ({ ...p, openingCost: e.target.value }))} />
-              <p className="text-[10px] text-[var(--c-faint)] mt-1 leading-relaxed">
-                Sown before the farm joined the app — this money is counted into the crop's P&L cost.
+            <FRow label="Spent before the app (optional)">
+              <p className="text-[10px] text-[var(--c-faint)] mb-2 leading-relaxed">
+                Sown before the farm joined — this money counts into the crop's P&amp;L cost.
+                Split by category so crop reports can compare it with what the app tracked since.
               </p>
+              <div className="rounded-xl p-2.5" style={{ background: 'var(--c-ghost)' }}>
+                <OpeningCostBreakup value={form.openingBreakup || []}
+                  onChange={v => setForm(p => ({ ...p, openingBreakup: v }))} />
+              </div>
             </FRow>
           )}
 
@@ -2312,20 +2339,29 @@ function CyclesMaster() {
                       (crop_cycles.opening_cost) — editable right here. */}
                   {farmJoined && c.sowDate < farmJoined.slice(0, 10) && (
                     editCost?.cycleId === c.id ? (
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <input type="number" min="0" inputMode="decimal" autoFocus
-                          className="finput" style={{ width: '130px', padding: '4px 8px', fontSize: '11px' }}
-                          placeholder="Spent before app ₹"
-                          value={editCost.value}
-                          onChange={e => setEditCost(ec => ({ ...ec, value: e.target.value }))} />
-                        <button onClick={saveOpeningCost}
-                          className="px-2.5 py-1 text-[10px] font-bold rounded-lg"
-                          style={{ background: '#1D9E75', color: '#fff' }}>Save</button>
-                        <button onClick={() => setEditCost(null)}
-                          className="px-1.5 py-1 text-[10px] rounded-lg text-[var(--c-muted)]">✕</button>
+                      <div className="mt-1.5">
+                        {editCost.itemised ? (
+                          <div className="rounded-xl p-2.5 mb-2" style={{ background: 'var(--c-ghost)' }}>
+                            <OpeningCostBreakup value={editCost.lines}
+                              onChange={lines => setEditCost(ec => ({ ...ec, lines }))} />
+                          </div>
+                        ) : (
+                          <input type="number" min="0" inputMode="decimal" autoFocus
+                            className="finput mb-2" style={{ width: '130px', padding: '4px 8px', fontSize: '11px' }}
+                            placeholder="Spent before app ₹"
+                            value={editCost.value}
+                            onChange={e => setEditCost(ec => ({ ...ec, value: e.target.value }))} />
+                        )}
+                        <div className="flex items-center gap-1.5">
+                          <button onClick={saveOpeningCost}
+                            className="px-2.5 py-1 text-[10px] font-bold rounded-lg"
+                            style={{ background: '#1D9E75', color: '#fff' }}>Save</button>
+                          <button onClick={() => setEditCost(null)}
+                            className="px-1.5 py-1 text-[10px] rounded-lg text-[var(--c-muted)]">✕</button>
+                        </div>
                       </div>
                     ) : (
-                      <button onClick={() => setEditCost({ cycleId: c.id, value: c.openingCost ?? '' })}
+                      <button onClick={() => openCostEditor(c)}
                         className="mt-1 text-[10px] font-semibold" style={{ color: '#BA7517' }}>
                         Spent before app: {c.openingCost != null ? `₹${Number(c.openingCost).toLocaleString('en-IN')}` : 'not set'} · edit
                       </button>

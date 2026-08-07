@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
+import OpeningCostBreakup from '../components/OpeningCostBreakup'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -31,7 +32,7 @@ const attachmentUrl = (path) =>
 export default function Harvest() {
   const {
     cropCycles, cropMaster, plots,
-    updateCropCycle, addCropCycle,
+    updateCropCycle, addCropCycle, saveOpeningCostBreakup,
     harvestSessions, sales, buyers, partners,
     addCaneSupply, markCanePayment, updateCaneMillInfo, closeCaneHarvest,
     addHarvestSession, addCropSale, markCropSalePayment,
@@ -176,12 +177,22 @@ export default function Harvest() {
     try {
       const harvestDate = new Date(form.sowDate)
       harvestDate.setDate(harvestDate.getDate() + crop.duration_days)
-      await addCropCycle({
+      const breakup = preAppSowing ? (form.openingBreakup || []) : []
+      const openingTotal = breakup.reduce((s, l) => s + (parseFloat(l.amount) || 0), 0)
+      // The cycle has to exist before its breakup can point at it, so the total
+      // goes on the cycle first and the lines follow. If the lines fail — most
+      // likely migration 0024 not applied yet — the total still stands and the
+      // crop's margin is right; only the detail is missing.
+      const created = await addCropCycle({
         plotId: plot.id, cropId: form.cropId,
         sowDate: form.sowDate, harvestDate: harvestDate.toISOString().slice(0, 10),
         season: computeSeason(form.sowDate),
-        openingCost: preAppSowing ? (parseFloat(form.openingCost) || null) : null,
+        openingCost: openingTotal > 0 ? openingTotal : null,
       })
+      if (created?.id && breakup.length) {
+        try { await saveOpeningCostBreakup(created.id, breakup) }
+        catch { showToast('Cycle saved — the cost breakup could not be stored') }
+      }
       showToast('Crop cycle started!')
       setModal(null)
     } finally { setSaving(false) }
@@ -871,13 +882,16 @@ export default function Harvest() {
                 <input type="date" value={form.sowDate || ''} onChange={e => f('sowDate', e.target.value)} className="finput" style={{ colorScheme: 'dark' }}/></div>
               {preAppSowing && (
                 <div className="bg-[#BA7517]/8 border border-[#BA7517]/20 rounded-xl px-3 py-2.5">
-                  <label className="text-xs text-[var(--c-sub)] block mb-1">Spent before the app ₹ (optional)</label>
-                  <input type="number" min="0" inputMode="decimal" placeholder="What this crop already cost"
-                    value={form.openingCost || ''} onChange={e => f('openingCost', e.target.value)} className="finput" />
-                  <p className="text-[10px] text-[var(--c-faint)] mt-1.5 leading-relaxed">
-                    This crop was sown before the farm joined the app. Money already spent on it
-                    (inputs, labour) is counted into its P&L cost so the margin stays honest.
+                  <label className="text-xs text-[var(--c-sub)] block mb-2">
+                    Spent before the app (optional)
+                  </label>
+                  <p className="text-[10px] text-[var(--c-faint)] mb-2.5 leading-relaxed">
+                    This crop was sown before the farm joined. Enter what it already cost, by
+                    category — one lump sum tells a crop report nothing.
                   </p>
+                  <OpeningCostBreakup
+                    value={form.openingBreakup || []}
+                    onChange={v => f('openingBreakup', v)} />
                 </div>
               )}
               {form.cropId && form.sowDate && (() => {

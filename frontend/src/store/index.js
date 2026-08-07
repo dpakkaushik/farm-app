@@ -2227,6 +2227,60 @@ const useAppStore = create((set, get) => ({
     set(s => ({ cropCycles: s.cropCycles.map(c => c.id === cycleId ? { ...c, openingCost } : c) }))
   },
 
+  // ── Pre-app spend, itemised ─────────────────────────────────────────────────
+  //
+  // One number for what a crop cost before the farm joined keeps its margin
+  // honest but tells a crop report nothing — every pre-app cycle lands in a
+  // bucket called "unknown", and comparing it to a post-app cycle is
+  // meaningless. The categories here are the ones live tracking already
+  // produces (inventory_items.category plus labour), so both sides of the
+  // signup date land in the same rows.
+  //
+  // Read lazily by the screens that show it, never in the farm load — the
+  // dashboard gets the right totals from v_crop_pnl without this table, so a
+  // deploy that lands before migration 0024 degrades to the single number
+  // instead of breaking.
+  loadOpeningCostBreakup: async (cycleId) => {
+    const { data, error } = await supabase
+      .from('crop_cycle_opening_costs')
+      .select('category, amount, notes')
+      .eq('cycle_id', cycleId)
+    if (error) return null              // table not there yet — caller hides the detail
+    return (data || []).map(r => ({ category: r.category, amount: Number(r.amount), notes: r.notes || '' }))
+  },
+
+  // Replaces the whole breakup for a cycle: it is a summary of past spend, not
+  // a transaction log, so editing means restating it. crop_cycles.opening_cost
+  // is kept equal to the sum so anything still reading the single number — and
+  // any cycle whose breakup is later removed — stays correct.
+  saveOpeningCostBreakup: async (cycleId, lines) => {
+    const farmId = getFarmId()
+    const { data: { user } } = await supabase.auth.getUser()
+    const rows = (lines || [])
+      .map(l => ({ category: l.category, amount: parseFloat(l.amount) || 0, notes: (l.notes || '').trim() || null }))
+      .filter(l => l.amount > 0)
+
+    const { error: delErr } = await supabase
+      .from('crop_cycle_opening_costs').delete().eq('cycle_id', cycleId)
+    if (delErr) throw delErr
+
+    if (rows.length) {
+      const { error } = await supabase.from('crop_cycle_opening_costs').insert(
+        rows.map(r => ({ ...r, farm_id: farmId, cycle_id: cycleId, created_by: user?.id || null }))
+      )
+      if (error) throw error
+    }
+
+    const total = rows.reduce((s, r) => s + r.amount, 0)
+    const openingCost = rows.length ? total : null
+    const { error: upErr } = await supabase.from('crop_cycles')
+      .update({ opening_cost: openingCost }).eq('id', cycleId)
+    if (upErr) throw upErr
+
+    set(s => ({ cropCycles: s.cropCycles.map(c => c.id === cycleId ? { ...c, openingCost } : c) }))
+    return openingCost
+  },
+
   addPlot: async (data) => {
     const { data: row, error } = await supabase.from('plots').insert({
       farm_id:     getFarmId(),
