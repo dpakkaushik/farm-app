@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import {
   BookOpen, Plus, Wallet, AlertCircle, TrendingUp, TrendingDown,
-  ChevronDown, X, CheckCircle, Download,
+  ChevronDown, X, CheckCircle, Download, Pencil,
 } from 'lucide-react'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -243,17 +243,35 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
   )
 }
 
-// ── Add Vendor Modal ──────────────────────────────────────────────────────────
-function AddVendorModal({ onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', category: 'other', phone: '', credit_days: 0 })
+// ── Vendor Modal — add a party, or edit one (incl. its opening balance) ───────
+//
+// Opening balance is the amount already owed on the day the farm started using
+// the app. Ankur's first five bills — ₹67,770 — are on the shop's khata and
+// nowhere the app can reach, and re-entering them as purchases would re-add
+// stock that was consumed months ago. So the money is carried in as one figure
+// and the goods are not. It never touches the P&L: pre-app cost belongs to the
+// crop's opening cost, and counting it here too would double the same spend.
+function VendorModal({ vendor, onClose, onSave }) {
+  const editing = !!vendor
+  const [form, setForm] = useState({
+    name:        vendor?.name        || '',
+    category:    vendor?.category    || 'other',
+    phone:       vendor?.phone       || '',
+    credit_days: vendor?.credit_days || 0,
+    opening_balance:      vendor?.opening_balance ? String(vendor.opening_balance) : '',
+    opening_balance_date: vendor?.opening_balance_date || '',
+  })
   const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
   const save = async () => {
     if (!form.name.trim()) return
-    setSaving(true)
-    try { await onSave(form); onClose() } finally { setSaving(false) }
+    setSaving(true); setErr('')
+    try { await onSave(form); onClose() }
+    catch (e) { setErr(e.message || 'Save failed') }
+    finally { setSaving(false) }
   }
   return (
-    <Modal title="Add Vendor / Party" onClose={onClose}>
+    <Modal title={editing ? `Edit ${vendor.name}` : 'Add Vendor / Party'} onClose={onClose}>
       <Field label="Vendor Name">
         <input type="text" placeholder="e.g. SHARMA SEEDS STORE" className={inputCls} style={inputStyle}
           value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
@@ -271,10 +289,34 @@ function AddVendorModal({ onClose, onSave }) {
         <input type="tel" className={inputCls} style={inputStyle}
           value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
       </Field>
+
+      <div className="mt-1 mb-2 pt-3" style={{ borderTop: '0.5px solid var(--c-border)' }}>
+        <div className="text-[11px] font-semibold mb-0.5" style={{ color: 'var(--c-text)' }}>
+          Opening Balance
+        </div>
+        <div className="text-[10px] mb-2" style={{ color: 'var(--c-faint)' }}>
+          Already owed to this party before you started using the app. Leave blank if nothing was owed.
+        </div>
+      </div>
+      <Field label="Amount owed (₹)">
+        <input type="number" inputMode="decimal" placeholder="e.g. 67770" className={inputCls} style={inputStyle}
+          value={form.opening_balance}
+          onChange={e => setForm(f => ({ ...f, opening_balance: e.target.value }))} />
+      </Field>
+      <Field label="As on date">
+        <input type="date" className={inputCls} style={inputStyle}
+          value={form.opening_balance_date}
+          onChange={e => setForm(f => ({ ...f, opening_balance_date: e.target.value }))} />
+      </Field>
+
+      {err && (
+        <div className="text-[10px] mb-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'rgba(226,75,74,0.1)', color: '#E24B4A' }}>{err}</div>
+      )}
       <button disabled={saving || !form.name.trim()} onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
         style={{ background: '#1D9E75' }}>
-        {saving ? 'Saving…' : 'Add Vendor'}
+        {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Vendor'}
       </button>
     </Modal>
   )
@@ -777,7 +819,7 @@ function Particulars({ row, isOpen, onToggle }) {
 }
 
 // ── Tab: Party Ledger (Vendor Khatas) ─────────────────────────────────────────
-function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, canPay, fy }) {
+function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, onEditVendor, canPay, fy }) {
   const [activeId, setActiveId] = useState(null) // null = overview list
   const [monthView, setMonthView] = useState(false)
   const [openRows, setOpenRows] = useState({})   // ledger row key → showing line items
@@ -815,24 +857,45 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
   ]
   const paymentsFor = (v) => vendorPayments.filter(p => p.vendor_id === v.id)
 
+  // What was owed before the app existed. A debit like any other, but with no
+  // document behind it — so it is read off the vendor, not off a purchase.
+  // `|| 0` keeps this working against a database where 0025 has not landed.
+  const openingOf     = (v) => Number(v?.opening_balance || 0)
+  const openingDateOf = (v) => v?.opening_balance_date || null
+
   // Overview: every vendor, all-time Balance Due (a point-in-time fact) plus
   // Purchased/Paid scoped to the selected financial year (period activity).
   const overview = vendors.map(v => {
     const vPurchases = purchasesFor(v)
     const vPayments  = paymentsFor(v)
+    const opening          = openingOf(v)
     const purchasedAllTime = vPurchases.reduce((s, p) => s + Number(p.totalCost || 0), 0)
     const paidAllTime      = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+    // The opening balance counts as period activity only if it is dated into
+    // the period; undated, it is older than any period we could be showing.
+    const openingInFY = opening && openingDateOf(v) && inFY(openingDateOf(v), fy) ? opening : 0
     return {
       vendor: v,
-      balanceDue:  purchasedAllTime - paidAllTime,
-      purchasedFY: vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
+      balanceDue:  opening + purchasedAllTime - paidAllTime,
+      purchasedFY: openingInFY
+        + vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
       paidFY:      vPayments.filter(p => inFY(p.payment_date, fy)).reduce((s, p) => s + Number(p.amount || 0), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
   const activeVendor = vendors.find(v => v.id === activeId)
 
+  // An undated opening balance sorts before everything, which is what it is.
+  const openingRows = activeVendor && openingOf(activeVendor) !== 0 ? [{
+    key:  `open:${activeVendor.id}`,
+    date: openingDateOf(activeVendor) || '2000-01-01',
+    type: 'opening',
+    particulars: 'Opening balance — carried in from before the app',
+    debit: openingOf(activeVendor), credit: 0,
+  }] : []
+
   const ledgerRowsAll = activeVendor ? [
+    ...openingRows,
     ...purchasesAsBillRows(purchasesFor(activeVendor), activeVendor.name),
     ...paymentsFor(activeVendor).map(p => ({
       key: `pay:${p.id}`, date: p.payment_date, type: 'payment',
@@ -902,8 +965,8 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                  {['Vendor','Purchased','Paid','Balance Due'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                  {['Vendor','Purchased','Paid','Balance Due',''].map((h, i) => (
+                    <th key={i} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -912,10 +975,24 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                   <tr key={vendor.id} onClick={() => setActiveId(vendor.id)}
                     className="cursor-pointer hover:bg-[var(--c-ghost)] transition-colors"
                     style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>{vendor.name}</td>
+                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>
+                      {vendor.name}
+                      {openingOf(vendor) !== 0 && (
+                        <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>
+                          incl. opening {fmt(openingOf(vendor))}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(pFY)}</td>
                     <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(yFY)}</td>
                     <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(balanceDue)}</td>
+                    <td className="px-2 py-2.5 text-right">
+                      <button title="Edit party / set opening balance"
+                        onClick={e => { e.stopPropagation(); onEditVendor(vendor) }}
+                        className="p-1.5 rounded-lg" style={{ color: 'var(--c-faint)' }}>
+                        <Pencil size={12} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -938,6 +1015,11 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
           ← All Vendors
         </button>
         <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>{activeVendor.name}</div>
+        <button onClick={() => onEditVendor(activeVendor)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium"
+          style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+          <Pencil size={10} /> {openingOf(activeVendor) !== 0 ? 'Edit' : 'Opening balance'}
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -973,7 +1055,10 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
         )
       )}
 
-      {ledgerWithBal.length > 0 ? (
+      {/* An opening balance dated before the selected period folds into
+          openingBal rather than becoming a row — without it in this test, a
+          party carrying nothing but an opening balance would read as empty. */}
+      {(ledgerWithBal.length > 0 || openingBal !== 0) ? (
         <>
           <div className="flex justify-end">
             <button
@@ -1687,7 +1772,7 @@ export default function LedgerPage() {
     harvestSessions, cropCycles, cropMaster, purchases, inventoryMaster,
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
-    loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor,
+    loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
     markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
   } = useAppStore()
 
@@ -1706,6 +1791,7 @@ export default function LedgerPage() {
   const [showAddCash, setShowAddCash] = useState(false)
   const [showPayVendor, setShowPayVendor] = useState(false)
   const [showAddVendor, setShowAddVendor] = useState(false)
+  const [editVendor,    setEditVendor]    = useState(null)
 
   useEffect(() => {
     loadLedgerData().finally(() => setLoading(false))
@@ -1975,6 +2061,7 @@ export default function LedgerPage() {
             setSelectedVendor={setSelectedVendor}
             onPay={() => setShowPayVendor(true)}
             onAddVendor={() => setShowAddVendor(true)}
+            onEditVendor={setEditVendor}
             canPay={canManage}
             fy={fy}
           />
@@ -2026,7 +2113,11 @@ export default function LedgerPage() {
       {/* Modals */}
       {showAddCash    && <AddCashModal   onClose={() => setShowAddCash(false)}    onSave={addOwnerCashEntry} />}
       {showPayVendor  && <PayVendorModal vendors={vendors} selectedVendor={selectedVendor} onClose={() => setShowPayVendor(false)} onSave={addVendorPayment} />}
-      {showAddVendor  && <AddVendorModal onClose={() => setShowAddVendor(false)}  onSave={addVendor} />}
+      {showAddVendor  && <VendorModal onClose={() => setShowAddVendor(false)} onSave={addVendor} />}
+      {editVendor     && (
+        <VendorModal vendor={editVendor} onClose={() => setEditVendor(null)}
+          onSave={(form) => updateVendor(editVendor.id, form)} />
+      )}
     </div>
   )
 }

@@ -2439,17 +2439,45 @@ const useAppStore = create((set, get) => ({
     })
   },
 
+  // A party's opening balance is what the farm already owed it on the day the
+  // app started — five bills of Ankur's that predate every bill the app can
+  // hold. It is a debit with no document behind it, so it is stored on the
+  // vendor rather than faked as a purchase: back-entering those bills would
+  // re-add stock consumed months ago and fight the physical count.
   addVendor: async (vendor) => {
     const { data, error } = await supabase.from('vendors').insert({
       farm_id:     getFarmId(),
-      name:        vendor.name,
+      name:        vendor.name.trim(),
       category:    vendor.category || 'other',
       phone:       vendor.phone    || null,
       address:     vendor.address  || null,
       credit_days: parseInt(vendor.credit_days) || 0,
+      opening_balance:      parseFloat(vendor.opening_balance) || 0,
+      opening_balance_date: vendor.opening_balance_date || null,
     }).select().single()
     if (error) throw error
     set(s => ({ vendors: [...s.vendors, data].sort((a,b) => a.name.localeCompare(b.name)) }))
+    return data
+  },
+
+  // Existing parties need this as much as new ones: Ankur and Dhaliwal were
+  // created long before there was an opening balance to put on them.
+  updateVendor: async (id, patch) => {
+    const { data, error } = await supabase.from('vendors').update({
+      name:        patch.name.trim(),
+      category:    patch.category || 'other',
+      phone:       patch.phone || null,
+      credit_days: parseInt(patch.credit_days) || 0,
+      opening_balance:      parseFloat(patch.opening_balance) || 0,
+      opening_balance_date: patch.opening_balance_date || null,
+    }).eq('id', id).select().single()
+    if (error) throw error
+    const { data: balances } = await supabase.from('v_vendor_balances').select('*')
+    set(s => ({
+      vendors: s.vendors.map(v => (v.id === id ? data : v))
+                        .sort((a, b) => a.name.localeCompare(b.name)),
+      vendorBalances: balances || s.vendorBalances,
+    }))
     return data
   },
 
