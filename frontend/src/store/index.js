@@ -115,7 +115,10 @@ function mapSale(s) {
 }
 
 function mapBuyer(b) {
-  return { id: b.id, name: b.name, address: b.address || '', contact: b.contact || '', type: b.type || 'trader', buys: b.buys || [], isActive: b.is_active }
+  return { id: b.id, name: b.name, address: b.address || '', contact: b.contact || '', type: b.type || 'trader', buys: b.buys || [], isActive: b.is_active,
+    // `|| 0` so this still reads against a database where 0027 has not landed.
+    openingBalance:     Number(b.opening_balance || 0),
+    openingBalanceDate: b.opening_balance_date || null }
 }
 
 function mapPartner(p) {
@@ -2187,6 +2190,20 @@ const useAppStore = create((set, get) => ({
     set(s => ({ buyers: s.buyers.map(b => b.id === id ? { ...b, name, address: address || '', contact: contact || '', type: type || 'trader', buys: buys || [] } : b) }))
   },
 
+  // What a buyer already owed the farm at go-live — a receivable with no sale
+  // behind it. Owner-only and logged, enforced by the trigger in 0027.
+  setBuyerOpeningBalance: async (id, amount, asOnDate) => {
+    const { data, error } = await supabase.from('buyers')
+      .update({
+        opening_balance:      parseFloat(amount) || 0,
+        opening_balance_date: asOnDate || null,
+      })
+      .eq('id', id).select().single()
+    if (error) throw error
+    set(s => ({ buyers: s.buyers.map(b => (b.id === id ? mapBuyer(data) : b)) }))
+    return data
+  },
+
   updatePartner: async (id, { name }) => {
     const { error } = await supabase.from('partners').update({ name }).eq('id', id)
     if (error) throw error
@@ -2458,6 +2475,55 @@ const useAppStore = create((set, get) => ({
     if (error) throw error
     set(s => ({ vendors: [...s.vendors, data].sort((a,b) => a.name.localeCompare(b.name)) }))
     return data
+  },
+
+  // ── Go-live: the farm's own opening figures ─────────────────────────────────
+  //
+  // Read straight off `farms` rather than through the memberships query in
+  // auth.js. That query is load-bearing — a `capex_threshold` column added to
+  // its select once made PostgREST reject the whole thing, the error was
+  // swallowed, and every existing member was shown the "create your first farm"
+  // wizard (fixed in faf795e). It does not get touched again for this.
+  //
+  // Degrades to nulls if 0027 has not landed, so the checklist hides the row
+  // rather than the page failing.
+  farmOpening: null,
+
+  loadFarmOpening: async () => {
+    const farmId = getFarmId()
+    if (!farmId) return null
+    const { data, error } = await supabase.from('farms')
+      .select('go_live_date, opening_cash, opening_cash_date')
+      .eq('id', farmId).single()
+    if (error) { set({ farmOpening: null }); return null }
+    const mapped = {
+      goLiveDate:      data.go_live_date || null,
+      openingCash:     Number(data.opening_cash || 0),
+      openingCashDate: data.opening_cash_date || null,
+    }
+    set({ farmOpening: mapped })
+    return mapped
+  },
+
+  // Owner-only and logged — enforced by guard_founding_figures() in 0027.
+  setFarmOpening: async ({ openingCash, openingCashDate, goLiveDate }) => {
+    const farmId = getFarmId()
+    if (!farmId) throw new Error('No active farm')
+    const { error } = await supabase.from('farms').update({
+      opening_cash:      parseFloat(openingCash) || 0,
+      opening_cash_date: openingCashDate || null,
+      go_live_date:      goLiveDate || null,
+    }).eq('id', farmId)
+    if (error) throw error
+    const { data: cb } = await supabase.from('v_cash_book').select('*')
+    set(s => ({
+      farmOpening: {
+        openingCash: parseFloat(openingCash) || 0,
+        openingCashDate: openingCashDate || null,
+        goLiveDate: goLiveDate || null,
+      },
+      cashBook: cb || s.cashBook,
+    }))
   },
 
   // Existing parties need this as much as new ones: Ankur and Dhaliwal were

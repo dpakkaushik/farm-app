@@ -31,7 +31,7 @@ const TABS = [
 export default function Inventory() {
   const {
     inventoryMaster, purchases, issues, plots, cropCycles, cropMaster,
-    machineryMaster, vendors, recordBillPurchase, issueItem,
+    machineryMaster, vendors, recordBillPurchase, issueItem, addVendor,
   } = useAppStore()
 
   const [tab,       setTab]       = useState('items')
@@ -92,10 +92,24 @@ export default function Inventory() {
         const { error: upErr } = await supabase.storage.from('farm-photos').upload(path, billFile)
         if (!upErr) billFileUrl = supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
       }
+      // A typed vendor name used to save as text and create no party, so the
+      // money owed existed nowhere — that is how ₹1.26 lakh across five shops
+      // became invisible, and how bill 4237's ₹5,000 sprayer went unowed. If a
+      // shop is named, it is a shop: create it, and let the bill be a real debt.
+      // An existing party of the same name is reused rather than duplicated.
+      let vendorId = (billMeta.vendorId && billMeta.vendorId !== '__other__')
+        ? billMeta.vendorId : null
+      const typedName = billMeta.vendor.trim()
+      if (!vendorId && typedName) {
+        const existing = (vendors || []).find(
+          v => v.name.trim().toLowerCase() === typedName.toLowerCase())
+        vendorId = existing ? existing.id : (await addVendor({ name: typedName })).id
+      }
+
       await recordBillPurchase({
         billDate: billMeta.date,
-        vendorId: (billMeta.vendorId && billMeta.vendorId !== '__other__') ? billMeta.vendorId : null,
-        vendor: billMeta.vendor.trim(),
+        vendorId,
+        vendor: typedName,
         invoiceNo: billMeta.invoiceNo.trim(), notes: billMeta.notes.trim(),
         billFileUrl,
         lineItems: valid.map(l => ({
@@ -258,11 +272,16 @@ export default function Inventory() {
                   {(vendors || []).filter(v => v.is_active).map(v => (
                     <option key={v.id} value={v.id} style={{ background: 'var(--c-surface)' }}>{v.name}</option>
                   ))}
-                  <option value="__other__" style={{ background: 'var(--c-surface)' }}>Other (type below)</option>
+                  <option value="__other__" style={{ background: 'var(--c-surface)' }}>Other — new shop…</option>
                 </select>
                 {billMeta.vendorId === '__other__' && (
-                  <input className="finput mt-1.5" placeholder="Vendor name"
-                    value={billMeta.vendor} onChange={e => bm('vendor', e.target.value)} />
+                  <>
+                    <input className="finput mt-1.5" placeholder="Shop name"
+                      value={billMeta.vendor} onChange={e => bm('vendor', e.target.value)} />
+                    <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                      Added to your parties, so this bill shows as money owed to them.
+                    </p>
+                  </>
                 )}
               </FRow>
             </div>

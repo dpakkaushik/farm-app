@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { X, ChevronLeft, Package, Sprout, Check } from 'lucide-react'
+import { X, ChevronLeft, Package, Sprout, Check, Wallet, Store, Truck, Users } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 
@@ -20,6 +20,16 @@ import { useAuthStore } from '../store/auth'
 //                "spent before the app" (crop_cycles.opening_cost) — the owner
 //                explicitly rejected a duplicate form here (2026-07-31).
 //
+// A farm arrives owing money and owed money, not just holding stock, so the
+// list covers all six positions: cash, stock, parties, buyers, labour, crops.
+// Where a screen already edits the figure it links there rather than growing a
+// second form — parties to the Ledger's khata, labour to Labour, crops to
+// Cycles. Cash and buyers get forms here because nothing else edits them.
+//
+// One date governs the lot: go-live. Everything before it is a stated position,
+// everything after is a transaction. It is set with the cash figure, since that
+// is the one every farm has.
+//
 // ProfileMenu can force the checklist open via the store's setupChecklistOpen
 // flag — needed on farms like Pallia where cycles and stock already exist, so
 // the card's auto-visibility rule never fires.
@@ -30,15 +40,17 @@ export default function SetupChecklist() {
   const navigate = useNavigate()
   const { activeFarm, activeFarmId } = useAuthStore()
   const {
-    inventoryMaster, cropCycles, purchases,
-    recordOpeningStock,
+    inventoryMaster, cropCycles, purchases, vendors, buyers, regularLabourers,
+    recordOpeningStock, farmOpening, loadFarmOpening, setFarmOpening,
+    setBuyerOpeningBalance,
     setupChecklistOpen, closeSetupChecklist,
   } = useAppStore()
 
-  const [view, setView]           = useState(null)   // null | 'menu' | 'stock'
+  const [view, setView]           = useState(null)   // null | 'menu' | 'stock' | 'cash' | 'buyers'
   const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(dismissKey(activeFarmId)))
 
   useEffect(() => { setDismissed(!!localStorage.getItem(dismissKey(activeFarmId))) }, [activeFarmId])
+  useEffect(() => { loadFarmOpening?.() }, [activeFarmId, loadFarmOpening])
 
   // ProfileMenu's "Opening balances" item sets setupChecklistOpen; the flag IS
   // the open state, cleared only by an explicit close. It must not be consumed
@@ -51,14 +63,23 @@ export default function SetupChecklist() {
   const close = () => { setView(null); closeSetupChecklist() }
 
   const looksUnSetUp = cropCycles.length === 0 || inventoryMaster.every(i => !i.currentStock)
+  // A tick means "you have told us about this", not "this is non-zero" — a farm
+  // may honestly owe nobody. Go-live being set is what marks cash as answered,
+  // since that is the date the whole model hangs off.
   const stockDone    = purchases.some(p => p.invoiceNo === 'OPENING-STOCK') || inventoryMaster.some(i => i.currentStock > 0)
   const cropsDone    = cropCycles.length > 0
+  const cashDone     = !!farmOpening?.goLiveDate
+  const partiesDone  = (vendors || []).some(v => Number(v.opening_balance || 0) !== 0)
+  const buyersDone   = (buyers  || []).some(b => Number(b.openingBalance  || 0) !== 0)
+  const labourDone   = (regularLabourers || []).some(l => Number(l.openingBalance || 0) !== 0)
 
   const dismiss = () => { localStorage.setItem(dismissKey(activeFarmId), '1'); setDismissed(true) }
 
   // Standing crops live in ONE place — the Cycles master (create with pre-app
   // spend, or edit it on existing cycles). This just takes the owner there.
-  const goCycles = () => { close(); navigate('/admin?tab=Cycles') }
+  const goCycles  = () => { close(); navigate('/admin?tab=Cycles') }
+  const goLedger  = () => { close(); navigate('/ledger') }
+  const goLabour  = () => { close(); navigate('/labour') }
 
   return (
     <>
@@ -81,19 +102,30 @@ export default function SetupChecklist() {
               <X size={15} />
             </button>
           </div>
+          {/* One way in, now that there are six positions to state rather than
+              two — the list itself explains what each one is. */}
           <div className="flex gap-2 mt-2.5">
-            <CardButton done={stockDone} label="Opening stock" onClick={() => setView('stock')} />
-            <CardButton done={cropsDone} label="Standing crops" onClick={goCycles} />
+            <CardButton done={cashDone && stockDone && cropsDone}
+              label="Opening balances" onClick={() => setView('menu')} />
           </div>
         </div>
       )}
 
       {effectiveView && (
         <Sheet onClose={close}>
-          {effectiveView === 'menu'  && <MenuView stockDone={stockDone} cropsDone={cropsDone}
-            onPick={setView} onCycles={goCycles} onClose={close} />}
-          {effectiveView === 'stock' && <StockForm items={inventoryMaster} purchases={purchases}
+          {effectiveView === 'menu'   && <MenuView
+            done={{ cash: cashDone, stock: stockDone, parties: partiesDone,
+                    buyers: buyersDone, labour: labourDone, crops: cropsDone }}
+            goLiveDate={farmOpening?.goLiveDate}
+            onPick={setView} onCycles={goCycles} onLedger={goLedger} onLabour={goLabour}
+            onClose={close} />}
+          {effectiveView === 'stock'  && <StockForm items={inventoryMaster} purchases={purchases}
             onBack={() => setView('menu')} onSave={recordOpeningStock} onDone={close} />}
+          {effectiveView === 'cash'   && <CashForm opening={farmOpening}
+            onBack={() => setView('menu')} onSave={setFarmOpening} onDone={close} />}
+          {effectiveView === 'buyers' && <BuyersForm buyers={buyers}
+            goLiveDate={farmOpening?.goLiveDate}
+            onBack={() => setView('menu')} onSave={setBuyerOpeningBalance} onDone={close} />}
         </Sheet>
       )}
     </>
@@ -194,19 +226,33 @@ const inputStyle = {
 
 // ── Menu (opened from ProfileMenu) ────────────────────────────────────────────
 
-function MenuView({ stockDone, cropsDone, onPick, onCycles, onClose }) {
+function MenuView({ done, goLiveDate, onPick, onCycles, onLedger, onLabour, onClose }) {
   const rows = [
-    { key: 'stock', Icon: Package, done: stockDone, title: 'Opening stock',
+    { key: 'cash', Icon: Wallet, done: done.cash, title: 'Cash in hand',
+      body: 'How much cash you hold, and the date everything below is counted from.',
+      go: () => onPick('cash') },
+    { key: 'stock', Icon: Package, done: done.stock, title: 'Opening stock',
       body: "What's in your store today — quantity and the rate you paid.",
       go: () => onPick('stock') },
-    { key: 'crops', Icon: Sprout, done: cropsDone, title: 'Standing crops',
+    { key: 'parties', Icon: Store, done: done.parties, title: 'Party balances',
+      body: 'What you already owe each shop. Set on the shop in Ledger → Party Ledger. Opens it →',
+      go: onLedger },
+    { key: 'buyers', Icon: Truck, done: done.buyers, title: 'Buyer balances',
+      body: 'What buyers already owe you for crop taken before you started.',
+      go: () => onPick('buyers') },
+    { key: 'labour', Icon: Users, done: done.labour, title: 'Labour balances',
+      body: 'Advances given and wages still due. Set on each worker in Labour. Opens it →',
+      go: onLabour },
+    { key: 'crops', Icon: Sprout, done: done.crops, title: 'Standing crops',
       body: 'Entered in the Cycles master — start a pre-app cycle or edit "spent before the app" there. Opens it →',
       go: onCycles },
   ]
   return (
     <>
       <SheetHeader title="Opening balances"
-        sub="For a farm that was already running before it joined the app."
+        sub={goLiveDate
+          ? `Where the farm stood on ${goLiveDate}. Everything after that date is entered as it happens.`
+          : 'For a farm that was already running before it joined the app. Start with cash — it sets the date the rest is counted from.'}
         onClose={onClose} />
       <div className="p-4 flex flex-col gap-2.5">
         {rows.map(({ key, Icon, done, title, body, go }) => (
@@ -301,6 +347,122 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
       )}
       <SaveBar onSave={save} saving={saving} disabled={filled.length === 0}
         label={filled.length > 0 ? `Save ${filled.length} item${filled.length > 1 ? 's' : ''}` : 'Save'} />
+    </>
+  )
+}
+
+// ── Form 2 — cash in hand, and the go-live date ───────────────────────────────
+//
+// The date is asked once, here, and becomes the farm's go-live date: the line
+// every other opening figure is stated as of. Cash is the one position every
+// farm has, so it is the natural place to ask.
+//
+// Stored on `farms`, not as a cash entry, so it can never be mistaken for a
+// receipt — v_cash_book projects it as the opening line of the book.
+
+function CashForm({ opening, onBack, onSave, onDone }) {
+  const [amount, setAmount] = useState(opening?.openingCash ? String(opening.openingCash) : '')
+  const [date,   setDate]   = useState(opening?.goLiveDate || opening?.openingCashDate || '')
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
+
+  const save = async () => {
+    if (!date) { setError('Pick the date you are counting from — every other opening figure is stated as of this day.'); return }
+    setSaving(true); setError('')
+    try {
+      await onSave({ openingCash: amount, openingCashDate: date, goLiveDate: date })
+      onDone()
+    } catch (err) {
+      setError(err.message || 'Could not save. Please try again.')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <SheetHeader title="Cash in hand" onBack={onBack} onClose={onDone}
+        sub="Cash you hold on the day you start. Opens the Cash Book, so its balance is real rather than counted from zero." />
+      {error && <ErrorBox>{error}</ErrorBox>}
+      <div className="px-4 pt-3 flex flex-col gap-3">
+        <div>
+          <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>Counting from</label>
+          <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+            Your go-live date. Before it, you state balances; after it, everything is entered as it happens.
+          </p>
+          <input type="date" style={inputStyle} value={date} onChange={e => setDate(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>Cash in hand (₹)</label>
+          <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+            Leave blank or zero if you were holding no cash.
+          </p>
+          <input type="number" inputMode="decimal" placeholder="e.g. 50000" style={inputStyle}
+            value={amount} onChange={e => setAmount(e.target.value)} />
+        </div>
+      </div>
+      <SaveBar onSave={save} saving={saving} disabled={!date} label="Save" />
+    </>
+  )
+}
+
+// ── Form 3 — what buyers already owe ──────────────────────────────────────────
+//
+// The mirror of a party's opening balance: crop taken before go-live that has
+// not been paid for. Buyers have no edit screen of their own, so the figure is
+// captured here rather than inventing one.
+
+function BuyersForm({ buyers, goLiveDate, onBack, onSave, onDone }) {
+  const [rows, setRows]     = useState({})   // { buyerId: amount }
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState('')
+
+  const active = (buyers || []).filter(b => b.isActive !== false)
+  const filled = Object.entries(rows)
+    .map(([id, v]) => ({ id, amount: parseFloat(v) }))
+    .filter(r => !isNaN(r.amount))
+
+  const save = async () => {
+    setSaving(true); setError('')
+    try {
+      for (const r of filled) await onSave(r.id, r.amount, goLiveDate || null)
+      onDone()
+    } catch (err) {
+      setError(err.message || 'Could not save. Please try again.')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <SheetHeader title="Buyer balances" onBack={onBack} onClose={onDone}
+        sub="What each buyer still owes you for crop taken before you started. Leave blank if they owe nothing." />
+      <DontDoubleCount />
+      {error && <ErrorBox>{error}</ErrorBox>}
+      {active.length === 0 ? (
+        <p className="px-4 py-6 text-[12px]" style={{ color: 'var(--c-muted)' }}>
+          No buyers yet — add them in Admin → Farm Masters first.
+        </p>
+      ) : (
+        <div className="px-4 pt-3 flex flex-col gap-2">
+          {active.map(b => (
+            <div key={b.id} className="flex items-center gap-2 rounded-lg border px-3 py-2"
+              style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{b.name}</p>
+                {Number(b.openingBalance || 0) !== 0 && (
+                  <p className="text-[10px]" style={{ color: '#1D9E75' }}>
+                    already set: ₹{Number(b.openingBalance).toLocaleString('en-IN')}
+                  </p>
+                )}
+              </div>
+              <input type="number" inputMode="decimal" placeholder="₹ owed" style={{ ...inputStyle, width: '104px' }}
+                value={rows[b.id] ?? ''} onChange={e => setRows(r => ({ ...r, [b.id]: e.target.value }))} />
+            </div>
+          ))}
+        </div>
+      )}
+      <SaveBar onSave={save} saving={saving} disabled={filled.length === 0}
+        label={filled.length > 0 ? `Save ${filled.length} buyer${filled.length > 1 ? 's' : ''}` : 'Save'} />
     </>
   )
 }

@@ -865,11 +865,14 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
       billFileUrl: c.bill_file_url || null,
     }))
 
+  // Only vendor_id counts. Falling back to a name match gave two different
+  // answers to "what do I owe" — this screen counted name matches, while
+  // v_vendor_balances counted only real ids — and the comparison was
+  // whitespace-sensitive, so one trailing space hid ₹4,140 of bill 3899 and the
+  // whole of Dhaliwal's ₹42,306. Now that a party can state an opening balance,
+  // a name match would also silently double it.
   const purchasesFor = (v) => [
-    ...purchases.filter(p => {
-      if (p.vendor_id && p.vendor_id === v.id) return true
-      return p.vendor && v.name && p.vendor.toLowerCase() === v.name.toLowerCase()
-    }),
+    ...purchases.filter(p => p.vendor_id && p.vendor_id === v.id),
     ...capitalAsLines(v),
   ]
   const paymentsFor = (v) => vendorPayments.filter(p => p.vendor_id === v.id)
@@ -1226,9 +1229,11 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
   // Ledger, which lists every vendor regardless of purchase history).
   // Free-text buyers (e.g. "Local Market") only appear once they have a
   // sale, grouped by the typed name since they have no master record.
+  // opening = what they already owed at go-live, with no sale behind it. Carried
+  // on the group so Balance Due here agrees with Receivables on the Summary.
   const groups = {}
   buyers.filter(b => b.isActive !== false).forEach(b => {
-    groups[b.id] = { key: b.id, name: b.name, rows: [] }
+    groups[b.id] = { key: b.id, name: b.name, rows: [], opening: Number(b.openingBalance || 0) }
   })
   // Crop sales and tree deals sit in the same khata: a thekedar who leased the
   // mangoes owes money exactly the way a grain trader does.
@@ -1246,7 +1251,7 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
     const receivedAllTime = p.rows.reduce((s, r) => s + receivedOf(r), 0)
     return {
       party: p,
-      balanceDue: soldAllTime - receivedAllTime,
+      balanceDue: Number(p.opening || 0) + soldAllTime - receivedAllTime,
       soldFY:     p.rows.filter(r => inFY(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
       receivedFY: p.rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0),
     }
@@ -1258,7 +1263,8 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
   const soldFY      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
   const receivedFY  = rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
   const balanceDueAllTime = active
-    ? rowsAll.reduce((s, r) => s + Number(r.netAmount || 0) - receivedOf(r), 0)
+    ? Number(active.opening || 0)
+      + rowsAll.reduce((s, r) => s + Number(r.netAmount || 0) - receivedOf(r), 0)
     : 0
 
   const header = (
@@ -1860,7 +1866,11 @@ export default function LedgerPage() {
     .reduce((s, w) => s + Math.max(0, Number(w.balance_due || 0)), 0)
   const salaryPaidTotal = salaryPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
   // Receivable = what remains after partial payments, across crop and tree deals.
-  const totalReceivables = [...sales, ...treeKhataRows]
+  // Plus whatever buyers already owed at go-live — crop taken before the app,
+  // with no sale record behind it. The mirror of a party's opening balance.
+  const buyerOpeningTotal = (buyers || [])
+    .reduce((s, b) => s + Math.max(0, Number(b.openingBalance || 0)), 0)
+  const totalReceivables = buyerOpeningTotal + [...sales, ...treeKhataRows]
     .filter(s => s.paymentStatus !== 'paid')
     .reduce((s, r) => s + Math.max(0, Number(r.netAmount || 0) - Number(r.amountReceived || 0)), 0)
 
