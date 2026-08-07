@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Wrench, Boxes, Plus, Camera, Pencil } from 'lucide-react'
 import { useAppStore } from '../store'
+import { supabase } from '../lib/supabase'
 import ImageViewer from '../components/ImageViewer'
 import ImageCropper from '../components/ImageCropper'
 import Attachment from '../components/Attachment'
+import FilePicker from '../components/FilePicker'
 import { uploadAttachment, deleteAttachment, resolveUrl, BUCKETS } from '../lib/attachments'
 
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -33,6 +35,48 @@ function StatusPill({ status }) {
   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>{s.label}</span>
 }
 const inp = "w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]"
+
+// Who it was bought from, and the paper that proves it.
+//
+// A tractor has nothing to do with the fertiliser shed, so it is bought here
+// rather than through the Inventory bill screen. Naming a vendor is what turns
+// a register entry into money owed: the purchase gets its own bill, the party
+// ledger shows it, and paying that party settles it. Leave it blank for
+// something already owned, or bought with cash nobody is tracking.
+function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
+  return (
+    <div className="rounded-xl p-3 space-y-3" style={{ background: 'var(--c-ghost)' }}>
+      <FRow label="Bought from">
+        <select className={inp} value={f.vendorId || ''}
+          onChange={e => {
+            const v = vendors.find(x => x.id === e.target.value)
+            u('vendorId', e.target.value); u('vendorName', v?.name || '')
+          }}
+          style={{ background: 'var(--c-ghost)' }}>
+          <option value="">Nobody — already owned / cash purchase</option>
+          {(vendors || []).filter(v => v.is_active).map(v => (
+            <option key={v.id} value={v.id}>{v.name}</option>
+          ))}
+        </select>
+      </FRow>
+      {f.vendorId && (
+        <>
+          <FRow label="Invoice No. (optional)">
+            <input className={inp} placeholder="e.g. 4237" value={f.invoiceNo || ''}
+              onChange={e => u('invoiceNo', e.target.value)} />
+          </FRow>
+          <FRow label="Bill (photo or PDF, optional)">
+            <FilePicker accept="image/*,application/pdf" file={billFile} onFile={setBillFile} />
+          </FRow>
+          <p className="text-[10px] leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+            This adds the full amount to that party's ledger. Settle it from
+            Ledger → Party Ledger, the same as any other bill.
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
 
 // A machine bought on a vendor bill can show that bill. Nothing renders when it
 // was not bought on one — assets entered by hand have no document behind them.
@@ -202,8 +246,9 @@ function DisposeModal({ item, onClose, onConfirm, saving }) {
 }
 
 // ── Add Machinery Modal ───────────────────────────────────────────────────────
-function AddMachineryModal({ onClose, onConfirm, saving }) {
+function AddMachineryModal({ onClose, onConfirm, saving, vendors, moneyFields }) {
   const [f, setF] = useState({ name:'', type:'tractor', make:'', quantity:'1', requiresDiesel:false, purchaseDate:TODAY, purchasePrice:'', notes:'' })
+  const [billFile, setBillFile] = useState(null)
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
     <Modal title="Add Machinery" onClose={onClose}>
@@ -225,8 +270,9 @@ function AddMachineryModal({ onClose, onConfirm, saving }) {
         <input type="checkbox" checked={f.requiresDiesel} onChange={e => u('requiresDiesel', e.target.checked)} className="w-4 h-4 accent-[#1D9E75]" />
         <span className="text-sm" style={{ color: 'var(--c-text)' }}>⛽ Requires diesel</span>
       </label>
+      {moneyFields && <PurchaseSource f={f} u={u} vendors={vendors} billFile={billFile} setBillFile={setBillFile} />}
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
-      <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
+      <button onClick={() => f.name && onConfirm({ ...f, billFile })} disabled={saving || !f.name}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
         {saving ? 'Saving…' : 'Add Machinery'}
       </button>
@@ -235,8 +281,9 @@ function AddMachineryModal({ onClose, onConfirm, saving }) {
 }
 
 // ── Add Farm Asset Modal ──────────────────────────────────────────────────────
-function AddFarmAssetModal({ onClose, onConfirm, saving }) {
+function AddFarmAssetModal({ onClose, onConfirm, saving, vendors, moneyFields }) {
   const [f, setF] = useState({ name:'', category:'equipment', quantity:'1', purchaseDate:TODAY, purchasePrice:'', notes:'' })
+  const [billFile, setBillFile] = useState(null)
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
     <Modal title="Add Farm Asset" onClose={onClose}>
@@ -253,8 +300,9 @@ function AddFarmAssetModal({ onClose, onConfirm, saving }) {
         <FRow label="Purchase Date"><input type="date" className={inp} value={f.purchaseDate} onChange={e => u('purchaseDate', e.target.value)} /></FRow>
         <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="0" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
       </div>
+      {moneyFields && <PurchaseSource f={f} u={u} vendors={vendors} billFile={billFile} setBillFile={setBillFile} />}
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
-      <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
+      <button onClick={() => f.name && onConfirm({ ...f, billFile })} disabled={saving || !f.name}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
         {saving ? 'Saving…' : 'Add Asset'}
       </button>
@@ -401,6 +449,23 @@ export default function Assets() {
   const [pendingPhoto, setPendingPhoto] = useState(null)
   const [cropFile,     setCropFile]     = useState(null)
   const [photoView,    setPhotoView]    = useState(null)
+  // Migration 0023 adds vendor_id/bill_id to these tables. Until it is applied
+  // the money fields are hidden rather than offered and then failing on save —
+  // an asset can still be registered, it just cannot owe anybody yet.
+  const [moneyFields,  setMoneyFields]  = useState(false)
+  const [vendors,      setVendors]      = useState([])
+
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { error } = await supabase.from('machinery_master').select('vendor_id').limit(1)
+      if (!alive || error) return
+      setMoneyFields(true)
+      const { data } = await supabase.from('vendors').select('id, name, is_active').order('name')
+      if (alive) setVendors(data || [])
+    })()
+    return () => { alive = false }
+  }, [])
 
   const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000) }
 
@@ -465,9 +530,21 @@ export default function Assets() {
   const confirmAdd = async (kind, form) => {
     setSaving(true)
     try {
-      if (kind === 'machinery') await addMachinery(form)
-      else                      await addFarmAsset(form)
-      showToast(`${form.name} added`); setAddModal(null)
+      // The bill goes up before the row is written, so the row can point at it.
+      let billFileUrl = null
+      if (form.vendorId && form.billFile) {
+        const ext  = form.billFile.name.split('.').pop()
+        const path = `inventory-docs/bills/${Date.now()}.${ext}`
+        const { error } = await supabase.storage.from('farm-photos').upload(path, form.billFile)
+        if (!error) billFileUrl = supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl
+      }
+      const payload = { ...form, billFileUrl }
+      if (kind === 'machinery') await addMachinery(payload)
+      else                      await addFarmAsset(payload)
+      showToast(form.vendorId
+        ? `${form.name} added — ₹${Number((parseFloat(form.purchasePrice) || 0) * (parseInt(form.quantity) || 1)).toLocaleString('en-IN')} added to ${form.vendorName || 'the vendor'}'s ledger`
+        : `${form.name} added`)
+      setAddModal(null)
     } catch (e) { showToast('Failed: ' + e.message, 'error') }
     setSaving(false)
   }
@@ -539,8 +616,8 @@ export default function Assets() {
       {editModal?.kind === 'asset'     && <EditFarmAssetModal item={editModal.item} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}
 
       {dispose && <DisposeModal item={dispose.item} onClose={() => setDispose(null)} onConfirm={confirmDispose} saving={saving} />}
-      {addModal === 'machinery' && <AddMachineryModal onClose={() => setAddModal(null)} onConfirm={f => confirmAdd('machinery', f)} saving={saving} />}
-      {addModal === 'asset'     && <AddFarmAssetModal onClose={() => setAddModal(null)} onConfirm={f => confirmAdd('asset', f)}     saving={saving} />}
+      {addModal === 'machinery' && <AddMachineryModal onClose={() => setAddModal(null)} onConfirm={f => confirmAdd('machinery', f)} saving={saving} vendors={vendors} moneyFields={moneyFields} />}
+      {addModal === 'asset'     && <AddFarmAssetModal onClose={() => setAddModal(null)} onConfirm={f => confirmAdd('asset', f)}     saving={saving} vendors={vendors} moneyFields={moneyFields} />}
 
       {toast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-lg text-white"

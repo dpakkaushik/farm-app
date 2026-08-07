@@ -295,6 +295,27 @@ function mapLabourLog(l) {
   }
 }
 
+// The bill behind a capital purchase made straight from the Assets screen. Only
+// when a vendor was named — no vendor means nobody is owed and there is no
+// document. Total is qty × price, the same reading a bill line has, so the
+// vendor is debited the amount actually agreed.
+async function createCapitalBill(data) {
+  if (!data.vendorId) return null
+  const qty   = Math.max(1, parseInt(data.quantity) || 1)
+  const price = parseFloat(data.purchasePrice) || 0
+  const { data: bill, error } = await supabase.from('inventory_bills').insert({
+    farm_id:        getFarmId(),
+    bill_date:      data.purchaseDate || new Date().toISOString().slice(0, 10),
+    vendor_id:      data.vendorId,
+    vendor_name:    data.vendorName || null,
+    invoice_number: data.invoiceNo || null,
+    bill_file_url:  data.billFileUrl || null,
+    total_amount:   Math.round(qty * price * 100) / 100,
+  }).select().single()
+  if (error) throw error
+  return bill
+}
+
 // billsById is optional: a machine recorded before it could carry a bill, or a
 // load that ran before the bill columns existed, simply has no bill to show.
 function mapMachinery(m, billsById = {}) {
@@ -1589,7 +1610,18 @@ const useAppStore = create((set, get) => ({
     }))
   },
 
+  // A tractor is bought from a dealer, not out of the fertiliser shed — so it is
+  // added here, not through the Inventory bill screen. When a vendor is named,
+  // the purchase gets a bill of its own so the party ledger shows one row per
+  // document exactly as it does for a stock bill, and the paper can be attached
+  // to it. Without a vendor this stays what it always was: a register entry for
+  // something already owned or paid for in cash nobody is tracking.
+  //
+  // The vendor and bill keys are only sent when there is a vendor, so this still
+  // works against a database where migration 0023 has not added those columns —
+  // the form hides the fields there, so vendorId is never set.
   addMachinery: async (data) => {
+    const bill = await createCapitalBill(data)
     const { data: row, error } = await supabase.from('machinery_master').insert({
       farm_id:         getFarmId(),
       name:            data.name,
@@ -1603,12 +1635,14 @@ const useAppStore = create((set, get) => ({
       purchase_price:  data.purchasePrice ? parseFloat(data.purchasePrice) : null,
       notes:           data.notes || null,
       is_active:       true,
+      ...(data.vendorId ? { vendor_id: data.vendorId, bill_id: bill?.id || null } : {}),
     }).select().single()
     if (error) throw error
-    set(s => ({ machineryMaster: [...s.machineryMaster, mapMachinery(row)] }))
+    set(s => ({ machineryMaster: [...s.machineryMaster, mapMachinery(row, bill ? { [bill.id]: bill } : {})] }))
   },
 
   addFarmAsset: async (data) => {
+    const bill = await createCapitalBill(data)
     const { data: row, error } = await supabase.from('farm_assets').insert({
       farm_id:        getFarmId(),
       name:           data.name,
@@ -1619,9 +1653,10 @@ const useAppStore = create((set, get) => ({
       purchase_price: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
       notes:          data.notes || null,
       is_active:      true,
+      ...(data.vendorId ? { vendor_id: data.vendorId, bill_id: bill?.id || null } : {}),
     }).select().single()
     if (error) throw error
-    set(s => ({ farmAssets: [...s.farmAssets, mapFarmAsset(row)] }))
+    set(s => ({ farmAssets: [...s.farmAssets, mapFarmAsset(row, bill ? { [bill.id]: bill } : {})] }))
   },
 
   addLivestock: async (data) => {
