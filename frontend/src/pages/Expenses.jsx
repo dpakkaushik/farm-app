@@ -88,6 +88,8 @@ function AddExpenseModal({ animals, onClose }) {
   const [form, setForm] = useState({
     expenseDate: TODAY, expenseType: '', category: '', amount: '', description: '',
     attributedTo: 'general', livestockId: '', paymentMode: 'cash', paidTo: '', notes: '',
+    // Most farm expenses are handed over at the counter, so paid is the default.
+    paidNow: true,
   })
   const [attachPath, setAttachPath] = useState(null)
   const [uploading, setUploading] = useState(false)
@@ -196,21 +198,47 @@ function AddExpenseModal({ animals, onClose }) {
           value={form.paidTo} onChange={e => set('paidTo', e.target.value)} />
       </FRow>
 
-      <FRow label="Payment Mode">
+      {/* The question that decides whether cash actually moves. Picking a
+          payment mode used to imply this and never do it — the mode was a label
+          nothing read, so an expense could say "cash" and "unpaid" at once. */}
+      <FRow label="Has this been paid?">
         <div className="flex gap-2">
-          {PAY_MODES.map(m => (
-            <button key={m} onClick={() => set('paymentMode', m)}
-              className="flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-colors"
+          {[{ v: true, label: 'Paid now' }, { v: false, label: 'Pay later' }].map(({ v, label }) => (
+            <button key={label} onClick={() => set('paidNow', v)}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold transition-colors"
               style={{
-                background: form.paymentMode === m ? '#1D9E75' : 'var(--c-ghost)',
-                color:      form.paymentMode === m ? '#fff'     : 'var(--c-muted)',
-                border:     `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                background: form.paidNow === v ? '#1D9E75' : 'var(--c-ghost)',
+                color:      form.paidNow === v ? '#fff'     : 'var(--c-muted)',
+                border:     `1px solid ${form.paidNow === v ? '#1D9E75' : 'var(--c-border)'}`,
               }}>
-              {m}
+              {label}
             </button>
           ))}
         </div>
+        <p className="text-[10px] mt-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+          {form.paidNow
+            ? 'Money leaves the Cash Book today.'
+            : 'Recorded as a cost only — settle it later from Ledger → Expenses.'}
+        </p>
       </FRow>
+
+      {form.paidNow && (
+        <FRow label="Paid By">
+          <div className="flex gap-2">
+            {PAY_MODES.map(m => (
+              <button key={m} onClick={() => set('paymentMode', m)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-colors"
+                style={{
+                  background: form.paymentMode === m ? '#1D9E75' : 'var(--c-ghost)',
+                  color:      form.paymentMode === m ? '#fff'     : 'var(--c-muted)',
+                  border:     `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                }}>
+                {m}
+              </button>
+            ))}
+          </div>
+        </FRow>
+      )}
 
       <AttachmentRow value={attachPath} onChange={setAttachPath} uploading={uploading} onUpload={handleUpload} />
 

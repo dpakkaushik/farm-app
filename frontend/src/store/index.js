@@ -1800,7 +1800,18 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Farm Expenses ────────────────────────────────────────────────────────────
+  // `paidNow` is the question that actually matters, and it used not to be
+  // asked. The form offered a payment mode — defaulting to 'cash' — which reads
+  // as "I paid this in cash", but the mode was only ever a label: nothing read
+  // it, and is_paid is computed from whether an expense_payments row exists. So
+  // ₹100 of Dawai could sit there saying "cash" and "unpaid" at once, and the
+  // cash it was paid with never left the Cash Book.
+  //
+  // Now a paid expense settles itself in the same save. The mode describes a
+  // payment that happened rather than one imagined; an unpaid expense carries
+  // no mode at all and waits in Pending for the existing Pay button.
   addFarmExpense: async (exp) => {
+    const paidNow = exp.paidNow !== false
     const { data, error } = await supabase.from('farm_expenses').insert({
       farm_id:        getFarmId(),
       expense_date:   exp.expenseDate,
@@ -1809,13 +1820,27 @@ const useAppStore = create((set, get) => ({
       description:    exp.description,
       attributed_to:  exp.attributedTo || 'general',
       livestock_id:   exp.livestockId || null,
-      payment_mode:   exp.paymentMode || null,
+      payment_mode:   paidNow ? (exp.paymentMode || 'cash') : null,
       paid_to:        exp.paidTo || null,
       attachment_path: exp.attachmentPath || null,
       notes:          exp.notes || null,
     }).select().single()
     if (error) throw error
     set(s => ({ farmExpenses: [mapFarmExpense(data), ...s.farmExpenses] }))
+
+    // The expense is saved either way — a payment that fails must not lose the
+    // record of what was spent, so this is not rolled back. It surfaces as an
+    // unpaid expense, which is recoverable with the Pay button.
+    if (paidNow) {
+      await get().addExpensePayment({
+        payment_date: exp.expenseDate,
+        amount:       exp.amount,
+        expense_type: 'farm_expense',
+        reference_id: data.id,
+        payment_mode: exp.paymentMode || 'cash',
+        notes:        exp.description || 'Expense Payment',
+      })
+    }
     return data
   },
 
