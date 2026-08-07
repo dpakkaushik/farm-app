@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
-import { isManager, getActiveFarmRole } from '../store/auth'
+import { isManager, isAdmin, getActiveFarmRole } from '../store/auth'
 import { isPet } from './livestock/ui'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -253,6 +253,10 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
 // crop's opening cost, and counting it here too would double the same spend.
 function VendorModal({ vendor, onClose, onSave }) {
   const editing = !!vendor
+  // Cosmetic only — the real rule is a trigger in 0026, because the anon key
+  // ships in this bundle and anyone can call PostgREST directly. This just
+  // stops a manager discovering the rule by way of an error message.
+  const amAdmin = isAdmin(getActiveFarmRole())
   const [form, setForm] = useState({
     name:        vendor?.name        || '',
     category:    vendor?.category    || 'other',
@@ -293,21 +297,34 @@ function VendorModal({ vendor, onClose, onSave }) {
       <div className="mt-1 mb-2 pt-3" style={{ borderTop: '0.5px solid var(--c-border)' }}>
         <div className="text-[11px] font-semibold mb-0.5" style={{ color: 'var(--c-text)' }}>
           Opening Balance
+          {!amAdmin && (
+            <span className="ml-1.5 font-normal text-[10px]" style={{ color: '#BA7517' }}>· owner only</span>
+          )}
         </div>
         <div className="text-[10px] mb-2" style={{ color: 'var(--c-faint)' }}>
-          Already owed to this party before you started using the app. Leave blank if nothing was owed.
+          {amAdmin
+            ? 'Already owed to this party before you started using the app. Set it once — it states what was true then, so it should not change afterwards.'
+            : 'What was already owed to this party before the app started. Only the farm owner can set or correct this figure.'}
         </div>
       </div>
       <Field label="Amount owed (₹)">
-        <input type="number" inputMode="decimal" placeholder="e.g. 67770" className={inputCls} style={inputStyle}
+        <input type="number" inputMode="decimal" placeholder={amAdmin ? 'e.g. 55580' : '—'}
+          className={inputCls} style={inputStyle} disabled={!amAdmin}
           value={form.opening_balance}
           onChange={e => setForm(f => ({ ...f, opening_balance: e.target.value }))} />
       </Field>
       <Field label="As on date">
-        <input type="date" className={inputCls} style={inputStyle}
+        <input type="date" className={inputCls} style={inputStyle} disabled={!amAdmin}
           value={form.opening_balance_date}
           onChange={e => setForm(f => ({ ...f, opening_balance_date: e.target.value }))} />
       </Field>
+      {amAdmin && editing && Number(vendor.opening_balance || 0) !== 0 && (
+        <div className="text-[10px] mb-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'rgba(186,117,23,0.1)', color: '#BA7517' }}>
+          This party already has an opening balance. Change it only to correct a mistake — every change is
+          recorded against your name.
+        </div>
+      )}
 
       {err && (
         <div className="text-[10px] mb-2 px-2 py-1.5 rounded-lg"
