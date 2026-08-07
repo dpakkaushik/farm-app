@@ -871,31 +871,22 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     const opening          = openingOf(v)
     const purchasedAllTime = vPurchases.reduce((s, p) => s + Number(p.totalCost || 0), 0)
     const paidAllTime      = vPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
-    // The opening balance counts as period activity only if it is dated into
-    // the period; undated, it is older than any period we could be showing.
-    const openingInFY = opening && openingDateOf(v) && inFY(openingDateOf(v), fy) ? opening : 0
+    // Purchased means purchases. The opening balance is a carried-in debt, not
+    // activity in any period — it shows on the khata's opening line and in
+    // Balance Due, and nowhere else, so both views agree on what it is.
     return {
       vendor: v,
       balanceDue:  opening + purchasedAllTime - paidAllTime,
-      purchasedFY: openingInFY
-        + vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
+      purchasedFY: vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
       paidFY:      vPayments.filter(p => inFY(p.payment_date, fy)).reduce((s, p) => s + Number(p.amount || 0), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
   const activeVendor = vendors.find(v => v.id === activeId)
 
-  // An undated opening balance sorts before everything, which is what it is.
-  const openingRows = activeVendor && openingOf(activeVendor) !== 0 ? [{
-    key:  `open:${activeVendor.id}`,
-    date: openingDateOf(activeVendor) || '2000-01-01',
-    type: 'opening',
-    particulars: 'Opening balance — carried in from before the app',
-    debit: openingOf(activeVendor), credit: 0,
-  }] : []
+  const vendorOpening = openingOf(activeVendor)
 
   const ledgerRowsAll = activeVendor ? [
-    ...openingRows,
     ...purchasesAsBillRows(purchasesFor(activeVendor), activeVendor.name),
     ...paymentsFor(activeVendor).map(p => ({
       key: `pay:${p.id}`, date: p.payment_date, type: 'payment',
@@ -905,9 +896,13 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
   ].sort((a, b) => new Date(a.date) - new Date(b.date)) : []
 
   const range = fyRange(fy)
-  const openingBal = range
+  // A party's opening balance IS the khata's opening line — it precedes every
+  // document by definition, whatever date it happens to be stamped with. Dating
+  // it as an ordinary row sorted Ankur's ₹55,580 in among June's bills, below
+  // the bill it was supposed to open above. So it is folded in here instead.
+  const openingBal = vendorOpening + (range
     ? ledgerRowsAll.filter(r => r.date < range.start).reduce((s, r) => s + r.debit - r.credit, 0)
-    : 0
+    : 0)
   const ledgerRowsFY = range ? ledgerRowsAll.filter(r => r.date >= range.start && r.date <= range.end) : ledgerRowsAll
 
   let running = openingBal
@@ -918,7 +913,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 
   const purchasedFY = ledgerWithBal.reduce((s, r) => s + r.debit, 0)
   const paidFY      = ledgerWithBal.reduce((s, r) => s + r.credit, 0)
-  const balanceDueAllTime = ledgerRowsAll.reduce((s, r) => s + r.debit - r.credit, 0)
+  const balanceDueAllTime = vendorOpening + ledgerRowsAll.reduce((s, r) => s + r.debit - r.credit, 0)
 
   // Month-wise grouping with opening / closing balance (within the FY-scoped rows)
   const byMonth = {}
@@ -1134,9 +1129,17 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                   </tr>
                 </thead>
                 <tbody>
-                  {range && (
+                  {(range || openingBal !== 0) && (
                     <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      <td colSpan={4} className="px-3 py-2 italic" style={{ color: 'var(--c-faint)' }}>Opening Balance</td>
+                      <td colSpan={4} className="px-3 py-2 italic" style={{ color: 'var(--c-faint)' }}>
+                        Opening Balance
+                        {vendorOpening !== 0 && (
+                          <span className="not-italic ml-1.5 text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                            · includes {fmt(vendorOpening)} owed before the app
+                            {openingDateOf(activeVendor) ? ` (as on ${fmtDate(openingDateOf(activeVendor))})` : ''}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right font-bold" style={{ color: openingBal > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(openingBal)}</td>
                     </tr>
                   )}
