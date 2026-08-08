@@ -237,7 +237,9 @@ export default function Harvest() {
   // ── Mark payment (non-cane) ───────────────────────────────────────────────────
   const openCropPayModal = (cycle, session, sale) => {
     setCropPayFile(null)
-    setCropPayModal({ cycle, session, sale, date: new Date().toISOString().slice(0, 10), ded: '', dedNote: '' })
+    // Local grain deals settle in cash unless said otherwise; the mode decides
+    // which account the money lands in.
+    setCropPayModal({ cycle, session, sale, date: new Date().toISOString().slice(0, 10), ded: '', dedNote: '', mode: 'cash' })
   }
 
   const confirmCropPayment = async () => {
@@ -250,6 +252,7 @@ export default function Harvest() {
         deductions:            parseFloat(cropPayModal.ded) || 0,
         deductionsNote:        cropPayModal.dedNote || null,
         paymentAttachmentPath: attachmentPath,
+        paymentMode:           cropPayModal.mode || 'cash',
       })
       showToast('Payment confirmed — harvest complete ✓')
       setCropPayModal(null)
@@ -314,7 +317,8 @@ export default function Harvest() {
 
   const openPayModal = (supply, sale) => {
     setPayFile(null)
-    setPayModal({ supply, sale, ded: '', dedNote: '', date: new Date().toISOString().slice(0, 10) })
+    // A mill settles a parchi into the bank; cash would be the exception.
+    setPayModal({ supply, sale, ded: '', dedNote: '', date: new Date().toISOString().slice(0, 10), mode: 'bank' })
   }
 
   const confirmPayment = async () => {
@@ -323,7 +327,7 @@ export default function Harvest() {
     try {
       let paymentAttachmentPath = null
       if (payFile) paymentAttachmentPath = await uploadFile(payFile, 'payment', payModal.sale.id)
-      await markCanePayment(payModal.sale.id, { paymentDate: payModal.date, deductions: parseFloat(payModal.ded) || 0, deductionsNote: payModal.dedNote || null, paymentAttachmentPath })
+      await markCanePayment(payModal.sale.id, { paymentDate: payModal.date, deductions: parseFloat(payModal.ded) || 0, deductionsNote: payModal.dedNote || null, paymentAttachmentPath, paymentMode: payModal.mode || 'bank' })
       showToast('Payment recorded')
       setPayModal(null)
     } finally { setSaving(false) }
@@ -1103,6 +1107,20 @@ export default function Harvest() {
                 <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
                   <input type="date" value={cropPayModal.date} onChange={e => setCropPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
 
+                {/* Decides which account the money lands in: Cash in hand or Bank */}
+                <div><label className="text-xs text-[var(--c-sub)] block mb-1">Received as</label>
+                  <div className="flex gap-2">
+                    {[['cash', '💵 Cash'], ['bank', '🏦 Bank / UPI / Cheque']].map(([m, label]) => (
+                      <button key={m} onClick={() => setCropPayModal(p => ({ ...p, mode: m }))}
+                        className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                        style={{
+                          background: cropPayModal.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                          color:      cropPayModal.mode === m ? '#fff'    : 'var(--c-muted)',
+                          border:     `1px solid ${cropPayModal.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                        }}>{label}</button>
+                    ))}
+                  </div></div>
+
                 <div><label className="text-xs text-[var(--c-sub)] block mb-1">Additional deductions ₹ <span className="text-[10px] text-[var(--c-faint)]">(if any at payment time)</span></label>
                   <input type="number" placeholder="0" value={cropPayModal.ded} onChange={e => setCropPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
 
@@ -1300,6 +1318,19 @@ export default function Harvest() {
                 <>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Payment date</label>
                     <input type="date" value={payModal.date} onChange={e => setPayModal(p => ({ ...p, date: e.target.value }))} className="finput" style={{ colorScheme: 'dark' }}/></div>
+                  {/* Mills settle into the bank; the toggle exists for the exception. */}
+                  <div><label className="text-xs text-[var(--c-sub)] block mb-1">Received as</label>
+                    <div className="flex gap-2">
+                      {[['bank', '🏦 Bank'], ['cash', '💵 Cash']].map(([m, label]) => (
+                        <button key={m} onClick={() => setPayModal(p => ({ ...p, mode: m }))}
+                          className="flex-1 py-2 rounded-xl text-xs font-semibold"
+                          style={{
+                            background: payModal.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                            color:      payModal.mode === m ? '#fff'    : 'var(--c-muted)',
+                            border:     `1px solid ${payModal.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                          }}>{label}</button>
+                      ))}
+                    </div></div>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deductions ₹</label>
                     <input type="number" placeholder="0" value={payModal.ded} onChange={e => setPayModal(p => ({ ...p, ded: e.target.value }))} className="finput"/></div>
                   <div><label className="text-xs text-[var(--c-sub)] block mb-1">Deduction note (optional)</label>

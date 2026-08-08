@@ -42,7 +42,7 @@ export default function SetupChecklist() {
   const {
     inventoryMaster, cropCycles, purchases, vendors, buyers, regularLabourers,
     recordOpeningStock, farmOpening, loadFarmOpening, setFarmOpening,
-    setBuyerOpeningBalance,
+    setBuyerOpeningBalance, accounts, setAccountOpening,
     setupChecklistOpen, closeSetupChecklist,
   } = useAppStore()
 
@@ -121,8 +121,9 @@ export default function SetupChecklist() {
             onClose={close} />}
           {effectiveView === 'stock'  && <StockForm items={inventoryMaster} purchases={purchases}
             onBack={() => setView('menu')} onSave={recordOpeningStock} onDone={close} />}
-          {effectiveView === 'cash'   && <CashForm opening={farmOpening}
-            onBack={() => setView('menu')} onSave={setFarmOpening} onDone={close} />}
+          {effectiveView === 'cash'   && <CashForm opening={farmOpening} accounts={accounts}
+            onBack={() => setView('menu')} onSave={setFarmOpening}
+            onSaveAccount={setAccountOpening} onDone={close} />}
           {effectiveView === 'buyers' && <BuyersForm buyers={buyers}
             goLiveDate={farmOpening?.goLiveDate}
             onBack={() => setView('menu')} onSave={setBuyerOpeningBalance} onDone={close} />}
@@ -360,8 +361,12 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
 // Stored on `farms`, not as a cash entry, so it can never be mistaken for a
 // receipt — v_cash_book projects it as the opening line of the book.
 
-function CashForm({ opening, onBack, onSave, onDone }) {
-  const [amount, setAmount] = useState(opening?.openingCash ? String(opening.openingCash) : '')
+function CashForm({ opening, accounts = [], onBack, onSave, onSaveAccount, onDone }) {
+  // One amount per account: cash actually in the box, money actually in the
+  // bank. The single farm-level figure (0027) is superseded — money lives in
+  // named accounts now — but the go-live date still belongs to the farm.
+  const [amounts, setAmounts] = useState(() =>
+    Object.fromEntries(accounts.map(a => [a.id, a.opening_balance ? String(a.opening_balance) : ''])))
   const [date,   setDate]   = useState(opening?.goLiveDate || opening?.openingCashDate || '')
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
@@ -370,7 +375,14 @@ function CashForm({ opening, onBack, onSave, onDone }) {
     if (!date) { setError('Pick the date you are counting from — every other opening figure is stated as of this day.'); return }
     setSaving(true); setError('')
     try {
-      await onSave({ openingCash: amount, openingCashDate: date, goLiveDate: date })
+      // The farm keeps the go-live date; opening cash lives on the accounts.
+      await onSave({ openingCash: 0, openingCashDate: null, goLiveDate: date })
+      for (const a of accounts) {
+        const amt = parseFloat(amounts[a.id])
+        if (!isNaN(amt) && amt !== Number(a.opening_balance || 0)) {
+          await onSaveAccount(a.id, amt, date)
+        }
+      }
       onDone()
     } catch (err) {
       setError(err.message || 'Could not save. Please try again.')
@@ -380,8 +392,8 @@ function CashForm({ opening, onBack, onSave, onDone }) {
 
   return (
     <>
-      <SheetHeader title="Cash in hand" onBack={onBack} onClose={onDone}
-        sub="Cash you hold on the day you start. Opens the Cash Book, so its balance is real rather than counted from zero." />
+      <SheetHeader title="Cash & bank" onBack={onBack} onClose={onDone}
+        sub="What each account held on the day you start. Opens the Cash Book, so its balances are real rather than counted from zero." />
       {error && <ErrorBox>{error}</ErrorBox>}
       <div className="px-4 pt-3 flex flex-col gap-3">
         <div>
@@ -391,14 +403,24 @@ function CashForm({ opening, onBack, onSave, onDone }) {
           </p>
           <input type="date" style={inputStyle} value={date} onChange={e => setDate(e.target.value)} />
         </div>
-        <div>
-          <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>Cash in hand (₹)</label>
-          <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
-            Leave blank or zero if you were holding no cash.
+        {accounts.map(a => (
+          <div key={a.id}>
+            <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>
+              {a.type === 'bank' ? '🏦' : '💵'} {a.name} (₹)
+            </label>
+            <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+              {a.type === 'bank' ? 'Balance in this account on that day.' : 'Notes actually in the box on that day.'} Leave blank if nothing.
+            </p>
+            <input type="number" inputMode="decimal" placeholder="e.g. 50000" style={inputStyle}
+              value={amounts[a.id] ?? ''}
+              onChange={e => setAmounts(m => ({ ...m, [a.id]: e.target.value }))} />
+          </div>
+        ))}
+        {accounts.length === 0 && (
+          <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+            No accounts found — the accounts migration has not been applied yet.
           </p>
-          <input type="number" inputMode="decimal" placeholder="e.g. 50000" style={inputStyle}
-            value={amount} onChange={e => setAmount(e.target.value)} />
-        </div>
+        )}
       </div>
       <SaveBar onSave={save} saving={saving} disabled={!date} label="Save" />
     </>

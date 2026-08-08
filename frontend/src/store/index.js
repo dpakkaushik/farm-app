@@ -1043,6 +1043,7 @@ const useAppStore = create((set, get) => ({
     await get().writeCashEntry({
       entry_date: adv.date, amount: parseFloat(adv.amount), direction: 'out',
       entry_type: 'advance_payment', notes: `Advance — ${who}`, reference_id: data.id,
+      payment_mode: adv.paymentMode,
     })
     set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
   },
@@ -1064,17 +1065,73 @@ const useAppStore = create((set, get) => ({
     return all.find(l => l.id === id)?.name || 'Worker'
   },
 
-  writeCashEntry: async ({ entry_date, amount, direction, entry_type, notes, reference_id }) => {
+  // Which pocket a payment mode reaches into. Every payment form already asks
+  // the mode; this makes the answer route the money instead of being a
+  // recorded-and-ignored label — paying the mill by cheque must drain the
+  // bank, not the manager's pocket. Unknown/absent mode falls to the default
+  // account, which the DB-side trigger would also do; resolving it here keeps
+  // the store's optimistic state honest.
+  accounts: [],
+  accountFor: (mode) => {
+    const { accounts } = get()
+    if (!accounts.length) return null   // pre-0028 database: trigger-less, column ignored
+    // Matched loosely because modes arrive in several spellings — 'bank',
+    // 'bank_transfer', 'cheque', 'upi' — and a miss silently drains the wrong
+    // pocket, which is the exact bug this exists to kill.
+    const wantBank = /bank|upi|cheque|online|neft|rtgs|account/.test((mode || '').toLowerCase())
+    return (wantBank && accounts.find(a => a.type === 'bank'))
+        || accounts.find(a => a.is_default)
+        || accounts[0]
+  },
+
+  writeCashEntry: async ({ entry_date, amount, direction, entry_type, notes, reference_id, payment_mode, account_id }) => {
     if (!amount || amount <= 0) return
     const { data: { user } } = await supabase.auth.getUser()
+    const account = account_id || get().accountFor(payment_mode)?.id || null
     const { data, error } = await supabase.from('owner_cash_entries').insert({
       farm_id: getFarmId(), entry_date, amount, direction, entry_type,
       notes: notes || null, reference_id: reference_id || null,
+      account_id: account,
       created_by: user?.id || null,
     }).select().single()
     if (error) throw error
     const { data: cb } = await supabase.from('v_cash_book').select('*')
     set(s => ({ ownerCashEntries: [...s.ownerCashEntries, data], cashBook: cb || [] }))
+  },
+
+  // Owner tops up the manager, or banks the cash box: the same money changing
+  // pockets. Two linked rows written by one database function so it can never
+  // half-happen; nets to zero for the farm; never income, never expense.
+  recordTransfer: async ({ fromAccountId, toAccountId, amount, date, notes }) => {
+    const { error } = await supabase.rpc('record_transfer', {
+      p_from_account: fromAccountId,
+      p_to_account:   toAccountId,
+      p_amount:       parseFloat(amount),
+      p_date:         date,
+      p_notes:        notes || null,
+    })
+    if (error) throw error
+    const [{ data: entries }, { data: cb }] = await Promise.all([
+      supabase.from('owner_cash_entries').select('*').eq('farm_id', getFarmId()).order('entry_date'),
+      supabase.from('v_cash_book').select('*'),
+    ])
+    set({ ownerCashEntries: entries || [], cashBook: cb || [] })
+  },
+
+  // An account's opening balance — cash actually in the box, money actually in
+  // the bank, on go-live day. Owner-only and logged (guard in 0028).
+  setAccountOpening: async (accountId, amount, asOnDate) => {
+    const { data, error } = await supabase.from('accounts').update({
+      opening_balance:      parseFloat(amount) || 0,
+      opening_balance_date: asOnDate || null,
+    }).eq('id', accountId).select().single()
+    if (error) throw error
+    const { data: cb } = await supabase.from('v_cash_book').select('*')
+    set(s => ({
+      accounts: s.accounts.map(a => (a.id === accountId ? data : a)),
+      cashBook: cb || s.cashBook,
+    }))
+    return data
   },
 
   removeCashEntriesFor: async (referenceId) => {
@@ -1099,6 +1156,7 @@ const useAppStore = create((set, get) => ({
     await get().writeCashEntry({
       entry_date: date, amount: Number(row.amount), direction: 'out',
       entry_type: 'labour_payment', notes: row.description, reference_id: row.id,
+      payment_mode: 'cash',   // matches the paid_via written two statements up
     })
     const { data: el } = await supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false })
     set(s => ({
@@ -1128,6 +1186,7 @@ const useAppStore = create((set, get) => ({
       entry_date: p.date, amount: parseFloat(p.amount), direction: 'out',
       entry_type: 'salary_payment',
       notes: `Salary — ${who}${p.month ? ` (${p.month})` : ''}`, reference_id: data.id,
+      payment_mode: p.paymentMode,
     })
     set(s => ({ salaryPayments: [mapSalaryPayment(data), ...s.salaryPayments] }))
   },
@@ -1876,6 +1935,7 @@ const useAppStore = create((set, get) => ({
       entry_type: 'livestock_sale',
       notes: `Livestock — ${rev.revenueType || 'revenue'}${rev.buyerName ? ` — ${rev.buyerName}` : ''}`,
       reference_id: data.id,
+      payment_mode: rev.paymentMode,
     })
 
     if (rev.isSale && rev.livestockId) {
@@ -2063,7 +2123,7 @@ const useAppStore = create((set, get) => ({
     set(s => ({ harvestSessions: [...s.harvestSessions, mapSession(session)], sales: [...s.sales, mapSale(sale)] }))
   },
 
-  markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
+  markCanePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath, paymentMode }) => {
     const { sales: allSales } = get()
     const sale = allSales.find(s => s.id === saleId)
     const ded = parseFloat(deductions) || 0
@@ -2075,15 +2135,18 @@ const useAppStore = create((set, get) => ({
 
     // Record in cash book: gross received in, extra deduction (if any) out —
     // this was previously never written to the cash book at all.
+    // A mill settles a parchi into the bank, so bank is the default door; the
+    // deduction leaves the same account the payment arrived in.
     const { data: { user } } = await supabase.auth.getUser()
+    const account = get().accountFor(paymentMode || 'bank')?.id || null
     const cashRows = [{
       farm_id: getFarmId(), entry_date: paymentDate, amount: sale?.grossAmount || 0,
-      direction: 'in', entry_type: 'cane_sale',
+      direction: 'in', entry_type: 'cane_sale', account_id: account,
       notes: `Cane sale — ${buyerLabel}`, created_by: user?.id || null,
     }]
     if (ded > 0) cashRows.push({
       farm_id: getFarmId(), entry_date: paymentDate, amount: ded,
-      direction: 'out', entry_type: 'sale_deduction',
+      direction: 'out', entry_type: 'sale_deduction', account_id: account,
       notes: deductionsNote || `Deduction — ${buyerLabel}`, created_by: user?.id || null,
     })
     const { data: newEntries, error: cashErr } = await supabase.from('owner_cash_entries').insert(cashRows).select()
@@ -2135,7 +2198,7 @@ const useAppStore = create((set, get) => ({
     return mapSale(sale)
   },
 
-  markCropSalePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath }) => {
+  markCropSalePayment: async (saleId, { paymentDate, deductions, deductionsNote, paymentAttachmentPath, paymentMode }) => {
     const { sales: allSales } = get()
     const sale = allSales.find(s => s.id === saleId)
     const ded         = parseFloat(deductions) || 0
@@ -2156,29 +2219,32 @@ const useAppStore = create((set, get) => ({
     // Record the full picture in the cash book: gross received in, then each
     // deduction (commission/freight/extra) as its own cash-out line — instead
     // of a single opaque net figure — so the cash book stays auditable.
+    // Every leg lands in the account the money actually arrived in.
     const { data: { user } } = await supabase.auth.getUser()
+    const account = get().accountFor(paymentMode)?.id || null
     const cashRows = [{
       farm_id:     getFarmId(),
       entry_date:  paymentDate,
       amount:      sale?.grossAmount || 0,
       direction:   'in',
       entry_type:  'crop_sale',
+      account_id:  account,
       notes:       `Crop sale — ${buyerLabel}`,
       created_by:  user?.id || null,
     }]
     if (commissionAmt > 0) cashRows.push({
       farm_id: getFarmId(), entry_date: paymentDate, amount: commissionAmt,
-      direction: 'out', entry_type: 'commission_expense',
+      direction: 'out', entry_type: 'commission_expense', account_id: account,
       notes: `Commission — ${buyerLabel}`, created_by: user?.id || null,
     })
     if (freight > 0) cashRows.push({
       farm_id: getFarmId(), entry_date: paymentDate, amount: freight,
-      direction: 'out', entry_type: 'freight_expense',
+      direction: 'out', entry_type: 'freight_expense', account_id: account,
       notes: `Freight — ${buyerLabel}`, created_by: user?.id || null,
     })
     if (ded > 0) cashRows.push({
       farm_id: getFarmId(), entry_date: paymentDate, amount: ded,
-      direction: 'out', entry_type: 'sale_deduction',
+      direction: 'out', entry_type: 'sale_deduction', account_id: account,
       notes: deductionsNote || `Deduction — ${buyerLabel}`, created_by: user?.id || null,
     })
     const { data: newEntries, error: cashErr } = await supabase.from('owner_cash_entries').insert(cashRows).select()
@@ -2449,6 +2515,7 @@ const useAppStore = create((set, get) => ({
       { data: livestockPnlRaw },
       { data: cropPnlRaw },
       { data: salaryDuesRaw },
+      { data: accountsRaw },
     ] = await Promise.all([
       supabase.from('vendors').select('*').eq('farm_id', farmId).order('name'),
       supabase.from('vendor_payments').select('*, vendors(name)').eq('farm_id', farmId).order('payment_date', { ascending: false }),
@@ -2463,9 +2530,11 @@ const useAppStore = create((set, get) => ({
       supabase.from('v_livestock_pnl').select('*').eq('farm_id', farmId),
       supabase.from('v_crop_pnl').select('*').eq('farm_id', farmId),
       supabase.from('v_salary_dues').select('*'),
+      supabase.from('accounts').select('*').eq('farm_id', farmId).eq('is_active', true).order('created_at'),
     ])
     set({
       salaryDues:       salaryDuesRaw       || [],
+      accounts:         accountsRaw         || [],
       vendors:          vendorsRaw          || [],
       vendorPayments:   vendorPaymentsRaw   || [],
       ownerCashEntries: ownerCashRaw        || [],
@@ -2581,6 +2650,7 @@ const useAppStore = create((set, get) => ({
       direction:  entry.direction,
       entry_type: entry.entry_type || 'owner_capital',
       notes:      entry.notes || null,
+      account_id: entry.account_id || get().accountFor(null)?.id || null,
       created_by: user?.id || null,
     }).select().single()
     if (error) throw error
@@ -2602,6 +2672,7 @@ const useAppStore = create((set, get) => ({
       direction:  'out',
       entry_type: 'vendor_payment',
       notes:      payment.notes || `Paid to ${payment.vendorName || 'Vendor'}`,
+      account_id: get().accountFor(payment.payment_mode)?.id || null,
       created_by: user?.id || null,
     }).select().single()
     if (ce) throw ce
@@ -2639,6 +2710,7 @@ const useAppStore = create((set, get) => ({
       direction:  'out',
       entry_type: 'expense_payment',
       notes:      payment.notes || 'Expense Payment',
+      account_id: get().accountFor(payment.payment_mode)?.id || null,
       created_by: user?.id || null,
     }).select().single()
     if (ce) throw ce

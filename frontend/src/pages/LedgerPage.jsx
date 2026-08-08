@@ -138,11 +138,12 @@ const inputCls = 'w-full px-3 py-2 rounded-xl text-sm outline-none'
 const inputStyle = { background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }
 
 // ── Add Cash Entry Modal ──────────────────────────────────────────────────────
-function AddCashModal({ onClose, onSave }) {
+function AddCashModal({ accounts = [], onClose, onSave }) {
   const today = new Date().toISOString().slice(0, 10)
   const [form, setForm] = useState({
     entry_date: today, amount: '', direction: 'in',
     entry_type: 'owner_capital', notes: '',
+    account_id: accounts.find(a => a.is_default)?.id || accounts[0]?.id || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -164,11 +165,22 @@ function AddCashModal({ onClose, onSave }) {
             const [dir, typ] = e.target.value.split(':')
             setForm(f => ({ ...f, direction: dir, entry_type: typ }))
           }}>
-          <option value="in:owner_capital">Owner adds cash (Capital Injection)</option>
-          <option value="in:revenue_receipt">Revenue received in cash</option>
-          <option value="out:other_payment">Other cash payment</option>
+          <option value="in:owner_capital">Owner adds money (Capital Injection)</option>
+          <option value="in:revenue_receipt">Revenue received</option>
+          <option value="out:owner_drawing">Owner takes money out (Drawing)</option>
+          <option value="out:other_payment">Other payment</option>
         </select>
       </Field>
+      {accounts.length > 1 && (
+        <Field label="Account">
+          <select className={inputCls} style={inputStyle} value={form.account_id}
+            onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))}>
+            {accounts.map(a => (
+              <option key={a.id} value={a.id}>{a.type === 'bank' ? '🏦' : '💵'} {a.name}</option>
+            ))}
+          </select>
+        </Field>
+      )}
       <Field label="Amount (₹)">
         <input type="number" placeholder="0" className={inputCls} style={inputStyle}
           value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
@@ -182,6 +194,86 @@ function AddCashModal({ onClose, onSave }) {
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
         style={{ background: '#1D9E75' }}>
         {saving ? 'Saving…' : 'Save Entry'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Move Money — a transfer between the farm's own accounts ──────────────────
+//
+// Owner tops up the manager (Bank → Cash), or the cash box is banked. The same
+// money changing pockets: two linked rows, nets to zero for the farm, never
+// income and never expense. This is the entry the app previously could not
+// record at all — the only door was owner_capital, which would have overstated
+// both the farm's cash and the owner's stake.
+function MoveMoneyModal({ accounts, onClose, onSave }) {
+  const today = new Date().toISOString().slice(0, 10)
+  const bank = accounts.find(a => a.type === 'bank')
+  const cash = accounts.find(a => a.type === 'cash')
+  const [form, setForm] = useState({
+    // The common case on a farm: owner's bank feeds the manager's cash box.
+    fromAccountId: bank?.id || accounts[0]?.id || '',
+    toAccountId:   cash?.id || accounts[1]?.id || '',
+    amount: '', date: today, notes: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  const valid = form.fromAccountId && form.toAccountId
+    && form.fromAccountId !== form.toAccountId
+    && parseFloat(form.amount) > 0
+
+  const save = async () => {
+    if (!valid) return
+    setSaving(true); setErr('')
+    try { await onSave(form); onClose() }
+    catch (e) { setErr(e.message || 'Transfer failed') }
+    finally { setSaving(false) }
+  }
+
+  const accountLabel = (a) => `${a.type === 'bank' ? '🏦' : '💵'} ${a.name}`
+
+  return (
+    <Modal title="Move Money" onClose={onClose}>
+      <p className="text-[10px] mb-3 leading-snug" style={{ color: 'var(--c-faint)' }}>
+        Moves money between your own accounts — e.g. sending cash to the farm from
+        the bank. Not an income or an expense; the farm's total does not change.
+      </p>
+      <Field label="From">
+        <select className={inputCls} style={inputStyle} value={form.fromAccountId}
+          onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))}>
+          {accounts.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+        </select>
+      </Field>
+      <Field label="To">
+        <select className={inputCls} style={inputStyle} value={form.toAccountId}
+          onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))}>
+          {accounts.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+        </select>
+      </Field>
+      {form.fromAccountId === form.toAccountId && (
+        <p className="text-[10px] mb-2" style={{ color: '#E24B4A' }}>Pick two different accounts.</p>
+      )}
+      <Field label="Amount (₹)">
+        <input type="number" placeholder="0" className={inputCls} style={inputStyle}
+          value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+      </Field>
+      <Field label="Date">
+        <input type="date" className={inputCls} style={inputStyle} value={form.date}
+          onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+      </Field>
+      <Field label="Notes (optional)">
+        <input type="text" placeholder="e.g. Monthly cash for farm expenses" className={inputCls} style={inputStyle}
+          value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+      </Field>
+      {err && (
+        <div className="text-[10px] mb-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'rgba(226,75,74,0.1)', color: '#E24B4A' }}>{err}</div>
+      )}
+      <button disabled={saving || !valid} onClick={save}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
+        style={{ background: '#1D9E75' }}>
+        {saving ? 'Moving…' : 'Move Money'}
       </button>
     </Modal>
   )
@@ -340,7 +432,7 @@ function VendorModal({ vendor, onClose, onSave }) {
 }
 
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
-function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, totalReceivables,
+function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpenses, totalVendorDues, totalReceivables,
                       totalWageDues = 0, totalSalaryDues = 0, onGoSalary, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
@@ -363,8 +455,21 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
           {fmt(cashBalance)}
         </div>
         <div className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
-          Total cash in hand after all payments recorded
+          Across all accounts, after every payment recorded
         </div>
+        {/* Which pocket holds it — cash with the manager vs money in the bank */}
+        {accountBalances.length > 1 && (
+          <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
+            {accountBalances.map(a => (
+              <div key={a.id} className="flex justify-between text-[11px]">
+                <span style={{ color: 'var(--c-muted)' }}>{a.type === 'bank' ? '🏦' : '💵'} {a.name}</span>
+                <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
+                  {fmt(a.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Receivables alert — money owed TO the farm by buyers */}
@@ -457,8 +562,21 @@ function SummaryTab({ cashBalance, totalIncome, totalExpenses, totalVendorDues, 
 }
 
 // ── Tab: Cash Book ────────────────────────────────────────────────────────────
-function CashBookTab({ cashBook, openingBalance = 0, showOpening = false, onAdd }) {
-  const rows = [...cashBook].reverse() // newest first for display
+function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening = false, onAdd, onMove }) {
+  // null = whole farm; an account id = that pocket's own book. Transfers net
+  // to zero at farm level and show as ordinary in/out per pocket.
+  const [accountFilter, setAccountFilter] = useState(null)
+  const filtered = accountFilter ? cashBook.filter(r => r.account_id === accountFilter) : cashBook
+  const rows = [...filtered].reverse() // newest first for display
+
+  // Each pocket's balance is its last row's account_running_balance — as of
+  // today, never scoped to the period, same rule as every balance-sheet fact.
+  const balanceOf = (accountId) => {
+    for (let i = cashBook.length - 1; i >= 0; i--) {
+      if (cashBook[i].account_id === accountId) return Number(cashBook[i].account_running_balance || 0)
+    }
+    return 0
+  }
 
   return (
     <div className="flex flex-col gap-3 pt-3">
@@ -466,15 +584,51 @@ function CashBookTab({ cashBook, openingBalance = 0, showOpening = false, onAdd 
         <div>
           <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>Cash Book</div>
           <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-            All cash receipts and payments with running balance
+            Every receipt and payment, in the account it actually touched
           </div>
         </div>
-        <button onClick={onAdd}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-          style={{ background: '#1D9E75' }}>
-          <Plus size={12} /> Add Entry
-        </button>
+        <div className="flex gap-1.5">
+          {accounts.length > 1 && (
+            <button onClick={onMove}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
+              style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
+              ⇄ Move Money
+            </button>
+          )}
+          <button onClick={onAdd}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-white"
+            style={{ background: '#1D9E75' }}>
+            <Plus size={12} /> Add Entry
+          </button>
+        </div>
       </div>
+
+      {/* One chip per pocket: its balance, and tap to see only its book */}
+      {accounts.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto">
+          <button onClick={() => setAccountFilter(null)}
+            className="px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0"
+            style={{
+              background: !accountFilter ? '#1D9E75' : 'var(--c-ghost)',
+              color:      !accountFilter ? '#fff'    : 'var(--c-muted)',
+              border:     `1px solid ${!accountFilter ? '#1D9E75' : 'var(--c-border)'}`,
+            }}>
+            All accounts
+          </button>
+          {accounts.map(a => (
+            <button key={a.id} onClick={() => setAccountFilter(f => f === a.id ? null : a.id)}
+              className="px-3 py-1.5 rounded-xl text-[11px] shrink-0 text-left"
+              style={{
+                background: accountFilter === a.id ? '#1D9E75' : 'var(--c-ghost)',
+                color:      accountFilter === a.id ? '#fff'    : 'var(--c-text)',
+                border:     `1px solid ${accountFilter === a.id ? '#1D9E75' : 'var(--c-border)'}`,
+              }}>
+              <span className="font-semibold">{a.type === 'bank' ? '🏦' : '💵'} {a.name}</span>
+              <span className="ml-1.5 font-bold">{fmt(balanceOf(a.id))}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {showOpening && (
         <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: 'var(--c-ghost)' }}>
@@ -508,6 +662,11 @@ function CashBookTab({ cashBook, openingBalance = 0, showOpening = false, onAdd 
                   </td>
                   <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
                     {row.particulars}
+                    {row.account_name && accounts.length > 1 && (
+                      <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>
+                        {row.account_name}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right font-medium" style={{ color: '#1D9E75' }}>
                     {Number(row.receipt_amount) > 0 ? fmt(row.receipt_amount) : '—'}
@@ -515,9 +674,10 @@ function CashBookTab({ cashBook, openingBalance = 0, showOpening = false, onAdd 
                   <td className="px-3 py-2 text-right font-medium" style={{ color: '#E24B4A' }}>
                     {Number(row.payment_amount) > 0 ? fmt(row.payment_amount) : '—'}
                   </td>
+                  {/* Filtered to one pocket, the balance shown is that pocket's */}
                   <td className="px-3 py-2 text-right font-bold"
-                    style={{ color: Number(row.running_balance) >= 0 ? '#1D9E75' : '#E24B4A' }}>
-                    {fmt(row.running_balance)}
+                    style={{ color: Number(accountFilter ? row.account_running_balance : row.running_balance) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    {fmt(accountFilter ? row.account_running_balance : row.running_balance)}
                   </td>
                 </tr>
               ))}
@@ -1800,6 +1960,7 @@ export default function LedgerPage() {
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
     markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
+    accounts, recordTransfer,
   } = useAppStore()
 
   const canManage = isManager(getActiveFarmRole())
@@ -1815,6 +1976,7 @@ export default function LedgerPage() {
   const [loading, setLoading] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState(null)
   const [showAddCash, setShowAddCash] = useState(false)
+  const [showMoveMoney, setShowMoveMoney] = useState(false)
   const [showPayVendor, setShowPayVendor] = useState(false)
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [editVendor,    setEditVendor]    = useState(null)
@@ -1852,6 +2014,14 @@ export default function LedgerPage() {
   const cashBalance = cashBook.length > 0
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
+  // Each account's balance is its last row's account_running_balance.
+  const accountBalances = accounts.map(a => {
+    let balance = 0
+    for (let i = cashBook.length - 1; i >= 0; i--) {
+      if (cashBook[i].account_id === a.id) { balance = Number(cashBook[i].account_running_balance || 0); break }
+    }
+    return { id: a.id, name: a.name, type: a.type, balance }
+  })
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
   // Outside labour + general expenses incurred but not yet handed over. Salary is
   // NOT here — rostered workers settle through their khata, counted below.
@@ -2065,6 +2235,7 @@ export default function LedgerPage() {
         {tab === 'summary'  && (
           <SummaryTab
             cashBalance={cashBalance}
+            accountBalances={accountBalances}
             totalIncome={totalIncome}
             totalExpenses={totalExpenses}
             totalVendorDues={totalVendorDues}
@@ -2078,9 +2249,11 @@ export default function LedgerPage() {
         {tab === 'cashbook' && (
           <CashBookTab
             cashBook={cashBookFY}
+            accounts={accounts}
             openingBalance={cashBookOpening}
             showOpening={fy !== 'all'}
             onAdd={() => setShowAddCash(true)}
+            onMove={() => setShowMoveMoney(true)}
           />
         )}
         {tab === 'income'   && <IncomeTab incomeLedger={incomeLedgerFY} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />}
@@ -2141,7 +2314,8 @@ export default function LedgerPage() {
       </div>
 
       {/* Modals */}
-      {showAddCash    && <AddCashModal   onClose={() => setShowAddCash(false)}    onSave={addOwnerCashEntry} />}
+      {showAddCash    && <AddCashModal   accounts={accounts} onClose={() => setShowAddCash(false)} onSave={addOwnerCashEntry} />}
+      {showMoveMoney  && <MoveMoneyModal accounts={accounts} onClose={() => setShowMoveMoney(false)} onSave={recordTransfer} />}
       {showPayVendor  && <PayVendorModal vendors={vendors} selectedVendor={selectedVendor} onClose={() => setShowPayVendor(false)} onSave={addVendorPayment} />}
       {showAddVendor  && <VendorModal onClose={() => setShowAddVendor(false)} onSave={addVendor} />}
       {editVendor     && (
