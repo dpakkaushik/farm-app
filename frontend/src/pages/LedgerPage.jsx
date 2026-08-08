@@ -1469,7 +1469,14 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
                   <tr key={party.key} onClick={() => setActiveKey(party.key)}
                     className="cursor-pointer hover:bg-[var(--c-ghost)] transition-colors"
                     style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>{party.name}</td>
+                    <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>
+                      {party.name}
+                      {Number(party.opening || 0) !== 0 && (
+                        <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>
+                          incl. opening {fmt(party.opening)}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(sFY)}</td>
                     <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(rFY)}</td>
                     <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDue)}</td>
@@ -1516,6 +1523,17 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
         <p className="text-[10px] text-center py-2 rounded-xl" style={{ color: '#BA7517', background: 'rgba(186,117,23,0.1)' }}>
           Mark payment against the specific sale to clear this balance — Harvest page for crops, Trees → Sales for tree deals
         </p>
+      )}
+
+      {/* Owed before the app existed — real money the sale rows below cannot
+          explain, so it is shown rather than silently folded into Balance Due. */}
+      {Number(active.opening || 0) !== 0 && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: 'var(--c-ghost)' }}>
+          <span className="text-[10px] font-medium" style={{ color: 'var(--c-faint)' }}>
+            Opening balance — owed from before the app
+          </span>
+          <span className="text-xs font-bold" style={{ color: '#BA7517' }}>{fmt(active.opening)}</span>
+        </div>
       )}
 
       <Card className="overflow-x-auto p-0">
@@ -2095,7 +2113,8 @@ export default function LedgerPage() {
       ['Net Profit',     num(totalIncome - totalExpenses)],
       [],
       ['POSITION AS OF TODAY'],
-      ['Cash Balance',                    num(cashBalance)],
+      ['Cash Balance (all accounts)',     num(cashBalance)],
+      ...accountBalances.map(a => [`  ${a.name}`, num(a.balance)]),
       ['Vendor Dues (farm owes)',         num(totalVendorDues)],
       ['Salary Dues (farm owes workers)', num(totalSalaryDues)],
       ['Unpaid Wages & Expenses',         num(totalWageDues)],
@@ -2129,22 +2148,45 @@ export default function LedgerPage() {
     ], [11, 20, 34, 12, 8])
 
     sheet('Cash Book', [
-      ['Date', 'Particulars', 'Receipt', 'Payment', 'Balance'],
-      ...(fy !== 'all' ? [['', 'Opening balance', '', '', num(cashBookOpening)]] : []),
+      ['Date', 'Particulars', 'Account', 'Receipt', 'Payment', 'Balance'],
+      ...(fy !== 'all' ? [['', 'Opening balance', '', '', '', num(cashBookOpening)]] : []),
       ...cashBookFY.map(r => [
-        r.entry_date, r.particulars,
+        r.entry_date, r.particulars, r.account_name || '',
         r.direction === 'in'  ? num(r.amount) : '',
         r.direction === 'out' ? num(r.amount) : '',
         num(r.running_balance),
       ]),
-    ], [11, 34, 12, 12, 12])
+    ], [11, 30, 14, 12, 12, 12])
 
     sheet('Vendor Khata', [
-      ['Vendor', 'Category', 'Purchased', 'Paid', 'Balance Due'],
+      ['Vendor', 'Category', 'Opening', 'Purchased', 'Paid', 'Balance Due'],
       ...vendorBalances.map(v => [
-        v.vendor_name, v.category || '', num(v.total_purchased), num(v.total_paid), num(v.balance_due),
+        v.vendor_name, v.category || '', num(v.opening_balance || 0),
+        num(v.total_purchased), num(v.total_paid), num(v.balance_due),
       ]),
-    ], [26, 16, 12, 12, 12])
+    ], [26, 16, 12, 12, 12, 12])
+
+    // The receivables side — same standing as the vendor khata. Sold/Received
+    // are all-time here (the statement's other khatas are positions too).
+    {
+      const buyerRows = {}
+      buyers.filter(b => b.isActive !== false).forEach(b => {
+        buyerRows[b.id] = { name: b.name, opening: Number(b.openingBalance || 0), sold: 0, received: 0 }
+      })
+      ;[...sales.filter(s => s.buyerName), ...treeKhataRows.filter(s => s.buyerName)].forEach(s => {
+        const key = s.buyerId || `name:${s.buyerName.trim().toLowerCase()}`
+        if (!buyerRows[key]) buyerRows[key] = { name: s.buyerName, opening: 0, sold: 0, received: 0 }
+        buyerRows[key].sold     += Number(s.netAmount || 0)
+        buyerRows[key].received += s.paymentStatus === 'paid' ? Number(s.netAmount || 0) : Number(s.amountReceived || 0)
+      })
+      sheet('Buyer Khata', [
+        ['Buyer', 'Opening', 'Sold', 'Received', 'Balance Due'],
+        ...Object.values(buyerRows)
+          .map(b => ({ ...b, due: b.opening + b.sold - b.received }))
+          .sort((a, b) => b.due - a.due)
+          .map(b => [b.name, num(b.opening), num(b.sold), num(b.received), num(b.due)]),
+      ], [26, 12, 12, 12, 12])
+    }
 
     sheet('Salary Khata', [
       ['Worker', 'Type', 'Opening', 'Earned', 'Advances', 'Paid', 'Balance Due'],
