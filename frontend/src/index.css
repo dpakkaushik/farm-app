@@ -65,6 +65,14 @@ input, textarea, select {
   color-scheme: inherit;
 }
 
+/* Selects are styled with the translucent --c-ghost, which makes the browser
+   drop its native dark popup and paint the option rows near-white — while the
+   options inherit white text. Invisible until hovered. Options must be opaque. */
+select option {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+}
+
 input::placeholder, textarea::placeholder {
   color: var(--c-faint);
 }

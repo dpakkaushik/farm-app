@@ -315,13 +315,21 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
           value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
       </Field>
       <Field label="Payment Mode">
-        <select className={inputCls} style={inputStyle} value={form.payment_mode}
-          onChange={e => setForm(f => ({ ...f, payment_mode: e.target.value }))}>
-          <option value="cash">Cash</option>
-          <option value="bank_transfer">Bank Transfer</option>
-          <option value="cheque">Cheque</option>
-          <option value="upi">UPI</option>
-        </select>
+        {/* Two pockets, two options — the same toggle the sale forms use.
+            UPI and cheque ARE the bank; the value stays 'bank_transfer'
+            because vendor_payments' CHECK constraint predates the accounts
+            work, and accountFor() routes it to the Bank account either way. */}
+        <div className="flex gap-2">
+          {[['cash', '💵 Cash'], ['bank_transfer', '🏦 Bank / UPI / Cheque']].map(([m, label]) => (
+            <button key={m} onClick={() => setForm(f => ({ ...f, payment_mode: m }))}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold"
+              style={{
+                background: form.payment_mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                color:      form.payment_mode === m ? '#fff'    : 'var(--c-muted)',
+                border:     `1px solid ${form.payment_mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+              }}>{label}</button>
+          ))}
+        </div>
       </Field>
       <Field label="Notes (optional)">
         <input type="text" className={inputCls} style={inputStyle}
@@ -1093,7 +1101,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     ...purchasesAsBillRows(purchasesFor(activeVendor), activeVendor.name),
     ...paymentsFor(activeVendor).map(p => ({
       key: `pay:${p.id}`, date: p.payment_date, type: 'payment',
-      particulars: p.notes || 'Cash Payment',
+      particulars: p.notes || (!p.payment_mode || p.payment_mode === 'cash' ? 'Cash Payment' : 'Bank Payment'),
       debit: 0, credit: Number(p.amount || 0),
     })),
   ].sort((a, b) => new Date(a.date) - new Date(b.date)) : []
