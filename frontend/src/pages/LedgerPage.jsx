@@ -77,14 +77,16 @@ const CATEGORY_LABELS = {
   other:             'Other',
 }
 
+// Seven tabs collapsed to five. Income/Buyer Khata were the same money seen
+// two ways (list vs by-party), as were Expenses/Party Ledger — presenting them
+// as rival tabs is exactly what made "why is it in expense AND the khata?" a
+// question. Each pair is now one tab with a view toggle.
 const TABS = [
-  { id: 'summary',  label: 'Summary'       },
-  { id: 'cashbook', label: 'Cash Book'     },
-  { id: 'income',   label: 'Income'        },
-  { id: 'vendors',  label: 'Party Ledger'  },
-  { id: 'buyers',   label: 'Buyer Khata'   },
-  { id: 'expenses', label: 'Expenses'      },
-  { id: 'pnl',      label: 'P & L'         },
+  { id: 'summary',  label: 'Summary'   },
+  { id: 'cashbook', label: 'Cash Book' },
+  { id: 'moneyin',  label: 'Money In'  },
+  { id: 'moneyout', label: 'Money Out' },
+  { id: 'pnl',      label: 'P & L'     },
 ]
 
 // ── Card wrapper ──────────────────────────────────────────────────────────────
@@ -431,9 +433,28 @@ function VendorModal({ vendor, onClose, onSave }) {
   )
 }
 
+// ── View toggle inside a paired tab ───────────────────────────────────────────
+function ViewToggle({ value, onChange, options }) {
+  return (
+    <div className="flex gap-2 pt-3">
+      {options.map(([v, label]) => (
+        <button key={v} onClick={() => onChange(v)}
+          className="flex-1 py-2 rounded-xl text-[11px] font-semibold"
+          style={{
+            background: value === v ? 'var(--c-ghost)' : 'transparent',
+            color:      value === v ? 'var(--c-text)'  : 'var(--c-faint)',
+            border:     `1px solid ${value === v ? 'var(--c-border-md)' : 'var(--c-border)'}`,
+          }}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
 function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpenses, totalVendorDues, totalReceivables,
-                      totalWageDues = 0, totalSalaryDues = 0, onGoSalary, monthlySummary }) {
+                      totalWageDues = 0, totalSalaryDues = 0, capitalSpendFY = 0, onGoSalary, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -504,18 +525,20 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
         </div>
       )}
 
-      {/* Metric grid */}
+      {/* Metric grid — dues and receivables live in the banners above, once
+          each; repeating them as cards said the same three numbers twice on
+          one screen. Capital gets a card because nothing else explains why
+          cash can fall by lakhs while profit does not move: a capitalised
+          purchase is real money out and deliberately absent from the P&L. */}
       <div className="grid grid-cols-2 gap-3">
         <MetricCard label="Total Income" value={fmt(totalIncome)} color="#1D9E75" />
         <MetricCard label="Total Expenses" value={fmt(totalExpenses)} color="#E24B4A" />
         <MetricCard label="Net Profit / Loss" value={fmt(netProfit)}
           color={netProfit >= 0 ? '#1D9E75' : '#E24B4A'} />
-        <MetricCard label="Vendor Dues" value={fmt(totalVendorDues)} color="#BA7517" />
-        <MetricCard label="Receivables Due" value={fmt(totalReceivables)} color="#1D9E75" />
-        <MetricCard label="Salary Dues" value={fmt(totalSalaryDues)} color="#BA7517"
-          sub={totalSalaryDues > 0 ? 'Staff & regular workers' : undefined} />
+        <MetricCard label="Capital Purchases" value={fmt(capitalSpendFY)} color="#7c3aed"
+          sub={capitalSpendFY > 0 ? 'Machinery & assets — kept out of P&L' : undefined} />
         <MetricCard label="Unpaid Wages & Expenses" value={fmt(totalWageDues)} color="#BA7517"
-          sub={totalWageDues > 0 ? 'Outside labour — Expenses tab' : undefined} />
+          sub={totalWageDues > 0 ? 'Outside labour — Money Out tab' : undefined} />
       </div>
 
       {totalSalaryDues > 0 && (
@@ -1814,32 +1837,16 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
   const animalPnl  = livestockPnl.filter(row => !isPet(row))
   return (
     <div className="flex flex-col gap-3 pt-3">
-      {/* Overall */}
-      <Card>
-        <div className="text-xs font-semibold mb-3" style={{ color: 'var(--c-text)' }}>Overall P&L</div>
-        <div className="flex justify-between items-center py-2" style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-          <div className="flex items-center gap-2">
-            <TrendingUp size={14} color="#1D9E75" />
-            <span className="text-xs" style={{ color: 'var(--c-text)' }}>Total Income</span>
-          </div>
-          <span className="text-xs font-bold" style={{ color: '#1D9E75' }}>{fmt(totalIncome)}</span>
-        </div>
-        <div className="flex justify-between items-center py-2" style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-          <div className="flex items-center gap-2">
-            <TrendingDown size={14} color="#E24B4A" />
-            <span className="text-xs" style={{ color: 'var(--c-text)' }}>Total Expenses</span>
-          </div>
-          <span className="text-xs font-bold" style={{ color: '#E24B4A' }}>{fmt(totalExpenses)}</span>
-        </div>
-        <div className="flex justify-between items-center pt-2">
-          <span className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-            Net {net >= 0 ? 'Profit' : 'Loss'}
-          </span>
-          <span className="text-sm font-bold" style={{ color: net >= 0 ? '#1D9E75' : '#E24B4A' }}>
-            {fmt(Math.abs(net))} {net < 0 ? '(Loss)' : ''}
-          </span>
-        </div>
-      </Card>
+      {/* One line, not a card: the Summary already carries these three numbers.
+          This tab's value is the breakdown — which crop, which animal. */}
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
+          {fmt(totalIncome)} in · {fmt(totalExpenses)} out
+        </span>
+        <span className="text-xs font-bold" style={{ color: net >= 0 ? '#1D9E75' : '#E24B4A' }}>
+          Net {net >= 0 ? 'Profit' : 'Loss'} {fmt(Math.abs(net))}
+        </span>
+      </div>
 
       {/* Livestock P&L — pets dropped. v_livestock_pnl reports every animal, but a
           pet has no revenue side, so its row can only ever read as a loss the
@@ -1978,7 +1985,7 @@ export default function LedgerPage() {
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
     markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
-    accounts, recordTransfer,
+    accounts, recordTransfer, capitalPurchases,
   } = useAppStore()
 
   const canManage = isManager(getActiveFarmRole())
@@ -1990,6 +1997,10 @@ export default function LedgerPage() {
           load: loadTrees } = useTreeStore()
 
   const [tab, setTab] = useState('summary')
+  // Which face of the paired tabs is showing: the flow (sales/expenses) or the
+  // parties behind it (buyer khata / party khata).
+  const [moneyInView,  setMoneyInView]  = useState('sales')
+  const [moneyOutView, setMoneyOutView] = useState('expenses')
   const [fy, setFy] = useState(currentFY())
   const [loading, setLoading] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState(null)
@@ -2284,6 +2295,9 @@ export default function LedgerPage() {
             totalReceivables={totalReceivables}
             totalWageDues={totalWageDues}
             totalSalaryDues={totalSalaryDues}
+            capitalSpendFY={(capitalPurchases || [])
+              .filter(c => c.is_capitalised && inFY(c.purchase_date, fy))
+              .reduce((s, c) => s + Number(c.amount || 0), 0)}
             onGoSalary={() => navigate('/labour')}
             monthlySummary={monthlySummary}
           />
@@ -2298,34 +2312,48 @@ export default function LedgerPage() {
             onMove={() => setShowMoveMoney(true)}
           />
         )}
-        {tab === 'income'   && <IncomeTab incomeLedger={incomeLedgerFY} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />}
-        {tab === 'vendors'  && (
-          <VendorTab
-            vendors={vendors}
-            selectedVendor={selectedVendor}
-            setSelectedVendor={setSelectedVendor}
-            onPay={() => setShowPayVendor(true)}
-            onAddVendor={() => setShowAddVendor(true)}
-            onEditVendor={setEditVendor}
-            canPay={canManage}
-            fy={fy}
-          />
+        {/* Money In — the same rupees two ways: what was sold, then who still
+            owes for it. A toggle, not two tabs, so they read as one story. */}
+        {tab === 'moneyin' && (
+          <>
+            <ViewToggle value={moneyInView} onChange={setMoneyInView}
+              options={[['sales', 'Sales & Income'], ['buyers', 'Buyer Khata (who owes me)']]} />
+            {moneyInView === 'sales'
+              ? <IncomeTab incomeLedger={incomeLedgerFY} cropResiduals={cropResiduals} onRecordSale={recordResidualSale} />
+              : <BuyersTab
+                  sales={sales} buyers={buyers}
+                  harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
+                  treeSales={treeKhataRows}
+                  fy={fy}
+                />}
+          </>
         )}
-        {tab === 'buyers'   && (
-          <BuyersTab
-            sales={sales} buyers={buyers}
-            harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
-            treeSales={treeKhataRows}
-            fy={fy}
-          />
+        {tab === 'moneyout' && moneyOutView === 'parties' && (
+          <>
+            <ViewToggle value={moneyOutView} onChange={setMoneyOutView}
+              options={[['expenses', 'Expenses'], ['parties', 'Party Khata (whom I owe)']]} />
+            <VendorTab
+              vendors={vendors}
+              selectedVendor={selectedVendor}
+              setSelectedVendor={setSelectedVendor}
+              onPay={() => setShowPayVendor(true)}
+              onAddVendor={() => setShowAddVendor(true)}
+              onEditVendor={setEditVendor}
+              canPay={canManage}
+              fy={fy}
+            />
+          </>
         )}
-        {tab === 'expenses' && (
+        {tab === 'moneyout' && moneyOutView === 'expenses' && (
+          <>
+          <ViewToggle value={moneyOutView} onChange={setMoneyOutView}
+            options={[['expenses', 'Expenses'], ['parties', 'Party Khata (whom I owe)']]} />
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
             salaryPaidTotal={salaryPaidTotal}
             purchases={purchases} inventoryMaster={inventoryMaster}
             canPay={canManage}
-            onGoVendors={() => setTab('vendors')}
+            onGoVendors={() => setMoneyOutView('parties')}
             onGoSalary={() => navigate('/labour')}
             onPayRow={async (row) => {
               if (!confirm(`Pay ${row.description} — ₹${Math.round(row.amount).toLocaleString('en-IN')} in cash today?`)) return
@@ -2344,6 +2372,7 @@ export default function LedgerPage() {
               } catch (e) { alert('Payment failed: ' + e.message) }
             }}
           />
+          </>
         )}
         {tab === 'pnl'      && (
           <PnlTab
