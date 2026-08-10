@@ -320,7 +320,7 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
             because vendor_payments' CHECK constraint predates the accounts
             work, and accountFor() routes it to the Bank account either way. */}
         <div className="flex gap-2">
-          {[['cash', '💵 Cash'], ['bank_transfer', '🏦 Bank / UPI / Cheque']].map(([m, label]) => (
+          {[['cash', '💵 Cash'], ['bank_transfer', '🏦 Bank Transfer']].map(([m, label]) => (
             <button key={m} onClick={() => setForm(f => ({ ...f, payment_mode: m }))}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
