@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
+import { TIMBER_NOTE_PREFIX } from '../lib/cashflow'
 
 // Trees live in their own store, not in the 2,100-line app store, for two reasons:
 // its loadAll already fires ~26 parallel queries on every boot, and trees are only
@@ -22,7 +23,10 @@ async function syncCashEntry(revenueId, { received, date, buyerName, revenueType
     amount:       received,
     direction:    'in',
     entry_type:   'tree_sale',
-    notes:        `${revenueType === 'timber_sale' ? 'Timber sale' : 'Fruit lease'}${buyerName ? ` — ${buyerName}` : ''}`,
+    // The Cash Flow statement reads this prefix to tell an asset disposal (timber)
+    // from farming income (fruit lease) — they share one entry_type. Hence the
+    // shared constant: writer and reader cannot drift apart.
+    notes:        `${revenueType === 'timber_sale' ? TIMBER_NOTE_PREFIX : 'Fruit lease'}${buyerName ? ` — ${buyerName}` : ''}`,
     reference_id: revenueId,
     created_by:   user?.id || null,
   })

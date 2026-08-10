@@ -4,6 +4,8 @@ import { useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
 import { isManager, isAdmin, getActiveFarmRole } from '../store/auth'
 import { isPet } from './livestock/ui'
+import CashFlowTab from './ledger/CashFlowTab'
+import { buildCashFlow } from '../lib/cashflow'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -2007,6 +2009,7 @@ export default function LedgerPage() {
   const [tab, setTab] = useState('summary')
   // Which face of the paired tabs is showing: the flow (sales/expenses) or the
   // parties behind it (buyer khata / party khata).
+  const [cashBookView, setCashBookView] = useState('entries')
   const [moneyInView,  setMoneyInView]  = useState('sales')
   const [moneyOutView, setMoneyOutView] = useState('expenses')
   const [fy, setFy] = useState(currentFY())
@@ -2234,6 +2237,40 @@ export default function LedgerPage() {
         .map(b => [b.name, num(b.sold), num(b.received), num(b.sold - b.received)]),
     ], [26, 14, 14, 14])
 
+    // Cash Flow — built from the same function the screen renders, so the sheet
+    // and the screen cannot disagree.
+    const flow = buildCashFlow(cashBookFY, {
+      openingCash: cashBookOpening,
+      capitalPurchases: (capitalPurchases || []).filter(c => inFY(c.purchase_date, fy)),
+    })
+    const flowRows = [
+      ['CASH FLOW STATEMENT', '', fyName],
+      ['Direct method — actual cash received and paid, not what was billed.'],
+      [],
+      ['Opening cash (all pockets)', num(flow.openingCash)],
+      [],
+    ]
+    flow.sections.forEach(s => {
+      flowRows.push([s.heading.toUpperCase() + ' — ' + s.plain])
+      s.lines.forEach(l => flowRows.push(['   ' + l.label, num(l.amount)]))
+      flowRows.push([s.subtotalLabel, num(s.subtotal)])
+      if (s.key === 'investing') {
+        flowRows.push(['   No capital cash can be shown separately — a payment settles the vendor, not the individual bill.'])
+        if (flow.memo.capitalBilled > 0) {
+          flowRows.push(['   MEMO (not cash) — capital items billed', num(flow.memo.capitalBilled)])
+          flow.memo.items.forEach(it => flowRows.push(['      ' + (it.name || 'Capital item'), num(it.amount)]))
+          flowRows.push(['   That cash sits inside "Paid to vendors" above.'])
+        }
+      }
+      flowRows.push([])
+    })
+    flowRows.push(['Closing cash (all pockets)', num(flow.closingCash)])
+    flowRows.push([flow.reconciles
+      ? 'Matches the Cash Book closing balance.'
+      : `DOES NOT match the Cash Book — out by ${num(Math.abs(flow.discrepancy))}`])
+    flowRows.push(['Money moved between the farm\'s own accounts is excluded — it changes no farm total.'])
+    sheet('Cash Flow', flowRows, [52, 16])
+
     XLSX.writeFile(wb, `Farm-Accounts-${fy === 'all' ? 'All-Time' : 'FY-' + fyLabel(fy)}.xlsx`)
   }
 
@@ -2310,15 +2347,29 @@ export default function LedgerPage() {
             monthlySummary={monthlySummary}
           />
         )}
+        {/* Cash Book — the entries, then the same rupees regrouped into where they
+            came from and where they went. A toggle, not a sixth tab: a cash flow
+            statement is a second reading of this exact list. */}
         {tab === 'cashbook' && (
-          <CashBookTab
-            cashBook={cashBookFY}
-            accounts={accounts}
-            openingBalance={cashBookOpening}
-            showOpening={fy !== 'all'}
-            onAdd={() => setShowAddCash(true)}
-            onMove={() => setShowMoveMoney(true)}
-          />
+          <>
+            <ViewToggle value={cashBookView} onChange={setCashBookView}
+              options={[['entries', 'Entries'], ['cashflow', 'Cash Flow']]} />
+            {cashBookView === 'entries'
+              ? <CashBookTab
+                  cashBook={cashBookFY}
+                  accounts={accounts}
+                  openingBalance={cashBookOpening}
+                  showOpening={fy !== 'all'}
+                  onAdd={() => setShowAddCash(true)}
+                  onMove={() => setShowMoveMoney(true)}
+                />
+              : <CashFlowTab
+                  cashBook={cashBookFY}
+                  openingBalance={cashBookOpening}
+                  capitalPurchases={(capitalPurchases || []).filter(c => inFY(c.purchase_date, fy))}
+                  periodLabel={fy === 'all' ? 'All Time' : `FY ${fyLabel(fy)}`}
+                />}
+          </>
         )}
         {/* Money In — the same rupees two ways: what was sold, then who still
             owes for it. A toggle, not two tabs, so they read as one story. */}
