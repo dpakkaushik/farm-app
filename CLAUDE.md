@@ -23,9 +23,11 @@ buyer receipts (`buyer_receipt` cash entries — the only way a buyer opening co
 and opening figures now owner-only + audited on INSERT too (`protected_field_changes`).
 
 **Do not undo these — they look like mistakes and are not:**
-1. Pre-August rows that still exist are correct: 2 unpaid July contractor logs (₹16,000),
-   1 open straw residual on Plot H wheat, 6 OPENING-STOCK purchases dated 2026-03-31, and
-   3 empty 2024 cane cycles (parents of the 2026 ratoons). **Settled folds, open survives.**
+1. The pre-August rows that still exist (2 July contractor logs — owner confirms these were
+   PAID IN CASH, the unpaid flag is wrong data; 1 straw residual + Plot H wheat cycle; 3 empty
+   2024 cane cycles; ~210 July activity logs) are all **scheduled for deletion in Phase 1 of
+   the plan** — delete them there, per the fresh-install standard, never resurrect them. The
+   6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.
 2. Plot H's ₹1,88,530 settled wheat revenue is erased pre-go-live history — intentional.
 3. Stock opening = stored `current_stock` minus surviving rows, NOT the derived pre-cutover
    sum — an old client clamped negative stock; the displayed figure is the invariant.

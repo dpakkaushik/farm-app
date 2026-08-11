@@ -29,11 +29,12 @@ Archive first (same `go_live_archive`, new batch), then delete, in this order:
 1. The open straw **residual** row, its harvest session, and the harvested
    Plot H wheat cycle (delete its 3 activity logs first — FK). When the straw
    sells, the owner records the money as a cash receipt that day.
-2. The **two unpaid July contractor logs** (₹16,000). Their cost belongs to the
-   running crops they sowed: **fold each log's amount into its cycle's opening
-   cost (labour bucket) before deleting**. The due itself leaves the app — the
-   owner tracks it in his register and enters the payment as an expense on the
-   day he pays.
+2. The **two July contractor logs** (₹16,000). Owner has confirmed: contract
+   labour is paid in cash and NOTHING is pending — the app's `is_paid=false`
+   flag on these rows was wrong data. So: **fold each log's amount into its
+   cycle's opening cost (labour bucket), then delete**. The cash they were paid
+   with is already inside the 1 Aug cash-in-hand opening the owner will state.
+   There is no due, no party to create, nothing to pay later.
 3. The **three empty 2024 cane cycles**: null `parent_cycle_id` on the three
    2026 ratoon cycles, then delete them (verify no other children).
 4. **~210 pre-Aug activity logs** and any pre-Aug crop-health rows.
