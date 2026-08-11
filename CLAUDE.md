@@ -32,9 +32,10 @@ and opening figures now owner-only + audited on INSERT too (`protected_field_cha
 4. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
 
-**First look on the live app:** Cash Book should open at "Opening balance — Cash in hand
-₹1,34,330" (01-Aug) and close at ₹1,33,230; Ankur khata opening ₹1,95,160 + ₹5,000 spray
-machine as capital.
+**The derived opening figures are PLACEHOLDERS.** The owner said the backfilled data was
+partial and he will state every opening figure himself. Every one is restatable in the UI
+(opening stock now replaces-not-skips; checklist is owner-only on screen). Do not treat the
+derived numbers (cash ₹1,34,330, Ankur ₹1,95,160, crop costs ₹3,10,068…) as confirmed.
 
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
 balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.

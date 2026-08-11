@@ -1318,14 +1318,12 @@ const useAppStore = create((set, get) => ({
   // financial year starts, so stock and weighted-average cost are right but
   // this season's expenses are untouched. rows: [{ itemId, qty, unitPrice }].
   //
-  // One opening entry per item, ever: items that already have an OPENING-STOCK
-  // purchase are skipped, so a retry after a mid-batch failure (the successful
-  // rows are already in state) or a revisit via ProfileMenu can never double
-  // an item's opening quantity or skew its weighted-average cost.
+  // An item's opening is ONE figure, not a series: restating an item replaces
+  // its earlier OPENING-STOCK rows before writing the new one. That is what
+  // keeps a retry after a mid-batch failure — or the owner correcting a derived
+  // figure with his own count — from ever doubling a quantity or skewing the
+  // weighted-average cost.
   recordOpeningStock: async (rows) => {
-    const already = new Set(
-      get().purchases.filter(p => p.invoiceNo === 'OPENING-STOCK').map(p => p.itemId)
-    )
     // Indian FY starts 1 April; the opening date is the 31 March just before it.
     // The FY is the go-live date's when one is set — a farm entering its opening
     // stock in April for books that start 1 August must not land the rows in the
@@ -1334,7 +1332,9 @@ const useAppStore = create((set, get) => ({
     const base     = glDate ? new Date(`${glDate}T00:00:00`) : new Date()
     const fyStart  = base.getMonth() >= 3 ? base.getFullYear() : base.getFullYear() - 1
     const date     = `${fyStart}-03-31`
-    for (const r of rows.filter(r => !already.has(r.itemId))) {
+    for (const r of rows) {
+      const existing = get().purchases.filter(p => p.invoiceNo === 'OPENING-STOCK' && p.itemId === r.itemId)
+      for (const p of existing) await get().deletePurchase(p.id)
       await get().recordPurchase({
         itemId:    r.itemId,
         qty:       r.qty,

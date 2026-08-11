@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { X, ChevronLeft, Package, Sprout, Check, Wallet, Store, Truck, Users } from 'lucide-react'
 import { useAppStore } from '../store'
-import { useAuthStore } from '../store/auth'
+import { useAuthStore, isAdmin, getActiveFarmRole } from '../store/auth'
 
 // Mid-year onboarding (docs/PLAN-mid-year-onboarding.md). A farm that signs up
 // mid-season already has stock in the store and crops in the ground — some near
@@ -77,6 +77,11 @@ export default function SetupChecklist() {
     .some(l => Number(l.openingBalance || 0) !== 0)
 
   const dismiss = () => { localStorage.setItem(dismissKey(activeFarmId), '1'); setDismissed(true) }
+
+  // Opening figures are the owner's statements — the database already rejects a
+  // non-admin writing the column figures (0026/0031), and opening stock rows
+  // deserve the same door. Managers simply don't see the card or the sheet.
+  if (!isAdmin(getActiveFarmRole())) return null
 
   // Standing crops live in ONE place — the Cycles master (create with pre-app
   // spend, or edit it on existing cycles). This just takes the owner there.
@@ -287,14 +292,18 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
 
-  // One opening entry per item, ever — an item that already has one shows as
-  // done instead of accepting inputs, so a revisit can't double its stock.
-  const alreadyEntered = new Set(purchases.filter(p => p.invoiceNo === 'OPENING-STOCK').map(p => p.itemId))
+  // An item's opening is one figure — typing over an existing one RESTATES it
+  // (the store replaces the earlier OPENING-STOCK rows), it never adds to it.
+  // Shown as the current figure so the owner can see what he is correcting.
+  const existingOpening = {}
+  purchases.filter(p => p.invoiceNo === 'OPENING-STOCK').forEach(p => {
+    const e = existingOpening[p.itemId] || { qty: 0, rate: p.unitPrice }
+    existingOpening[p.itemId] = { qty: e.qty + Number(p.qty || 0), rate: p.unitPrice }
+  })
 
   const setRow = (id, patch) => setRows(r => ({ ...r, [id]: { ...(r[id] || { qty: '', rate: '' }), ...patch } }))
 
   const filled = Object.entries(rows)
-    .filter(([itemId]) => !alreadyEntered.has(itemId))
     .map(([itemId, r]) => ({ itemId, qty: parseFloat(r.qty), unitPrice: parseFloat(r.rate) }))
     .filter(r => r.qty > 0)
 
@@ -332,21 +341,19 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{item.name}</p>
                 <p className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
-                  {item.currentStock > 0 ? `in app: ${item.currentStock} ${item.unit}` : item.unit}
+                  {existingOpening[item.id]
+                    ? `opening: ${existingOpening[item.id].qty} ${item.unit} @ ₹${existingOpening[item.id].rate} — type to restate`
+                    : item.currentStock > 0 ? `in app: ${item.currentStock} ${item.unit}` : item.unit}
                 </p>
               </div>
-              {alreadyEntered.has(item.id) ? (
-                <p className="flex items-center gap-1 text-[11px] font-semibold shrink-0" style={{ color: '#1D9E75' }}>
-                  <Check size={12} /> Opening entered
-                </p>
-              ) : (
-                <>
-                  <input type="number" min="0" inputMode="decimal" placeholder="Qty" style={{ ...inputStyle, width: '76px' }}
-                    value={rows[item.id]?.qty ?? ''} onChange={e => setRow(item.id, { qty: e.target.value })} />
-                  <input type="number" min="0" inputMode="decimal" placeholder={`₹/${item.unit}`} style={{ ...inputStyle, width: '86px' }}
-                    value={rows[item.id]?.rate ?? ''} onChange={e => setRow(item.id, { rate: e.target.value })} />
-                </>
-              )}
+              <input type="number" min="0" inputMode="decimal"
+                placeholder={existingOpening[item.id] ? String(existingOpening[item.id].qty) : 'Qty'}
+                style={{ ...inputStyle, width: '76px' }}
+                value={rows[item.id]?.qty ?? ''} onChange={e => setRow(item.id, { qty: e.target.value })} />
+              <input type="number" min="0" inputMode="decimal"
+                placeholder={existingOpening[item.id] ? `₹${existingOpening[item.id].rate}` : `₹/${item.unit}`}
+                style={{ ...inputStyle, width: '86px' }}
+                value={rows[item.id]?.rate ?? ''} onChange={e => setRow(item.id, { rate: e.target.value })} />
             </div>
           ))}
         </div>
