@@ -37,6 +37,13 @@ partial and he will state every opening figure himself. Every one is restatable 
 (opening stock now replaces-not-skips; checklist is owner-only on screen). Do not treat the
 derived numbers (cash ₹1,34,330, Ankur ₹1,95,160, crop costs ₹3,10,068…) as confirmed.
 
+**NEXT SESSION STARTS HERE → [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md).**
+The owner confirmed the spec: *the app must look installed on 1 Aug* — so the straw residual,
+old wheat cycle, 2024 parent cycles, July contractor logs and pre-Aug activity logs must go
+too (Phase 1), crop opening costs get an itemised breakup via 0024 (Phase 2 — the earlier
+"0024 not applied" decision is REVERSED by the owner), the converter learns the same standard
+(Phase 3), then the owner enters his real figures (Phase 4). Media deletion: not ruled on.
+
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
 balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
 
