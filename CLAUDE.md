@@ -4,9 +4,48 @@
 
 ---
 
+## Where we left off
+
+> **Replace this whole section on every push.** It is not a log — it is a snapshot, and
+> it stays roughly this length. This file loads into context automatically at the start of
+> every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
+> lives here, and the long reasoning lives in the handoff this section points at.
+
+**Last updated:** 2026-08-10 · **at commit:** `1d9b489` · **detail:** [`docs/HANDOFF-2026-08-10c.md`](docs/HANDOFF-2026-08-10c.md)
+
+**Just shipped — Cash Flow statement** (`b60cc48`, spec `4381d63`). Direct method, under
+Ledger → Cash Book as an `Entries | Cash Flow` toggle. Logic is a pure function in
+`frontend/src/lib/cashflow.js`; screen is `frontend/src/pages/ledger/CashFlowTab.jsx`. No
+database changes. Tested arithmetic, **unverified rendering** — first thing to check on the
+live app is the computed `✓ matches Cash Book` badge at the bottom of the statement.
+
+**Do not undo these — they look like mistakes and are not:**
+1. Investing outflow reads ₹0 with an explanation and a memo box. A payment settles the
+   party, not the bill, so capital cash cannot be separated. Apportioning payments across
+   bill lines was explicitly rejected — precise-looking and untrue.
+2. Opening cash is summed from **two** sources (carried-in balance **plus** in-period
+   `opening_cash` rows). Collapsing it to one makes All Time short by the opening balances.
+3. `tree_sale` splits on a notes prefix shared via a constant — timber is an asset disposal,
+   a fruit lease is income. Do not inline the string back into `trees.js`.
+4. `vitest.config.js` is kept separate from `vite.config.js` so a test setting can never
+   break a Vercel deploy.
+
+**Next, and needs nothing from the owner:** Books Health check — cash book vs account
+balances, purchases with no party (~₹78k), bill header vs lines. This replaces the Trial
+Balance the director asked for; **that rejection is settled, do not relitigate it.**
+
+**Blocked on the owner:** the three Balance Sheet numbers (land + plot value, loans against
+the farm, what counts as owner capital), and the go-live pass figures — still open work #1.
+
+**Flagged, not to be touched unprompted:** payment-mode pickers disagree across
+`Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
+
+---
+
 ## 0. Development Rules
 
 - **After every code change, always commit and push to GitHub** (`git add` → `git commit` → `git push origin master`). Vercel deploys automatically on every push. Never leave changes uncommitted.
+- **Rewrite the "Where we left off" section above in the same commit.** Replace it, never append — it is a snapshot of the present, not a history. Keep it about its current length; it costs context on every single session, so earn every line. Long reasoning belongs in a `docs/HANDOFF-*.md` that it links to.
 - **Git identity** — always use `git config user.name "dpakkaushik"` and `git config user.email "palliaclaudeai@gmail.com"` before committing if not already set.
 
 ---
@@ -52,6 +91,7 @@ A farm management system for **medium-sized farm owners (50–100 acres)** who d
 | State | **Zustand** |
 | API Client | **Axios** |
 | Charts | **Recharts** |
+| Testing | **vitest** — `npm test` in `frontend/`, specs in `src/**/__tests__/`. Config is `vitest.config.js`, kept deliberately separate from `vite.config.js` so a test setting can never break a Vercel deploy. |
 
 ### Infrastructure
 
