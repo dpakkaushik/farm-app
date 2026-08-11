@@ -234,6 +234,9 @@ export default function Field() {
         const acres         = cycle.acres || Number(p.area_acres) || 0
         const inputCost     = issues.filter(i => i.cropCycleId === cycle.id).reduce((s, i) => s + (i.totalCost || 0), 0)
         const lCost         = labourLogs.filter(l => l.cropCycleId === cycle.id).reduce((s, l) => s + (l.totalCost || 0), 0)
+        // Pre-go-live spend on a standing crop — counted so this card agrees
+        // with the Ledger's P&L for the same cycle.
+        const openCost      = cycle.openingCost || 0
         return {
           cycleId:     cycle.id,
           cropId:      cycle.cropId,
@@ -248,7 +251,7 @@ export default function Field() {
           isReady,
           progressPct,
           acres,
-          seasonCost:  inputCost + lCost,
+          seasonCost:  inputCost + lCost + openCost,
           estYield:    crop ? Math.round(acres * (crop.yieldPerAcre || 0)) : 0,
           estRevenue:  crop ? Math.round(acres * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0)) : 0,
         }

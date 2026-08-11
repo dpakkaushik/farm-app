@@ -1327,8 +1327,12 @@ const useAppStore = create((set, get) => ({
       get().purchases.filter(p => p.invoiceNo === 'OPENING-STOCK').map(p => p.itemId)
     )
     // Indian FY starts 1 April; the opening date is the 31 March just before it.
-    const now      = new Date()
-    const fyStart  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1
+    // The FY is the go-live date's when one is set — a farm entering its opening
+    // stock in April for books that start 1 August must not land the rows in the
+    // new FY just because today moved on.
+    const glDate   = get().farmOpening?.goLiveDate
+    const base     = glDate ? new Date(`${glDate}T00:00:00`) : new Date()
+    const fyStart  = base.getMonth() >= 3 ? base.getFullYear() : base.getFullYear() - 1
     const date     = `${fyStart}-03-31`
     for (const r of rows.filter(r => !already.has(r.itemId))) {
       await get().recordPurchase({
@@ -2618,6 +2622,47 @@ const useAppStore = create((set, get) => ({
       },
       cashBook: cb || s.cashBook,
     }))
+  },
+
+  // ── Go-live conversion ───────────────────────────────────────────────────────
+  // A farm that backfilled history re-baselines as a fresh mid-year signup:
+  // every position folds into its opening slot, settled pre-cutover rows are
+  // archived and deleted, open items survive. All the arithmetic and all the
+  // safety (archive first, balance invariants, one-shot) live in the database
+  // functions from migration 0030 — these are thin doors.
+  goLivePreview: async (cutover) => {
+    const { data, error } = await supabase.rpc('go_live_preview', {
+      p_farm_id: getFarmId(), p_cutover: cutover,
+    })
+    if (error) throw error
+    return data
+  },
+
+  goLiveConvert: async (cutover) => {
+    const { data, error } = await supabase.rpc('go_live_convert', {
+      p_farm_id: getFarmId(), p_cutover: cutover,
+    })
+    if (error) throw error
+    // Every book changed shape — reload the lot rather than patch state.
+    await get().loadAll()
+    await get().loadFarmOpening()
+    return data
+  },
+
+  // Money received against a buyer's carried-in opening balance — the one
+  // receivable that has no sale row to mark paid. The mirror of a vendor
+  // payment: one cash entry, keyed to the buyer, that the khata subtracts.
+  addBuyerReceipt: async ({ buyerId, buyerName, date, amount, mode, notes }) => {
+    if (!buyerId) throw new Error('Receipts against old balance need a registered buyer')
+    await get().writeCashEntry({
+      entry_date:   date,
+      amount:       parseFloat(amount),
+      direction:    'in',
+      entry_type:   'buyer_receipt',
+      notes:        notes || `Receipt against old balance — ${buyerName || 'buyer'}`,
+      reference_id: buyerId,
+      payment_mode: mode,
+    })
   },
 
   // Existing parties need this as much as new ones: Ankur and Dhaliwal were

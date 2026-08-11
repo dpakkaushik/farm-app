@@ -48,6 +48,7 @@ const LINE_OF_TYPE = {
   livestock_sale:     'other_income',
   residual_sale:      'other_income',
   revenue_receipt:    'other_income',
+  buyer_receipt:      'other_income',
   vendor_payment:     'vendors',
   labour_payment:     'labour',
   salary_payment:     'labour',

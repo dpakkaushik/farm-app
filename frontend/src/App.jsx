@@ -18,6 +18,7 @@ import Trees         from './pages/Trees'
 import LedgerPage    from './pages/LedgerPage'
 import FarmOnboarding from './pages/FarmOnboarding'
 import FarmSettings  from './pages/FarmSettings'
+import GoLive        from './pages/GoLive'
 import AcceptInvite  from './pages/AcceptInvite'
 import Profile       from './pages/Profile'
 import ResetPassword from './pages/ResetPassword'
@@ -161,6 +162,7 @@ export default function App() {
           <Route path="/media"        element={<Media />} />
           <Route path="/profile"      element={<Profile />} />
           <Route path="/settings"     element={admin ? <FarmSettings /> : <Navigate to="/field" replace />} />
+          <Route path="/go-live"      element={admin ? <GoLive /> : <Navigate to="/field" replace />} />
           <Route path="/super-admin"  element={profile?.is_super_admin ? <SuperAdmin /> : <Navigate to="/field" replace />} />
           <Route path="/admin"        element={admin ? <Admin /> : <Navigate to="/field" replace />} />
           {/* Legacy redirects */}

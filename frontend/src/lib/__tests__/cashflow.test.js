@@ -7,7 +7,7 @@ import { buildCashFlow, CLASSIFIED_TYPES, TIMBER_NOTE_PREFIX } from '../cashflow
 // the entire point of keeping this list here rather than in a comment.
 const ALL_TYPES = [
   'crop_sale', 'cane_sale', 'livestock_sale', 'residual_sale', 'tree_sale',
-  'revenue_receipt', 'owner_capital', 'opening_cash', 'transfer',
+  'revenue_receipt', 'buyer_receipt', 'owner_capital', 'opening_cash', 'transfer',
   'vendor_payment', 'labour_payment', 'salary_payment', 'advance_payment',
   'expense_payment', 'owner_drawing', 'commission_expense', 'freight_expense',
   'sale_deduction',
@@ -132,6 +132,18 @@ describe('opening cash', () => {
     )
     expect(result.openingCash).toBe(50000)
     expect(result.closingCash).toBe(183230)
+  })
+})
+
+describe('buyer receipts', () => {
+  it('lands a receipt against an opening balance in Operating income', () => {
+    // The settlement of a carried-in receivable: real farm income arriving as
+    // cash, with no sale row behind it. Must reach Operating, never Financing.
+    const result = buildCashFlow([...PALLIA, row('buyer_receipt', 'in', 55000, 'Receipt against old balance — Mill')])
+    expect(lineIn(result, 'operating', 'other_income').amount).toBe(55000)
+    expect(section(result, 'unclassified')).toBeUndefined()
+    expect(result.closingCash).toBe(133230 + 55000)
+    expect(result.reconciles).toBe(true)
   })
 })
 

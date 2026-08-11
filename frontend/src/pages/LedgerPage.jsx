@@ -1397,9 +1397,11 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 }
 
 // ── Tab: Buyer Khata (Sundry Debtors — accounts receivable) ────────────────────
-function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, treeSales = [], fy }) {
+function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, treeSales = [], fy,
+                     buyerReceipts = [], canRecordReceipt = false, onRecordReceipt }) {
   const navigate = useNavigate()
   const [activeKey, setActiveKey] = useState(null) // null = overview list
+  const [receiptFor, setReceiptFor] = useState(null) // buyer group being settled
   const cropSales = sales.filter(s => s.buyerName)
 
   // How much of a row's money has actually landed. Status alone is not enough:
@@ -1426,7 +1428,14 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
   // on the group so Balance Due here agrees with Receivables on the Summary.
   const groups = {}
   buyers.filter(b => b.isActive !== false).forEach(b => {
-    groups[b.id] = { key: b.id, name: b.name, rows: [], opening: Number(b.openingBalance || 0) }
+    groups[b.id] = {
+      key: b.id, name: b.name, rows: [],
+      opening:  Number(b.openingBalance || 0),
+      // Cash received against the opening balance — the receivable no sale row
+      // can explain and no sale row can settle. Only master buyers can carry
+      // one, so name-keyed groups never have receipts.
+      receipts: buyerReceipts.filter(e => e.reference_id === b.id),
+    }
   })
   // Crop sales and tree deals sit in the same khata: a thekedar who leased the
   // mangoes owes money exactly the way a grain trader does.
@@ -1439,14 +1448,16 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
 
   // Overview: Balance Due is all-time (a point-in-time fact — what they owe
   // right now); Sold/Received are scoped to the selected financial year.
+  const receiptsTotal = (p) => (p.receipts || []).reduce((s, e) => s + Number(e.amount || 0), 0)
   const overview = parties.map(p => {
     const soldAllTime     = p.rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
     const receivedAllTime = p.rows.reduce((s, r) => s + receivedOf(r), 0)
     return {
       party: p,
-      balanceDue: Number(p.opening || 0) + soldAllTime - receivedAllTime,
+      balanceDue: Number(p.opening || 0) + soldAllTime - receivedAllTime - receiptsTotal(p),
       soldFY:     p.rows.filter(r => inFY(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
-      receivedFY: p.rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0),
+      receivedFY: p.rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
+                + (p.receipts || []).filter(e => inFY(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
@@ -1455,9 +1466,11 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
   const rows    = active ? rowsAll.filter(r => inFY(r.date, fy)) : []
   const soldFY      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
   const receivedFY  = rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
+    + (active?.receipts || []).filter(e => inFY(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0)
   const balanceDueAllTime = active
     ? Number(active.opening || 0)
       + rowsAll.reduce((s, r) => s + Number(r.netAmount || 0) - receivedOf(r), 0)
+      - receiptsTotal(active)
     : 0
 
   const header = (
@@ -1559,14 +1572,43 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
       )}
 
       {/* Owed before the app existed — real money the sale rows below cannot
-          explain, so it is shown rather than silently folded into Balance Due. */}
+          explain, so it is shown rather than silently folded into Balance Due.
+          Its receipts sit right under it: the only way that figure goes down. */}
       {Number(active.opening || 0) !== 0 && (
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: 'var(--c-ghost)' }}>
-          <span className="text-[10px] font-medium" style={{ color: 'var(--c-faint)' }}>
-            Opening balance — owed from before the app
-          </span>
-          <span className="text-xs font-bold" style={{ color: '#BA7517' }}>{fmt(active.opening)}</span>
+        <div className="rounded-xl px-3 py-2" style={{ background: 'var(--c-ghost)' }}>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-medium" style={{ color: 'var(--c-faint)' }}>
+              Opening balance — owed from before the app
+            </span>
+            <span className="text-xs font-bold" style={{ color: '#BA7517' }}>{fmt(active.opening)}</span>
+          </div>
+          {(active.receipts || []).map(e => (
+            <div key={e.id} className="flex items-center justify-between mt-1">
+              <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                {fmtDate(e.entry_date)} — receipt
+              </span>
+              <span className="text-[10px] font-semibold" style={{ color: '#1D9E75' }}>− {fmt(e.amount)}</span>
+            </div>
+          ))}
+          {canRecordReceipt && typeof active.key === 'string' && !active.key.startsWith('name:') && (
+            <button onClick={() => setReceiptFor(active)}
+              className="mt-1.5 w-full py-1.5 rounded-lg text-[10px] font-semibold"
+              style={{ background: 'rgba(29,158,117,0.12)', color: '#1D9E75' }}>
+              + Record receipt against this balance
+            </button>
+          )}
         </div>
+      )}
+
+      {receiptFor && (
+        <BuyerReceiptModal
+          buyer={receiptFor}
+          onClose={() => setReceiptFor(null)}
+          onSave={async (payload) => {
+            await onRecordReceipt({ buyerId: receiptFor.key, buyerName: receiptFor.name, ...payload })
+            setReceiptFor(null)
+          }}
+        />
       )}
 
       <Card className="overflow-x-auto p-0">
@@ -1610,6 +1652,66 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
         </table>
       </Card>
     </div>
+  )
+}
+
+// ── Buyer Receipt Modal ───────────────────────────────────────────────────────
+// The mirror of Pay Vendor. A sale's money is marked on the sale row; the one
+// receivable with no sale row behind it is the carried-in opening balance, and
+// this is how it comes down: one cash entry, keyed to the buyer.
+function BuyerReceiptModal({ buyer, onClose, onSave }) {
+  const [form, setForm] = useState({
+    date:   new Date().toISOString().slice(0, 10),
+    amount: '',
+    mode:   'cash',
+    notes:  '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+  const save = async () => {
+    if (!form.amount || saving) return
+    setSaving(true); setErr('')
+    try { await onSave(form) }
+    catch (e) { setErr(e.message || 'Save failed'); setSaving(false) }
+  }
+  return (
+    <Modal title={`Receipt — ${buyer.name}`} onClose={onClose}>
+      <p className="text-[10px] mb-2" style={{ color: 'var(--c-faint)' }}>
+        Money received against the old (opening) balance. Receipts for a specific
+        sale are marked on the sale itself — Harvest for crops, Trees for tree deals.
+      </p>
+      {err && <p className="text-[10px] mb-2" style={{ color: '#E24B4A' }}>{err}</p>}
+      <Field label="Date">
+        <input type="date" className={inputCls} style={inputStyle} value={form.date}
+          onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+      </Field>
+      <Field label="Amount received (₹)">
+        <input type="number" inputMode="decimal" placeholder="0" className={inputCls} style={inputStyle}
+          value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+      </Field>
+      <Field label="Received into">
+        <div className="flex gap-2">
+          {[['cash', '💵 Cash'], ['bank', '🏦 Bank']].map(([m, label]) => (
+            <button key={m} onClick={() => setForm(f => ({ ...f, mode: m }))}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold"
+              style={{
+                background: form.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                color:      form.mode === m ? '#fff'    : 'var(--c-muted)',
+                border:     `1px solid ${form.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+              }}>{label}</button>
+          ))}
+        </div>
+      </Field>
+      <Field label="Notes (optional)">
+        <input type="text" className={inputCls} style={inputStyle}
+          value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+      </Field>
+      <button disabled={saving || !form.amount} onClick={save}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
+        style={{ background: '#1D9E75' }}>
+        {saving ? 'Saving…' : 'Record Receipt'}
+      </button>
+    </Modal>
   )
 }
 
@@ -1996,6 +2098,7 @@ export default function LedgerPage() {
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
     markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
     accounts, recordTransfer, capitalPurchases,
+    ownerCashEntries, addBuyerReceipt,
   } = useAppStore()
 
   const canManage = isManager(getActiveFarmRole())
@@ -2048,6 +2151,14 @@ export default function LedgerPage() {
     }
   })
 
+  // Receipts against a buyer's carried-in opening balance — the one receivable
+  // with no sale row behind it. Keyed by buyer id on the cash entry.
+  const buyerReceipts = (ownerCashEntries || []).filter(e => e.entry_type === 'buyer_receipt')
+  const buyerReceiptsById = buyerReceipts.reduce((m, e) => {
+    if (e.reference_id) m[e.reference_id] = (m[e.reference_id] || 0) + Number(e.amount || 0)
+    return m
+  }, {})
+
   // Balance-sheet facts (cash in hand, what's owed either way) are always
   // as-of-today — they must NOT be scoped to the selected financial year,
   // or "Current Cash Balance" / "Balance Due" would misstate reality.
@@ -2079,7 +2190,7 @@ export default function LedgerPage() {
   // Plus whatever buyers already owed at go-live — crop taken before the app,
   // with no sale record behind it. The mirror of a party's opening balance.
   const buyerOpeningTotal = (buyers || [])
-    .reduce((s, b) => s + Math.max(0, Number(b.openingBalance || 0)), 0)
+    .reduce((s, b) => s + Math.max(0, Number(b.openingBalance || 0) - (buyerReceiptsById[b.id] || 0)), 0)
   const totalReceivables = buyerOpeningTotal + [...sales, ...treeKhataRows]
     .filter(s => s.paymentStatus !== 'paid')
     .reduce((s, r) => s + Math.max(0, Number(r.netAmount || 0) - Number(r.amountReceived || 0)), 0)
@@ -2193,7 +2304,10 @@ export default function LedgerPage() {
     {
       const buyerRows = {}
       buyers.filter(b => b.isActive !== false).forEach(b => {
-        buyerRows[b.id] = { name: b.name, opening: Number(b.openingBalance || 0), sold: 0, received: 0 }
+        buyerRows[b.id] = { name: b.name, opening: Number(b.openingBalance || 0), sold: 0,
+                            // Receipts against the opening balance count as received
+                            // here too, or the sheet would disagree with the screen.
+                            received: buyerReceiptsById[b.id] || 0 }
       })
       ;[...sales.filter(s => s.buyerName), ...treeKhataRows.filter(s => s.buyerName)].forEach(s => {
         const key = s.buyerId || `name:${s.buyerName.trim().toLowerCase()}`
@@ -2384,6 +2498,9 @@ export default function LedgerPage() {
                   harvestSessions={harvestSessions} cropCycles={cropCycles} cropMaster={cropMaster}
                   treeSales={treeKhataRows}
                   fy={fy}
+                  buyerReceipts={buyerReceipts}
+                  canRecordReceipt={canManage}
+                  onRecordReceipt={addBuyerReceipt}
                 />}
           </>
         )}

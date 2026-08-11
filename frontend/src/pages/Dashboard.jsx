@@ -252,7 +252,11 @@ export default function Dashboard() {
     .filter(i => i.purpose !== 'stock_correction' && i.purpose !== 'historical_correction')
     .reduce((n, i) => n + (i.totalCost || 0), 0)
   const totalLabourCost = labourLogs.reduce((n, l) => n + (l.totalCost || 0), 0)
-  const totalExpense    = totalInputCost + totalLabourCost
+  // Standing crops on a mid-year farm carry their pre-go-live spend as
+  // opening_cost — the Ledger's P&L counts it, so this screen must too, or the
+  // owner sees two different season costs.
+  const totalOpeningCost = cropCycles.reduce((n, c) => n + (c.openingCost || 0), 0)
+  const totalExpense    = totalInputCost + totalLabourCost + totalOpeningCost
   const netPosition     = caneRevPaid - totalExpense
 
   // ── Diesel item IDs (category = 'fuel') ──
@@ -267,7 +271,8 @@ export default function Dashboard() {
     const diesel    = ci.filter(i => dieselItemIds.has(i.itemId)).reduce((n, i) => n + i.totalCost, 0)
     const inventory = ci.filter(i => !dieselItemIds.has(i.itemId)).reduce((n, i) => n + i.totalCost, 0)
     const labour    = cl.reduce((n, l) => n + l.totalCost, 0)
-    return { diesel, inventory, labour, total: diesel + inventory + labour }
+    const opening   = cropCycles.find(c => c.id === cycleId)?.openingCost || 0
+    return { diesel, inventory, labour, opening, total: diesel + inventory + labour + opening }
   }
 
   // ── Partners sorted: Vipul first, then alphabetical ──
@@ -582,6 +587,9 @@ export default function Dashboard() {
                             { label: 'Labour',    value: exp.labour,    color: '#BA7517' },
                             { label: 'Inventory', value: exp.inventory, color: '#E24B4A' },
                             { label: 'Diesel',    value: exp.diesel,    color: '#6B5B3E' },
+                            // Only mid-year farms carry one; hidden otherwise so
+                            // the grid stays three columns for everyone else.
+                            ...(exp.opening > 0 ? [{ label: 'Before app', value: exp.opening, color: '#64748B' }] : []),
                           ].map(({ label, value, color }) => (
                             <div key={label} className="px-3 py-2.5 text-center">
                               <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">{label}</p>

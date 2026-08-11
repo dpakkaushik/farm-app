@@ -201,6 +201,10 @@ export default function ProfileMenu() {
                   so this is the way back in (e.g. to enter crop opening costs). */}
               <Row icon={ClipboardList} label="Opening balances" sub="Finish setup — stock & standing crops"
                 onClick={() => { go('/field'); useAppStore.getState().openSetupChecklist() }} />
+              {/* The converse of the checklist: a farm that entered history and
+                  wants it collapsed into opening balances from a chosen date. */}
+              <Row icon={ClipboardList} label="Start fresh (go-live)" sub="Fold old records into opening balances"
+                onClick={() => go('/go-live')} active={location.pathname === '/go-live'} />
               {profile?.is_super_admin && (
                 <Row icon={Shield} label="Super Admin" sub="All farms & users"
                   onClick={() => go('/super-admin')} active={location.pathname === '/super-admin'} />

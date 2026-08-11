@@ -40,7 +40,7 @@ export default function SetupChecklist() {
   const navigate = useNavigate()
   const { activeFarm, activeFarmId } = useAuthStore()
   const {
-    inventoryMaster, cropCycles, purchases, vendors, buyers, regularLabourers,
+    inventoryMaster, cropCycles, purchases, vendors, buyers, regularLabourers, permanentStaff,
     recordOpeningStock, farmOpening, loadFarmOpening, setFarmOpening,
     setBuyerOpeningBalance, accounts, setAccountOpening,
     setupChecklistOpen, closeSetupChecklist,
@@ -71,7 +71,10 @@ export default function SetupChecklist() {
   const cashDone     = !!farmOpening?.goLiveDate
   const partiesDone  = (vendors || []).some(v => Number(v.opening_balance || 0) !== 0)
   const buyersDone   = (buyers  || []).some(b => Number(b.openingBalance  || 0) !== 0)
-  const labourDone   = (regularLabourers || []).some(l => Number(l.openingBalance || 0) !== 0)
+  // Openings live on regulars AND permanent staff — checking one group meant a
+  // farm whose only balances were on staff never ticked this row.
+  const labourDone   = [...(regularLabourers || []), ...(permanentStaff || [])]
+    .some(l => Number(l.openingBalance || 0) !== 0)
 
   const dismiss = () => { localStorage.setItem(dismissKey(activeFarmId), '1'); setDismissed(true) }
 
@@ -79,7 +82,9 @@ export default function SetupChecklist() {
   // spend, or edit it on existing cycles). This just takes the owner there.
   const goCycles  = () => { close(); navigate('/admin?tab=Cycles') }
   const goLedger  = () => { close(); navigate('/ledger') }
-  const goLabour  = () => { close(); navigate('/labour') }
+  // The opening-balance editor lives in the Manpower master, not the Labour
+  // screen — Labour only displays the figure.
+  const goLabour  = () => { close(); navigate('/admin?tab=Manpower') }
 
   return (
     <>

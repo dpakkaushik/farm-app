@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/auth'
 import { useAppStore } from '../store'
 import MapPicker, { polygonAcres } from '../components/MapPicker'
 
-// First-run wizard for a brand-new owner: farm → plots → done.
+// First-run wizard for a brand-new owner: farm → plots → books → done.
 //
 // It stays mounted across all three steps because App.jsx also checks the auth
 // store's `onboarding` flag — creating the farm takes farms.length from 0 to 1,
@@ -17,13 +17,13 @@ import MapPicker, { polygonAcres } from '../components/MapPicker'
 // four corners per plot (plots.point_a..d). Both are optional and can be done later
 // from Admin → Plots, but the map makes them cheap enough to do now.
 
-const STEPS = ['farm', 'plots', 'done']
+const STEPS = ['farm', 'plots', 'books', 'done']
 const EMPTY_PLOT_FORM = { name: '', area_acres: '', corners: [] }
 
 export default function FarmOnboarding() {
   const navigate = useNavigate()
   const { createFarm, logout, user, setOnboarding } = useAuthStore()
-  const { addPlot } = useAppStore()
+  const { addPlot, accounts, loadAll, setFarmOpening, setAccountOpening, openSetupChecklist } = useAppStore()
 
   const [step, setStep]         = useState('farm')
   const [form, setForm]         = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
@@ -31,6 +31,14 @@ export default function FarmOnboarding() {
   const [plotForm, setPlotForm] = useState(EMPTY_PLOT_FORM)
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
+
+  // The books step: when do transactions start, and what money exists on that
+  // day. Every mid-year signup MUST answer this — it is what every other SaaS
+  // ledger asks first (Xero's "conversion date", QuickBooks' start-of-books) —
+  // because until it is stated, every balance the app shows is a guess.
+  // Zeros are an answer; skipping is not.
+  const [booksMonth, setBooksMonth] = useState(new Date().toISOString().slice(0, 7))
+  const [booksCash, setBooksCash]   = useState({})   // accountId -> string amount
 
   // The farm centre, in the two shapes that need it: an object for the picker,
   // a [lng, lat] pair to open step 2's map on. Memoised because the picker rebuilds
@@ -52,9 +60,40 @@ export default function FarmOnboarding() {
   // Hold the wizard open until the user finishes or reloads.
   useEffect(() => { setOnboarding(true) }, [])
 
+  // Cash in hand / Bank are seeded server-side at farm creation and loaded by
+  // loadAll(). If the load raced the wizard, fetch again on entering the books
+  // step — the inputs need real account ids to write to.
+  useEffect(() => {
+    if (step === 'books' && accounts.length === 0) loadAll()
+  }, [step])
+
   const finish = () => {
     setOnboarding(false)
+    // Money is step 4 of signup, not prose on a card: land the new owner
+    // straight in the opening-balances checklist for stock, parties, labour
+    // and standing crops.
+    openSetupChecklist()
     navigate('/field?newFarm=1')
+  }
+
+  const handleSaveBooks = async () => {
+    if (!booksMonth) { setError('Pick the month your books start'); return }
+    setLoading(true)
+    setError('')
+    const goLiveDate = `${booksMonth}-01`
+    try {
+      // go_live_date is the line the whole model hangs off; the per-account
+      // opening balances are the first figures behind it. farms.opening_cash
+      // stays 0 — superseded by account-level openings since 0028.
+      await setFarmOpening({ openingCash: 0, openingCashDate: null, goLiveDate })
+      for (const a of accounts) {
+        await setAccountOpening(a.id, parseFloat(booksCash[a.id]) || 0, goLiveDate)
+      }
+      setStep('done')
+    } catch (err) {
+      setError(err.message || 'Could not save the opening balances. Please try again.')
+    }
+    setLoading(false)
   }
 
   const handleCreateFarm = async (e) => {
@@ -104,12 +143,12 @@ export default function FarmOnboarding() {
   }
 
   const handleSavePlots = async () => {
-    if (draftPlots.length === 0) { setStep('done'); return }
+    if (draftPlots.length === 0) { setStep('books'); return }
     setLoading(true)
     setError('')
     try {
       for (const p of draftPlots) await addPlot(toPlotRow(p))
-      setStep('done')
+      setStep('books')
     } catch (err) {
       setError(err.message || 'Failed to save plots. You can add them later from Admin.')
     }
@@ -141,7 +180,7 @@ export default function FarmOnboarding() {
             <div style={header}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>🌾</div>
               <h1 style={title}>Welcome to Farm Manager</h1>
-              <p style={sub}>Step 1 of 3 — let's set up your farm. You'll be its admin, and can invite your manager later.</p>
+              <p style={sub}>Step 1 of 4 — let's set up your farm. You'll be its admin, and can invite your manager later.</p>
             </div>
 
             {error && <div style={errBox}>{error}</div>}
@@ -193,7 +232,7 @@ export default function FarmOnboarding() {
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>🗺️</div>
               <h1 style={title}>Add your plots</h1>
               <p style={sub}>
-                Step 2 of 3 — a plot is a field you want to track separately. Every crop, cost and
+                Step 2 of 4 — a plot is a field you want to track separately. Every crop, cost and
                 harvest is recorded against one. Name it, then trace its four corners on the map so
                 it shows up on your Field view.
               </p>
@@ -270,13 +309,62 @@ export default function FarmOnboarding() {
           </>
         )}
 
-        {/* ── Step 3 — done ───────────────────────────────────────────────── */}
+        {/* ── Step 3 — the books ──────────────────────────────────────────── */}
+        {step === 'books' && (
+          <>
+            <div style={header}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>📒</div>
+              <h1 style={title}>When do your books start?</h1>
+              <p style={sub}>
+                Step 3 of 4 — pick the month you'll start recording from, and state the
+                money that exists on that day. Everything earlier stays out of your
+                books as "opening balances". Zeros are a real answer — skipping is what
+                makes ledgers lie.
+              </p>
+            </div>
+
+            {error && <div style={errBox}>{error}</div>}
+
+            <div style={formCol}>
+              <Field label="Books start from *">
+                <input type="month" value={booksMonth}
+                  onChange={e => setBooksMonth(e.target.value)} style={input} />
+                <p style={{ ...fieldHint, margin: '6px 0 0' }}>
+                  Books cut at the 1st of a month. Entries from {booksMonth || '…'}-01
+                  onwards are recorded as they happen.
+                </p>
+              </Field>
+
+              {accounts.length === 0 ? (
+                <p style={fieldHint}>Loading your money accounts…</p>
+              ) : accounts.map(a => (
+                <Field key={a.id} label={`${a.name} on that day (₹) *`}>
+                  <input type="number" step="any" value={booksCash[a.id] ?? '0'}
+                    onChange={e => setBooksCash(c => ({ ...c, [a.id]: e.target.value }))}
+                    style={input} />
+                </Field>
+              ))}
+
+              <p style={fieldHint}>
+                Only you (the admin) can set or change these figures, and every change
+                is logged with who made it and when.
+              </p>
+
+              <button onClick={handleSaveBooks} disabled={loading || accounts.length === 0}
+                style={primaryBtn(loading || accounts.length === 0)}>
+                {loading ? 'Saving…' : 'Save opening balances →'}
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* ── Step 4 — done ───────────────────────────────────────────────── */}
         {step === 'done' && (
           <>
             <div style={header}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎉</div>
               <h1 style={title}>{form.name} is ready</h1>
-              <p style={sub}>Step 3 of 3 — you're the admin of this farm. Here's what's next.</p>
+              <p style={sub}>Step 4 of 4 — you're the admin of this farm. Here's what's next.</p>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
@@ -290,7 +378,7 @@ export default function FarmOnboarding() {
               <NextStep icon="👥" title="Invite your manager"
                 body="Settings → Invite Someone. Managers log the daily work; you can also make someone else an admin." />
               <NextStep icon="🌱" title="Record what's already there"
-                body="Already farming? The 'Finish setting up' card on your farm records opening stock and standing crops — with what each crop has cost so far, so profit is honest from day one." />
+                body="Your cash is stated; the opening-balances checklist opens next for stock, party balances, labour dues and standing crops — with what each crop has cost so far, so profit is honest from day one." />
             </div>
 
             <button onClick={finish} style={primaryBtn(false)}>Go to my farm →</button>

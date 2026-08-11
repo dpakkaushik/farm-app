@@ -11,31 +11,36 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-10 · **at commit:** `1d9b489` · **detail:** [`docs/HANDOFF-2026-08-10c.md`](docs/HANDOFF-2026-08-10c.md)
+**Last updated:** 2026-08-11 · **detail:** [`docs/HANDOFF-2026-08-11.md`](docs/HANDOFF-2026-08-11.md)
 
-**Just shipped — Cash Flow statement** (`b60cc48`, spec `4381d63`). Direct method, under
-Ledger → Cash Book as an `Entries | Cash Flow` toggle. Logic is a pure function in
-`frontend/src/lib/cashflow.js`; screen is `frontend/src/pages/ledger/CashFlowTab.jsx`. No
-database changes. Tested arithmetic, **unverified rendering** — first thing to check on the
-live app is the computed `✓ matches Cash Book` badge at the bottom of the statement.
+**Just shipped — go-live conversion, and Pallia RAN it.** Cutover **2026-08-01**: all
+settled pre-August history folded into opening balances and archived; actual entries run
+from 1 Aug. Migrations 0030/0030a/0031 applied live. The engine is `go_live_convert` (one
+transaction: archive → fold → delete → verify every displayed balance → abort on mismatch;
+one shot per farm; cutover must be a month's 1st). UI: `/go-live` wizard (ProfileMenu →
+"Start fresh"), a required onboarding "Books" step (go-live month + opening cash),
+buyer receipts (`buyer_receipt` cash entries — the only way a buyer opening comes down),
+and opening figures now owner-only + audited on INSERT too (`protected_field_changes`).
 
 **Do not undo these — they look like mistakes and are not:**
-1. Investing outflow reads ₹0 with an explanation and a memo box. A payment settles the
-   party, not the bill, so capital cash cannot be separated. Apportioning payments across
-   bill lines was explicitly rejected — precise-looking and untrue.
-2. Opening cash is summed from **two** sources (carried-in balance **plus** in-period
-   `opening_cash` rows). Collapsing it to one makes All Time short by the opening balances.
-3. `tree_sale` splits on a notes prefix shared via a constant — timber is an asset disposal,
-   a fruit lease is income. Do not inline the string back into `trees.js`.
-4. `vitest.config.js` is kept separate from `vite.config.js` so a test setting can never
-   break a Vercel deploy.
+1. Pre-August rows that still exist are correct: 2 unpaid July contractor logs (₹16,000),
+   1 open straw residual on Plot H wheat, 6 OPENING-STOCK purchases dated 2026-03-31, and
+   3 empty 2024 cane cycles (parents of the 2026 ratoons). **Settled folds, open survives.**
+2. Plot H's ₹1,88,530 settled wheat revenue is erased pre-go-live history — intentional.
+3. Stock opening = stored `current_stock` minus surviving rows, NOT the derived pre-cutover
+   sum — an old client clamped negative stock; the displayed figure is the invariant.
+4. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
+   the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
+
+**First look on the live app:** Cash Book should open at "Opening balance — Cash in hand
+₹1,34,330" (01-Aug) and close at ₹1,33,230; Ankur khata opening ₹1,95,160 + ₹5,000 spray
+machine as capital.
 
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
-balances, purchases with no party (~₹78k), bill header vs lines. This replaces the Trial
-Balance the director asked for; **that rejection is settled, do not relitigate it.**
+balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
 
 **Blocked on the owner:** the three Balance Sheet numbers (land + plot value, loans against
-the farm, what counts as owner capital), and the go-live pass figures — still open work #1.
+the farm, what counts as owner capital). The go-live pass itself is now DONE.
 
 **Flagged, not to be touched unprompted:** payment-mode pickers disagree across
 `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
