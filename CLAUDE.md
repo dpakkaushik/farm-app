@@ -11,19 +11,21 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-12 · **detail:** [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · [`supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md`](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md)
+**Last updated:** 2026-08-12 · **detail:** [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · [`supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md`](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [`supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md`](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped — Phase 1 of the fresh-install standard, executed on production.**
-Pallia now has ZERO pre-Aug rows outside opening statements. One transaction
-(archive → fold → delete → verify → abort on mismatch), passed first run, batch
-`cf70fd5a…` in `go_live_archive` (221 rows). Gone: the straw residual + its harvest
-session + the harvested Plot H cycle (docs said "wheat"; the live row was Chaini
-Paddy — same cycle), the 3 empty 2024 cane cycles (ratoon `parent_cycle_id` nulled
-first), all 210 pre-Aug activity logs, the 2 July contractor logs. The ₹16,000
-contract sowing folded into the Plot H paddy cycle `4dd3accf…` opening_cost
-(null → 16000, audited) — owner ruled it was PAID IN CASH, the unpaid flag was
-wrong data. Verified: every displayed balance unchanged (cash ₹1,33,230), except
-that one intended +₹16k. 15 cycles remain, all active.
+**Just shipped — Phases 1 AND 2 of the fresh-install standard, executed on production.**
+Phase 1: Pallia now has ZERO pre-Aug rows outside opening statements — archive batch
+`cf70fd5a…` (221 rows in `go_live_archive`), then deleted: straw residual + its harvest
+session + the harvested Plot H cycle (docs said "wheat"; the live row was Chaini Paddy —
+same cycle), 3 empty 2024 cane cycles (ratoon `parent_cycle_id` nulled first), 210
+pre-Aug activity logs, 2 July contractor logs. The ₹16,000 contract sowing folded into
+the Plot H paddy cycle `4dd3accf…` opening_cost (owner ruling: PAID IN CASH, the unpaid
+flag was wrong data). Every displayed balance verified unchanged (cash ₹1,33,230) except
+that one intended +₹16k. Phase 2: **0024 applied at last** — amended to admin-only writes
+(a breakup row is a founding figure) — plus new **0032** (insert-guard + audit for the
+breakup table, numbered after 0031 because it replaces that function). 54 derived
+placeholder breakup rows cover all 15 cycles; every cycle's itemised sum equals its
+`opening_cost` to the paisa (zero residue, zero `unspecified` lines), all audited.
 
 **Do not undo these — they look like mistakes and are not:**
 1. The 6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.
@@ -34,17 +36,17 @@ that one intended +₹16k. 15 cycles remain, all active.
 4. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
 
-**The derived opening figures are PLACEHOLDERS.** The owner said the backfilled data was
-partial and he will state every opening figure himself. Every one is restatable in the UI
-(opening stock now replaces-not-skips; checklist is owner-only on screen). Do not treat the
-derived numbers as confirmed.
+**Every derived opening figure is a PLACEHOLDER.** The owner restates each one himself
+(Phase 4 of the plan — the entry list is in Phase 4, all figures as of 1 Aug). Breakups
+restate in Admin → Cycles ✏️ (`saveOpeningCostBreakup` replaces rows and keeps the lump
+in sync). Opening-stock form copy now says go-live date, not "today".
 
-**NEXT: Phase 2 of the plan** — apply 0024 (crop opening cost breakup) with its RLS
-tightened to admin + the 0031 insert-guard, then derive placeholder breakups for the 15
-cycles from `go_live_archive` (sums must equal each cycle's `opening_cost`). Then Phase 3
-(converter learns the standard), then Phase 4 (owner's entry pass). Media deletion: still
-not ruled on (18 farm videos). Also flagged: 3 pre-Aug `livestock_health_logs` left alive —
-not in the plan's Phase 1 list; ask the owner.
+**NEXT: Phase 3 of the plan** — teach `go_live_convert` (repo 0030) the fresh-install
+standard: purge pre-cutover activity/crop-health/diary rows, drop closed pre-cutover
+cycles even as ratoon parents (null child pointer first) and open residuals by default,
+and write breakup rows during the fold. Then Phase 4 is the owner's pass. Media deletion:
+still not ruled on (18 farm videos). Also flagged: 3 pre-Aug `livestock_health_logs` left
+alive — not in the plan's Phase 1 list; ask the owner.
 
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
 balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.

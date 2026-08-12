@@ -326,7 +326,7 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
   return (
     <>
       <SheetHeader title="Opening stock" onBack={onBack} onClose={onDone}
-        sub="Counted stock on the shelf today. Saved as an opening balance dated 31 March — it will not appear in this season's spend." />
+        sub="Stock on hand on your go-live date — not today's count. Saved as an opening balance dated 31 March — it will not appear in this season's spend." />
       <DontDoubleCount />
       {error && <ErrorBox>{error}</ErrorBox>}
       {items.length === 0 ? (

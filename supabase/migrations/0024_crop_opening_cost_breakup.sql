@@ -42,7 +42,10 @@ create index if not exists idx_cycle_opening_costs_farm  on public.crop_cycle_op
 comment on table public.crop_cycle_opening_costs is
   'Itemised pre-app spend for a crop cycle. When any row exists for a cycle it supersedes crop_cycles.opening_cost in v_crop_pnl.';
 
--- Same four policies as every other table (see CLAUDE.md §6).
+-- NOT the standard four policies: writes are admin-only. Each row here is a
+-- founding figure — the same kind of statement as crop_cycles.opening_cost,
+-- which 0026 made owner-only. A manager who cannot restate the lump must not
+-- be able to restate its parts. (0032 adds the matching insert audit.)
 alter table public.crop_cycle_opening_costs enable row level security;
 
 drop policy if exists crop_cycle_opening_costs_select on public.crop_cycle_opening_costs;
@@ -53,9 +56,9 @@ drop policy if exists crop_cycle_opening_costs_delete on public.crop_cycle_openi
 create policy crop_cycle_opening_costs_select on public.crop_cycle_opening_costs
   for select using (public.is_farm_member(farm_id));
 create policy crop_cycle_opening_costs_insert on public.crop_cycle_opening_costs
-  for insert with check (public.has_farm_role(farm_id, 'manager'));
+  for insert with check (public.has_farm_role(farm_id, 'admin'));
 create policy crop_cycle_opening_costs_update on public.crop_cycle_opening_costs
-  for update using (public.has_farm_role(farm_id, 'manager'));
+  for update using (public.has_farm_role(farm_id, 'admin'));
 create policy crop_cycle_opening_costs_delete on public.crop_cycle_opening_costs
   for delete using (public.has_farm_role(farm_id, 'admin'));
 
