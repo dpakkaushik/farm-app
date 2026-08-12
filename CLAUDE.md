@@ -11,24 +11,24 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-11 · **detail:** [`docs/HANDOFF-2026-08-11.md`](docs/HANDOFF-2026-08-11.md)
+**Last updated:** 2026-08-12 · **detail:** [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · [`supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md`](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md)
 
-**Just shipped — go-live conversion, and Pallia RAN it.** Cutover **2026-08-01**: all
-settled pre-August history folded into opening balances and archived; actual entries run
-from 1 Aug. Migrations 0030/0030a/0031 applied live. The engine is `go_live_convert` (one
-transaction: archive → fold → delete → verify every displayed balance → abort on mismatch;
-one shot per farm; cutover must be a month's 1st). UI: `/go-live` wizard (ProfileMenu →
-"Start fresh"), a required onboarding "Books" step (go-live month + opening cash),
-buyer receipts (`buyer_receipt` cash entries — the only way a buyer opening comes down),
-and opening figures now owner-only + audited on INSERT too (`protected_field_changes`).
+**Just shipped — Phase 1 of the fresh-install standard, executed on production.**
+Pallia now has ZERO pre-Aug rows outside opening statements. One transaction
+(archive → fold → delete → verify → abort on mismatch), passed first run, batch
+`cf70fd5a…` in `go_live_archive` (221 rows). Gone: the straw residual + its harvest
+session + the harvested Plot H cycle (docs said "wheat"; the live row was Chaini
+Paddy — same cycle), the 3 empty 2024 cane cycles (ratoon `parent_cycle_id` nulled
+first), all 210 pre-Aug activity logs, the 2 July contractor logs. The ₹16,000
+contract sowing folded into the Plot H paddy cycle `4dd3accf…` opening_cost
+(null → 16000, audited) — owner ruled it was PAID IN CASH, the unpaid flag was
+wrong data. Verified: every displayed balance unchanged (cash ₹1,33,230), except
+that one intended +₹16k. 15 cycles remain, all active.
 
 **Do not undo these — they look like mistakes and are not:**
-1. The pre-August rows that still exist (2 July contractor logs — owner confirms these were
-   PAID IN CASH, the unpaid flag is wrong data; 1 straw residual + Plot H wheat cycle; 3 empty
-   2024 cane cycles; ~210 July activity logs) are all **scheduled for deletion in Phase 1 of
-   the plan** — delete them there, per the fresh-install standard, never resurrect them. The
-   6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.
-2. Plot H's ₹1,88,530 settled wheat revenue is erased pre-go-live history — intentional.
+1. The 6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.
+2. Plot H's ₹1,88,530 settled revenue is erased pre-go-live history — intentional,
+   and the cycle row itself is now deleted (Phase 1). Never resurrect archived rows.
 3. Stock opening = stored `current_stock` minus surviving rows, NOT the derived pre-cutover
    sum — an old client clamped negative stock; the displayed figure is the invariant.
 4. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
@@ -37,20 +37,20 @@ and opening figures now owner-only + audited on INSERT too (`protected_field_cha
 **The derived opening figures are PLACEHOLDERS.** The owner said the backfilled data was
 partial and he will state every opening figure himself. Every one is restatable in the UI
 (opening stock now replaces-not-skips; checklist is owner-only on screen). Do not treat the
-derived numbers (cash ₹1,34,330, Ankur ₹1,95,160, crop costs ₹3,10,068…) as confirmed.
+derived numbers as confirmed.
 
-**NEXT SESSION STARTS HERE → [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md).**
-The owner confirmed the spec: *the app must look installed on 1 Aug* — so the straw residual,
-old wheat cycle, 2024 parent cycles, July contractor logs and pre-Aug activity logs must go
-too (Phase 1), crop opening costs get an itemised breakup via 0024 (Phase 2 — the earlier
-"0024 not applied" decision is REVERSED by the owner), the converter learns the same standard
-(Phase 3), then the owner enters his real figures (Phase 4). Media deletion: not ruled on.
+**NEXT: Phase 2 of the plan** — apply 0024 (crop opening cost breakup) with its RLS
+tightened to admin + the 0031 insert-guard, then derive placeholder breakups for the 15
+cycles from `go_live_archive` (sums must equal each cycle's `opening_cost`). Then Phase 3
+(converter learns the standard), then Phase 4 (owner's entry pass). Media deletion: still
+not ruled on (18 farm videos). Also flagged: 3 pre-Aug `livestock_health_logs` left alive —
+not in the plan's Phase 1 list; ask the owner.
 
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
 balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
 
 **Blocked on the owner:** the three Balance Sheet numbers (land + plot value, loans against
-the farm, what counts as owner capital). The go-live pass itself is now DONE.
+the farm, what counts as owner capital).
 
 **Flagged, not to be touched unprompted:** payment-mode pickers disagree across
 `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
