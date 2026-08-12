@@ -13,40 +13,60 @@
 
 **Last updated:** 2026-08-12 · **detail:** [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · [`supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md`](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [`supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md`](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped — Phases 1 AND 2 of the fresh-install standard, executed on production.**
-Phase 1: Pallia now has ZERO pre-Aug rows outside opening statements — archive batch
-`cf70fd5a…` (221 rows in `go_live_archive`), then deleted: straw residual + its harvest
-session + the harvested Plot H cycle (docs said "wheat"; the live row was Chaini Paddy —
-same cycle), 3 empty 2024 cane cycles (ratoon `parent_cycle_id` nulled first), 210
-pre-Aug activity logs, 2 July contractor logs. The ₹16,000 contract sowing folded into
-the Plot H paddy cycle `4dd3accf…` opening_cost (owner ruling: PAID IN CASH, the unpaid
-flag was wrong data). Every displayed balance verified unchanged (cash ₹1,33,230) except
-that one intended +₹16k. Phase 2: **0024 applied at last** — amended to admin-only writes
-(a breakup row is a founding figure) — plus new **0032** (insert-guard + audit for the
-breakup table, numbered after 0031 because it replaces that function). 54 derived
-placeholder breakup rows cover all 15 cycles; every cycle's itemised sum equals its
-`opening_cost` to the paisa (zero residue, zero `unspecified` lines), all audited.
+**Just shipped — Phases 1 AND 2 of the fresh-install standard, live on production.**
+Pallia now has ZERO pre-Aug rows outside opening statements. Archived first (batch
+`cf70fd5a…`, 221 rows in `go_live_archive`), then deleted: the straw residual + its
+harvest session + the harvested Plot H cycle (docs said "wheat"; the live row was Chaini
+Paddy — same cycle), the 3 empty 2024 cane cycles (ratoon `parent_cycle_id` nulled
+first), 210 pre-Aug activity logs, and the 2 July contractor logs whose **₹16,000 folded
+into Plot H paddy `4dd3accf…` opening_cost** (owner: paid in cash, the unpaid flag was
+wrong data). Then **0024 applied at last** — amended to admin-only writes, a breakup row
+being a founding figure — plus new **0032** (insert-guard + audit on the breakup table;
+it REPLACES 0031's function, so migration order matters). 54 placeholder breakup rows,
+15/15 cycles itemised, every sum equal to its `opening_cost` to the paisa. Both passes
+verified every displayed balance unchanged (cash ₹1,33,230) bar that one intended fold.
 
 **Do not undo these — they look like mistakes and are not:**
 1. The 6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.
-2. Plot H's ₹1,88,530 settled revenue is erased pre-go-live history — intentional,
-   and the cycle row itself is now deleted (Phase 1). Never resurrect archived rows.
+2. Plot H's ₹1,88,530 settled revenue is erased pre-go-live history, and that cycle row
+   is now deleted. Never resurrect archived rows.
 3. Stock opening = stored `current_stock` minus surviving rows, NOT the derived pre-cutover
    sum — an old client clamped negative stock; the displayed figure is the invariant.
 4. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
 
-**Every derived opening figure is a PLACEHOLDER.** The owner restates each one himself
-(Phase 4 of the plan — the entry list is in Phase 4, all figures as of 1 Aug). Breakups
-restate in Admin → Cycles ✏️ (`saveOpeningCostBreakup` replaces rows and keeps the lump
-in sync). Opening-stock form copy now says go-live date, not "today".
+**Every derived opening figure is a PLACEHOLDER** — the owner restates each himself
+(Phase 4 list is in the plan; all figures as of 1 Aug, never today). He enters them at
+**avatar → Admin → "Opening balances"**: a bottom sheet whose row 1 is Cash & bank and
+row 2 Opening stock. The Field/Dashboard card that used to offer this auto-hides once
+cycles and stock exist, so that menu row is now the only way in — he could not find it
+unaided. Breakups restate in Admin → Cycles ✏️ (replaces rows, keeps the lump in sync).
 
-**NEXT: Phase 3 of the plan** — teach `go_live_convert` (repo 0030) the fresh-install
-standard: purge pre-cutover activity/crop-health/diary rows, drop closed pre-cutover
-cycles even as ratoon parents (null child pointer first) and open residuals by default,
-and write breakup rows during the fold. Then Phase 4 is the owner's pass. Media deletion:
-still not ruled on (18 farm videos). Also flagged: 3 pre-Aug `livestock_health_logs` left
-alive — not in the plan's Phase 1 list; ask the owner.
+**NEXT: Phase 3 of the plan** — teach `go_live_convert` (repo 0030) the same standard:
+purge pre-cutover activity/crop-health/diary rows, drop closed pre-cutover cycles even as
+ratoon parents (null the child pointer first) and open residuals by default, and write
+breakup rows during the fold. Phase 4 is then the owner's own pass.
+
+**Found this session, each needs an owner ruling — do not act unprompted:**
+1. Three Ankur bills are **July paper dated 7 Aug**: `4348/19.07.26`, `4349/19.07.26`,
+   `4551/28.07.26` = ₹84,625. The conversion keys on `bill_date`, so they survived as
+   August spend. No double count (openings came only from pre-Aug dates), but July goods
+   sit in August. Either re-date + fold, or leave. 4551's ₹1 header gap is the shop's
+   known round-off.
+2. Pre-Aug media — 18 `farm_video` rows. Storage files are NOT archived by anything, so
+   deletion is irreversible.
+3. Three pre-Aug `livestock_health_logs` — not in the plan's Phase 1 list, left alive.
+4. Two workers named "Ram Naresh" and "Ram Naresh " (trailing space), both carrying khata
+   openings — possibly one person.
+
+**New-farm onboarding gaps (audited this session, nothing changed):** farm #2 onward skips
+the Books step entirely — `CreateFarmModal` never runs `FarmOnboarding`, which only fires
+at `farms.length === 0` — so no `go_live_date` and no opening cash; the "Spent before the
+app" field renders only when `sowDate < farm_created_at`, making it invisible on a
+genuinely new farm; Contract labour has no opening-balance field at all; buyer openings
+live only in the dismissible checklist sheet; livestock and tree counts appear in no
+checklist. Copy bugs: the labour row says "in Labour" but navigates to Admin → Manpower,
+and the party row names "Party Ledger" while the toggle says "Party Khata".
 
 **Next, and needs nothing from the owner:** Books Health check — cash book vs account
 balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
