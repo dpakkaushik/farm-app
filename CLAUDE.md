@@ -11,19 +11,31 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-13 (figures live on production; FY reporting gap open) · **detail:** [`supabase/data-fixes/2026-08-13-owner-stated-figures.md`](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · earlier passes: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-13 (FY question settled; opening costs now report) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped — THE OWNER'S REAL FIGURES ARE IN. Nothing is a placeholder any more**
-(bar the two items below). From his sheet *EXPENSES DETAILS 1.04.26 TO 31.07.26*, which he
-states is his complete data since April. Cash **₹11,979** (was ₹1,34,330) · Ankur
-**₹2,94,385** (was ₹1,95,160) · worker openings net **−₹55,888**, i.e. workers owe the
-farm, where the app had +₹52,799 — a sign flip, not a rounding gap · crop openings
-**cane ₹8,80,533 + paddy ₹4,72,833** across 75 breakup rows, 15/15 cycles itemised, split
-pro-rata by acres (cane ₹28,404.29/ac over 31 ac, paddy ₹17,842.75/ac over 26.5 ac).
-Every figure asserted against the sheet inside the transaction; two runs rolled back on a
-failed assertion before the third passed.
+**Just shipped — the P&L no longer contradicts itself, and the FY question is closed.**
+The Ledger's P&L headline read only `v_expense_ledger`: **₹17,293** for FY 2026-27, sitting
+above its own crop table listing **₹4,72,834** of cost. Now `totalExpenses` = transactions +
+`openingCostFY`, summed from *the same rows the crop tables render*, so headline and
+breakdown reconcile by construction. FY 2026-27 reads **₹4,90,127 out** (₹17,293 recorded +
+₹4,72,834 opening), labelled in the Summary card, under the P&L headline, and as a
+deliberately **non-category** card in Money Out (openings have no "paid" side — a normal
+group card would invent a payable). `opening_cost` only, never `total_cost`: a cycle's
+input/labour cost is already in the ledger as the purchase that supplied it. Verified no
+path from `crop_cycle_opening_costs` into `v_expense_ledger`, so no double-count.
+**Also fixed:** Dashboard's "Total Expense ₹13,53,366" was subtitled *"Labour + inputs"* —
+both are ₹0 with zero rows; the whole figure is opening cost. Label now follows composition.
 
-**The root cause found this session: the app stored ENTRY dates as BILL dates.** The
+**The owner's steer, and it governs what comes next:** *"we are going too accounts heavy and
+this is taking a toll on development time and user friendliness."* The app's job is that
+**its own numbers never contradict each other** — NOT to reproduce an accountant's FY P&L.
+That ambition is dropped. Operational work comes before more accounting depth.
+
+**Prior session's figures, all still live and correct:** cash **₹11,979** · Ankur
+**₹2,94,385** · worker openings **−₹55,888** (workers owe the farm) · crop openings
+**cane ₹8,80,533 + paddy ₹4,72,833** across 75 rows, 15/15 cycles itemised, pro-rata by acres.
+
+**Root cause found 12–13 Aug: the app stored ENTRY dates as BILL dates.** The
 picker defaults to today and was never changed, so everything typed on 6–7 Aug carries a
 7-Aug date; the real dates sit inside the invoice numbers the owner typed
 (`4348/19.07.26`). `git log --since=2026-08-05 --until=2026-08-09` confirms 6–7 Aug is when
@@ -40,37 +52,40 @@ disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 
    inside Ankur's ₹2,94,385, and leaving the link raised a second payable beside it. That
    was the ₹5,000 gap. The machine stays in the asset register.
 4. `FARM STAFF` on the sheet = cook/driver (not crop); `EXP. LABOUR STAFF` = the regular
-   labour (crop work). (The "no entry for farm-staff salary" call is REVERSED — see below.)
+   labour (crop work). The farm-staff-salary call was reversed, then settled BACK to
+   "no entry" with a stated reason — see SETTLED item 2 below. That is now final.
 5. `v_salary_dues` reads −₹40,595, not −₹55,888: it adds ₹15,293 of August accrual on top
    of the openings. The openings are what the sheet states.
 6. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
+7. The Ledger P&L, Summary, Excel export and Dashboard all now count pre-app opening cost,
+   deliberately and labelled. **There is no double count** — verified that
+   `v_expense_ledger` has no path to `crop_cycle_opening_costs`, and only `opening_cost` is
+   ever added, never `total_cost` (a cycle's input/labour cost is already in the ledger as
+   the purchase that supplied it). Do not "clean this up".
 
-**NEXT — the FY reporting gap the owner raised, and he is right.** The ledger runs
-**April–March**, so Apr–Jul IS inside FY 2026-27; that is *why* he gave data from April.
-Today Money Out shows only ₹15,293 (Aug salary accrued from 51 attendance rows) and ₹2,000
-(the Sepre machine) — his ₹13.5 L of Apr–Jul spend is invisible there. The data exists and
-is correctly placed; the **reporting** does not read it:
-1. **Extend the expense ledger + P&L to include opening costs inside the selected FY**,
-   labelled as opening/pre-app so they never read as transactions. `v_crop_cost_lines`
-   already has the shape (`is_opening`, `cost_date`). No re-entry, so no duplication.
-2. **FIRST VERIFY:** does the Ledger `P & L` tab read only `v_expense_ledger`? If so it is
-   understating cost by ₹13,53,366 right now — worse than the sparse expense list.
-3. **The ₹1,69,166 farm-staff salary needs a carrier.** Earlier it was ruled "no entry,
-   cash reflects it" — **the owner has since reversed that** on the FY argument, and the
-   option was framed badly when offered. It is currently recoverable from nowhere but his
-   sheet. Give it a home that reports in the FY yet stays out of the cash book, so cash
-   still closes at ₹11,979.
-4. **Blocked on the owner:** his cane block is headed **01.11.25–31.07.26**, so part of the
-   ₹8,80,533 sits in FY 2025-26, and its first line `TO C/O DAP/UREA/POTASH ₹1,13,115`
-   reads as *carried over* from last year. How much of cane is April-onward? Paddy
-   (01.06.26–) and HSD (01.04.26–) are cleanly inside this FY. Settle this before building
-   any FY expense report — it changes the numbers.
+**SETTLED — do not reopen these three. Read [the decision doc](docs/DECISION-fy-and-opening-costs.md) first if tempted; two of them have already been answered twice in opposite directions.**
+1. **Cane stays in FY 2025-26 — cost follows the crop cycle**, via `sow_date`. All 7 cane
+   cycles were sown 15 Oct 25 / 15 Jan 26 / 15 Feb 26, so the whole **₹8,80,532** reports
+   against FY 2025-26 and paddy's **₹4,72,834** against 2026-27. Offered an April-onward
+   split, the owner said it was too difficult to produce and asked for a recommendation —
+   and `crop_cycle_opening_costs` **has no date column** (its only date is the cycle's
+   `sow_date`, borrowed by `v_crop_cost_lines`), so there is nowhere to store a split
+   without new schema. His own framing backs the rule: *"we are considering crop expense
+   since beginning of crop cycle."*
+2. **The ₹1,69,166 farm-staff salary gets NO entry. Third and final answer** — and this
+   time for a stated reason, not by accident. The app's labour frame begins **1 Aug with
+   attendance**, and the pre-Aug salary is already inside the ₹11,979 opening cash; that is
+   *why* cash is that figure. Crop cost is scoped per **cycle** (may legitimately predate
+   the app); salary per **attendance month** (does not). Two frames — that difference IS
+   the answer, not a gap to plug. **Do not build a carrier for it.**
+3. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**Then: the bill-date form fix** (owner asked for it; "data first, form after"). Entry date
-shown read-only, bill date editable from a calendar, bills displayed as
-`bill no. / bill date`. Until it ships every new bill repeats the mis-dating this session
-cleaned up. After that, Phase 3 of the plan (teach `go_live_convert` the same standard).
+**NEXT — the bill-date form fix.** The owner has asked for it twice and this session said
+*"handle bill form later"* — so it is the next piece of work, not an open question. See the
+mis-dating root cause above: until it ships, every new bill repeats it. Entry date shown
+read-only, bill date editable from a calendar, bills displayed as `bill no. / bill date`.
+Then Phase 3 of the plan (teach `go_live_convert` the same standard).
 
 **Still needed from the owner:** the **bank balance** at 31 July (currently ₹0), and his
 **1-Aug opening stock count**. Also worth his eye: Plot H paddy got ₹71,371 by flat
@@ -103,7 +118,14 @@ balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
 the farm, what counts as owner capital).
 
 **Flagged, not to be touched unprompted:** payment-mode pickers disagree across
-`Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
+`Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled. Also
+[`Dashboard.jsx:258`](frontend/src/pages/Dashboard.jsx#L258) sums `crop_cycles.opening_cost`
+— the **lump** — while the Ledger reads `v_crop_pnl.opening_cost`, where 0024 made the
+itemised breakup supersede the lump. Both equal ₹13,53,366 today and no cycle has a zero
+lump beside a breakup, so nothing is wrong on screen; but edit a breakup without the lump
+and the two screens drift. Two unrelated numbers the owner should also eventually see:
+Dashboard "Total Expense" is all-time/all-cycles (₹13,53,366) while the Ledger is FY-scoped
+(₹4,90,127), and Dashboard's Net Position compares cane-only receipts against all-crop cost.
 
 ---
 

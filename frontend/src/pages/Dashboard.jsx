@@ -362,7 +362,14 @@ export default function Dashboard() {
           <KpiCard
             label="Total Expense"
             value={fmt(totalExpense)}
-            sub="Labour + inputs"
+            /* "Labour + inputs" named the two things this figure may not contain.
+               On a farm that went live mid-season the opening cost dominates —
+               on Pallia today it IS the whole number, with labour and inputs at
+               ₹0 — so the label has to follow the composition, not assume it.
+               Same wording as the Ledger's P&L, which counts the same rupees. */
+            sub={totalOpeningCost > 0
+              ? `incl. ${fmt(totalOpeningCost)} spent before the app`
+              : 'Labour + inputs'}
             color="#E24B4A"
           />
           <KpiCard

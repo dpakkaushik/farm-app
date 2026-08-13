@@ -464,7 +464,8 @@ function ViewToggle({ value, onChange, options }) {
 
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
 function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpenses, totalVendorDues, totalReceivables,
-                      totalWageDues = 0, totalSalaryDues = 0, capitalSpendFY = 0, onGoSalary, monthlySummary }) {
+                      totalWageDues = 0, totalSalaryDues = 0, capitalSpendFY = 0, openingCost = 0,
+                      onGoSalary, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -542,7 +543,8 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
           purchase is real money out and deliberately absent from the P&L. */}
       <div className="grid grid-cols-2 gap-3">
         <MetricCard label="Total Income" value={fmt(totalIncome)} color="#1D9E75" />
-        <MetricCard label="Total Expenses" value={fmt(totalExpenses)} color="#E24B4A" />
+        <MetricCard label="Total Expenses" value={fmt(totalExpenses)} color="#E24B4A"
+          sub={openingCost > 0 ? `incl. ${fmt(openingCost)} spent before the app` : undefined} />
         <MetricCard label="Net Profit / Loss" value={fmt(netProfit)}
           color={netProfit >= 0 ? '#1D9E75' : '#E24B4A'} />
         <MetricCard label="Capital Purchases" value={fmt(capitalSpendFY)} color="#7c3aed"
@@ -568,6 +570,7 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
       )}
       <div className="text-[10px] text-center" style={{ color: 'var(--c-faint)' }}>
         Income/Expenses reflect the period selected above. Cash Balance, dues, and Receivables are always as of today, regardless of period.
+        {openingCost > 0 && ' Expenses include crop spend from before the app began — a stated opening figure, not money moving now, so it does not appear in the Cash Book or the monthly chart below.'}
       </div>
 
       {/* Monthly chart */}
@@ -1757,7 +1760,7 @@ function collapseBills(rows, purchaseById) {
 
 function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                        canPay = false, onPayRow, onGoVendors, onGoSalary,
-                       purchases = [], inventoryMaster = [] }) {
+                       purchases = [], inventoryMaster = [], openingCost = 0 }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1798,6 +1801,31 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
           Total incurred vs paid, by category
         </div>
       </div>
+
+      {/* Deliberately NOT a category card. A year with lakhs of real cost behind
+          it should not read as near-empty here, but this money has no "paid"
+          side to show: it was settled before the app existed, which is precisely
+          why the opening cash balance is the figure it is. Rendering it as a
+          normal group would put it in the Pending column and invent a payable. */}
+      {openingCost > 0 && (
+        <Card>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>
+                Spent before the app
+              </div>
+              <div className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
+                Crop cost carried in from your own records. Counted in the P&amp;L,
+                but not payable and not in the Cash Book — it was already settled
+                when the opening balances were set.
+              </div>
+            </div>
+            <div className="text-xs font-bold shrink-0" style={{ color: '#E24B4A' }}>
+              {fmt(openingCost)}
+            </div>
+          </div>
+        </Card>
+      )}
 
       {Object.entries(grouped).map(([key, data]) => {
         const pending = data.total - data.paid
@@ -1943,7 +1971,7 @@ function MarginPill({ actualPct, expectedPct, isActual }) {
   )
 }
 
-function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
+function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cropPnl }) {
   const net = totalIncome - totalExpenses
   const cropMerged = mergeByCrop(cropPnl)
   const animalPnl  = livestockPnl.filter(row => !isPet(row))
@@ -1952,9 +1980,18 @@ function PnlTab({ totalIncome, totalExpenses, livestockPnl, cropPnl }) {
       {/* One line, not a card: the Summary already carries these three numbers.
           This tab's value is the breakdown — which crop, which animal. */}
       <div className="flex items-center justify-between px-1">
-        <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
-          {fmt(totalIncome)} in · {fmt(totalExpenses)} out
-        </span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
+            {fmt(totalIncome)} in · {fmt(totalExpenses)} out
+          </span>
+          {/* Names the reconciliation outright. Without it the "out" figure and
+              the crop cost below it look like two rival answers. */}
+          {openingCost > 0 && (
+            <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}>
+              of which {fmt(openingCost)} spent before the app — the opening cost carried in the crop rows below
+            </span>
+          )}
+        </div>
         <span className="text-xs font-bold" style={{ color: net >= 0 ? '#1D9E75' : '#E24B4A' }}>
           Net {net >= 0 ? 'Profit' : 'Loss'} {fmt(Math.abs(net))}
         </span>
@@ -2203,7 +2240,23 @@ export default function LedgerPage() {
   const cropPnlFY        = cropPnl.filter(r => inFY(r.sow_date, fy))
   const monthlySummary   = monthlySummaryAll.filter(m => inFY(m.month, fy))
   const totalIncome    = incomeLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
-  const totalExpenses  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
+  const expenseTxnsFY  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
+  // Pre-app crop spend falling inside the period. It is a stated opening figure,
+  // not a transaction, so v_expense_ledger has no row for it — but v_crop_pnl
+  // does, and the crop tables on the P&L tab read exactly these rows. Counting
+  // it here is what stops the headline disagreeing with its own breakdown: the
+  // tab used to show ₹17,293 out above a crop table listing ₹4,72,834 of cost.
+  //
+  // `opening_cost`, never `total_cost` — a cycle's input and labour cost is
+  // already in the expense ledger as the purchase that supplied it, so adding
+  // the whole figure would double-count. Openings reach the ledger by no path.
+  //
+  // Attribution follows the crop cycle, via sow_date (see cropPnlFY above).
+  // A cane cycle sown in October reports against the FY it was sown in, even
+  // where the spend ran on into the next one. That is the rule the per-cycle
+  // costing already implies, and it needs nothing from the owner to hold.
+  const openingCostFY  = cropPnlFY.reduce((s, r) => s + Number(r.opening_cost || 0), 0)
+  const totalExpenses  = expenseTxnsFY + openingCostFY
 
   // Cash Book: list only the period's transactions, but carry forward an
   // opening balance from everything before the period started so the
@@ -2243,6 +2296,12 @@ export default function LedgerPage() {
       ['PROFIT & LOSS (period)'],
       ['Total Income',   num(totalIncome)],
       ['Total Expenses', num(totalExpenses)],
+      // Split out so an accountant reading this can see at a glance which part
+      // is app-recorded transactions and which is the owner's stated pre-app cost.
+      ...(openingCostFY > 0 ? [
+        ['  of which recorded in the app',  num(expenseTxnsFY)],
+        ['  of which spent before the app', num(openingCostFY)],
+      ] : []),
       ['Net Profit',     num(totalIncome - totalExpenses)],
       [],
       ['POSITION AS OF TODAY'],
@@ -2457,6 +2516,7 @@ export default function LedgerPage() {
             capitalSpendFY={(capitalPurchases || [])
               .filter(c => c.is_capitalised && inFY(c.purchase_date, fy))
               .reduce((s, c) => s + Number(c.amount || 0), 0)}
+            openingCost={openingCostFY}
             onGoSalary={() => navigate('/labour')}
             monthlySummary={monthlySummary}
           />
@@ -2527,6 +2587,7 @@ export default function LedgerPage() {
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
             salaryPaidTotal={salaryPaidTotal}
+            openingCost={openingCostFY}
             purchases={purchases} inventoryMaster={inventoryMaster}
             canPay={canManage}
             onGoVendors={() => setMoneyOutView('parties')}
@@ -2554,6 +2615,7 @@ export default function LedgerPage() {
           <PnlTab
             totalIncome={totalIncome}
             totalExpenses={totalExpenses}
+            openingCost={openingCostFY}
             livestockPnl={livestockPnl}
             cropPnl={cropPnlFY}
           />
