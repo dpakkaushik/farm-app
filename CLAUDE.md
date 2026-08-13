@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-13 · **detail:** [`supabase/data-fixes/2026-08-13-owner-stated-figures.md`](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · earlier passes: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-13 (figures live on production; FY reporting gap open) · **detail:** [`supabase/data-fixes/2026-08-13-owner-stated-figures.md`](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [`docs/PLAN-fresh-install-standard.md`](docs/PLAN-fresh-install-standard.md) · earlier passes: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
 **Just shipped — THE OWNER'S REAL FIGURES ARE IN. Nothing is a placeholder any more**
 (bar the two items below). From his sheet *EXPENSES DETAILS 1.04.26 TO 31.07.26*, which he
@@ -40,17 +40,37 @@ disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 
    inside Ankur's ₹2,94,385, and leaving the link raised a second payable beside it. That
    was the ₹5,000 gap. The machine stays in the asset register.
 4. `FARM STAFF` on the sheet = cook/driver (not crop); `EXP. LABOUR STAFF` = the regular
-   labour (crop work). The ₹1,69,166 farm-staff salary is PAID and gets **no entry** —
-   it is why cash is ₹11,979. It will never show as an expense; that is accepted.
+   labour (crop work). (The "no entry for farm-staff salary" call is REVERSED — see below.)
 5. `v_salary_dues` reads −₹40,595, not −₹55,888: it adds ₹15,293 of August accrual on top
    of the openings. The openings are what the sheet states.
 6. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
 
-**NEXT, and the owner asked for it: the bill-date form fix.** Entry date shown read-only,
-bill date editable from a calendar, bills displayed as `bill no. / bill date`. Until it
-ships every new bill repeats the mis-dating this session just cleaned up. Then Phase 3 of
-the plan (teach `go_live_convert` the same standard for future farms).
+**NEXT — the FY reporting gap the owner raised, and he is right.** The ledger runs
+**April–March**, so Apr–Jul IS inside FY 2026-27; that is *why* he gave data from April.
+Today Money Out shows only ₹15,293 (Aug salary accrued from 51 attendance rows) and ₹2,000
+(the Sepre machine) — his ₹13.5 L of Apr–Jul spend is invisible there. The data exists and
+is correctly placed; the **reporting** does not read it:
+1. **Extend the expense ledger + P&L to include opening costs inside the selected FY**,
+   labelled as opening/pre-app so they never read as transactions. `v_crop_cost_lines`
+   already has the shape (`is_opening`, `cost_date`). No re-entry, so no duplication.
+2. **FIRST VERIFY:** does the Ledger `P & L` tab read only `v_expense_ledger`? If so it is
+   understating cost by ₹13,53,366 right now — worse than the sparse expense list.
+3. **The ₹1,69,166 farm-staff salary needs a carrier.** Earlier it was ruled "no entry,
+   cash reflects it" — **the owner has since reversed that** on the FY argument, and the
+   option was framed badly when offered. It is currently recoverable from nowhere but his
+   sheet. Give it a home that reports in the FY yet stays out of the cash book, so cash
+   still closes at ₹11,979.
+4. **Blocked on the owner:** his cane block is headed **01.11.25–31.07.26**, so part of the
+   ₹8,80,533 sits in FY 2025-26, and its first line `TO C/O DAP/UREA/POTASH ₹1,13,115`
+   reads as *carried over* from last year. How much of cane is April-onward? Paddy
+   (01.06.26–) and HSD (01.04.26–) are cleanly inside this FY. Settle this before building
+   any FY expense report — it changes the numbers.
+
+**Then: the bill-date form fix** (owner asked for it; "data first, form after"). Entry date
+shown read-only, bill date editable from a calendar, bills displayed as
+`bill no. / bill date`. Until it ships every new bill repeats the mis-dating this session
+cleaned up. After that, Phase 3 of the plan (teach `go_live_convert` the same standard).
 
 **Still needed from the owner:** the **bank balance** at 31 July (currently ₹0), and his
 **1-Aug opening stock count**. Also worth his eye: Plot H paddy got ₹71,371 by flat
