@@ -79,7 +79,15 @@ disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 
    *why* cash is that figure. Crop cost is scoped per **cycle** (may legitimately predate
    the app); salary per **attendance month** (does not). Two frames — that difference IS
    the answer, not a gap to plug. **Do not build a carrier for it.**
-3. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
+3. **A closed pre-app cycle stays out entirely — both sides.** He reported a **paddy payment
+   of ₹1,88,530 received 30.06.26** (a payment date, not a harvest date) and asked whether to
+   show it. **No** — he confirmed no dues outstanding, and that crop's *costs* are not in the
+   app either, so entering only the revenue would show ₹1.88 L of profit with nothing spent
+   to earn it. Standing cycles carry opening cost in and earn revenue in-app; closed ones
+   stay out. Had anything still been owed it would have needed a **buyer opening balance** —
+   check that first if a similar figure appears. **Expect a large P&L loss** until cane and
+   paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
+4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
 **NEXT — the bill-date form fix.** The owner has asked for it twice and this session said
 *"handle bill form later"* — so it is the next piece of work, not an open question. See the
@@ -87,8 +95,15 @@ mis-dating root cause above: until it ships, every new bill repeats it. Entry da
 read-only, bill date editable from a calendar, bills displayed as `bill no. / bill date`.
 Then Phase 3 of the plan (teach `go_live_convert` the same standard).
 
-**Still needed from the owner:** the **bank balance** at 31 July (currently ₹0), and his
-**1-Aug opening stock count**. Also worth his eye: Plot H paddy got ₹71,371 by flat
+**Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances
+arrived 2026-08-13 — ₹39,405 across six accounts — captured in
+[`docs/PENDING-bank-accounts-and-partners.md`](docs/PENDING-bank-accounts-and-partners.md)
+but NOT yet on the database.** He asked for them linked to the **partners master** rather
+than lumped into one Bank row (his call, and better than the lump I proposed); that needs an
+`accounts.partner_id` migration. Settled: sheet "PUNEESH" = master "Puneet Nanda", one
+person, master spelling canonical. Still open there: does partner **Sai Kiran Nanda** have an
+account, or was it just not listed? Cash ₹11,979 is *today's* figure, but no cash has moved
+since 1 Aug, so it doubles as the opening — unless he paid cash 1–13 Aug without recording it. Also worth his eye: Plot H paddy got ₹71,371 by flat
 pro-rata but was sown 16 July, six weeks after the rest, so it is likely overstated; the
 "Sepre machine" ₹2,000 now shows as an August expense with no payable; the ₹100 medicine
 expense was deleted with the 7-Aug batch and needs re-entering if genuine. Deferred by

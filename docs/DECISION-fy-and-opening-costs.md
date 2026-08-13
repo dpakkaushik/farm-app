@@ -69,7 +69,48 @@ that difference is the answer — not an inconsistency to repair.
 **Do not add a carrier for this figure.** If a filing-grade FY total is ever needed, the
 owner's sheet is the source, not the app.
 
-## Ruling 3 — scope. What the app guarantees.
+## Ruling 3 — a closed pre-app cycle stays out entirely, on BOTH sides.
+
+Added 2026-08-13, same session. The owner reported a **paddy payment of ₹1,88,530 received
+30.06.26** and asked whether to show it: *"no dues just peddy payment received in july
+should i show that i am not sure about that we can continue with aug as well we have
+expenses of our existing crops, you suggest me on this."*
+
+**Recommendation given and accepted: do not enter it. Start from August.**
+
+- He confirmed **no dues outstanding**, which removes the one thing that would have forced
+  the opposite call. Had any part of that harvest still been owed at 1 Aug it would be a
+  **receivable** and would have needed a buyer opening balance — otherwise the money later
+  arrives in-app with no receivable behind it and lands as fresh income for a crop the app
+  has no record of, overstating the year by exactly that sum.
+- The money is already inside the opening balances (₹11,979 cash + ₹39,405 bank).
+- **The decisive reason: that crop's costs are not in the app either.** It has no cycle, no
+  inputs, no labour. Enter only the revenue and the app shows ₹1.88 L of pure profit with
+  nothing spent to earn it. Out on both sides is symmetric; in on one side is not.
+
+Note the date is a *payment* date, not a harvest date — the owner clarified *"payment
+received later the harvest"*. It is a prior completed crop whose money also landed pre-1-Aug.
+
+**The general rule, which is what to reuse:** a **closed** pre-app cycle stays out entirely,
+both sides. A **standing** cycle carries its opening cost in and will earn its revenue inside
+the app. That is why cane and paddy have opening costs but no revenue, and it is coherent
+rather than a gap.
+
+**Expect and do not "fix":** the standing crops carry ₹13,53,366 of cost against revenue
+still to come, so the P&L reads a large loss until the mill pays. Correct behaviour. Do not
+paper over it with last season's income.
+
+## Also confirmed — cash ₹11,979
+
+The owner: *"11979 is current cash in hand today"* (13 Aug), not the 31 July closing figure I
+had assumed. It makes no difference: the only cash-book row since 1 Aug **is** the opening
+balance — the ₹15,293 salary and ₹2,000 machine are both accrued and unpaid — so no cash has
+moved and today's figure equals the 1-Aug opening. The stored value is right either way.
+
+Open caveat: true only if no real cash left his hand 1–13 Aug unrecorded. If it did, the
+1-Aug opening was higher by that amount.
+
+## Ruling 4 — scope. What the app guarantees.
 
 The owner's steer, verbatim: *"right now we are going too accounts heavy and this is taking
 a toll on development time and user friendliness."*
