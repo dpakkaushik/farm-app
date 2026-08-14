@@ -105,7 +105,12 @@ person, master spelling canonical. Still open there: does partner **Sai Kiran Na
 account, or was it just not listed? Cash ₹11,979 is *today's* figure, but no cash has moved
 since 1 Aug, so it doubles as the opening — unless he paid cash 1–13 Aug without recording it. Also worth his eye: Plot H paddy got ₹71,371 by flat
 pro-rata but was sown 16 July, six weeks after the rest, so it is likely overstated; the
-"Sepre machine" ₹2,000 now shows as an August expense with no payable; the ₹100 medicine
+**"Sepre machine" ₹2,000 was DELETED 2026-08-14 on his instruction** — archived to
+`go_live_archive` first (4th batch); it was another 7-Aug mis-dated entry, so FY 2026-27
+Money Out is now ₹15,293 and the P&L headline ₹4,88,127. He also queried the 6 OPENING-STOCK
+purchase rows (₹1,21,207.06, 31 Mar): explained and KEPT — they are the only source of
+inventory stock, and with `inventory_issues` at zero rows they do not double-count the crop
+opening costs (used-up inputs) because this is stock still on the shelf. The ₹100 medicine
 expense was deleted with the 7-Aug batch and needs re-entering if genuine. Deferred by
 him: **animal and tree opening balances**. Unruled: 18 pre-Aug farm videos (storage files
 are NOT archived — irreversible) and 3 pre-Aug `livestock_health_logs`. The duplicate
