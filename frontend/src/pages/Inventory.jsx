@@ -5,9 +5,10 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
 import { MACHINE_TYPES, ASSET_CATS } from './Assets'
 
-const TODAY_STR = new Date().toISOString().slice(0, 10)
+const TODAY_STR = localToday()
 // A bill line lands in one of three registers. Stock is consumed; machinery and
 // assets are owned, so they leave inventory alone and go to their own master —
 // still carrying this bill, so the vendor is owed the whole document.
@@ -43,8 +44,10 @@ export default function Inventory() {
   const [toastType, setToastType] = useState('success')
   const [saving,    setSaving]    = useState(false)
 
-  // Bill purchase state
-  const [billMeta, setBillMeta] = useState({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
+  // Bill purchase state. `date` is the bill's own date and starts EMPTY on
+  // purpose — see lib/billdates.js for the ₹1.12 lakh of July data that a
+  // date picker sitting on today filed into August.
+  const [billMeta, setBillMeta] = useState({ date: '', vendorId: '', vendor: '', invoiceNo: '', notes: '' })
   const [billLines, setBillLines] = useState([{ ...BLANK_LINE }])
   const [billFile,  setBillFile]  = useState(null)
 
@@ -73,13 +76,17 @@ export default function Inventory() {
   const capitalTotal = billLines.filter(l => l.kind !== 'stock').reduce((s, l) => s + lineAmount(l), 0)
 
   const openBillModal = () => {
-    setBillMeta({ date: TODAY_STR, vendorId: '', vendor: '', invoiceNo: '', notes: '' })
+    setBillMeta({ date: '', vendorId: '', vendor: '', invoiceNo: '', notes: '' })
     setBillLines([{ ...BLANK_LINE }])
     setBillFile(null)
     setModal('bill')
   }
 
   const confirmBill = async () => {
+    // Asked for first because it is the one field the app cannot guess and the
+    // one that decides which financial year every line of this bill lands in.
+    if (!billMeta.date) return showToast('Pick the bill date — the date printed on the bill', 'warn')
+    if (billMeta.date > localToday()) return showToast('A bill cannot be dated in the future', 'warn')
     if (!billMeta.vendor.trim()) return showToast('Enter vendor name', 'warn')
     const valid = billLines.filter(lineFilled)
     if (valid.length === 0) return showToast('Add at least one item with qty and rate', 'warn')
@@ -255,12 +262,36 @@ export default function Inventory() {
       {modal === 'bill' && (
         <Modal title="New Purchase Bill" onClose={() => setModal(null)}>
           <div className="space-y-3">
-            {/* Bill header */}
+            {/* Bill header — two dates, and they are not the same thing. The entry
+                date is stamped by the database and shown read-only so it is clear
+                the app already knows when this was typed; the bill date is the one
+                being asked for, and it starts empty so it cannot be left on today
+                by accident the way six bills' worth of July purchases were. */}
             <div className="grid grid-cols-2 gap-2">
-              <FRow label="Bill Date">
-                <input type="date" className="finput" value={billMeta.date}
-                  onChange={e => bm('date', e.target.value)} style={{ colorScheme: 'dark' }} />
+              <FRow label="Entry Date">
+                <input className="finput" value={fmtBillDate(TODAY_STR)} readOnly tabIndex={-1}
+                  style={{ opacity: 0.55, cursor: 'default' }} />
+                <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                  Today — recorded for you.
+                </p>
               </FRow>
+              <FRow label="Bill Date *">
+                <input type="date" className="finput" value={billMeta.date} max={TODAY_STR}
+                  onChange={e => bm('date', e.target.value)} style={{ colorScheme: 'dark' }} />
+                {billMeta.date ? (
+                  <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                    The date printed on the bill.
+                  </p>
+                ) : (
+                  <p className="text-[9px] mt-1 leading-snug" style={{ color: '#BA7517' }}>
+                    Read it off the bill.{' '}
+                    <button type="button" onClick={() => bm('date', TODAY_STR)}
+                      className="underline font-semibold">Bill is from today</button>
+                  </p>
+                )}
+              </FRow>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
               <FRow label="Vendor *">
                 <select className="finput" value={billMeta.vendorId}
                   onChange={e => {
@@ -569,6 +600,9 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
       groups.push({
         type: 'bill', sortDate: p.date,
         billId: p.billId, date: p.date, vendor: p.vendor,
+        // Every line of a bill is written in the same insert, so any one of them
+        // carries the moment the bill was typed in.
+        entryDate: p.entryDate,
         invoiceNo: p.invoiceNo, billFileUrl: p.billFileUrl,
         items: billItems,
         billTotal: billItems.reduce((s, x) => s + x.totalCost, 0),
@@ -579,10 +613,13 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
 
   const downloadCSV = () => {
     const rows = [
-      ['Date','Item','Category','Qty','Unit','Rate','Total','Vendor','Invoice No'],
+      // Bill Date and Entered are separate columns so the owner can sort on the
+      // gap in Excel — that is how the July-filed-as-August batch was found.
+      ['Bill Date','Entered','Item','Category','Qty','Unit','Rate','Total','Vendor','Invoice No'],
       ...filtered.map(p => {
         const item = inventoryMaster.find(i => i.id === p.itemId)
-        return [p.date, item?.name || '', item ? CAT_LABEL[item.category] || '' : '',
+        return [p.date, (p.entryDate || '').slice(0, 10),
+                item?.name || '', item ? CAT_LABEL[item.category] || '' : '',
                 p.qty, item?.unit || '', p.unitPrice, p.totalCost, p.vendor, p.invoiceNo || '']
       }),
     ]
@@ -649,8 +686,13 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
                       </span>
                     </div>
                     <div className="flex gap-3 mt-0.5 flex-wrap">
-                      <p className="text-[10px] text-[var(--c-faint)]">{g.date}</p>
-                      {g.invoiceNo && <p className="text-[10px] text-[var(--c-faint)]">#{g.invoiceNo}</p>}
+                      <p className="text-[10px] text-[var(--c-faint)]">{billRef(g.invoiceNo, g.date)}</p>
+                      {entryDiffers(g.date, g.entryDate) && (
+                        <p className="text-[10px]" style={{ color: '#BA7517' }}
+                          title="The bill carries a different date from the day it was entered">
+                          entered {fmtBillDate(g.entryDate)}
+                        </p>
+                      )}
                       {g.billFileUrl && (
                         <Attachment variant="chip" value={g.billFileUrl} icon="📎" name="View bill" />
                       )}
@@ -686,8 +728,13 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
                   <p className="text-sm font-semibold text-[var(--c-text)]">{item?.name || '—'}</p>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">{p.vendor}</p>
                   <div className="flex flex-wrap gap-x-3 mt-0.5">
-                    <p className="text-[10px] text-[var(--c-faint)]">{p.invoiceDate || p.date}</p>
-                    {p.invoiceNo && <p className="text-[10px] text-[var(--c-faint)]">#{p.invoiceNo}</p>}
+                    <p className="text-[10px] text-[var(--c-faint)]">{billRef(p.invoiceNo, p.invoiceDate || p.date)}</p>
+                    {entryDiffers(p.invoiceDate || p.date, p.entryDate) && (
+                      <p className="text-[10px]" style={{ color: '#BA7517' }}
+                        title="The bill carries a different date from the day it was entered">
+                        entered {fmtBillDate(p.entryDate)}
+                      </p>
+                    )}
                   </div>
                   {p.billImagePath && (
                     <div className="mt-0.5">

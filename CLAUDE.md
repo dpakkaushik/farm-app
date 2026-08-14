@@ -11,20 +11,25 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-13 (FY question settled; opening costs now report) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-14 (bill-date form fixed — the mis-dating cannot repeat) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped — the P&L no longer contradicts itself, and the FY question is closed.**
-The Ledger's P&L headline read only `v_expense_ledger`: **₹17,293** for FY 2026-27, sitting
-above its own crop table listing **₹4,72,834** of cost. Now `totalExpenses` = transactions +
-`openingCostFY`, summed from *the same rows the crop tables render*, so headline and
-breakdown reconcile by construction. FY 2026-27 reads **₹4,90,127 out** (₹17,293 recorded +
-₹4,72,834 opening), labelled in the Summary card, under the P&L headline, and as a
-deliberately **non-category** card in Money Out (openings have no "paid" side — a normal
-group card would invent a payable). `opening_cost` only, never `total_cost`: a cycle's
-input/labour cost is already in the ledger as the purchase that supplied it. Verified no
-path from `crop_cycle_opening_costs` into `v_expense_ledger`, so no double-count.
-**Also fixed:** Dashboard's "Total Expense ₹13,53,366" was subtitled *"Labour + inputs"* —
-both are ₹0 with zero rows; the whole figure is opening cost. Label now follows composition.
+**Just shipped — the bill form can no longer file July as August.** The root cause was
+never a typo: the picker defaulted to today, read as already-correct, and nobody touched
+it. So the default is gone. The bill modal now shows **two** dates — *Entry Date*,
+read-only, "today, recorded for you" (it always was, in `inventory_purchases.entry_date`,
+`default now()`, mapped but never displayed), and ***Bill Date*, required and starting
+empty**, `max` today, with a one-tap "Bill is from today" for the ordinary same-day case.
+Save is blocked with *"Pick the bill date — the date printed on the bill"*. Bills now read
+as **`4348 / 19 Jul 26`** — number then date, the way the owner writes one — and where a
+bill's date and its entry day differ by more than a day, the row carries an amber
+*"entered 07 Aug 26"*, so a repeat is visible on screen instead of buried. Purchases CSV
+gained an `Entered` column beside `Bill Date`; sorting on the gap is how the August batch
+was found. Helpers + 13 tests in [`lib/billdates.js`](frontend/src/lib/billdates.js), whose
+header comment is the full story. `localToday()` also fixes a real off-by-one: `TODAY_STR`
+came from `toISOString()`, i.e. UTC, which is *yesterday* before 5.30am IST.
+**No migration** — every column already existed. Prior session's P&L fix stands: headline
+and crop table now sum the same rows (FY 2026-27 = ₹4,88,127 out), and the Dashboard's
+"Total Expense" subtitle no longer claims "Labour + inputs" when both are ₹0.
 
 **The owner's steer, and it governs what comes next:** *"we are going too accounts heavy and
 this is taking a toll on development time and user friendliness."* The app's job is that
@@ -35,8 +40,8 @@ That ambition is dropped. Operational work comes before more accounting depth.
 **₹2,94,385** · worker openings **−₹55,888** (workers owe the farm) · crop openings
 **cane ₹8,80,533 + paddy ₹4,72,833** across 75 rows, 15/15 cycles itemised, pro-rata by acres.
 
-**Root cause found 12–13 Aug: the app stored ENTRY dates as BILL dates.** The
-picker defaults to today and was never changed, so everything typed on 6–7 Aug carries a
+**Root cause found 12–13 Aug, fixed 14 Aug: the app stored ENTRY dates as BILL dates.** The
+picker *used to* default to today and was never changed, so everything typed on 6–7 Aug carries a
 7-Aug date; the real dates sit inside the invoice numbers the owner typed
 (`4348/19.07.26`). `git log --since=2026-08-05 --until=2026-08-09` confirms 6–7 Aug is when
 the *abandoned* "match every historical record" approach was being built. So the 6 bills,
@@ -89,11 +94,8 @@ disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT — the bill-date form fix.** The owner has asked for it twice and this session said
-*"handle bill form later"* — so it is the next piece of work, not an open question. See the
-mis-dating root cause above: until it ships, every new bill repeats it. Entry date shown
-read-only, bill date editable from a calendar, bills displayed as `bill no. / bill date`.
-Then Phase 3 of the plan (teach `go_live_convert` the same standard).
+**NEXT — Phase 3 of the plan: teach `go_live_convert` the same standard.** The bill form is
+done, so the remaining piece is the conversion path. After that, Books Health check (below).
 
 **Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances
 arrived 2026-08-13 — ₹39,405 across six accounts — captured in
@@ -137,8 +139,12 @@ balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
 **Blocked on the owner:** the three Balance Sheet numbers (land + plot value, loans against
 the farm, what counts as owner capital).
 
-**Flagged, not to be touched unprompted:** payment-mode pickers disagree across
-`Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled. Also
+**Flagged, not to be touched unprompted:** the two *add* forms in
+[`Assets.jsx`](frontend/src/pages/Assets.jsx#L250) (machinery, asset) still default
+`purchaseDate` to today — the **same pattern** the bill form just lost, and `TODAY` there is
+still the UTC one. Not changed: the owner asked for the bill form, and an asset is usually
+added when acquired. Fix it the same way when he wants it. Also payment-mode pickers
+disagree across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled. Also
 [`Dashboard.jsx:258`](frontend/src/pages/Dashboard.jsx#L258) sums `crop_cycles.opening_cost`
 — the **lump** — while the Ledger reads `v_crop_pnl.opening_cost`, where 0024 made the
 itemised breakup supersede the lump. Both equal ₹13,53,366 today and no cycle has a zero
