@@ -2502,6 +2502,16 @@ const useAppStore = create((set, get) => ({
 
   // ── Ledger ──────────────────────────────────────────────────────────────────
 
+  // The Dashboard's farm-wide cards read v_crop_pnl — the same rows the
+  // Ledger's crop tables render, so the two screens agree by construction.
+  // The Dashboard needs only this one view, not the Ledger's full bundle.
+  loadCropPnl: async () => {
+    const farmId = getFarmId()
+    if (!farmId) return
+    const { data } = await supabase.from('v_crop_pnl').select('*').eq('farm_id', farmId)
+    set({ cropPnl: data || [] })
+  },
+
   loadLedgerData: async () => {
     const farmId = getFarmId()
     if (!farmId) return

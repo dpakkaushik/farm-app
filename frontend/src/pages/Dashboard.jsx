@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AppLauncher } from '@capacitor/app-launcher'
 import { format, differenceInDays } from 'date-fns'
 import { useAuthStore } from '../store/auth'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
+import { summarizeCropPnl, cycleExpected } from '../lib/farmOverview'
 import Attachment from '../components/Attachment'
 import SetupChecklist from '../components/SetupChecklist'
 
@@ -210,10 +211,15 @@ export default function Dashboard() {
     harvestSessions, sales, buyers, partners,
     issues, labourLogs, inventoryMaster,
     livestockMaster, todayAttendance,
+    cropPnl, loadCropPnl,
   } = useAppStore()
 
   const [expandedPartnerId, setExpandedPartnerId] = useState(null)
   const [expandedCycleId,   setExpandedCycleId]   = useState(null)
+
+  // The money cards read v_crop_pnl, which the app-wide load does not fetch —
+  // only the Ledger did until now.
+  useEffect(() => { loadCropPnl() }, [])
 
   // ── Header meta ──
   const hour      = now.getHours()
@@ -223,56 +229,39 @@ export default function Dashboard() {
   const activeCycles  = cropCycles.filter(c => c.status === 'active')
   const presentToday  = Object.values(todayAttendance).filter(a => a.status === 'present').length
 
-  // ── Cane identification ──
-  const caneSessionCycleIds = new Set(harvestSessions.map(s => s.cycleId))
+  // ── Farm-wide money picture — whole crop cycles, no financial year ──
+  // Spent / billed / expected all come from v_crop_pnl: the same rows the
+  // Ledger's crop tables render, so the two screens agree by construction.
+  // This retired three page-local derivations that each disagreed with the
+  // Ledger in a different way — an expected-revenue formula that mixed billed
+  // cane with estimates, a net position that set cane-only receipts against
+  // all-crop cost, and an opening-cost sum over the crop_cycles lump that
+  // drifted from the view's itemised breakups.
+  const overview = summarizeCropPnl(cropPnl)
+  const cropPnlByCycle = new Map(cropPnl.map(r => [r.cycle_id, r]))
 
-  // ── Revenue financials (cane only has real sales data) ──
-  const caneGrossTotal = sales.reduce((n, s) => n + s.grossAmount, 0)
-  const caneRevPaid    = sales.filter(s => s.paymentStatus === 'paid').reduce((n, s) => n + s.netAmount, 0)
-  const caneRevPending = sales.filter(s => s.paymentStatus !== 'paid').reduce((n, s) => n + s.grossAmount, 0)
-
-  // Estimated revenue for non-cane active cycles — grain plus residuals
-  // (bhoosa, parali): both are real revenue the standing crop will bring.
-  const otherEstRev = activeCycles
-    .filter(c => !caneSessionCycleIds.has(c.id))
-    .reduce((n, c) => {
-      const crop = cropMaster.find(cr => cr.id === c.cropId)
-      if (!crop) return n
-      const residualPerAcre = (crop.residuals || []).reduce(
-        (r, d) => r + (Number(d.qty_per_acre) || 0) * (Number(d.expected_rate) || 0), 0)
-      return n + (c.acres || 0) * ((crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) + residualPerAcre)
-    }, 0)
-
-  const totalExpectedRevenue = caneGrossTotal + otherEstRev
-
-  // ── Expense totals ──
-  // Stock corrections rebalance inventory after data mishaps; they are not
-  // spend, so they must not inflate the owner's season-cost number.
-  const totalInputCost  = issues
-    .filter(i => i.purpose !== 'stock_correction' && i.purpose !== 'historical_correction')
-    .reduce((n, i) => n + (i.totalCost || 0), 0)
-  const totalLabourCost = labourLogs.reduce((n, l) => n + (l.totalCost || 0), 0)
-  // Standing crops on a mid-year farm carry their pre-go-live spend as
-  // opening_cost — the Ledger's P&L counts it, so this screen must too, or the
-  // owner sees two different season costs.
-  const totalOpeningCost = cropCycles.reduce((n, c) => n + (c.openingCost || 0), 0)
-  const totalExpense    = totalInputCost + totalLabourCost + totalOpeningCost
-  const netPosition     = caneRevPaid - totalExpense
+  // Paid vs pending stays on the sales rows — the view's revenue is billed
+  // net, and does not know what has actually been received.
+  const revPaid    = sales.filter(s => s.paymentStatus === 'paid').reduce((n, s) => n + s.netAmount, 0)
+  const revPending = sales.filter(s => s.paymentStatus !== 'paid').reduce((n, s) => n + s.grossAmount, 0)
 
   // ── Diesel item IDs (category = 'fuel') ──
   const dieselItemIds = new Set(
     inventoryMaster.filter(i => i.category === 'fuel').map(i => i.id)
   )
 
-  // Per-cycle expense breakdown
+  // Per-cycle expense breakdown for the expanded card. Diesel/inventory/labour
+  // need the raw rows (the view has no fuel split); opening cost comes from the
+  // view so an itemised breakup supersedes the crop_cycles lump here too.
   const getCycleExp = (cycleId) => {
-    const ci = issues.filter(i => i.cropCycleId === cycleId)
+    const ci = issues.filter(i => i.cropCycleId === cycleId
+      && i.purpose !== 'stock_correction' && i.purpose !== 'historical_correction')
     const cl = labourLogs.filter(l => l.cropCycleId === cycleId)
     const diesel    = ci.filter(i => dieselItemIds.has(i.itemId)).reduce((n, i) => n + i.totalCost, 0)
     const inventory = ci.filter(i => !dieselItemIds.has(i.itemId)).reduce((n, i) => n + i.totalCost, 0)
     const labour    = cl.reduce((n, l) => n + l.totalCost, 0)
-    const opening   = cropCycles.find(c => c.id === cycleId)?.openingCost || 0
-    return { diesel, inventory, labour, opening, total: diesel + inventory + labour + opening }
+    const opening   = Number(cropPnlByCycle.get(cycleId)?.opening_cost || 0)
+    return { diesel, inventory, labour, opening }
   }
 
   // ── Partners sorted: Vipul first, then alphabetical ──
@@ -335,48 +324,52 @@ export default function Dashboard() {
         {/* Mid-year onboarding — shows only while the farm looks un-set-up */}
         <SetupChecklist />
 
-        {/* ── Row 1: 3 revenue KPIs ── */}
+        {/* ── Row 1: 3 revenue KPIs — whole cycles, sowing to sale, no FY ── */}
         <div className="grid grid-cols-3 gap-2">
           <KpiCard
             label="Expected"
-            value={fmt(totalExpectedRevenue)}
-            sub="All crops"
+            value={fmt(overview.expected)}
+            sub="At harvest, all crops"
             color="var(--c-text)"
           />
           <KpiCard
             label="Received"
-            value={fmt(caneRevPaid)}
-            sub="Mills paid"
+            value={fmt(revPaid)}
+            sub="Payments in"
             color="#1D9E75"
           />
           <KpiCard
             label="Pending"
-            value={fmt(caneRevPending)}
+            value={fmt(revPending)}
             sub={`${sales.filter(s => s.paymentStatus !== 'paid').length} invoices`}
-            color={caneRevPending > 0 ? '#BA7517' : '#1D9E75'}
+            color={revPending > 0 ? '#BA7517' : '#1D9E75'}
           />
         </div>
 
         {/* ── Row 2: Expense + Net ── */}
         <div className="grid grid-cols-2 gap-2">
           <KpiCard
-            label="Total Expense"
-            value={fmt(totalExpense)}
+            label="Spent on Crops"
+            value={fmt(overview.spent)}
             /* "Labour + inputs" named the two things this figure may not contain.
                On a farm that went live mid-season the opening cost dominates —
                on Pallia today it IS the whole number, with labour and inputs at
                ₹0 — so the label has to follow the composition, not assume it.
-               Same wording as the Ledger's P&L, which counts the same rupees. */
-            sub={totalOpeningCost > 0
-              ? `incl. ${fmt(totalOpeningCost)} spent before the app`
+               Same rupees as the Ledger's crop tables (both read v_crop_pnl). */
+            sub={overview.openingCost > 0
+              ? `incl. ${fmt(overview.openingCost)} spent before the app`
               : 'Labour + inputs'}
             color="#E24B4A"
           />
           <KpiCard
             label="Net Position"
-            value={fmt(Math.abs(netPosition))}
-            sub={netPosition >= 0 ? 'Surplus after costs' : 'Costs exceed receipts'}
-            color={netPosition >= 0 ? '#1D9E75' : '#E24B4A'}
+            /* Forward-looking on purpose: expected − spent. Cash in hand today
+               is negative until harvest by design — a standing crop is money
+               in the field — so the useful number is where the farm lands if
+               the crops sell at the Admin → Crops rates. */
+            value={fmt(Math.abs(overview.net))}
+            sub={overview.net >= 0 ? 'Ahead, if crops sell as expected' : 'Short, even if crops sell as expected'}
+            color={overview.net >= 0 ? '#1D9E75' : '#E24B4A'}
           />
         </div>
 
@@ -496,8 +489,8 @@ export default function Dashboard() {
               style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}>
               <span className="text-[var(--c-sub)] uppercase tracking-wider">Total</span>
               <span className="text-right font-mono text-[var(--c-text)]">{fmtK(sales.reduce((n, s) => n + s.grossAmount, 0))}</span>
-              <span className="text-right font-mono text-[#1D9E75]">{fmtK(caneRevPaid)}</span>
-              <span className="text-right font-mono text-[#BA7517]">{fmtK(caneRevPending)}</span>
+              <span className="text-right font-mono text-[#1D9E75]">{fmtK(revPaid)}</span>
+              <span className="text-right font-mono text-[#BA7517]">{fmtK(revPending)}</span>
               <span/>
             </div>
           )}
@@ -514,20 +507,18 @@ export default function Dashboard() {
                   const exp        = getCycleExp(cycle.id)
                   const daysLeft   = cycle.harvestDate ? differenceInDays(new Date(cycle.harvestDate), now) : null
                   const isExpanded = expandedCycleId === cycle.id
-                  const isCaneCycle = caneSessionCycleIds.has(cycle.id)
 
-                  // Estimated / billed revenue for this cycle
-                  let cycleRev = 0
-                  if (isCaneCycle) {
-                    const cSessions = harvestSessions.filter(s => s.cycleId === cycle.id)
-                    cycleRev = cSessions
-                      .flatMap(s => sales.filter(sl => sl.sessionId === s.id))
-                      .reduce((n, s) => n + s.grossAmount, 0)
-                  } else {
-                    cycleRev = crop ? (cycle.acres || 0) * (crop.yieldPerAcre || 0) * (crop.pricePerQtl || 0) : 0
-                  }
+                  // This cycle's row from v_crop_pnl — same source as the top
+                  // cards and the Ledger, so every tile on the page agrees.
+                  const pnl       = cropPnlByCycle.get(cycle.id)
+                  const cycleCost = Number(pnl?.total_cost || 0)
+                  const billed    = Number(pnl?.revenue || 0)
+                  // A standing crop keeps its full-harvest forecast until actual
+                  // billing overtakes it; the tile says which one it is showing.
+                  const cycleRev  = pnl ? cycleExpected(pnl) : 0
+                  const revLabel  = billed > 0 && billed >= cycleRev ? 'Billed' : 'Est Rev'
 
-                  const netPL = cycleRev - exp.total
+                  const netPL = cycleRev - cycleCost
 
                   return (
                     <div key={cycle.id}
@@ -566,7 +557,7 @@ export default function Dashboard() {
                         <div className="grid grid-cols-3 gap-1.5">
                           <div className="bg-[var(--c-nav)] rounded-lg p-2 text-center border border-[var(--c-border)]">
                             <p className="text-[7px] text-[var(--c-muted)] uppercase tracking-wider">
-                              {isCaneCycle ? 'Billed' : 'Est Rev'}
+                              {revLabel}
                             </p>
                             <p className="text-xs font-black text-[var(--c-text)] mt-0.5">
                               {cycleRev > 0 ? fmtK(cycleRev) : '₹0'}
@@ -575,7 +566,7 @@ export default function Dashboard() {
                           <div className="bg-[#E24B4A]/10 rounded-lg p-2 text-center border border-[#E24B4A]/20">
                             <p className="text-[7px] text-[#E24B4A] uppercase tracking-wider">Expense</p>
                             <p className="text-xs font-black text-[#E24B4A] mt-0.5">
-                              {exp.total > 0 ? fmtK(exp.total) : '₹0'}
+                              {cycleCost > 0 ? fmtK(cycleCost) : '₹0'}
                             </p>
                           </div>
                           <div className={`rounded-lg p-2 text-center border ${netPL >= 0 ? 'bg-[#1D9E75]/10 border-[#1D9E75]/20' : 'bg-[#BA7517]/10 border-[#BA7517]/20'}`}>

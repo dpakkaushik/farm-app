@@ -11,25 +11,32 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-14 (bill-date form fixed — the mis-dating cannot repeat) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-17 (Dashboard is now the farm-wide, whole-cycle view — no FY) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped — the bill form can no longer file July as August.** The root cause was
-never a typo: the picker defaulted to today, read as already-correct, and nobody touched
-it. So the default is gone. The bill modal now shows **two** dates — *Entry Date*,
-read-only, "today, recorded for you" (it always was, in `inventory_purchases.entry_date`,
-`default now()`, mapped but never displayed), and ***Bill Date*, required and starting
-empty**, `max` today, with a one-tap "Bill is from today" for the ordinary same-day case.
-Save is blocked with *"Pick the bill date — the date printed on the bill"*. Bills now read
-as **`4348 / 19 Jul 26`** — number then date, the way the owner writes one — and where a
-bill's date and its entry day differ by more than a day, the row carries an amber
-*"entered 07 Aug 26"*, so a repeat is visible on screen instead of buried. Purchases CSV
-gained an `Entered` column beside `Bill Date`; sorting on the gap is how the August batch
-was found. Helpers + 13 tests in [`lib/billdates.js`](frontend/src/lib/billdates.js), whose
-header comment is the full story. `localToday()` also fixes a real off-by-one: `TODAY_STR`
-came from `toISOString()`, i.e. UTC, which is *yesterday* before 5.30am IST.
-**No migration** — every column already existed. Prior session's P&L fix stands: headline
-and crop table now sum the same rows (FY 2026-27 = ₹4,88,127 out), and the Dashboard's
-"Total Expense" subtitle no longer claims "Labour + inputs" when both are ₹0.
+**Just shipped — the Dashboard answers the farmer's question, not the accountant's.** The
+owner asked why the P&L (₹4,88,126, FY 2026-27) didn't show cane's ₹8,80,533; the answer
+("different FY") convinced him the FY lens is wrong for a farm: *"as crop is sown sometimes
+12 month back it is tough to go by financial year."* So the Dashboard's money cards now read
+**whole crop cycles, sowing → sale, no FY**: Expected ₹54,02,410 (at harvest, all crops) ·
+Received/Pending (from `sales` paid/unpaid — both ₹0 today, correct) · **Spent on Crops
+₹13,53,366** · Net +₹40.49L *"if crops sell as expected"*. All from **`v_crop_pnl`** — the
+same rows the Ledger's crop tables render, so the two screens agree **by construction**.
+Ruled by the owner: Spent = **crop costs only** (his sheet's frame); salaries/farm expenses
+stay in the Ledger. Per-cycle rule (in [`lib/farmOverview.js`](frontend/src/lib/farmOverview.js),
+11 tests): active → `max(revenue, expected_revenue)` — a partly-sold standing crop keeps its
+forecast; finished → `revenue`. `expected_revenue` = acres × `crops.yield_per_acre` ×
+`price_per_qtl` (+ residuals), all six crops populated, owner-editable in Admin → Crops.
+**No migration; no new owner data entry.** This retired three Dashboard-local derivations
+and with them two standing defects: Net Position no longer sets cane-only receipts against
+all-crop cost, and nothing on the Dashboard reads the `crop_cycles.opening_cost` **lump**
+anymore — every figure, including the expanded per-cycle "Before app" cell, now comes from
+the view (itemised breakup supersedes lump), so the 0024 drift risk is gone. The store
+gained `loadCropPnl()` (Dashboard fetches just that view; `loadLedgerData` unchanged).
+The Ledger is untouched — its FY dropdown (with 'all') remains for whoever wants it.
+**Also live from 14 Aug:** the bill-date form fix — Entry Date read-only beside a required,
+empty-by-default Bill Date (`max` today, one-tap "Bill is from today"); bills display as
+`4348 / 19 Jul 26`; amber "entered …" flag when dates diverge >1 day; CSV `Entered` column;
+helpers in [`lib/billdates.js`](frontend/src/lib/billdates.js). 38 tests green.
 
 **The owner's steer, and it governs what comes next:** *"we are going too accounts heavy and
 this is taking a toll on development time and user friendliness."* The app's job is that
@@ -144,14 +151,12 @@ the farm, what counts as owner capital).
 `purchaseDate` to today — the **same pattern** the bill form just lost, and `TODAY` there is
 still the UTC one. Not changed: the owner asked for the bill form, and an asset is usually
 added when acquired. Fix it the same way when he wants it. Also payment-mode pickers
-disagree across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled. Also
-[`Dashboard.jsx:258`](frontend/src/pages/Dashboard.jsx#L258) sums `crop_cycles.opening_cost`
-— the **lump** — while the Ledger reads `v_crop_pnl.opening_cost`, where 0024 made the
-itemised breakup supersede the lump. Both equal ₹13,53,366 today and no cycle has a zero
-lump beside a breakup, so nothing is wrong on screen; but edit a breakup without the lump
-and the two screens drift. Two unrelated numbers the owner should also eventually see:
-Dashboard "Total Expense" is all-time/all-cycles (₹13,53,366) while the Ledger is FY-scoped
-(₹4,90,127), and Dashboard's Net Position compares cane-only receipts against all-crop cost.
+disagree across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
+(The former flags here — Dashboard's lump `opening_cost` sum, the cane-only Net Position,
+and the Dashboard-all-time vs Ledger-FY mismatch — were all retired by the 17 Aug farm-wide
+Dashboard: it reads `v_crop_pnl` like the Ledger, and its whole-cycle scope is now the
+labelled design, not an accident.) The Dashboard/Ledger difference that REMAINS by design:
+Dashboard = whole cycles, no FY; Ledger = FY-scoped with an 'all' option.
 
 ---
 
