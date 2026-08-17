@@ -1,8 +1,10 @@
-# Pending — bank opening balances, linked to the partners master
+# DONE 2026-08-17 — bank opening balances, linked to the partners master
 
-**Status:** data received from the owner 2026-08-13, **not yet entered**. Nothing in this
-file is on the database. Deliberately not built in-session: it needs a migration plus UI and
-the session had hit a hard cost ceiling.
+**Status: ENTERED.** Migration `0031_accounts_partner_link.sql` applied; all six accounts
+live with partner links and balances verified to the rupee (total ₹51,384 incl. cash) — see
+[`supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md`](../supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md).
+Only the **Sai Kiran Nanda** question below remains open. The original plan is kept beneath
+for the reasoning.
 
 ## The figures — balances as at 31.07.26
 

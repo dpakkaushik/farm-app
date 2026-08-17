@@ -136,14 +136,16 @@ disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 
 **NEXT — Phase 3 of the plan: teach `go_live_convert` the same standard.** The bill form is
 done, so the remaining piece is the conversion path. After that, Books Health check (below).
 
-**Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances
-arrived 2026-08-13 — ₹39,405 across six accounts — captured in
-[`docs/PENDING-bank-accounts-and-partners.md`](docs/PENDING-bank-accounts-and-partners.md)
-but NOT yet on the database.** He asked for them linked to the **partners master** rather
-than lumped into one Bank row (his call, and better than the lump I proposed); that needs an
-`accounts.partner_id` migration. Settled: sheet "PUNEESH" = master "Puneet Nanda", one
-person, master spelling canonical. Still open there: does partner **Sai Kiran Nanda** have an
-account, or was it just not listed? Cash ₹11,979 is *today's* figure, but no cash has moved
+**Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances are
+DONE (2026-08-17)** — migration `0031_accounts_partner_link.sql` added `accounts.partner_id`
+(his call: linked to the partners master, not one lumped Bank row); the empty `Bank` row was
+repurposed as "Punjab & Sind — Vipul Nanda" and five more inserted, each with its partner
+link and 1-Aug opening. Total position now **₹51,384** (cash ₹11,979 + bank ₹39,405), every
+account matching his sheet to the rupee — details in
+[`supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md`](supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md).
+The joint UP Gramin account points at Vipul (primary) with "joint" in the name — no join
+table for one row. Settled: sheet "PUNEESH" = master "Puneet Nanda". Still open: does partner
+**Sai Kiran Nanda** have an account, or was it just not listed? Cash ₹11,979 is *today's* figure, but no cash has moved
 since 1 Aug, so it doubles as the opening — unless he paid cash 1–13 Aug without recording it. Also worth his eye: Plot H paddy got ₹71,371 by flat
 pro-rata but was sown 16 July, six weeks after the rest, so it is likely overstated; the
 **"Sepre machine" ₹2,000 was DELETED 2026-08-14 on his instruction** — archived to
