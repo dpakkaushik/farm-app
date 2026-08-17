@@ -66,6 +66,16 @@ export const fyOptions = (count = 5) => {
   return Array.from({ length: count }, (_, i) => String(curStart - i))
 }
 
+/** The twelve months of an FY, April first: '2026' → ['2026-04' … '2027-03'].
+ *  Feeds the month dropdown that drills into a selected financial year. */
+export const fyMonths = (fyStartYear) => {
+  const y = Number(fyStartYear)
+  return Array.from({ length: 12 }, (_, i) => {
+    const m = ((3 + i) % 12) + 1              // Apr=4 … Dec=12, Jan=1 … Mar=3
+    return `${m <= 3 ? y + 1 : y}-${String(m).padStart(2, '0')}`
+  })
+}
+
 /** '2026-08' → 'Aug 2026'. */
 export const monthLabel = (p) => {
   if (!isMonth(p)) return String(p || '')

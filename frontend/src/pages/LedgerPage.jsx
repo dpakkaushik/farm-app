@@ -7,9 +7,10 @@ import { isPet } from './livestock/ui'
 import CashFlowTab from './ledger/CashFlowTab'
 import { buildCashFlow } from '../lib/cashflow'
 import {
-  isMonth, fyLabel, currentFY, currentMonth, periodRange, inPeriod,
-  fyOptions, periodLabel, periodSlug,
+  fyLabel, periodRange, inPeriod, fyOptions, fyMonths,
+  monthLabel, periodLabel, periodSlug,
 } from '../lib/period'
+import { summarizeCropPnl } from '../lib/farmOverview'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -441,7 +442,7 @@ function ViewToggle({ value, onChange, options }) {
 // ── Tab: Summary ──────────────────────────────────────────────────────────────
 function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpenses, totalVendorDues, totalReceivables,
                       totalWageDues = 0, totalSalaryDues = 0, capitalSpendFY = 0, openingCost = 0,
-                      onGoSalary, monthlySummary }) {
+                      expectedRevenue = 0, onGoSalary, monthlySummary }) {
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -519,6 +520,10 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
           purchase is real money out and deliberately absent from the P&L. */}
       <div className="grid grid-cols-2 gap-3">
         <MetricCard label="Total Income" value={fmt(totalIncome)} color="#1D9E75" />
+        {/* The forward-looking number beside the actuals: what the period's
+            cycles should bring at harvest, same rule as the Dashboard. */}
+        <MetricCard label="Expected Revenue" value={fmt(expectedRevenue)} color="#1D9E75"
+          sub={expectedRevenue > 0 ? 'At harvest, if crops sell as expected' : undefined} />
         <MetricCard label="Total Expenses" value={fmt(totalExpenses)} color="#E24B4A"
           sub={openingCost > 0 ? `incl. ${fmt(openingCost)} spent before the app` : undefined} />
         <MetricCard label="Net Profit / Loss" value={fmt(netProfit)}
@@ -2128,15 +2133,17 @@ export default function LedgerPage() {
   const [cashBookView, setCashBookView] = useState('entries')
   const [moneyInView,  setMoneyInView]  = useState('sales')
   const [moneyOutView, setMoneyOutView] = useState('expenses')
-  // The period lens. Standing crops (whole cycles, no date cut) is the
-  // default — the same lens as the Dashboard — because a crop sown last
-  // October cannot be read through a financial year. FY and Month narrow it.
-  const [periodMode, setPeriodMode] = useState('standing')  // 'standing' | 'fy' | 'month'
-  const [fySel,      setFySel]      = useState(currentFY())
-  const [monthSel,   setMonthSel]   = useState(currentMonth())
+  // The period lens: two dropdowns, coarse then fine. The first holds
+  // Standing Crops (whole cycles, no date cut — the DEFAULT, and the same
+  // lens as the Dashboard, because a crop sown last October cannot be read
+  // through a financial year) with the FY years beneath it. The second digs
+  // into the chosen FY month by month; it empties when the year changes and
+  // sits disabled under Standing Crops, where "which month?" has no answer.
+  const [yearSel,  setYearSel]  = useState('all')  // 'all' | FY start year 'YYYY'
+  const [monthSel, setMonthSel] = useState('')     // '' (whole year) | 'YYYY-MM'
   // `fy` keeps its name — it threads through every tab as the period value:
-  // 'all' | 'YYYY' | 'YYYY-MM' (see lib/period.js).
-  const fy = periodMode === 'standing' ? 'all' : periodMode === 'fy' ? fySel : monthSel
+  // 'all' | 'YYYY' | 'YYYY-MM' (see lib/period.js). A chosen month wins.
+  const fy = monthSel || yearSel
   const [loading, setLoading] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState(null)
   const [showAddCash, setShowAddCash] = useState(false)
@@ -2241,6 +2248,10 @@ export default function LedgerPage() {
   // costing already implies, and it needs nothing from the owner to hold.
   const openingCostFY  = cropPnlFY.reduce((s, r) => s + Number(r.opening_cost || 0), 0)
   const totalExpenses  = expenseTxnsFY + openingCostFY
+  // What the period's cycles should bring at harvest — same rule and same
+  // rows as the Dashboard's Expected card (lib/farmOverview.js): an active
+  // cycle keeps max(billed, estimate); a finished one collapses to actual.
+  const expectedRevenueFY = summarizeCropPnl(cropPnlFY).expected
 
   // Cash Book: list only the period's transactions, but carry forward an
   // opening balance from everything before the period started so the
@@ -2287,6 +2298,9 @@ export default function LedgerPage() {
         ['  of which spent before the app', num(openingCostFY)],
       ] : []),
       ['Net Profit',     num(totalIncome - totalExpenses)],
+      // Forward-looking, deliberately outside the P&L arithmetic above: what
+      // the period's cycles should bring at harvest, at the crop-master rates.
+      ['Expected Revenue at harvest (not in P&L)', num(expectedRevenueFY)],
       [],
       ['POSITION AS OF TODAY'],
       ['Cash Balance (all accounts)',     num(cashBalance)],
@@ -2466,41 +2480,35 @@ export default function LedgerPage() {
         ))}
       </div>
 
-      {/* Period selector — applies to every tab. Standing crops is the default
-          lens (whole cycles, no date cut — same as the Dashboard); FY and
-          Month are the narrowing filters underneath it. */}
+      {/* Period selector — applies to every tab. Two filters, coarse then
+          fine: Standing Crops sits above the FY years in the first; the
+          second drills into the chosen year month by month. */}
       <div className="shrink-0 flex items-center gap-2 px-4 pb-3">
         <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>View:</span>
         <select
-          value={periodMode}
-          onChange={e => setPeriodMode(e.target.value)}
+          value={yearSel}
+          onChange={e => { setYearSel(e.target.value); setMonthSel('') }}
           className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
           style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
-          <option value="standing">Standing Crops · All</option>
-          <option value="fy">Financial Year</option>
-          <option value="month">Month</option>
+          <option value="all">Standing Crops · All</option>
+          {fyOptions().map(opt => (
+            <option key={opt} value={opt}>FY {fyLabel(opt)}</option>
+          ))}
         </select>
-        {periodMode === 'fy' && (
-          <select
-            value={fySel}
-            onChange={e => setFySel(e.target.value)}
-            className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
-            style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
-            {fyOptions().map(opt => (
-              <option key={opt} value={opt}>FY {fyLabel(opt)}</option>
-            ))}
-          </select>
-        )}
-        {periodMode === 'month' && (
-          <input
-            type="month"
-            value={monthSel}
-            max={currentMonth()}
-            onChange={e => e.target.value && setMonthSel(e.target.value)}
-            className="px-2.5 py-1 rounded-xl text-xs font-medium outline-none"
-            style={{ background: 'var(--c-ghost)', color: 'var(--c-text)',
-                     border: '0.5px solid var(--c-border)', colorScheme: 'dark' }} />
-        )}
+        <select
+          value={monthSel}
+          onChange={e => setMonthSel(e.target.value)}
+          disabled={yearSel === 'all'}
+          title={yearSel === 'all' ? 'Pick a financial year first' : undefined}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
+          style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)',
+                   color: yearSel === 'all' ? 'var(--c-faint)' : 'var(--c-text)',
+                   opacity: yearSel === 'all' ? 0.55 : 1 }}>
+          <option value="">{yearSel === 'all' ? 'Month —' : 'All months'}</option>
+          {yearSel !== 'all' && fyMonths(yearSel).map(m => (
+            <option key={m} value={m}>{monthLabel(m)}</option>
+          ))}
+        </select>
         <button onClick={downloadExcel}
           className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium shrink-0"
           style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
@@ -2524,6 +2532,7 @@ export default function LedgerPage() {
               .filter(c => c.is_capitalised && inPeriod(c.purchase_date, fy))
               .reduce((s, c) => s + Number(c.amount || 0), 0)}
             openingCost={openingCostFY}
+            expectedRevenue={expectedRevenueFY}
             onGoSalary={() => navigate('/labour')}
             monthlySummary={monthlySummary}
           />

@@ -13,24 +13,25 @@
 
 **Last updated:** 2026-08-17 (Dashboard AND Ledger now default to the whole-cycle lens — FY demoted to a filter) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Second ship of 17 Aug — the Ledger's FY default is gone, at the owner's explicit ask**
-(*"remove FY default filter … use standing crop default filter then fy filter below that …
-and another filter for month"*). The Ledger header now has a **View** control with three
-modes: **Standing Crops · All** (DEFAULT — whole cycles, no date cut, the Dashboard's lens),
-**Financial Year** (the old dropdown, now without an 'all' entry — standing covers that),
-and **Month** (native month picker, capped at the current month). Mechanically the page
-still threads one `fy` value through every tab, but its value space grew: `'all' | 'YYYY' |
-'YYYY-MM'` — all period logic now lives in [`lib/period.js`](frontend/src/lib/period.js)
-(13 tests): `inPeriod`/`periodRange`/`periodLabel`/`periodSlug`, the month range using a
-lexical `-31` end-bound (valid even for February — date strings compare, no calendar math),
-`currentFY`/`currentMonth` computed from LOCAL date parts (the old `toISOString()` UTC
-off-by-one is fixed). **Design call, stated to the owner: "Standing Crops" = whole-cycle
-all-time, NOT active-only** — an active-only filter would drop a cycle's cost the day it
-closes while its sale revenue stayed in Money In, and the P&L would lie happy. Today all 15
-cycles are standing so the readings are identical. Excel export names/labels follow the
-period (`Farm-Accounts-Standing-Crops.xlsx`, `…-2026-08.xlsx`). Opening-cost attribution
-under Month follows `sow_date` exactly as under FY — a cycle's opening reports in the month
-it was sown, or not at all. 51 tests green.
+**Second/third ship of 17 Aug — the Ledger's FY default is gone, at the owner's explicit
+ask, and the filter is TWO dropdowns after he refined it** (*"keep the FY filter with the
+Over all Crop filter … one Standing crop beneath date years the other filter should be
+month"*). Ledger header, "View:": **dropdown 1** = `Standing Crops · All` (DEFAULT — whole
+cycles, no date cut, the Dashboard's lens) with the FY years beneath it; **dropdown 2** =
+Month, which drills into the chosen FY (`All months` + Apr…Mar via `fyMonths()`), resets on
+year change, and sits disabled under Standing Crops. Mechanically one `fy` value still
+threads every tab; its value space grew to `'all' | 'YYYY' | 'YYYY-MM'` — all period logic
+in [`lib/period.js`](frontend/src/lib/period.js) (14 tests): `inPeriod`/`periodRange`/
+`periodLabel`/`periodSlug`/`fyMonths`, month end-bound `-31` lexical (valid even for Feb —
+date strings compare), `currentFY`/`currentMonth` from LOCAL date parts (the old
+`toISOString()` UTC off-by-one fixed). **Also at his ask: Expected Revenue on the Summary
+tab** — a sixth MetricCard beside Total Income ("At harvest, if crops sell as expected"),
+same rows and same rule as the Dashboard (`summarizeCropPnl(cropPnlFY).expected`), and an
+Excel Summary row labelled *"(not in P&L)"* so no accountant reads a forecast as income.
+**Design call, stated to the owner: "Standing Crops" = whole-cycle all-time, NOT
+active-only** — an active-only filter would drop a cycle's cost the day it closes while its
+sale revenue stayed in Money In. Today all 15 cycles are standing, identical either way.
+Opening-cost attribution under Month follows `sow_date` exactly as under FY. 52 tests green.
 
 **Just shipped — the Dashboard answers the farmer's question, not the accountant's.** The
 owner asked why the P&L (₹4,88,126, FY 2026-27) didn't show cane's ₹8,80,533; the answer

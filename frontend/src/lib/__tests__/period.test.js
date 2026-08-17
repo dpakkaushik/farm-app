@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  isMonth, fyLabel, periodRange, inPeriod, fyOptions,
+  isMonth, fyLabel, periodRange, inPeriod, fyOptions, fyMonths,
   monthLabel, periodLabel, periodSlug, currentFY, currentMonth,
 } from '../period'
 
@@ -67,6 +67,17 @@ describe('labels and options', () => {
     expect(opts).toHaveLength(3)
     expect(opts).not.toContain('all')
     expect(opts[0]).toBe(currentFY())
+  })
+
+  it('lists an FY as twelve months, April to March, year rolling at January', () => {
+    const months = fyMonths('2026')
+    expect(months).toHaveLength(12)
+    expect(months[0]).toBe('2026-04')
+    expect(months[8]).toBe('2026-12')
+    expect(months[9]).toBe('2027-01')
+    expect(months[11]).toBe('2027-03')
+    // every entry is a month the rest of the period machinery understands
+    months.forEach(m => expect(isMonth(m)).toBe(true))
   })
 
   it('labels every period form', () => {
