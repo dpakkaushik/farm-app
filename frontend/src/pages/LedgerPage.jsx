@@ -7,7 +7,7 @@ import { isPet } from './livestock/ui'
 import CashFlowTab from './ledger/CashFlowTab'
 import { buildCashFlow } from '../lib/cashflow'
 import {
-  fyLabel, periodRange, inPeriod, fyOptions, fyMonths,
+  isMonth, fyLabel, periodRange, inPeriod, fyOptions, fyMonths,
   monthLabel, periodLabel, periodSlug,
 } from '../lib/period'
 import { summarizeCropPnl } from '../lib/farmOverview'
@@ -1952,12 +1952,22 @@ function MarginPill({ actualPct, expectedPct, isActual }) {
   )
 }
 
-function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cropPnl }) {
+function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cropPnl, isMonthView = false }) {
   const net = totalIncome - totalExpenses
   const cropMerged = mergeByCrop(cropPnl)
   const animalPnl  = livestockPnl.filter(row => !isPet(row))
   return (
     <div className="flex flex-col gap-3 pt-3">
+      {/* Under a month, the crop tables are absent on purpose — say why, or
+          their disappearance reads as data loss. */}
+      {isMonthView && (
+        <div className="text-[10px] rounded-xl px-3 py-2"
+          style={{ color: 'var(--c-faint)', background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
+          A month shows only what was recorded in it. Whole-crop figures — opening
+          cost, expected revenue, the crop tables — live in the Standing Crops and
+          FY views.
+        </div>
+      )}
       {/* One line, not a card: the Summary already carries these three numbers.
           This tab's value is the breakdown — which crop, which animal. */}
       <div className="flex items-center justify-between px-1">
@@ -2228,7 +2238,16 @@ export default function LedgerPage() {
   const incomeLedgerFY   = incomeLedger.filter(r => inPeriod(r.entry_date, fy))
   const expenseLedgerFY  = expenseLedger.filter(r => inPeriod(r.entry_date, fy))
   const vendorPaymentsFY = vendorPayments.filter(p => inPeriod(p.payment_date, fy))
-  const cropPnlFY        = cropPnl.filter(r => inPeriod(r.sow_date, fy))
+  // A single month is a TRANSACTION lens: only what the app recorded that
+  // month. Whole-cycle figures — opening cost, expected revenue, the crop
+  // P&L tables — attach to no month, because the owner's sheet states period
+  // totals ("EXP. 01.06.26 TO 31.07.26"), not month-by-month spend: anchoring
+  // ₹71,371 to July because the cycle was SOWN 16 July claims a precision the
+  // data does not have, and showed "expense" in months before the app began
+  // (books open 1 Aug 2026; everything earlier is opening balance). At FY
+  // level the settled sow_date rule still applies — cane in 2025-26, paddy
+  // in 2026-27.
+  const cropPnlFY        = isMonth(fy) ? [] : cropPnl.filter(r => inPeriod(r.sow_date, fy))
   const monthlySummary   = monthlySummaryAll.filter(m => inPeriod(m.month, fy))
   const totalIncome    = incomeLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
   const expenseTxnsFY  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
@@ -2300,7 +2319,10 @@ export default function LedgerPage() {
       ['Net Profit',     num(totalIncome - totalExpenses)],
       // Forward-looking, deliberately outside the P&L arithmetic above: what
       // the period's cycles should bring at harvest, at the crop-master rates.
-      ['Expected Revenue at harvest (not in P&L)', num(expectedRevenueFY)],
+      // Absent under a month view, where whole-cycle figures do not report.
+      ...(expectedRevenueFY > 0 ? [
+        ['Expected Revenue at harvest (not in P&L)', num(expectedRevenueFY)],
+      ] : []),
       [],
       ['POSITION AS OF TODAY'],
       ['Cash Balance (all accounts)',     num(cashBalance)],
@@ -2634,6 +2656,7 @@ export default function LedgerPage() {
             openingCost={openingCostFY}
             livestockPnl={livestockPnl}
             cropPnl={cropPnlFY}
+            isMonthView={isMonth(fy)}
           />
         )}
       </div>

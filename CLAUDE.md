@@ -31,7 +31,19 @@ Excel Summary row labelled *"(not in P&L)"* so no accountant reads a forecast as
 **Design call, stated to the owner: "Standing Crops" = whole-cycle all-time, NOT
 active-only** — an active-only filter would drop a cycle's cost the day it closes while its
 sale revenue stayed in Money In. Today all 15 cycles are standing, identical either way.
-Opening-cost attribution under Month follows `sow_date` exactly as under FY. 52 tests green.
+**Fourth ship, same day — a MONTH is a transaction lens.** The owner caught July showing
+"expense" though the books open 1 Aug (*"everything before aug 1 should be the opening
+balance"*). Verified on live DB: **no July transactions exist** — it was Plot H paddy's
+₹71,371 opening cost anchored to July by `sow_date` (June likewise: ₹4,01,462, 7 cycles).
+Under a month view, whole-cycle figures now report **nowhere**: `cropPnlFY = []` when
+`isMonth(fy)`, so opening cost, Expected Revenue and the crop P&L tables all drop out
+(a note in the P&L tab says why, or their absence reads as data loss), and months show only
+recorded transactions. The stated reason beats the go-live date alone: the owner's sheet
+gives period totals ("EXP. 01.06.26 TO 31.07.26"), not month spend — a month attribution
+claims precision the data does not have. **FY-level sow_date attribution unchanged**
+(cane → 2025-26, paddy → 2026-27; still SETTLED). Consequence, deliberate: an FY's months
+do not sum to the FY headline — the FY view's "incl. ₹X spent before the app" label is
+exactly the difference. 52 tests green.
 
 **Just shipped — the Dashboard answers the farmer's question, not the accountant's.** The
 owner asked why the P&L (₹4,88,126, FY 2026-27) didn't show cane's ₹8,80,533; the answer
