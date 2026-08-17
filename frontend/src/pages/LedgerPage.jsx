@@ -7,6 +7,10 @@ import { isPet } from './livestock/ui'
 import CashFlowTab from './ledger/CashFlowTab'
 import { buildCashFlow } from '../lib/cashflow'
 import {
+  isMonth, fyLabel, currentFY, currentMonth, periodRange, inPeriod,
+  fyOptions, periodLabel, periodSlug,
+} from '../lib/period'
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
@@ -29,37 +33,9 @@ const MonthLabel = (d) => {
   return new Date(d).toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })
 }
 
-// ── Financial Year helpers (Indian FY: 1 Apr – 31 Mar) ─────────────────────────
-// 'all' means no period filter (all-time). Any other value is the FY start
-// year as a string, e.g. "2025" for FY 2025-26.
-const fyLabel = (startYear) => `${startYear}-${String((Number(startYear) + 1) % 100).padStart(2, '0')}`
-
-const fyStartYearForDate = (dateStr) => {
-  const d = new Date(dateStr)
-  return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1 // April (month 3) starts the FY
-}
-
-const currentFY = () => String(fyStartYearForDate(new Date().toISOString().slice(0, 10)))
-
-const fyRange = (fy) => {
-  if (fy === 'all') return null
-  const y = Number(fy)
-  return { start: `${y}-04-01`, end: `${y + 1}-03-31` }
-}
-
-const inFY = (dateStr, fy) => {
-  if (fy === 'all' || !dateStr) return true
-  const r = fyRange(fy)
-  return dateStr >= r.start && dateStr <= r.end
-}
-
-const fyOptions = (count = 5) => {
-  const curStart = Number(currentFY())
-  const opts = []
-  for (let i = 0; i < count; i++) opts.push(String(curStart - i))
-  opts.push('all')
-  return opts
-}
+// Period helpers live in lib/period.js. The `fy` value threaded through this
+// page is a period string: 'all' (standing crops — whole cycles, no date cut),
+// a start year like '2026' (that FY), or 'YYYY-MM' (that month).
 
 const CATEGORY_LABELS = {
   feed:              'Feed & Fodder',
@@ -1093,8 +1069,8 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     return {
       vendor: v,
       balanceDue:  opening + purchasedAllTime - paidAllTime,
-      purchasedFY: vPurchases.filter(p => inFY(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
-      paidFY:      vPayments.filter(p => inFY(p.payment_date, fy)).reduce((s, p) => s + Number(p.amount || 0), 0),
+      purchasedFY: vPurchases.filter(p => inPeriod(p.date, fy)).reduce((s, p) => s + Number(p.totalCost || 0), 0),
+      paidFY:      vPayments.filter(p => inPeriod(p.payment_date, fy)).reduce((s, p) => s + Number(p.amount || 0), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
@@ -1111,7 +1087,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     })),
   ].sort((a, b) => new Date(a.date) - new Date(b.date)) : []
 
-  const range = fyRange(fy)
+  const range = periodRange(fy)
   // A party's opening balance IS the khata's opening line — it precedes every
   // document by definition, whatever date it happens to be stamped with. Dating
   // it as an ordinary row sorted Ankur's ₹55,580 in among June's bills, below
@@ -1458,18 +1434,18 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
     return {
       party: p,
       balanceDue: Number(p.opening || 0) + soldAllTime - receivedAllTime - receiptsTotal(p),
-      soldFY:     p.rows.filter(r => inFY(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
-      receivedFY: p.rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
-                + (p.receipts || []).filter(e => inFY(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0),
+      soldFY:     p.rows.filter(r => inPeriod(r.date, fy)).reduce((s, r) => s + Number(r.netAmount || 0), 0),
+      receivedFY: p.rows.filter(r => inPeriod(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
+                + (p.receipts || []).filter(e => inPeriod(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0),
     }
   }).sort((a, b) => b.balanceDue - a.balanceDue)
 
   const active = parties.find(p => p.key === activeKey)
   const rowsAll = active ? [...active.rows].sort((a, b) => new Date(b.date) - new Date(a.date)) : []
-  const rows    = active ? rowsAll.filter(r => inFY(r.date, fy)) : []
+  const rows    = active ? rowsAll.filter(r => inPeriod(r.date, fy)) : []
   const soldFY      = rows.reduce((s, r) => s + Number(r.netAmount || 0), 0)
-  const receivedFY  = rows.filter(r => inFY(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
-    + (active?.receipts || []).filter(e => inFY(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0)
+  const receivedFY  = rows.filter(r => inPeriod(r.paymentDate || r.date, fy)).reduce((s, r) => s + receivedOf(r), 0)
+    + (active?.receipts || []).filter(e => inPeriod(e.entry_date, fy)).reduce((s, e) => s + Number(e.amount || 0), 0)
   const balanceDueAllTime = active
     ? Number(active.opening || 0)
       + rowsAll.reduce((s, r) => s + Number(r.netAmount || 0) - receivedOf(r), 0)
@@ -2152,7 +2128,15 @@ export default function LedgerPage() {
   const [cashBookView, setCashBookView] = useState('entries')
   const [moneyInView,  setMoneyInView]  = useState('sales')
   const [moneyOutView, setMoneyOutView] = useState('expenses')
-  const [fy, setFy] = useState(currentFY())
+  // The period lens. Standing crops (whole cycles, no date cut) is the
+  // default — the same lens as the Dashboard — because a crop sown last
+  // October cannot be read through a financial year. FY and Month narrow it.
+  const [periodMode, setPeriodMode] = useState('standing')  // 'standing' | 'fy' | 'month'
+  const [fySel,      setFySel]      = useState(currentFY())
+  const [monthSel,   setMonthSel]   = useState(currentMonth())
+  // `fy` keeps its name — it threads through every tab as the period value:
+  // 'all' | 'YYYY' | 'YYYY-MM' (see lib/period.js).
+  const fy = periodMode === 'standing' ? 'all' : periodMode === 'fy' ? fySel : monthSel
   const [loading, setLoading] = useState(true)
   const [selectedVendor, setSelectedVendor] = useState(null)
   const [showAddCash, setShowAddCash] = useState(false)
@@ -2234,11 +2218,11 @@ export default function LedgerPage() {
 
   // P&L facts (income, expenses, profit) are period-based — scoped to the
   // selected financial year.
-  const incomeLedgerFY   = incomeLedger.filter(r => inFY(r.entry_date, fy))
-  const expenseLedgerFY  = expenseLedger.filter(r => inFY(r.entry_date, fy))
-  const vendorPaymentsFY = vendorPayments.filter(p => inFY(p.payment_date, fy))
-  const cropPnlFY        = cropPnl.filter(r => inFY(r.sow_date, fy))
-  const monthlySummary   = monthlySummaryAll.filter(m => inFY(m.month, fy))
+  const incomeLedgerFY   = incomeLedger.filter(r => inPeriod(r.entry_date, fy))
+  const expenseLedgerFY  = expenseLedger.filter(r => inPeriod(r.entry_date, fy))
+  const vendorPaymentsFY = vendorPayments.filter(p => inPeriod(p.payment_date, fy))
+  const cropPnlFY        = cropPnl.filter(r => inPeriod(r.sow_date, fy))
+  const monthlySummary   = monthlySummaryAll.filter(m => inPeriod(m.month, fy))
   const totalIncome    = incomeLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
   const expenseTxnsFY  = expenseLedgerFY.reduce((s, r) => s + Number(r.amount || 0), 0)
   // Pre-app crop spend falling inside the period. It is a stated opening figure,
@@ -2261,7 +2245,7 @@ export default function LedgerPage() {
   // Cash Book: list only the period's transactions, but carry forward an
   // opening balance from everything before the period started so the
   // running balance shown is still correct, not reset to zero.
-  const range = fyRange(fy)
+  const range = periodRange(fy)
   const cashBookOpening = range
     ? cashBook.filter(r => r.entry_date < range.start).reduce((s, r) => s + (r.direction === 'in' ? Number(r.amount) : -Number(r.amount)), 0)
     : 0
@@ -2280,7 +2264,7 @@ export default function LedgerPage() {
     const XLSX = await import('xlsx')
     const wb = XLSX.utils.book_new()
     const num = (n) => Math.round(Number(n || 0))
-    const fyName = fy === 'all' ? 'All Time' : `FY ${fyLabel(fy)}`
+    const fyName = periodLabel(fy)
 
     const sheet = (name, rows, widths) => {
       const ws = XLSX.utils.aoa_to_sheet(rows)
@@ -2414,7 +2398,7 @@ export default function LedgerPage() {
     // and the screen cannot disagree.
     const flow = buildCashFlow(cashBookFY, {
       openingCash: cashBookOpening,
-      capitalPurchases: (capitalPurchases || []).filter(c => inFY(c.purchase_date, fy)),
+      capitalPurchases: (capitalPurchases || []).filter(c => inPeriod(c.purchase_date, fy)),
     })
     const flowRows = [
       ['CASH FLOW STATEMENT', '', fyName],
@@ -2444,7 +2428,7 @@ export default function LedgerPage() {
     flowRows.push(['Money moved between the farm\'s own accounts is excluded — it changes no farm total.'])
     sheet('Cash Flow', flowRows, [52, 16])
 
-    XLSX.writeFile(wb, `Farm-Accounts-${fy === 'all' ? 'All-Time' : 'FY-' + fyLabel(fy)}.xlsx`)
+    XLSX.writeFile(wb, `Farm-Accounts-${periodSlug(fy)}.xlsx`)
   }
 
   if (loading) {
@@ -2482,18 +2466,41 @@ export default function LedgerPage() {
         ))}
       </div>
 
-      {/* Financial year selector — applies to every tab */}
+      {/* Period selector — applies to every tab. Standing crops is the default
+          lens (whole cycles, no date cut — same as the Dashboard); FY and
+          Month are the narrowing filters underneath it. */}
       <div className="shrink-0 flex items-center gap-2 px-4 pb-3">
-        <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>Financial Year:</span>
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--c-faint)' }}>View:</span>
         <select
-          value={fy}
-          onChange={e => setFy(e.target.value)}
+          value={periodMode}
+          onChange={e => setPeriodMode(e.target.value)}
           className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
           style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
-          {fyOptions().map(opt => (
-            <option key={opt} value={opt}>{opt === 'all' ? 'All Time' : `FY ${fyLabel(opt)}`}</option>
-          ))}
+          <option value="standing">Standing Crops · All</option>
+          <option value="fy">Financial Year</option>
+          <option value="month">Month</option>
         </select>
+        {periodMode === 'fy' && (
+          <select
+            value={fySel}
+            onChange={e => setFySel(e.target.value)}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
+            style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
+            {fyOptions().map(opt => (
+              <option key={opt} value={opt}>FY {fyLabel(opt)}</option>
+            ))}
+          </select>
+        )}
+        {periodMode === 'month' && (
+          <input
+            type="month"
+            value={monthSel}
+            max={currentMonth()}
+            onChange={e => e.target.value && setMonthSel(e.target.value)}
+            className="px-2.5 py-1 rounded-xl text-xs font-medium outline-none"
+            style={{ background: 'var(--c-ghost)', color: 'var(--c-text)',
+                     border: '0.5px solid var(--c-border)', colorScheme: 'dark' }} />
+        )}
         <button onClick={downloadExcel}
           className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium shrink-0"
           style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
@@ -2514,7 +2521,7 @@ export default function LedgerPage() {
             totalWageDues={totalWageDues}
             totalSalaryDues={totalSalaryDues}
             capitalSpendFY={(capitalPurchases || [])
-              .filter(c => c.is_capitalised && inFY(c.purchase_date, fy))
+              .filter(c => c.is_capitalised && inPeriod(c.purchase_date, fy))
               .reduce((s, c) => s + Number(c.amount || 0), 0)}
             openingCost={openingCostFY}
             onGoSalary={() => navigate('/labour')}
@@ -2540,8 +2547,8 @@ export default function LedgerPage() {
               : <CashFlowTab
                   cashBook={cashBookFY}
                   openingBalance={cashBookOpening}
-                  capitalPurchases={(capitalPurchases || []).filter(c => inFY(c.purchase_date, fy))}
-                  periodLabel={fy === 'all' ? 'All Time' : `FY ${fyLabel(fy)}`}
+                  capitalPurchases={(capitalPurchases || []).filter(c => inPeriod(c.purchase_date, fy))}
+                  periodLabel={periodLabel(fy)}
                 />}
           </>
         )}
