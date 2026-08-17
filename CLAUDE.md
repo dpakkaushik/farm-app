@@ -145,7 +145,20 @@ account matching his sheet to the rupee — details in
 [`supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md`](supabase/data-fixes/2026-08-17-bank-accounts-partner-link.md).
 The joint UP Gramin account points at Vipul (primary) with "joint" in the name — no join
 table for one row. Settled: sheet "PUNEESH" = master "Puneet Nanda". Still open: does partner
-**Sai Kiran Nanda** have an account, or was it just not listed? Cash ₹11,979 is *today's* figure, but no cash has moved
+**Sai Kiran Nanda** have an account, or was it just not listed?
+**Same day, the accounts went live in the UI at his ask** (*"show vipul nanda as main
+account … in partners list add the bank detail and amount … when a ganna payment is done
+they will get credits"*): (1) the Summary breakdown leads with the **MAIN** account —
+defined as the first bank account, the same pick `accountFor('bank')` routes transactions
+through, so badge and behaviour cannot disagree — then cash, then partners' accounts;
+(2) Admin → Partners shows each partner's linked account with its **live balance**
+(new light loader `loadAccountBalances`: accounts + v_cash_book only);
+(3) **`markCanePayment` credits the parchi's partner's own account** — session.partner_id →
+accounts.partner_id → that account gets the gross IN and any deduction OUT; Vipul's two
+accounts resolve to the older (his main); no partner/no account falls back to the main bank
+door. Also fixed en route: `loadAll` now loads `accounts`, because until now `accountFor()`
+returned null — and the DB trigger parked money in CASH — for anyone marking a cane payment
+without first opening the Ledger. Money routing no longer depends on page-visit order. Cash ₹11,979 is *today's* figure, but no cash has moved
 since 1 Aug, so it doubles as the opening — unless he paid cash 1–13 Aug without recording it. Also worth his eye: Plot H paddy got ₹71,371 by flat
 pro-rata but was sown 16 July, six weeks after the rest, so it is likely overstated; the
 **"Sepre machine" ₹2,000 was DELETED 2026-08-14 on his instruction** — archived to

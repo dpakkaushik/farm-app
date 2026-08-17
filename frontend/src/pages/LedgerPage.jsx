@@ -471,7 +471,15 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
           <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
             {accountBalances.map(a => (
               <div key={a.id} className="flex justify-between text-[11px]">
-                <span style={{ color: 'var(--c-muted)' }}>{a.type === 'bank' ? '🏦' : '💵'} {a.name}</span>
+                <span style={{ color: 'var(--c-muted)' }}>
+                  {a.type === 'bank' ? '🏦' : '💵'} {a.name}
+                  {a.isMain && (
+                    <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                      style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                      MAIN
+                    </span>
+                  )}
+                </span>
                 <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
                   {fmt(a.balance)}
                 </span>
@@ -2204,13 +2212,18 @@ export default function LedgerPage() {
     ? Number(cashBook[cashBook.length - 1].running_balance)
     : 0
   // Each account's balance is its last row's account_running_balance.
+  // The MAIN account is the first bank account — the same pick accountFor()
+  // routes bank-mode transactions through (Vipul's, per the owner). It leads
+  // the breakdown, then cash in hand, then the partners' accounts.
+  const mainBankId = accounts.find(a => a.type === 'bank')?.id || null
+  const acctRank = (a) => (a.id === mainBankId ? 0 : a.type === 'cash' ? 1 : 2)
   const accountBalances = accounts.map(a => {
     let balance = 0
     for (let i = cashBook.length - 1; i >= 0; i--) {
       if (cashBook[i].account_id === a.id) { balance = Number(cashBook[i].account_running_balance || 0); break }
     }
-    return { id: a.id, name: a.name, type: a.type, balance }
-  })
+    return { id: a.id, name: a.name, type: a.type, balance, isMain: a.id === mainBankId }
+  }).sort((x, y) => acctRank(x) - acctRank(y))
   const totalVendorDues = vendorBalances.reduce((s, v) => s + Math.max(0, Number(v.balance_due || 0)), 0)
   // Outside labour + general expenses incurred but not yet handed over. Salary is
   // NOT here — rostered workers settle through their khata, counted below.

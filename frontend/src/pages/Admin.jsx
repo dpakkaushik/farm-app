@@ -2066,11 +2066,23 @@ function BuyersMaster() {
 
 // ── Partners Master ────────────────────────────────────────────────────────────
 function PartnersMaster() {
-  const { partners, updatePartner } = useAppStore()
+  const { partners, updatePartner, accounts, cashBook, loadAccountBalances } = useAppStore()
   // editRow: { id, name } when editing, null otherwise
   const [editRow, setEditRow] = useState(null)
   const [saving,  setSaving]  = useState(false)
   const [toast,   setToast]   = useState(null)
+
+  // Each partner's bank account (accounts.partner_id, 0031) with its live
+  // balance — cane payments credit these, so this list is where a partner
+  // checks what the mill money did to their account.
+  useEffect(() => { loadAccountBalances() }, [])
+  const accountsOf = (partnerId) => (accounts || []).filter(a => a.partner_id === partnerId)
+  const balanceOf  = (accountId) => {
+    for (let i = cashBook.length - 1; i >= 0; i--) {
+      if (cashBook[i].account_id === accountId) return Number(cashBook[i].account_running_balance || 0)
+    }
+    return 0
+  }
 
   const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
 
@@ -2089,6 +2101,8 @@ function PartnersMaster() {
     <div className="p-4 space-y-3 pb-6">
       <p className="text-xs text-[var(--c-muted)] bg-[var(--c-card)] rounded-xl px-3 py-2">
         Partners are pre-seeded family members. You can edit names but not add or remove.
+        A partner's bank account is shown with its balance — cane payments credit the
+        account of the partner on the parchi.
       </p>
 
       {partners.map(p => (
@@ -2108,12 +2122,24 @@ function PartnersMaster() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold text-[var(--c-text)]">{p.name}</p>
-              <button onClick={() => setEditRow({ id: p.id, name: p.name })}
-                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10">
-                Edit
-              </button>
+            <div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[var(--c-text)]">{p.name}</p>
+                <button onClick={() => setEditRow({ id: p.id, name: p.name })}
+                  className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10">
+                  Edit
+                </button>
+              </div>
+              {accountsOf(p.id).map(a => (
+                <div key={a.id} className="flex items-center justify-between mt-1.5 pt-1.5"
+                  style={{ borderTop: '0.5px solid var(--c-border)' }}>
+                  <span className="text-[11px] text-[var(--c-muted)]">🏦 {a.name}</span>
+                  <span className="text-[11px] font-semibold"
+                    style={{ color: balanceOf(a.id) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    ₹{balanceOf(a.id).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>

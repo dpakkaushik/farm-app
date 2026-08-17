@@ -589,6 +589,7 @@ const useAppStore = create((set, get) => ({
         { data: livestockRevenueRaw },
         { data: cropResidualsRaw },
         { data: billsRaw },
+        { data: accountsRaw },
       ] = await Promise.all([
         supabase.from('plots').select('*').eq('farm_id', farmId).order('name'),
         supabase.from('crops').select('*').eq('farm_id', farmId).order('name'),
@@ -649,6 +650,12 @@ const useAppStore = create((set, get) => ({
         // the whole farm load to a migration having been applied; this does not,
         // so the app degrades to "no bill chip" instead of "no data".
         supabase.from('inventory_bills').select('id, bill_file_url, invoice_number').eq('farm_id', farmId),
+        // Accounts used to arrive only with the Ledger's bundle, which meant
+        // accountFor() silently returned null — and the DB trigger parked the
+        // money in the DEFAULT (cash) account — for anyone who marked a cane
+        // payment without ever opening the Ledger. Money routing must not
+        // depend on which page was visited first.
+        supabase.from('accounts').select('*').eq('farm_id', farmId).eq('is_active', true).order('created_at'),
       ])
 
       const tpl = templates || []
@@ -691,6 +698,7 @@ const useAppStore = create((set, get) => ({
         farmExpenses:       (farmExpensesRaw || []).map(mapFarmExpense),
         livestockRevenue:   (livestockRevenueRaw || []).map(mapLivestockRevenue),
         cropResiduals:      (cropResidualsRaw || []).map(mapResidual),
+        accounts:           accountsRaw || [],
         loading:           false,
         initialized:       true,
       })
@@ -2139,10 +2147,19 @@ const useAppStore = create((set, get) => ({
 
     // Record in cash book: gross received in, extra deduction (if any) out —
     // this was previously never written to the cash book at all.
-    // A mill settles a parchi into the bank, so bank is the default door; the
+    // The mill pays for a partner's cane into that partner's OWN account:
+    // the parchi carries the partner, the partner carries the account
+    // (accounts.partner_id, 0031) — this is how "when a ganna payment is
+    // done they will get credits". A partner with two accounts (Vipul: main
+    // + joint-primary) credits the older one, his main. No partner on the
+    // parchi, or no linked account, falls back to the main bank door; the
     // deduction leaves the same account the payment arrived in.
     const { data: { user } } = await supabase.auth.getUser()
-    const account = get().accountFor(paymentMode || 'bank')?.id || null
+    const session = get().harvestSessions.find(h => h.id === sale?.sessionId)
+    const partnerAccount = session?.partnerId
+      ? get().accounts.find(a => a.partner_id === session.partnerId)
+      : null
+    const account = partnerAccount?.id || get().accountFor(paymentMode || 'bank')?.id || null
     const cashRows = [{
       farm_id: getFarmId(), entry_date: paymentDate, amount: sale?.grossAmount || 0,
       direction: 'in', entry_type: 'cane_sale', account_id: account,
@@ -2501,6 +2518,19 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Ledger ──────────────────────────────────────────────────────────────────
+
+  // Accounts plus the cash book, alone — enough for any screen that shows
+  // account balances (Admin's partner list) without paying for the Ledger's
+  // full bundle.
+  loadAccountBalances: async () => {
+    const farmId = getFarmId()
+    if (!farmId) return
+    const [{ data: acc }, { data: cb }] = await Promise.all([
+      supabase.from('accounts').select('*').eq('farm_id', farmId).eq('is_active', true).order('created_at'),
+      supabase.from('v_cash_book').select('*'),
+    ])
+    set({ accounts: acc || [], cashBook: cb || [] })
+  },
 
   // The Dashboard's farm-wide cards read v_crop_pnl — the same rows the
   // Ledger's crop tables render, so the two screens agree by construction.
