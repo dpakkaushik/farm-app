@@ -148,9 +148,12 @@ table for one row. Settled: sheet "PUNEESH" = master "Puneet Nanda". Still open:
 **Sai Kiran Nanda** have an account, or was it just not listed?
 **Same day, the accounts went live in the UI at his ask** (*"show vipul nanda as main
 account … in partners list add the bank detail and amount … when a ganna payment is done
-they will get credits"*): (1) the Summary breakdown leads with the **MAIN** account —
-defined as the first bank account, the same pick `accountFor('bank')` routes transactions
-through, so badge and behaviour cannot disagree — then cash, then partners' accounts;
+they will get credits"*): (1) the Summary breakdown shows **ONLY cash + the MAIN account** (his refinement: *"only
+show main account in summary dont show all while keep other account in master"*) — MAIN =
+the first bank account, the same pick `accountFor('bank')` routes transactions through, so
+badge and behaviour cannot disagree; the five partner accounts roll into one muted line
+("5 partner accounts · in Partners master") so the card still sums to its own total, and
+the Excel export keeps listing every account for the accountant;
 (2) Admin → Partners shows each partner's linked account with its **live balance**
 (new light loader `loadAccountBalances`: accounts + v_cash_book only);
 (3) **`markCanePayment` credits the parchi's partner's own account** — session.partner_id →
