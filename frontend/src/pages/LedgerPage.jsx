@@ -467,44 +467,31 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
           Across all accounts, after every payment recorded
         </div>
         {/* Which pocket holds it — cash with the manager, plus the MAIN bank
-            account transactions route through. The partners' accounts are
-            deliberately NOT listed here (the owner: "only show main account
-            in summary, don't show all") — they live in Admin → Partners,
-            each against its holder. One rolled-up line keeps the rows on
-            this card summing to the total above it. */}
-        {accountBalances.length > 1 && (() => {
-          const shown  = accountBalances.filter(a => a.isMain || a.type === 'cash')
-          const others = accountBalances.filter(a => !a.isMain && a.type !== 'cash')
-          const othersTotal = others.reduce((s, a) => s + a.balance, 0)
-          return (
-            <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
-              {shown.map(a => (
-                <div key={a.id} className="flex justify-between text-[11px]">
-                  <span style={{ color: 'var(--c-muted)' }}>
-                    {a.type === 'bank' ? '🏦' : '💵'} {a.name}
-                    {a.isMain && (
-                      <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
-                        style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
-                        MAIN
-                      </span>
-                    )}
-                  </span>
-                  <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
-                    {fmt(a.balance)}
-                  </span>
-                </div>
-              ))}
-              {others.length > 0 && (
-                <div className="flex justify-between text-[11px]">
-                  <span style={{ color: 'var(--c-faint)' }}>
-                    🏦 {others.length} partner account{others.length > 1 ? 's' : ''} · in Partners master
-                  </span>
-                  <span className="font-semibold" style={{ color: 'var(--c-text)' }}>{fmt(othersTotal)}</span>
-                </div>
-              )}
-            </div>
-          )
-        })()}
+            account transactions route through. The partners' accounts appear
+            ONLY in Admin → Partners (the owner, twice: no partner account
+            details on this card, not even rolled up). Their balances are
+            still inside the headline figure — that is what its "across all
+            accounts" subtitle states. */}
+        {accountBalances.length > 1 && (
+          <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
+            {accountBalances.filter(a => a.isMain || a.type === 'cash').map(a => (
+              <div key={a.id} className="flex justify-between text-[11px]">
+                <span style={{ color: 'var(--c-muted)' }}>
+                  {a.type === 'bank' ? '🏦' : '💵'} {a.name}
+                  {a.isMain && (
+                    <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                      style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                      MAIN
+                    </span>
+                  )}
+                </span>
+                <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
+                  {fmt(a.balance)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Receivables alert — money owed TO the farm by buyers */}
