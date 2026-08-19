@@ -11,7 +11,27 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-17 (Dashboard AND Ledger now default to the whole-cycle lens — FY demoted to a filter) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-19 (Manpower is two tabs now — the Logs tab folded into Attendance) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just shipped (19 Aug) — Manpower lost a tab.** The owner saw the Logs tab holding
+one row of cards over an empty list and asked for it inside Attendance, *"just above staff
+and labour tab with month filter"*. Done: **Manpower is now Attendance + Salary**.
+`MonthSummaryStrip` (month picker + Staff Salary / Regular Labour / Contractual) sits
+directly above the Staff/Labour toggle, and the month's entries render at the bottom as
+`MonthWorkLogs`, newest first with a TODAY pill. **The old "Today's Work Logged" block was
+deleted, deliberately** — today falls inside the selected month, so keeping both printed the
+same rows twice on one screen; the pill preserves the post-logging confirmation it gave.
+The month is the **same `logMonth` the Salary tab uses**, so changing it on one changes the
+other — inside `LabourToday` it is named `summaryMonth` to keep it distinct from that
+screen's own `selMonth`, which only drives a worker's expanded calendar. The summary maths
+moved out of the deleted `LabourLogs` into [`lib/labourMonth.js`](frontend/src/lib/labourMonth.js)
+(20 tests) — `monthlyLabourSummary`, plus `calcStaffEarned` which had been duplicated at
+four call sites, and a `monthLabel` that parses `'YYYY-MM'` by parts rather than through
+`new Date()` (the same UTC off-by-one `period.js` already had to fix). **Fixed en route:
+marking a day never refreshed `logMonthAtt`, so the Staff Salary figure sat stale** — it went
+unnoticed while the strip lived on another tab, and would have been obvious the moment it
+moved next to the attendance buttons. `markAttendance` now bumps an `attVersion` the loader
+depends on, and skips the query when the shown month cannot contain today. **72 tests green.**
 
 **Second/third ship of 17 Aug — the Ledger's FY default is gone, at the owner's explicit
 ask, and the filter is TWO dropdowns after he refined it** (*"keep the FY filter with the
@@ -45,30 +65,21 @@ claims precision the data does not have. **FY-level sow_date attribution unchang
 do not sum to the FY headline — the FY view's "incl. ₹X spent before the app" label is
 exactly the difference. 52 tests green.
 
-**Just shipped — the Dashboard answers the farmer's question, not the accountant's.** The
-owner asked why the P&L (₹4,88,126, FY 2026-27) didn't show cane's ₹8,80,533; the answer
-("different FY") convinced him the FY lens is wrong for a farm: *"as crop is sown sometimes
-12 month back it is tough to go by financial year."* So the Dashboard's money cards now read
-**whole crop cycles, sowing → sale, no FY**: Expected ₹54,02,410 (at harvest, all crops) ·
+**The Dashboard reads whole crop cycles, sowing → sale, no FY** (17 Aug, after *"as crop is
+sown sometimes 12 month back it is tough to go by financial year"*): Expected ₹54,02,410 ·
 Received/Pending (from `sales` paid/unpaid — both ₹0 today, correct) · **Spent on Crops
-₹13,53,366** · Net +₹40.49L *"if crops sell as expected"*. All from **`v_crop_pnl`** — the
-same rows the Ledger's crop tables render, so the two screens agree **by construction**.
-Ruled by the owner: Spent = **crop costs only** (his sheet's frame); salaries/farm expenses
-stay in the Ledger. Per-cycle rule (in [`lib/farmOverview.js`](frontend/src/lib/farmOverview.js),
-11 tests): active → `max(revenue, expected_revenue)` — a partly-sold standing crop keeps its
+₹13,53,366** · Net +₹40.49L *"if crops sell as expected"*. All from **`v_crop_pnl`**, the same
+rows the Ledger's crop tables render, so the two screens agree **by construction**. Ruled by
+the owner: Spent = **crop costs only** (his sheet's frame); salaries/farm expenses stay in the
+Ledger. Per-cycle rule (in [`lib/farmOverview.js`](frontend/src/lib/farmOverview.js), 11
+tests): active → `max(revenue, expected_revenue)`, so a partly-sold standing crop keeps its
 forecast; finished → `revenue`. `expected_revenue` = acres × `crops.yield_per_acre` ×
-`price_per_qtl` (+ residuals), all six crops populated, owner-editable in Admin → Crops.
-**No migration; no new owner data entry.** This retired three Dashboard-local derivations
-and with them two standing defects: Net Position no longer sets cane-only receipts against
-all-crop cost, and nothing on the Dashboard reads the `crop_cycles.opening_cost` **lump**
-anymore — every figure, including the expanded per-cycle "Before app" cell, now comes from
-the view (itemised breakup supersedes lump), so the 0024 drift risk is gone. The store
-gained `loadCropPnl()` (Dashboard fetches just that view; `loadLedgerData` unchanged).
-The Ledger is untouched — its FY dropdown (with 'all') remains for whoever wants it.
-**Also live from 14 Aug:** the bill-date form fix — Entry Date read-only beside a required,
-empty-by-default Bill Date (`max` today, one-tap "Bill is from today"); bills display as
-`4348 / 19 Jul 26`; amber "entered …" flag when dates diverge >1 day; CSV `Entered` column;
-helpers in [`lib/billdates.js`](frontend/src/lib/billdates.js). 38 tests green.
+`price_per_qtl` (+ residuals), owner-editable in Admin → Crops. Nothing on the Dashboard reads
+the `crop_cycles.opening_cost` **lump** any more — the itemised breakup supersedes it, so the
+0024 drift risk is gone. **Also live from 14 Aug:** the bill-date form fix — Entry Date
+read-only beside a required, empty-by-default Bill Date; bills display as `4348 / 19 Jul 26`;
+amber "entered …" flag when dates diverge >1 day; helpers in
+[`lib/billdates.js`](frontend/src/lib/billdates.js).
 
 **The owner's steer, and it governs what comes next:** *"we are going too accounts heavy and
 this is taking a toll on development time and user friendliness."* The app's job is that
@@ -79,14 +90,12 @@ That ambition is dropped. Operational work comes before more accounting depth.
 **₹2,94,385** · worker openings **−₹55,888** (workers owe the farm) · crop openings
 **cane ₹8,80,533 + paddy ₹4,72,833** across 75 rows, 15/15 cycles itemised, pro-rata by acres.
 
-**Root cause found 12–13 Aug, fixed 14 Aug: the app stored ENTRY dates as BILL dates.** The
-picker *used to* default to today and was never changed, so everything typed on 6–7 Aug carries a
-7-Aug date; the real dates sit inside the invoice numbers the owner typed
-(`4348/19.07.26`). `git log --since=2026-08-05 --until=2026-08-09` confirms 6–7 Aug is when
-the *abandoned* "match every historical record" approach was being built. So the 6 bills,
-14 purchase lines, 67 issues (₹1,12,348) and 2 cash entries were all pre-August data in
-disguise — archived and deleted (3rd `go_live_archive` batch). Attendance (51 rows,
-1–8 Aug) is the only genuine August data and was asserted untouched.
+**Settled 14 Aug: the app had stored ENTRY dates as BILL dates.** The picker defaulted to
+today and was never changed, so everything typed on 6–7 Aug carried a 7-Aug date while the
+real dates sat inside the invoice numbers the owner typed (`4348/19.07.26`). The 6 bills, 14
+purchase lines, 67 issues (₹1,12,348) and 2 cash entries were pre-August data in disguise —
+archived and deleted (3rd `go_live_archive` batch). Attendance (51 rows, 1–8 Aug) is the only
+genuine August data and was asserted untouched. The form fix has shipped.
 
 **Do not undo these — they look like mistakes and are not:**
 1. The 6 OPENING-STOCK purchases dated 2026-03-31 are opening statements and STAY.

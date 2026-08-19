@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
+import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSummary } from '../lib/labourMonth'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
 const TODAY_LABEL = format(new Date(), 'EEEE, d MMMM yyyy')
@@ -19,15 +20,6 @@ const CONTRACT_TYPES = [
   { value: 'rate_wise', label: 'Rate Wise',  unit: 'Units',  emoji: '💰' },
 ]
 
-// Day rate is spread over working days only (month days minus the paid holiday allowance).
-// Full presence across those working days earns the full salary; salary never exceeds that cap.
-function calcStaffEarned(daysPresent, daysInMonth, monthlySalary, monthlyHoliday = 2) {
-  if (!monthlySalary) return 0
-  const workingDays = Math.max(1, daysInMonth - monthlyHoliday)
-  const dailyRate    = monthlySalary / workingDays
-  return Math.min(monthlySalary, Math.round(daysPresent * dailyRate))
-}
-
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
   const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, plots, logLabourBatch } = useAppStore()
@@ -39,11 +31,13 @@ export default function Labour() {
   // Shared month attendance — loaded here so it survives tab switches
   const [logMonth,    setLogMonth]    = useState(new Date().toISOString().slice(0, 7))
   const [logMonthAtt, setLogMonthAtt] = useState({})
+  // Bumped when a day is marked. The summary strip now shares a screen with the
+  // attendance buttons, so a stale count is visible the moment it goes stale.
+  const [attVersion,  setAttVersion]  = useState(0)
 
   useEffect(() => {
-    const d    = new Date(logMonth + '-01')
     const from = logMonth + '-01'
-    const to   = `${logMonth}-${String(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`
+    const to   = `${logMonth}-${String(daysInMonth(logMonth)).padStart(2, '0')}`
     supabase.from('attendance').select('*')
       .gte('attendance_date', from)
       .lte('attendance_date', to)
@@ -55,7 +49,13 @@ export default function Labour() {
         })
         setLogMonthAtt(counts)
       })
-  }, [logMonth])
+  }, [logMonth, attVersion])
+
+  // Marking only ever touches today, so a month not containing today cannot have
+  // changed — don't spend a query re-reading it.
+  const onAttendanceMarked = () => {
+    if (TODAY_STR.startsWith(logMonth)) setAttVersion(v => v + 1)
+  }
 
   const showToast = (msg, type = 'success') => {
     setToast(msg); setToastType(type); setTimeout(() => setToast(null), 3000)
@@ -68,7 +68,7 @@ export default function Labour() {
         <h2 className="text-lg font-bold text-[var(--c-text)]">Manpower</h2>
         <p className="text-xs text-[var(--c-muted)] mb-3">Attendance · Work logs · Payments</p>
         <div className="flex gap-1 border-b border-[var(--c-border)]">
-          {[['attendance','📋 Attendance'], ['logs','🗒 Logs'], ['salary','💰 Salary']].map(([k, lbl]) => (
+          {[['attendance','📋 Attendance'], ['salary','💰 Salary']].map(([k, lbl]) => (
             <button key={k} onClick={() => setSubTab(k)}
               className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors
                 ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
@@ -79,8 +79,7 @@ export default function Labour() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} />}
-        {subTab === 'logs'    && <LabourLogs labourLogs={labourLogs} permanentStaff={permanentStaff} regularLabourers={regularLabourers} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
+        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} summaryMonth={logMonth} setSummaryMonth={setLogMonth} summaryAtt={logMonthAtt} onAttendanceMarked={onAttendanceMarked} />}
         {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
 
@@ -103,20 +102,22 @@ const ATT_STYLE = {
 function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, monthAtt, monthLogs, selMonth, setSelMonth }) {
   const y = selMonth.getFullYear()
   const m = selMonth.getMonth()
-  const daysInMonth  = new Date(y, m + 1, 0).getDate()
+  // `selMonth` is a Date, not a 'YYYY-MM' string, so these are counted here rather
+  // than through the labourMonth helpers — named apart from them on purpose.
+  const dayCount     = new Date(y, m + 1, 0).getDate()
   const firstOffset  = (new Date(y, m, 1).getDay() + 6) % 7
-  const monthLabel   = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
+  const monthTitle   = selMonth.toLocaleString('default', { month: 'long', year: 'numeric' })
   const attRecs      = monthAtt.filter(a => a.labour_master_id === workerId)
   const daysPresent  = attRecs.filter(a => a.status === 'present').length
   const daysHalf     = attRecs.filter(a => a.status === 'half_day').length
   const attPay       = monthlySalary
-    ? calcStaffEarned(daysPresent + daysHalf / 2, daysInMonth, monthlySalary, monthlyHoliday)
+    ? calcStaffEarned(daysPresent + daysHalf / 2, dayCount, monthlySalary, monthlyHoliday)
     : Math.round((daysPresent + daysHalf / 2) * (ratePerDay || 0))
   const contractPay  = Math.round(monthLogs.filter(l => l.labour_master_id === workerId).reduce((s, l) => s + (Number(l.total_payment) || 0), 0))
   const attByDate    = Object.fromEntries(attRecs.map(a => [a.attendance_date, a.status]))
   const cells = [
     ...Array(firstOffset).fill(null),
-    ...Array.from({ length: daysInMonth }, (_, i) => {
+    ...Array.from({ length: dayCount }, (_, i) => {
       const d   = i + 1
       const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
       return { d, status: attByDate[key] }
@@ -141,7 +142,7 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
       <div className="flex items-center justify-between">
         <button onClick={e => { e.stopPropagation(); setSelMonth(d => new Date(d.getFullYear(), d.getMonth()-1, 1)) }}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">◀</button>
-        <p className="text-[11px] font-bold text-[var(--c-text)]">{monthLabel}</p>
+        <p className="text-[11px] font-bold text-[var(--c-text)]">{monthTitle}</p>
         <button onClick={e => { e.stopPropagation(); setSelMonth(d => new Date(d.getFullYear(), d.getMonth()+1, 1)) }}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-[var(--c-muted)] hover:bg-[var(--c-ghost)] text-xs">▶</button>
       </div>
@@ -196,7 +197,10 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
 }
 
 // ── Today: attendance + task log ──────────────────────────────────────────────
-function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast, plots, logLabourBatch }) {
+// `summaryMonth` is the month the folded-in Logs strip reports on, shared with the
+// Salary tab. Deliberately distinct from this screen's own `selMonth`, which only
+// drives a worker's expanded attendance calendar.
+function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast, plots, logLabourBatch, summaryMonth, setSummaryMonth, summaryAtt, onAttendanceMarked }) {
   const { activityTypes } = useAppStore()
   const { activeFarmId } = useAuthStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
@@ -266,14 +270,14 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
   const workerSalary = useMemo(() => {
     const now = new Date()
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const dayCount = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
     const all = [...permanentStaff, ...regularLabourers]
     return Object.fromEntries(all.map(w => {
       const attRecs = curMonthAtt.filter(a => a.labour_master_id === w.id)
       const daysPresent = attRecs.filter(a => a.status === 'present').length
       const daysHalf    = attRecs.filter(a => a.status === 'half_day').length
       const attPay  = w.monthlySalary
-        ? calcStaffEarned(daysPresent + daysHalf / 2, daysInMonth, w.monthlySalary, w.monthlyHoliday)
+        ? calcStaffEarned(daysPresent + daysHalf / 2, dayCount, w.monthlySalary, w.monthlyHoliday)
         : Math.round((daysPresent + daysHalf / 2) * (w.ratePerDay || 0))
       const contractPay = curMonthLogs.filter(l => l.labour_master_id === w.id)
         .reduce((s, l) => s + (Number(l.total_payment) || 0), 0)
@@ -300,6 +304,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         const other = prev.filter(a => !(a.labour_master_id === labourId && a.attendance_date === TODAY_STR))
         return [...other, rec]
       })
+      onAttendanceMarked?.()
     }
     setSavingAtt(s => ({ ...s, [labourId]: false }))
   }
@@ -315,6 +320,13 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
     return sum
   }, 0)
   const todayContractual = todayLogs.reduce((s, l) => s + (l.totalCost || 0), 0)
+
+  const monthSummary = useMemo(() => monthlyLabourSummary({
+    permanentStaff, regularLabourers, labourLogs, month: summaryMonth, attDays: summaryAtt,
+  }), [permanentStaff, regularLabourers, labourLogs, summaryMonth, summaryAtt])
+
+  const summaryLogs = useMemo(
+    () => logsInMonth(labourLogs, summaryMonth), [labourLogs, summaryMonth])
 
   return (
     <div className="p-4 space-y-4 pb-24">
@@ -333,6 +345,8 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           <p className="text-[10px] text-[var(--c-muted)]">{todayLogs.length} log{todayLogs.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
+
+      <MonthSummaryStrip month={summaryMonth} setMonth={setSummaryMonth} summary={monthSummary} />
 
       {/* Staff / Labour toggle + attendance */}
       <div>
@@ -481,29 +495,11 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         showToast={showToast}
       />
 
-      {/* Today's logs */}
-      {todayLogs.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Today's Work Logged</p>
-          {todayLogs.map(l => {
-            const ct = l.contractType ? CONTRACT_TYPES.find(c => c.value === l.contractType) : null
-            const sub = [
-              l.plotLabel !== '—' ? l.plotLabel : 'Farm-wide',
-              l.workers > 1 ? `${l.workers} workers` : null,
-              ct && l.contractQty ? `${l.contractQty} ${ct.unit} @ ₹${l.ratePerDay}/${ct.unit}` : null,
-            ].filter(Boolean).join(' · ')
-            return (
-              <div key={l.id} className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] p-3 mb-1.5 flex items-center justify-between">
-                <div className="flex-1 min-w-0 pr-3">
-                  <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
-                  <p className="text-[10px] text-[var(--c-muted)]">{sub}</p>
-                </div>
-                <p className="text-sm font-bold text-[#1D9E75] shrink-0">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {/* The month's work logs. Replaces the old "Today's Work Logged" strip that
+          stood here: today falls inside the month, so keeping both printed the
+          same rows twice on one screen. Today's entries head the list instead,
+          pilled, so logging still confirms itself on the spot. */}
+      <MonthWorkLogs logs={summaryLogs} month={summaryMonth} />
 
       {showLogModal && (
         <LogTaskModal
@@ -582,39 +578,16 @@ function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, 
   )
 }
 
-// ── Labour Logs ───────────────────────────────────────────────────────────────
-function LabourLogs({ labourLogs, permanentStaff, regularLabourers, month, setMonth, att }) {
-  const now           = new Date(month + '-01')
-  const daysInMonth   = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const filtered      = labourLogs.filter(l => l.date?.startsWith(month))
-
-  // Staff Salary: full monthly salary minus absences beyond the monthly holiday allowance
-  const staffSalary = permanentStaff.reduce((sum, s) => {
-    const days = att[s.id] || 0
-    return sum + (s.monthlySalary
-      ? calcStaffEarned(days, daysInMonth, s.monthlySalary, s.monthlyHoliday)
-      : Math.round(days * (s.ratePerDay || 0)))
-  }, 0)
-
-  // Regular labour: attendance pay + any logs tied to them
-  const regularAttPay = regularLabourers.reduce((sum, l) => {
-    return sum + Math.round((att[l.id] || 0) * (l.ratePerDay || 0))
-  }, 0)
-  const regularLogPay = filtered
-    .filter(l => l.labourMasterId && regularLabourers.some(r => r.id === l.labourMasterId))
-    .reduce((sum, l) => sum + (l.totalCost || 0), 0)
-  const regularTotal  = regularAttPay + regularLogPay
-
-  // Contractual: logs with no master ID (pure daily hire)
-  const contractualTotal = filtered
-    .filter(l => !l.labourMasterId)
-    .reduce((sum, l) => sum + (l.totalCost || 0), 0)
-
+// ── Monthly summary — what used to be the whole Logs tab ─────────────────────
+// Three figures and a month picker did not earn a tab of their own, so the strip
+// now sits on Attendance, directly above the Staff/Labour toggle: the month's
+// running cost reads first, then the day gets marked. The month it reports on is
+// shared with the Salary tab — changing it here changes it there.
+function MonthSummaryStrip({ month, setMonth, summary }) {
   return (
-    <div className="p-4 space-y-3 pb-6">
-      {/* Month filter + summary blocks */}
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Monthly Summary</p>
+        <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Monthly Summary</p>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
           className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
           style={{ colorScheme: 'dark' }} />
@@ -622,37 +595,63 @@ function LabourLogs({ labourLogs, permanentStaff, regularLabourers, month, setMo
       <div className="grid grid-cols-3 gap-2">
         <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Staff Salary</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{staffSalary.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{summary.staffSalary.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-[#1D9E75]/6 border border-[#1D9E75]/15 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Regular Labour</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{regularTotal.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#1D9E75]">₹{summary.regularTotal.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Contractual</p>
-          <p className="text-sm font-bold text-[#BA7517]">₹{contractualTotal.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#BA7517]">₹{summary.contractualTotal.toLocaleString('en-IN')}</p>
         </div>
       </div>
+    </div>
+  )
+}
 
-      {/* Log entries for selected month */}
-      {filtered.length === 0 && <p className="text-center text-[var(--c-faint)] text-sm py-6">No logs for this month.</p>}
-      {filtered.map(l => (
-        <div key={l.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[var(--c-text)]">{l.labourName}</p>
-              <p className="text-xs text-[var(--c-muted)] mt-0.5">{l.plotLabel || 'Farm-wide'}</p>
+// ── The month's work logs ────────────────────────────────────────────────────
+// Newest first, so a log entered today lands at the top — where the today-only
+// strip this replaced used to print it.
+function MonthWorkLogs({ logs, month }) {
+  const ordered = [...logs].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+  return (
+    <div>
+      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">
+        Work Logged · {monthLabel(month)}
+      </p>
+      {ordered.length === 0 && (
+        <p className="text-center text-[var(--c-faint)] text-sm py-4">No logs for this month.</p>
+      )}
+      {ordered.map(l => {
+        // A log from the Assign/Log Task modal carries no contract type, so it falls
+        // back to the plain day rate — otherwise those rows would show no rate at all.
+        const ct   = l.contractType ? CONTRACT_TYPES.find(c => c.value === l.contractType) : null
+        const rate = ct && l.contractQty
+          ? `${l.contractQty} ${ct.unit} @ ₹${l.ratePerDay}/${ct.unit}`
+          : l.ratePerDay > 0 ? `₹${l.ratePerDay}/day` : null
+        const sub  = [
+          l.plotLabel && l.plotLabel !== '—' ? l.plotLabel : 'Farm-wide',
+          l.workers > 1 ? `${l.workers} workers` : null,
+          rate,
+        ].filter(Boolean).join(' · ')
+        return (
+          <div key={l.id} className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] p-3 mb-1.5 flex items-start justify-between">
+            <div className="flex-1 min-w-0 pr-3">
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
+                {l.date === TODAY_STR && (
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[#1D9E75]/15 text-[#1D9E75]">TODAY</span>
+                )}
+              </div>
+              <p className="text-[10px] text-[var(--c-muted)]">{sub}</p>
               <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{l.date}</p>
-              {l.purpose && <p className="text-xs text-[var(--c-sub)] mt-1 italic">{l.purpose}</p>}
+              {l.purpose && <p className="text-[10px] text-[var(--c-sub)] mt-0.5 italic">{l.purpose}</p>}
             </div>
-            <div className="text-right">
-              <p className="text-base font-bold text-[var(--c-text)]">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
-              {l.workers > 1 && <p className="text-[10px] text-[var(--c-muted)]">{l.workers} workers</p>}
-              {l.ratePerDay > 0 && <p className="text-[10px] text-[var(--c-faint)]">₹{l.ratePerDay}/day</p>}
-            </div>
+            <p className="text-sm font-bold text-[#1D9E75] shrink-0">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -684,7 +683,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     setLedger({ worker, entries, loading: false })
   }
 
-  const daysInMonth = new Date(new Date(month + '-01').getFullYear(), new Date(month + '-01').getMonth() + 1, 0).getDate()
+  const dayCount    = daysInMonth(month)
   const allWorkers  = [
     ...permanentStaff.map(s => ({ ...s, workerType: 'staff' })),
     ...regularLabourers.map(l => ({ ...l, workerType: 'regular' })),
@@ -742,7 +741,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       {allWorkers.map(w => {
         const days         = att[w.id] || 0
         const earned       = w.workerType === 'staff' && w.monthlySalary
-          ? calcStaffEarned(days, daysInMonth, w.monthlySalary, w.monthlyHoliday)
+          ? calcStaffEarned(days, dayCount, w.monthlySalary, w.monthlyHoliday)
           : Math.round(days * (w.ratePerDay || 0))
         const contractPay  = labourLogs.filter(l => l.labourMasterId === w.id && l.date?.startsWith(month)).reduce((s, l) => s + (l.totalCost || 0), 0)
         const advTotal     = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)].reduce((s, a) => s + a.amount, 0)
