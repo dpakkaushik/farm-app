@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { groupAnchorId, shortDate } from '../lib/labourGroups'
+import { canHideWorker, owedToFarm, owedToWorker } from '../lib/workerRecovery'
 import { useAuthStore } from './auth'
 
 const getFarmId = () => useAuthStore.getState().activeFarmId
@@ -895,6 +896,7 @@ const useAppStore = create((set, get) => ({
   },
 
   deleteRegularLabourer: async (id) => {
+    await get().assertWorkerSettled(id)
     const { error } = await supabase.from('labour_master').update({ status: 'inactive' }).eq('id', id)
     if (error) throw error
     set(s => ({ regularLabourers: s.regularLabourers.filter(l => l.id !== id) }))
@@ -985,6 +987,7 @@ const useAppStore = create((set, get) => ({
   },
 
   deletePermanentStaff: async (id) => {
+    await get().assertWorkerSettled(id)
     const { error } = await supabase.from('labour_master').update({ status: 'inactive' }).eq('id', id)
     if (error) throw error
     set(st => ({ permanentStaff: st.permanentStaff.filter(p => p.id !== id) }))
@@ -1058,6 +1061,65 @@ const useAppStore = create((set, get) => ({
       payment_mode: adv.paymentMode,
     })
     set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
+  },
+
+  // ── Recovering money FROM a worker ──────────────────────────────────────────
+  // The mirror image of addAdvance: cash comes IN, and the worker's khata debt
+  // shrinks. Stored as ONE salary_advances row with a negative amount, because
+  // v_salary_dues subtracts that column — see lib/workerRecovery.js and
+  // migration 0033 for why the sign is the whole record.
+  //
+  // `name` is passed in rather than looked up: a worker who has left is not in
+  // the store at all (loadAll fetches only active and paused), and his cash
+  // entry must still say who paid.
+  recordWorkerRecovery: async ({ labourerId, name, amount, date, paymentMode, notes, givenBy, attachmentUrl }) => {
+    const paid = Math.abs(parseFloat(amount))
+    if (!paid) throw new Error('Enter how much was recovered')
+
+    const { data, error } = await supabase.from('salary_advances').insert({
+      farm_id:        getFarmId(),
+      labourer_id:    labourerId,
+      advance_date:   date,
+      amount:         -paid,                 // negative = money coming back
+      reason:         notes || 'Recovered from worker',
+      given_by:       givenBy || null,
+      payment_mode:   paymentMode || 'cash',
+      attachment_url: attachmentUrl || null,
+    }).select().single()
+    if (error) throw error
+
+    const who = name || get().labourerName(labourerId)
+    await get().writeCashEntry({
+      entry_date: date, amount: paid, direction: 'in',
+      entry_type: 'advance_recovery', notes: `Recovered from ${who}`,
+      reference_id: data.id, payment_mode: paymentMode,
+    })
+    set(s => ({ advances: [mapAdvance(data), ...s.advances] }))
+    return data
+  },
+
+  // What v_salary_dues says one worker's khata comes to, for callers that need
+  // the authoritative figure rather than a screen's month-scoped arithmetic.
+  // Reads the view, so it covers workers the store never loaded.
+  workerBalance: async (labourerId) => {
+    const { data, error } = await supabase.from('v_salary_dues')
+      .select('balance_due').eq('labourer_id', labourerId).maybeSingle()
+    if (error) throw error
+    return data ? Number(data.balance_due || 0) : 0
+  },
+
+  // Removing a worker only sets status='inactive', which hides him from every
+  // screen — but v_salary_dues has no status filter, so his balance would keep
+  // counting in the Ledger's dues total: money owed by nobody you can name. So
+  // the books have to be square first, in either direction.
+  assertWorkerSettled: async (labourerId, name) => {
+    const balance = await get().workerBalance(labourerId)
+    if (canHideWorker(balance)) return
+    const who   = name || get().labourerName(labourerId)
+    const rupee = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
+    throw new Error(owedToFarm(balance) > 0
+      ? `${who} still owes ${rupee(owedToFarm(balance))}. Recover it first (Manpower → Salary → Recover), or clear his opening balance in Admin if you are writing it off.`
+      : `The farm still owes ${who} ${rupee(owedToWorker(balance))}. Pay it first, or his wages disappear from every screen while the Ledger keeps counting them.`)
   },
 
   markAdvanceRecovered: async (id, recoveryMonth) => {

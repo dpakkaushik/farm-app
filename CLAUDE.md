@@ -11,42 +11,60 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-20 (one job, one payment — labour grouped in the Ledger) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-20 (money can now come back FROM a worker) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (20 Aug) — one job, one payment.** The owner's ₹6,520 spraying job (10 Aug,
-163 tanks @ ₹40) showed in the Ledger as **seven** payments, because its cost is split
-pro-rata across seven plots: *"as far as payment is concerned this is a single payment …
-also the process of payment user just click pay and it get paid neither ask for payment
-method."* Built exactly as planned in
-[`docs/HANDOFF-labour-payment-grouping.md`](docs/HANDOFF-labour-payment-grouping.md), which
-now records what shipped and three deviations. **The per-plot split STAYS** — it is the only
-route to per-plot cost, and he said so himself; only the *payment* collapses. The Labour
-category now shows **one line reading ₹6,520 describing the job** ("— 7 plots · 163 tanks @
-₹40", his refinement: *"should also show the details not only the date"*), with the per-plot
-breakup behind the existing chevron via a new `LabourLines` beside `BillLines`. Grouping is
-pure and tested in [`lib/labourGroups.js`](frontend/src/lib/labourGroups.js) (21 specs) on
-`(entry_date, description, is_paid)` — the key `v_expense_ledger` already produces, so **no
-migration**; paid and unpaid never merge; a one-plot job stays one row and grows no chevron;
-`wholeShares` hands the rounding residue to the largest part so the breakup adds to the
-₹6,520 in the header rather than to ₹6,521. **`markLabourPaid` is gone**, replaced by
-`markLabourGroupPaid`: one `.in('id', ids)` update, **one** cash entry, `reference_id` on the
-group's anchor log (`groupAnchorId` = lexicographically first id — any future unpay MUST
-resolve the group the same way or it reverses one seventh of a payment). **And Pay now
-asks how the money moved** — a thin `PayExpenseModal` (cash preselected, last choice
-remembered in `localStorage`, bank = the main account) replacing a bare `confirm()` that
-hardcoded cash and, since the six accounts went live on 17 Aug, silently drained the cash box.
-It covers farm expenses too — `addExpensePayment` always accepted a mode; the Ledger never
-passed one. The paid pill now reads `Paid 19 Aug · Cash`. **93 tests green.**
+**Just shipped (20 Aug, 2nd of the day) — recovering money FROM a worker.** *"deepak … has
+a negative opening balance and he leaves the job how we gonna recover money from him?"* →
+*"make way to recover money from a deactive or active staff or labourer."* Full record in
+[`docs/HANDOFF-worker-recovery.md`](docs/HANDOFF-worker-recovery.md). Six workers owe the
+farm **₹61,420** (Deena 25,425 · Deepak 13,933 · Gambhira 13,495 · Chote Lal 5,303 ·
+Jhingur 2,125 · Harinder 1,139) and there was **no door for that money coming back** — an
+advance and a salary payment are both cash going *out*, and `amount > 0` guarded every route
+in, so a debt could only grow. Worse, **Remove detached the debt from the person**:
+`status='inactive'` hides a man from every screen while `v_salary_dues` (no status filter)
+keeps counting him — ₹15,620 already sat behind two *paused* workers the Salary tab filters
+out. **The mechanic is a NEGATIVE `salary_advances` row.** `balance_due = opening + earned −
+advances − paid`, so subtracting a negative advance adds the money back: migration
+[`0033`](supabase/migrations/0033_worker_recovery.sql) is four lines (`amount > 0` →
+`amount <> 0`), **no view change, no new table — the sign IS the record**. Cash side needed
+nothing: `direction:'in'`, `entry_type:'advance_recovery'` (→ the Cash Flow **labour** line,
+never income — the farm got its own money back). Verified on the live DB before any UI, both
+probes rolled back: Deepak −13,933 → **0**; the full write took Jhingur to 0 and the cash
+book 22,564.02 → **24,689.02**. Logic in
+[`lib/workerRecovery.js`](frontend/src/lib/workerRecovery.js) (**32 tests**; `SETTLED_TOLERANCE
+= 1` because balances carry paise; `monthEnd` from LOCAL parts — `toISOString()` returns
+27 Feb). New: **`recordWorkerRecovery`** (takes `name` as an argument — a worker who has left
+is not in the store at all), **`workerBalance`**, **`assertWorkerSettled`** guarding both
+Remove paths in either direction. UI: **"⬇️ Recover"** appears on a card only when he owes,
+prefilled from `v_salary_dues`; a new **"No longer working"** section is the only screen that
+can see paused/removed debtors; Admin's Remove asks the balance *before* the confirm and names
+the escape hatch (clear the opening balance — **there is no write-off feature, deliberately**).
+**Fixed en route, a real contradiction:** the History overlay folded salary payments the wrong
+way (paying a man made the farm owe him *more*) and omitted wages earned, so it could never
+close on the Ledger's figure. It now folds the same four things `v_salary_dues` does and closes
+on `balance_due` **by construction**. **126 tests green.**
 
-**Shipped 19 Aug — Manpower lost a tab.** Logs folded into Attendance at his ask:
-`MonthSummaryStrip` (month picker + Staff Salary / Regular Labour / Contractual) sits above
-the Staff/Labour toggle, the month's entries render below as `MonthWorkLogs`. The old
-"Today's Work Logged" block was **deleted deliberately** — today is inside the selected
-month, so both printed the same rows; the TODAY pill keeps the confirmation. Same `logMonth`
-as the Salary tab (named `summaryMonth` inside `LabourToday`). Maths in
-[`lib/labourMonth.js`](frontend/src/lib/labourMonth.js) (20 tests). Fixed en route: marking a
-day never refreshed `logMonthAtt`, so Staff Salary sat stale — `markAttendance` now bumps an
-`attVersion` the loader depends on.
+**Shipped 20 Aug (1st) — one job, one payment.** The ₹6,520 spraying job (10 Aug, 163 tanks @
+₹40) showed as **seven** Ledger payments because its cost splits pro-rata across seven plots.
+**The per-plot split STAYS** (the only route to per-plot cost, his own words); only the
+*payment* collapses — one line reading ₹6,520 with the job described ("— 7 plots · 163 tanks @
+₹40"), breakup behind the chevron via `LabourLines`. Pure and tested in
+[`lib/labourGroups.js`](frontend/src/lib/labourGroups.js) (21 specs) on
+`(entry_date, description, is_paid)` — a key `v_expense_ledger` already produces, so **no
+migration**; paid and unpaid never merge; `wholeShares` hands the rounding residue to the
+largest part. `markLabourPaid` → **`markLabourGroupPaid`**: one update, **one** cash entry,
+`reference_id` on the group's anchor (`groupAnchorId` = lexicographically first id — **any
+future unpay MUST resolve the group the same way** or it reverses one seventh of a payment).
+**Pay now asks how the money moved** (`PayExpenseModal`, cash preselected, remembered in
+`localStorage`) — the old bare `confirm()` hardcoded cash and had silently drained the cash box
+since the six accounts went live. Detail:
+[`docs/HANDOFF-labour-payment-grouping.md`](docs/HANDOFF-labour-payment-grouping.md).
+
+**Shipped 19 Aug — Manpower lost a tab.** Logs folded into Attendance: `MonthSummaryStrip`
+above the Staff/Labour toggle, the month's entries below as `MonthWorkLogs`. "Today's Work
+Logged" was **deleted deliberately** — today is inside the selected month, so both printed the
+same rows. Maths in [`lib/labourMonth.js`](frontend/src/lib/labourMonth.js) (20 tests);
+`markAttendance` bumps an `attVersion` so Staff Salary cannot sit stale.
 
 **Second/third ship of 17 Aug — the Ledger's FY default is gone, at the owner's explicit
 ask, and the filter is TWO dropdowns after he refined it** (*"keep the FY filter with the
@@ -78,7 +96,7 @@ gives period totals ("EXP. 01.06.26 TO 31.07.26"), not month spend — a month a
 claims precision the data does not have. **FY-level sow_date attribution unchanged**
 (cane → 2025-26, paddy → 2026-27; still SETTLED). Consequence, deliberate: an FY's months
 do not sum to the FY headline — the FY view's "incl. ₹X spent before the app" label is
-exactly the difference. 52 tests green.
+exactly the difference.
 
 **The Dashboard reads whole crop cycles, sowing → sale, no FY** (17 Aug, after *"as crop is
 sown sometimes 12 month back it is tough to go by financial year"*): Expected ₹54,02,410 ·
@@ -126,7 +144,11 @@ genuine August data and was asserted untouched. The form fix has shipped.
    of the openings. The openings are what the sheet states.
 6. Opening cash still sums from two sources in `cashflow.js`; `tree_sale` still splits on
    the notes prefix; `vitest.config.js` stays separate from `vite.config.js`.
-7. The Ledger P&L, Summary, Excel export and Dashboard all now count pre-app opening cost,
+7. **A NEGATIVE `salary_advances.amount` is money recovered FROM a worker, not a data-entry
+   error.** `v_salary_dues` subtracts that column, so the sign is what carries the direction —
+   do not restore the `amount > 0` check (0033 replaced it with `amount <> 0`) and do not
+   `abs()` the column anywhere. Zero is still illegal.
+8. The Ledger P&L, Summary, Excel export and Dashboard all now count pre-app opening cost,
    deliberately and labelled. **There is no double count** — verified that
    `v_expense_ledger` has no path to `crop_cycle_opening_costs`, and only `opening_cost` is
    ever added, never `total_cost` (a cycle's input/labour cost is already in the ledger as
@@ -172,11 +194,16 @@ be: plot-wise cost is the point of the split. Asserted before/after — cash net
 unchanged, 7 cash rows → 1, ₹6,519.98 unchanged, 7 logs still 7. Full record in
 [`supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md`](supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md).
 
-**Found while in there, needs the owner: CASH IN HAND IS NEGATIVE, ₹−16,841** (opening ₹11,979
-less ₹28,820 paid out). A cash box cannot go below zero, so money booked as cash actually left
-a bank. Cause is known and now fixed forward — every labour payment before 20 Aug hardcoded
-`paid_via: 'cash'` — but the past rows are still wrong. **Ask which pre-20-Aug payments came
-from a bank before trusting the cash figure**; do not "correct" it by guessing.
+**Two things need the owner, both found by reading live data:**
+1. **CASH IN HAND IS NEGATIVE, ₹−16,841** (opening ₹11,979 less ₹28,820 paid out). A cash box
+   cannot go below zero, so money booked as cash actually left a bank. Cause is known and fixed
+   forward — every labour payment before 20 Aug hardcoded `paid_via: 'cash'` — but the past rows
+   are still wrong. **Ask which pre-20-Aug payments came from a bank before trusting the cash
+   figure**; do not "correct" it by guessing. (A cash *recovery* from a worker would mask this,
+   so ask first.)
+2. **Is Deepak's salary missing?** His `monthly_salary` AND `daily_base_rate` are both **0**, so
+   he accrues nothing and his ₹13,933 can never work itself off against wages even while he is
+   employed. Harinder is ₹10,000, Ram Bachan ₹11,000 — his looks simply never entered.
 
 **Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances are
 DONE (2026-08-17)** — migration `0031_accounts_partner_link.sql` added `accounts.partner_id`
@@ -243,7 +270,12 @@ added when acquired. Fix it the same way when he wants it. Payment-mode pickers 
 across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx` — but he **has now ruled for the
 Ledger's Pay button** (cash default, cash/bank only, remembered): match that shape when the
 others are touched, and do not add an account picker there — choosing among the six accounts
-lives in Move Money.
+lives in Move Money. **Labour.jsx's picker was deliberately left at cash/UPI/bank** when
+Recover joined it on 20 Aug: its three modals share one picker, money genuinely arrives by
+UPI, and splitting one of the three would make that screen disagree with itself.
+**No write-off feature exists, on purpose** — a worker who absconds owing money can only be
+cleared by editing his opening balance in Admin. If the owner ever wants the receivable to
+stop showing, that is the thing to build (bad debt to expense, one line with a reason).
 (The former flags here — Dashboard's lump `opening_cost` sum, the cane-only Net Position,
 and the Dashboard-all-time vs Ledger-FY mismatch — were all retired by the 17 Aug farm-wide
 Dashboard: it reads `v_crop_pnl` like the Ledger, and its whole-cycle scope is now the

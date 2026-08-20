@@ -5,6 +5,7 @@ import OpeningCostBreakup from '../components/OpeningCostBreakup'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
+import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/workerRecovery'
 
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
@@ -627,7 +628,7 @@ function LabourMaster() {
     addPermanentStaff, updatePermanentStaff, deletePermanentStaff,
     addRegularLabourer, updateRegularLabourer, deleteRegularLabourer,
     addContractualLabour, updateContractualLabour, deleteContractualLabour,
-    addAdvance, deactivateLabourer, reactivateLabourer,
+    addAdvance, deactivateLabourer, reactivateLabourer, workerBalance,
     manpowerSettings, setManpowerSettings,
   } = useAppStore()
   const [tab, setTab]             = useState('staff')
@@ -674,11 +675,32 @@ function LabourMaster() {
     setSaving(false)
   }
 
-  const handleDeleteStaff = (id, name) => setConfirm({
-    title: `Remove "${name}"?`, message: 'Staff member will be marked inactive.',
-    confirmLabel: 'Remove',
-    onConfirm: async () => { setConfirm(null); try { await deletePermanentStaff(id); showToast('Removed') } catch (e) { showToast(e.message) } },
-  })
+  // Removing hides a worker from every screen, but v_salary_dues has no status
+  // filter — his balance would keep counting in the Ledger with no name attached
+  // to it. The store refuses outright; this asks the question BEFORE the confirm
+  // so the answer is never a toast the owner can miss.
+  const rupee = (n) => '₹' + Math.round(n).toLocaleString('en-IN')
+  const blockedRemoval = async (id, name) => {
+    const balance = await workerBalance(id)
+    if (canHideWorker(balance)) return null
+    return {
+      title: `${name} cannot be removed yet`,
+      message: owedToFarm(balance) > 0
+        ? `He still owes the farm ${rupee(owedToFarm(balance))}. Recover it under Manpower → Salary → Recover, and he can be removed once the khata is square. If you are writing the money off, clear his opening balance here first.`
+        : `The farm still owes him ${rupee(owedToWorker(balance))}. Pay it first — removing him now would hide the wages while the Ledger keeps counting them.`,
+      confirmLabel: 'Got it',
+      onConfirm: () => setConfirm(null),
+    }
+  }
+
+  const handleDeleteStaff = async (id, name) => {
+    const blocked = await blockedRemoval(id, name)
+    setConfirm(blocked || {
+      title: `Remove "${name}"?`, message: 'Staff member will be marked inactive.',
+      confirmLabel: 'Remove',
+      onConfirm: async () => { setConfirm(null); try { await deletePermanentStaff(id); showToast('Removed') } catch (e) { showToast(e.message) } },
+    })
+  }
 
   // ── Regular Labour ──────────────────────────────────────────────────────────
   const saveRegular = async () => {
@@ -703,11 +725,14 @@ function LabourMaster() {
     setSaving(false)
   }
 
-  const handleDeleteRegular = (id, name) => setConfirm({
-    title: `Remove "${name}"?`, message: 'Labourer will be marked inactive.',
-    confirmLabel: 'Remove',
-    onConfirm: async () => { setConfirm(null); try { await deleteRegularLabourer(id); showToast('Removed') } catch (e) { showToast(e.message) } },
-  })
+  const handleDeleteRegular = async (id, name) => {
+    const blocked = await blockedRemoval(id, name)
+    setConfirm(blocked || {
+      title: `Remove "${name}"?`, message: 'Labourer will be marked inactive.',
+      confirmLabel: 'Remove',
+      onConfirm: async () => { setConfirm(null); try { await deleteRegularLabourer(id); showToast('Removed') } catch (e) { showToast(e.message) } },
+    })
+  }
 
   // ── Contractual ─────────────────────────────────────────────────────────────
   const saveContractual = async () => {
@@ -1791,11 +1816,17 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
         else if (r.status === 'half_day') months[ym].half++
         else if (r.status === 'absent')   months[ym].absent++
       })
-      const advances = {}
+      // Grouped by month, then split by direction: a negative row is money
+      // recovered FROM the worker, and folding it into one total would have hidden
+      // it (the row below only renders a positive advance).
+      const byMonth = {}
       ;(adv || []).forEach(a => {
         const ym = a.advance_date.slice(0, 7)
-        advances[ym] = (advances[ym] || 0) + Number(a.amount)
+        ;(byMonth[ym] = byMonth[ym] || []).push(a)
       })
+      const advances = Object.fromEntries(
+        Object.entries(byMonth).map(([ym, rows]) => [ym, splitAdvances(rows)])
+      )
       setRows({ months, advances })
     })
   }, [personId])
@@ -1820,7 +1851,10 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
           : monthlySalary
             ? null   // for staff show days only; prorated needs working-days count
             : null
-        const advance  = rows.advances[ym] || 0
+        const { given: advance, recovered } = rows.advances[ym] || { given: 0, recovered: 0 }
+        // Net is this month's wages less this month's advances. Money recovered
+        // against an OLD debt is shown beside it, never folded in — it does not
+        // change what this month earned.
         const net      = earned !== null ? earned - advance : null
 
         return (
@@ -1833,6 +1867,9 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
                 </p>
                 {advance > 0 && (
                   <p className="text-[10px] text-[#BA7517] mt-0.5">Advance taken: ₹{advance.toLocaleString()}</p>
+                )}
+                {recovered > 0 && (
+                  <p className="text-[10px] text-[#6366f1] mt-0.5">Recovered from him: ₹{recovered.toLocaleString()}</p>
                 )}
               </div>
               {earned !== null && (

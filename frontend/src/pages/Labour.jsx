@@ -8,6 +8,10 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSummary } from '../lib/labourMonth'
 import { contractUnit } from '../lib/labourGroups'
+import {
+  owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
+  khataEvents, buildWorkerKhata,
+} from '../lib/workerRecovery'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
 const TODAY_LABEL = format(new Date(), 'EEEE, d MMMM yyyy')
@@ -23,9 +27,18 @@ const CONTRACT_TYPES = [
   { value: 'rate_wise', label: 'Rate Wise',  emoji: '💰' },
 ].map(c => ({ ...c, unit: contractUnit(c.value) }))
 
+// The three things the salary modal can record. Recovery is the odd one out —
+// the only one where cash comes IN — so it gets its own accent and its own words
+// rather than borrowing the advance's amber.
+const MODAL_KIND = {
+  salary:   { accent: '#1D9E75', cta: 'Record Payment',  notes: 'Payment notes',        who: 'Given By',    whoHint: 'Name of person giving payment' },
+  advance:  { accent: '#BA7517', cta: 'Record Advance',  notes: 'Reason for advance',   who: 'Given By',    whoHint: 'Name of person giving payment' },
+  recovery: { accent: '#6366f1', cta: 'Record Recovery', notes: 'Why he is paying back', who: 'Received By', whoHint: 'Who collected the money' },
+}
+
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, plots, logLabourBatch } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, plots, logLabourBatch } = useAppStore()
   const permanentStaff    = allStaff.filter(s => s.isActive !== false)
   const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
@@ -83,7 +96,7 @@ export default function Labour() {
 
       <div className="flex-1 overflow-y-auto">
         {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} summaryMonth={logMonth} setSummaryMonth={setLogMonth} summaryAtt={logMonthAtt} onAttendanceMarked={onAttendanceMarked} />}
-        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
+        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} recordWorkerRecovery={recordWorkerRecovery} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
 
       {toast && (
@@ -666,30 +679,42 @@ function MonthWorkLogs({ logs, month }) {
 }
 
 // ── Labour Salary tab ─────────────────────────────────────────────────────────
-function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, showToast, month, setMonth, att }) {
+function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, showToast, month, setMonth, att }) {
   const [modal,   setModal]   = useState(null)
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
   const [saving,  setSaving]  = useState(false)
   const [ledger,  setLedger]  = useState(null)   // { worker, entries, loading }
 
+  // v_salary_dues is the authoritative khata balance, and — unlike this screen's
+  // worker lists — it has no status filter, so it is the only place a worker who
+  // has left the farm still shows up with what he owes. Loaded here rather than
+  // read from the store because the store fills salaryDues on the Ledger page,
+  // which the owner may never have opened.
+  const [dues,        setDues]        = useState([])
+  const [duesVersion, setDuesVersion] = useState(0)
+  useEffect(() => {
+    supabase.from('v_salary_dues').select('*').then(({ data }) => setDues(data || []))
+  }, [duesVersion])
+
+  const balanceOf = (id) => Number(dues.find(d => d.labourer_id === id)?.balance_due ?? NaN)
+
+  // Wages earned belong in the khata too. Without them the statement folded only
+  // cash movements and could never close on the same figure as the Ledger; it
+  // also folded payments the wrong way, so paying a man made the farm appear to
+  // owe him more. Both are fixed in lib/workerRecovery.js, where they are tested.
   const openLedger = async (worker) => {
     setLedger({ worker, entries: [], loading: true })
-    const [{ data: allPayments }, { data: allAdvances }] = await Promise.all([
+    const [{ data: allPayments }, { data: allAdvances }, { data: accruals }] = await Promise.all([
       supabase.from('salary_payments').select('*').eq('labourer_id', worker.id).order('payment_date', { ascending: true }),
       supabase.from('salary_advances').select('*').eq('labourer_id', worker.id).order('advance_date', { ascending: true }),
+      supabase.from('v_salary_accrual').select('*').eq('labourer_id', worker.id).order('month', { ascending: true }),
     ])
-    const entries = []
-    let running = worker.openingBalance || 0
-    entries.push({ date: '—', label: 'Opening Balance', debit: null, credit: null, balance: running, type: 'opening' })
-    const events = [
-      ...(allPayments || []).map(p => ({ date: p.payment_date, label: `Salary paid${p.notes ? ' · ' + p.notes : ''}`, credit: Number(p.amount_paid), debit: null, givenBy: p.given_by, mode: p.payment_mode, type: 'payment' })),
-      ...(allAdvances || []).map(a => ({ date: a.advance_date, label: `Advance${a.reason ? ' · ' + a.reason : ''}`, debit: Number(a.amount), credit: null, givenBy: a.given_by, mode: a.payment_mode, recovered: a.is_recovered, type: 'advance' })),
-    ].sort((a, b) => (a.date || '').localeCompare(b.date || ''))
-    for (const e of events) {
-      running = running + (e.credit || 0) - (e.debit || 0)
-      entries.push({ ...e, balance: running })
-    }
-    setLedger({ worker, entries, loading: false })
+    const events = khataEvents({
+      accruals: accruals || [], advances: allAdvances || [], payments: allPayments || [],
+      today: TODAY_STR,
+    })
+    const khata = buildWorkerKhata({ openingBalance: worker.openingBalance || 0, events })
+    setLedger({ worker, entries: khata.rows, khata, loading: false })
   }
 
   const dayCount    = daysInMonth(month)
@@ -698,12 +723,26 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     ...regularLabourers.map(l => ({ ...l, workerType: 'regular' })),
   ]
 
-  const monthPayments = salaryPayments.filter(p => p.month === month)
-  const monthAdvances = advances.filter(a => a.date?.startsWith(month))
+  // Workers no card on this screen shows — paused ones are filtered out upstream,
+  // removed ones are never loaded — whose balance the books still count. Rebuilt
+  // from the dues row alone, so they need nothing from the store.
+  const formerOwing = hiddenWithBalance(dues).map(d => ({
+    id: d.labourer_id,
+    name: (d.name || '').trim(),
+    openingBalance: Number(d.opening_balance || 0),
+    workerType: d.sub_type === 'permanent' ? 'staff' : 'regular',
+    status: d.status,
+    balance: Number(d.balance_due || 0),
+  }))
+  const stillToCollect = totalOwedToFarm(dues)
 
-  const openPayModal = (worker, type) => {
+  const openPayModal = (worker, type, prefill = 0) => {
     setModal({ worker, type })
-    setForm({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
+    setForm({
+      amount: prefill > 0 ? String(Math.round(prefill)) : '',
+      date: new Date().toISOString().slice(0,10),
+      notes: '', givenBy: '', paymentMode: 'cash', attachment: null,
+    })
   }
 
   const uploadAttachment = async (file) => {
@@ -721,8 +760,13 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       let attachmentUrl = null
       if (form.attachment) attachmentUrl = await uploadAttachment(form.attachment)
       const common = { labourerId: modal.worker.id, date: form.date, amount: form.amount, notes: form.notes, givenBy: form.givenBy, paymentMode: form.paymentMode, attachmentUrl }
-      if (modal.type === 'advance') {
+      if (modal.type === 'recovery') {
+        await recordWorkerRecovery({ ...common, name: modal.worker.name })
+        setDuesVersion(v => v + 1)
+        showToast(`₹${Number(form.amount).toLocaleString('en-IN')} recovered from ${modal.worker.name}`)
+      } else if (modal.type === 'advance') {
         await addAdvance({ ...common, reason: form.notes })
+        setDuesVersion(v => v + 1)
         showToast(`Advance recorded for ${modal.worker.name}`)
       } else {
         await addSalaryPayment({ ...common, type: 'salary', month })
@@ -737,7 +781,14 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     <div className="p-4 space-y-3 pb-6">
       {/* Month filter */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Salary &amp; Advances</p>
+        <div>
+          <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Salary &amp; Advances</p>
+          {stillToCollect > 0 && (
+            <p className="text-[10px] text-[#BA7517] mt-0.5">
+              ₹{Math.round(stillToCollect).toLocaleString('en-IN')} to recover from workers
+            </p>
+          )}
+        </div>
         <input type="month" value={month} onChange={e => setMonth(e.target.value)}
           className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
           style={{ colorScheme: 'dark' }} />
@@ -753,10 +804,16 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
           ? calcStaffEarned(days, dayCount, w.monthlySalary, w.monthlyHoliday)
           : Math.round(days * (w.ratePerDay || 0))
         const contractPay  = labourLogs.filter(l => l.labourMasterId === w.id && l.date?.startsWith(month)).reduce((s, l) => s + (l.totalCost || 0), 0)
-        const advTotal     = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)].reduce((s, a) => s + a.amount, 0)
+        const advRows      = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)]
+        // given and recovered are shown separately; only the net is arithmetic —
+        // it is what v_salary_dues subtracts.
+        const { given: advGiven, recovered: advBack, net: advTotal } = splitAdvances(advRows)
         const paidThisMonth= monthPayments.filter(p => p.labourerId === w.id && p.type === 'salary').reduce((s, p) => s + p.amount, 0)
         const opening      = w.openingBalance || 0
         const balance      = opening + earned + contractPay - advTotal - paidThisMonth
+        // The Recover button offers what the books say is outstanding, not this
+        // card's month-scoped figure. Falls back to the card while dues load.
+        const owes         = owedToFarm(Number.isNaN(balanceOf(w.id)) ? balance : balanceOf(w.id))
 
         return (
           <div key={w.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
@@ -770,19 +827,23 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] text-[var(--c-muted)]">Balance</p>
+                {/* An amber minus sign is ambiguous — say which way the money runs. */}
+                <p className="text-[9px] text-[var(--c-muted)]">
+                  {balance > 0 ? 'Farm owes' : balance < 0 ? 'Worker owes' : 'Balance'}
+                </p>
                 <p className={`text-base font-bold ${balance > 0 ? 'text-[#E24B4A]' : balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
-                  {balance >= 0 ? '₹' : '-₹'}{Math.abs(balance).toLocaleString('en-IN')}
+                  ₹{Math.abs(balance).toLocaleString('en-IN')}
                 </p>
               </div>
             </div>
 
             {/* Salary breakdown grid */}
-            <div className="grid grid-cols-4 gap-px bg-[var(--c-border)] border-t border-[var(--c-border)]">
+            <div className={`grid ${advBack > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-px bg-[var(--c-border)] border-t border-[var(--c-border)]`}>
               {[
                 ['Opening', opening, opening > 0 ? '#E24B4A' : 'var(--c-muted)'],
                 ['Earned',  earned + contractPay, '#1D9E75'],
-                ['Advance', advTotal, advTotal > 0 ? '#BA7517' : 'var(--c-muted)'],
+                ['Advance', advGiven, advGiven > 0 ? '#BA7517' : 'var(--c-muted)'],
+                ...(advBack > 0 ? [['Recovered', advBack, '#6366f1']] : []),
                 ['Paid',    paidThisMonth, paidThisMonth > 0 ? '#1D9E75' : 'var(--c-muted)'],
               ].map(([label, val, color]) => (
                 <div key={label} className="bg-[var(--c-nav)] py-2.5 text-center">
@@ -832,10 +893,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 {monthAdvances.filter(a => a.labourerId === w.id).map(a => (
                   <div key={a.id} className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 min-w-0">
-                      <span className="text-[10px] mt-0.5">⬆️</span>
+                      <span className="text-[10px] mt-0.5">{a.amount < 0 ? '⬇️' : '⬆️'}</span>
                       <div className="min-w-0">
                         <p className="text-[10px] text-[var(--c-muted)]">
-                          Advance · {a.date}
+                          {a.amount < 0 ? 'Recovered' : 'Advance'} · {a.date}
                           {a.paymentMode && a.paymentMode !== 'cash' && (
                             <span className="ml-1 text-[9px] text-[var(--c-faint)]">
                               · {a.paymentMode === 'upi' ? '📱 UPI' : '🏦 Bank'}
@@ -853,7 +914,9 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <p className="text-[11px] font-bold text-[#BA7517]">₹{a.amount.toLocaleString('en-IN')}</p>
+                      <p className="text-[11px] font-bold" style={{ color: a.amount < 0 ? '#6366f1' : '#BA7517' }}>
+                        ₹{Math.abs(a.amount).toLocaleString('en-IN')}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -872,12 +935,77 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
               </button>
               <button onClick={() => openPayModal(w, 'advance')}
                 className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] transition-colors">
-                ⬆️ Give Advance
+                ⬆️ Advance
               </button>
+              {/* Only where there is something to recover, so the button explains
+                  itself instead of needing a label. */}
+              {owes > 0 && (
+                <button onClick={() => openPayModal(w, 'recovery', owes)}
+                  className="flex-1 py-2.5 text-[10px] font-semibold text-[#6366f1] transition-colors">
+                  ⬇️ Recover
+                </button>
+              )}
             </div>
           </div>
         )
       })}
+
+      {/* Workers who have left the farm but still owe it money.
+          Removing a worker only sets status='inactive' and paused workers are
+          filtered out upstream, so neither appears on any card above — while
+          v_salary_dues, which has no status filter, keeps counting their balance
+          in the Ledger's dues total. Two paused men account for ₹15,620 of it.
+          This is the only screen that can see them, and the only door to the
+          money. */}
+      {formerOwing.length > 0 && (
+        <div className="pt-3 space-y-2">
+          <div>
+            <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">No longer working</p>
+            <p className="text-[10px] text-[var(--c-faint)] mt-0.5">
+              Paused or removed, so they have no card above — but the books still count what they owe.
+            </p>
+          </div>
+          {formerOwing.map(w => {
+            const owes = owedToFarm(w.balance)
+            return (
+              <div key={w.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden opacity-90">
+                <div className="px-4 pt-3 pb-2 flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[var(--c-text)] truncate">{w.name}</p>
+                    <p className="text-[10px] text-[var(--c-muted)]">
+                      {w.workerType === 'staff' ? 'Staff' : 'Regular'} ·{' '}
+                      {w.status === 'paused' ? 'Paused' : 'Removed'}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[9px] text-[var(--c-muted)]">{owes > 0 ? 'Worker owes' : 'Farm owes'}</p>
+                    <p className="text-base font-bold" style={{ color: owes > 0 ? '#BA7517' : '#E24B4A' }}>
+                      ₹{Math.abs(w.balance).toLocaleString('en-IN')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
+                  <button onClick={() => openLedger(w)}
+                    className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#6366f1] transition-colors">
+                    📒 History
+                  </button>
+                  {owes > 0 ? (
+                    <button onClick={() => openPayModal(w, 'recovery', owes)}
+                      className="flex-1 py-2.5 text-[10px] font-semibold text-[#6366f1] transition-colors">
+                      ⬇️ Recover ₹{Math.round(owes).toLocaleString('en-IN')}
+                    </button>
+                  ) : (
+                    <button onClick={() => openPayModal(w, 'salary', owedToWorker(w.balance))}
+                      className="flex-1 py-2.5 text-[10px] font-semibold text-[#1D9E75] transition-colors">
+                      💵 Settle ₹{Math.round(owedToWorker(w.balance)).toLocaleString('en-IN')}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Ledger overlay */}
       {ledger && (
@@ -887,8 +1015,14 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-sm font-bold text-[var(--c-text)]">📒 {ledger.worker.name}</h2>
+                {/* A worker who has left carries no rate — the dues row that
+                    found him has only a name and a balance. Say what is known. */}
                 <p className="text-[10px] text-[var(--c-muted)]">
-                  {ledger.worker.workerType === 'staff' ? `Staff · ₹${ledger.worker.monthlySalary?.toLocaleString('en-IN')}/mo` : `Regular · ₹${ledger.worker.ratePerDay}/day`}
+                  {ledger.worker.workerType === 'staff' && ledger.worker.monthlySalary
+                    ? `Staff · ₹${ledger.worker.monthlySalary.toLocaleString('en-IN')}/mo`
+                    : ledger.worker.ratePerDay
+                      ? `Regular · ₹${ledger.worker.ratePerDay}/day`
+                      : `${ledger.worker.workerType === 'staff' ? 'Staff' : 'Regular'} · ${ledger.worker.status === 'paused' ? 'paused' : 'no longer working'}`}
                 </p>
               </div>
               <button onClick={() => setLedger(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={20}/></button>
@@ -896,14 +1030,17 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             {!ledger.loading && (
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  ['Total Paid', ledger.entries.reduce((s, e) => s + (e.credit || 0), 0), '#1D9E75'],
-                  ['Total Advance', ledger.entries.reduce((s, e) => s + (e.debit || 0), 0), '#BA7517'],
-                  ['Current Balance', ledger.entries.length ? ledger.entries[ledger.entries.length - 1].balance : 0, null],
+                  ['Earned + recovered', ledger.khata.totalCredit, '#1D9E75'],
+                  ['Paid + advances',     ledger.khata.totalDebit,  '#BA7517'],
+                  [ledger.khata.closing > 0 ? 'Farm owes' : ledger.khata.closing < 0 ? 'Worker owes' : 'Settled',
+                   ledger.khata.closing, null],
                 ].map(([label, val, color]) => (
                   <div key={label} className="bg-[var(--c-input)] rounded-xl py-2 text-center">
                     <p className="text-[9px] text-[var(--c-faint)] mb-0.5">{label}</p>
+                    {/* The label already says which way the money runs, so a
+                        minus sign here would only muddle it. */}
                     <p className="text-xs font-bold" style={{ color: color || (val > 0 ? '#E24B4A' : val < 0 ? '#BA7517' : 'var(--c-muted)') }}>
-                      {val >= 0 ? '₹' : '-₹'}{Math.abs(val).toLocaleString('en-IN')}
+                      ₹{Math.abs(val).toLocaleString('en-IN')}
                     </p>
                   </div>
                 ))}
@@ -952,34 +1089,42 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-bold text-[var(--c-text)]">
-                  {modal.type === 'salary' ? '💵 Pay Salary' : '⬆️ Give Advance'}
+                  {modal.type === 'salary' ? '💵 Pay Salary' : modal.type === 'recovery' ? '⬇️ Recover Money' : '⬆️ Give Advance'}
                 </h3>
-                <p className="text-xs text-[var(--c-muted)]">{modal.worker.name}</p>
+                <p className="text-xs text-[var(--c-muted)]">
+                  {modal.worker.name}
+                  {modal.type === 'recovery' && ' · money coming back INTO the farm'}
+                </p>
               </div>
               <button onClick={() => setModal(null)} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={18}/></button>
             </div>
             <FRow label="Amount (₹)">
               <input type="number" className="finput" placeholder="Enter amount" value={form.amount}
                 onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
+              {modal.type === 'recovery' && (
+                <p className="text-[10px] text-[var(--c-faint)] mt-1">
+                  Part payment is fine — the rest stays on his khata.
+                </p>
+              )}
             </FRow>
             <FRow label="Date">
               <input type="date" className="finput" value={form.date}
                 onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
             </FRow>
             <FRow label="Notes (optional)">
-              <input className="finput" placeholder={modal.type === 'advance' ? 'Reason for advance' : 'Payment notes'} value={form.notes}
+              <input className="finput" placeholder={MODAL_KIND[modal.type].notes} value={form.notes}
                 onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
             </FRow>
-            <FRow label="Given By">
-              <input className="finput" placeholder="Name of person giving payment" value={form.givenBy}
+            <FRow label={MODAL_KIND[modal.type].who}>
+              <input className="finput" placeholder={MODAL_KIND[modal.type].whoHint} value={form.givenBy}
                 onChange={e => setForm(p => ({ ...p, givenBy: e.target.value }))} />
             </FRow>
-            <FRow label="Payment Mode">
+            <FRow label={modal.type === 'recovery' ? 'Came in as' : 'Payment Mode'}>
               <div className="flex gap-2">
                 {['cash', 'upi', 'bank_transfer'].map(mode => (
                   <button key={mode} onClick={() => setForm(p => ({ ...p, paymentMode: mode }))}
                     className="flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors"
-                    style={{ background: form.paymentMode === mode ? (modal.type === 'salary' ? '#1D9E75' : '#BA7517') : 'var(--c-input)', borderColor: form.paymentMode === mode ? 'transparent' : 'var(--c-border-md)', color: form.paymentMode === mode ? '#fff' : 'var(--c-muted)' }}>
+                    style={{ background: form.paymentMode === mode ? MODAL_KIND[modal.type].accent : 'var(--c-input)', borderColor: form.paymentMode === mode ? 'transparent' : 'var(--c-border-md)', color: form.paymentMode === mode ? '#fff' : 'var(--c-muted)' }}>
                     {mode === 'cash' ? '💵 Cash' : mode === 'upi' ? '📱 UPI' : '🏦 Bank'}
                   </button>
                 ))}
@@ -991,8 +1136,8 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             </FRow>
             <button onClick={submitPayment} disabled={saving || !form.amount}
               className="w-full py-3 text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40"
-              style={{ background: modal.type === 'salary' ? '#1D9E75' : '#BA7517' }}>
-              {saving ? 'Saving…' : modal.type === 'salary' ? 'Record Payment' : 'Record Advance'}
+              style={{ background: MODAL_KIND[modal.type].accent }}>
+              {saving ? 'Saving…' : MODAL_KIND[modal.type].cta}
             </button>
             <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
           </div>

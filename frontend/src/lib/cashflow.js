@@ -53,6 +53,10 @@ const LINE_OF_TYPE = {
   labour_payment:     'labour',
   salary_payment:     'labour',
   advance_payment:    'labour',
+  // Money coming back from an over-drawn worker. Same line as the advance that
+  // created the debt, so it reduces the net labour outflow instead of posing as
+  // farm income — recovering an advance earns the farm nothing.
+  advance_recovery:   'labour',
   expense_payment:    'other_expenses',
   commission_expense: 'selling_costs',
   freight_expense:    'selling_costs',

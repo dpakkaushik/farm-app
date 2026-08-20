@@ -3,14 +3,14 @@ import { buildCashFlow, CLASSIFIED_TYPES, TIMBER_NOTE_PREFIX } from '../cashflow
 
 // Every entry_type the codebase can write, gathered by grepping for `entry_type:`
 // across store/index.js, store/trees.js and the migrations. If someone adds a
-// nineteenth, test 1 fails and the classification table gets updated — which is
+// twenty-first, test 1 fails and the classification table gets updated — which is
 // the entire point of keeping this list here rather than in a comment.
 const ALL_TYPES = [
   'crop_sale', 'cane_sale', 'livestock_sale', 'residual_sale', 'tree_sale',
   'revenue_receipt', 'buyer_receipt', 'owner_capital', 'opening_cash', 'transfer',
   'vendor_payment', 'labour_payment', 'salary_payment', 'advance_payment',
-  'expense_payment', 'owner_drawing', 'commission_expense', 'freight_expense',
-  'sale_deduction',
+  'advance_recovery', 'expense_payment', 'owner_drawing', 'commission_expense',
+  'freight_expense', 'sale_deduction',
 ]
 
 const row = (entry_type, direction, amount, notes = '') =>
@@ -44,6 +44,20 @@ describe('classification', () => {
 
   it('leaves nothing in Unclassified when every type is known', () => {
     const result = buildCashFlow(ALL_TYPES.map(t => row(t, 'in', 100)))
+    expect(section(result, 'unclassified')).toBeUndefined()
+  })
+
+  it('nets a recovery from a worker against labour, never as farm income', () => {
+    // Deepak pays back ₹13,933 of an over-drawn khata. The farm earned nothing —
+    // it got its own money back — so it belongs on the labour line it left from,
+    // reducing the outflow, not on any income line.
+    const result = buildCashFlow([
+      row('advance_payment',  'out', 5000),
+      row('advance_recovery', 'in',  13933),
+    ])
+    expect(lineIn(result, 'operating', 'labour').amount).toBe(8933)
+    expect(lineIn(result, 'operating', 'crop_sales').amount).toBe(0)
+    expect(lineIn(result, 'operating', 'other_income').amount).toBe(0)
     expect(section(result, 'unclassified')).toBeUndefined()
   })
 
