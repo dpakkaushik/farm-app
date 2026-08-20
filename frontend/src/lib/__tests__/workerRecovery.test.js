@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   isRecovery, splitAdvances, owedToFarm, owedToWorker, isSettled, canHideWorker,
-  hiddenWithBalance, totalOwedToFarm, khataEvents, buildWorkerKhata,
+  hiddenWithBalance, totalOwedToFarm, khataEvents, buildWorkerKhata, recoveryOutcome,
 } from '../workerRecovery'
 
 // The six workers who actually owe the farm on 20 Aug 2026, from v_salary_dues.
@@ -76,6 +76,34 @@ describe('isSettled', () => {
     expect(isSettled(0.99)).toBe(true)
     expect(isSettled(-1)).toBe(false)
     expect(isSettled(-13933)).toBe(false)
+  })
+})
+
+describe('recoveryOutcome', () => {
+  it('leaves the rest on the khata when he pays part of it', () => {
+    // The owner's case: ₹5,000 recovered against Deepak's ₹13,933.
+    expect(recoveryOutcome(13933, 5000)).toEqual({ kind: 'part', amount: 8933 })
+  })
+
+  it('treats the full amount as settling him', () => {
+    expect(recoveryOutcome(13933, 13933)).toEqual({ kind: 'settles', amount: 0 })
+  })
+
+  it('calls paise-close a settlement, not a ₹0.40 remainder', () => {
+    // Gambhira's real balance carries paise; rounding the prefill must not leave
+    // a scrap behind that reads as still-owing.
+    expect(recoveryOutcome(13495.4, 13495)).toEqual({ kind: 'settles', amount: 0 })
+  })
+
+  it('names the overshoot instead of swallowing it', () => {
+    // Not blocked — it is a legitimate thing to do — but the farm now owes him
+    // ₹1,067, and the modal has to say so before he saves.
+    expect(recoveryOutcome(13933, 15000)).toEqual({ kind: 'over', amount: 1067 })
+  })
+
+  it('reads an empty field as nothing recovered yet', () => {
+    expect(recoveryOutcome(13933, NaN)).toEqual({ kind: 'part', amount: 13933 })
+    expect(recoveryOutcome(13933, null)).toEqual({ kind: 'part', amount: 13933 })
   })
 })
 

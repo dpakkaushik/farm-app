@@ -10,7 +10,7 @@ import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSum
 import { contractUnit } from '../lib/labourGroups'
 import {
   owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
-  khataEvents, buildWorkerKhata,
+  khataEvents, buildWorkerKhata, recoveryOutcome,
 } from '../lib/workerRecovery'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
@@ -738,8 +738,11 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
   }))
   const stillToCollect = totalOwedToFarm(dues)
 
+  // outstanding is kept on the modal so the recovery line can say what is left
+  // after a part payment. The prefill is a convenience for the common case of
+  // settling in full — it is not a cap, and the amount stays editable.
   const openPayModal = (worker, type, prefill = 0) => {
-    setModal({ worker, type })
+    setModal({ worker, type, outstanding: prefill })
     setForm({
       amount: prefill > 0 ? String(Math.round(prefill)) : '',
       date: new Date().toISOString().slice(0,10),
@@ -765,7 +768,12 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       if (modal.type === 'recovery') {
         await recordWorkerRecovery({ ...common, name: modal.worker.name })
         setDuesVersion(v => v + 1)
-        showToast(`₹${Number(form.amount).toLocaleString('en-IN')} recovered from ${modal.worker.name}`)
+        // Confirm the remainder too, so a part recovery never reads as a full one.
+        const left = recoveryOutcome(modal.outstanding, form.amount)
+        showToast(
+          `₹${Number(form.amount).toLocaleString('en-IN')} recovered from ${modal.worker.name}`
+          + (left.kind === 'part' ? ` · ₹${Math.round(left.amount).toLocaleString('en-IN')} still owed` : '')
+        )
       } else if (modal.type === 'advance') {
         await addAdvance({ ...common, reason: form.notes })
         setDuesVersion(v => v + 1)
@@ -1105,11 +1113,27 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             <FRow label="Amount (₹)">
               <input type="number" className="finput" placeholder="Enter amount" value={form.amount}
                 onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
-              {modal.type === 'recovery' && (
-                <p className="text-[10px] text-[var(--c-faint)] mt-1">
-                  Part payment is fine — the rest stays on his khata.
-                </p>
-              )}
+              {modal.type === 'recovery' && (() => {
+                // Recovering part of it is the normal case, so say what will
+                // still be owed rather than making the owner do the subtraction.
+                const left = recoveryOutcome(modal.outstanding, form.amount)
+                return (
+                  <>
+                    <p className="text-[10px] text-[var(--c-faint)] mt-1">
+                      He owes ₹{Math.round(modal.outstanding || 0).toLocaleString('en-IN')}.
+                      Enter less to recover part of it.
+                    </p>
+                    <p className="text-[10px] mt-0.5 font-semibold"
+                      style={{ color: left.kind === 'settles' ? '#1D9E75' : left.kind === 'over' ? '#E24B4A' : '#BA7517' }}>
+                      {left.kind === 'settles'
+                        ? '✓ This clears his khata'
+                        : left.kind === 'part'
+                          ? `₹${Math.round(left.amount).toLocaleString('en-IN')} stays on his khata`
+                          : `More than he owes — the farm will owe him ₹${Math.round(left.amount).toLocaleString('en-IN')}`}
+                    </p>
+                  </>
+                )
+              })()}
             </FRow>
             <FRow label="Date">
               <input type="date" className="finput" value={form.date}

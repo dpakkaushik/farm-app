@@ -45,8 +45,18 @@ the escape hatch (clear the opening balance — **there is no write-off feature,
 **Fixed en route, a real contradiction:** the History overlay folded salary payments the wrong
 way (paying a man made the farm owe him *more*) and omitted wages earned, so it could never
 close on the Ledger's figure. It now folds the same four things `v_salary_dues` does and closes
-on `balance_due` **by construction**. **126 tests green.**
-**Hotfixed minutes later — the Salary tab rendered BLANK.** The recovery edit dropped
+on `balance_due` **by construction**. **131 tests green.**
+**Then, at his ask — a PART recovery had to be visibly possible.** *"recover shouldnt be
+always whole amount … received 5000 out of 13000 rest remains the balance."* It already was:
+nothing in `recordWorkerRecovery` caps the amount, and the khata test walks −13,933 → −3,933
+→ 0. But the modal **prefilled the full outstanding and said nothing**, so all-or-nothing was
+the only reading available. New `recoveryOutcome(outstanding, entered)` (5 specs, NaN-guarded
+so a half-typed field never renders ₹NaN) drives a live line under the amount: *"₹8,933 stays
+on his khata"* / *"✓ This clears his khata"* / *"More than he owes — the farm will owe him
+₹X"*. Over-recovery stays **allowed**, just named. The toast now carries the remainder too, so
+a part recovery cannot read as a full one. `modal.outstanding` holds the figure; **the prefill
+is a convenience, never a cap** — do not add one.
+**Hotfixed before that — the Salary tab rendered BLANK.** The recovery edit dropped
 `monthPayments`/`monthAdvances` from `LabourSalary`, so the first card threw
 `ReferenceError` and React unmounted the tree. `npm run build` was green throughout: **Vite
 does no undefined-variable analysis, and no test mounts a page component**, so neither gate

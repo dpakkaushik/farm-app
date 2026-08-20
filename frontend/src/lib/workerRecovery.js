@@ -61,10 +61,32 @@ export function isSettled(balance) {
 }
 
 /**
+ * A part recovery is the normal case, not the exception — a man who owes ₹13,933
+ * pays back ₹5,000 and the rest stays on his khata. Nothing in the write path
+ * caps the amount, so this exists purely so the modal can say what will still be
+ * owed as the owner types, instead of leaving him to work it out. Typing MORE
+ * than is owed is allowed too — it just leaves the farm owing him the difference,
+ * which the 'over' outcome names so it is never a silent surprise.
+ *
+ * @param {number} outstanding what the worker owes now (positive)
+ * @param {number} entered     what is being recovered
+ * @returns {{ kind: 'part'|'settles'|'over', amount: number }} amount is always positive
+ */
+export function recoveryOutcome(outstanding, entered) {
+  // A half-typed amount field hands over '' or NaN. Reading that as zero keeps
+  // the line honest ("all of it still owed") instead of rendering ₹NaN.
+  const num = (v) => { const n = Number(v ?? 0); return Number.isFinite(n) ? n : 0 }
+  const left = num(outstanding) - num(entered)
+  if (isSettled(left)) return { kind: 'settles', amount: 0 }
+  return left > 0 ? { kind: 'part', amount: left } : { kind: 'over', amount: -left }
+}
+
+/**
  * Removing a worker sets his status to inactive, which hides him from every
- * screen — but v_salary_dues has no status filter, so his balance keeps counting
- * in the Ledger's dues total. Money owed by nobody you can name. So hiding is
- * only allowed once the balance is settled.
+ * screen — but v_salary_dues has no status filter, so his balance lives on in
+ * the books (and in the Ledger's Excel export) with no screen that can reach it.
+ * Money owed by nobody you can name. So hiding is only allowed once the balance
+ * is settled.
  */
 export function canHideWorker(balance) {
   return isSettled(balance)
