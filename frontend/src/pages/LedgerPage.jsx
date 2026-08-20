@@ -11,6 +11,7 @@ import {
   monthLabel, periodLabel, periodSlug,
 } from '../lib/period'
 import { summarizeCropPnl } from '../lib/farmOverview'
+import { groupLabourRows, shortDate } from '../lib/labourGroups'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -27,6 +28,15 @@ const fmt = (n) =>
 const fmtDate = (d) => {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
+}
+
+// Which pocket a settled row was paid from. Anything bank-shaped reads as Bank,
+// the same loose match accountFor() routes the money by — badge and behaviour
+// cannot then disagree.
+const payModeLabel = (mode) => {
+  if (!mode) return ''
+  return /bank|upi|cheque|online|neft|rtgs|account/.test(String(mode).toLowerCase())
+    ? ' · Bank' : ' · Cash'
 }
 
 const MonthLabel = (d) => {
@@ -319,6 +329,89 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
         style={{ background: '#1D9E75' }}>
         {saving ? 'Saving…' : 'Record Payment'}
+      </button>
+    </Modal>
+  )
+}
+
+// ── Pay an expense row — labour job, or a general expense ────────────────────
+//
+// This replaces a bare confirm() that announced "in cash today" and booked it as
+// cash whatever had actually happened. Six bank accounts went live on 17 Aug, so
+// every labour payment since has silently drained the cash box.
+//
+// Kept deliberately thin, against the owner's standing steer that the app is
+// going too accounts-heavy: cash is preselected, the last choice is remembered,
+// and Pay is one tap. Choosing bank costs one extra tap and nothing else — the
+// money goes to the main account, the same one accountFor('bank') already routes
+// every other bank transaction through. Picking among the six lives in Move Money.
+const PAY_MODE_KEY = 'farm.lastPayMode'
+
+function PayExpenseModal({ row, bankName, onClose, onPay }) {
+  const [mode, setMode]     = useState(() => localStorage.getItem(PAY_MODE_KEY) || 'cash')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+
+  const pay = async () => {
+    setSaving(true); setErr('')
+    try {
+      localStorage.setItem(PAY_MODE_KEY, mode)
+      await onPay(mode)
+      onClose()
+    } catch (e) {
+      setErr(e.message || 'Payment failed')
+      setSaving(false)
+    }
+  }
+
+  const plots = row.items?.map(i => i.plotLabel || 'Farm-wide') || []
+
+  return (
+    <Modal title="Record Payment" onClose={onClose}>
+      <div className="rounded-xl px-3 py-2.5 mb-3"
+        style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
+        <div className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>{row.description}</div>
+        {/* Labour accrues on the work date and settles today — say both, or the
+            cash book's date looks like the date the work happened. */}
+        <div className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
+          {row.expense_type === 'labour' ? 'Work of' : 'Dated'}{' '}
+          {shortDate(row.entry_date) || fmtDate(row.entry_date)} · paying today
+        </div>
+        {/* Says outright that one payment covers the whole split, which is the
+            thing the seven-row cash book failed to say. */}
+        {plots.length > 1 && (
+          <div className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
+            One payment for {plots.length} plots: {plots.join(', ')}
+          </div>
+        )}
+        <div className="text-lg font-bold mt-1" style={{ color: '#E24B4A' }}>{fmt(row.amount)}</div>
+      </div>
+      <Field label="Paid from">
+        <div className="flex gap-2">
+          {[['cash', '💵 Cash'], ['bank', '🏦 Bank']].map(([m, label]) => (
+            <button key={m} onClick={() => setMode(m)}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold"
+              style={{
+                background: mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                color:      mode === m ? '#fff'    : 'var(--c-muted)',
+                border:     `1px solid ${mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+              }}>{label}</button>
+          ))}
+        </div>
+        {mode === 'bank' && bankName && (
+          <span className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
+            Leaves {bankName}
+          </span>
+        )}
+      </Field>
+      {err && (
+        <div className="text-[10px] mb-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'rgba(226,75,74,0.1)', color: '#E24B4A' }}>{err}</div>
+      )}
+      <button disabled={saving} onClick={pay}
+        className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
+        style={{ background: '#1D9E75' }}>
+        {saving ? 'Paying…' : `Pay ${fmt(row.amount)}`}
       </button>
     </Modal>
   )
@@ -1005,6 +1098,37 @@ function BillLines({ items, inventoryMaster, colSpan }) {
             </div>
           )
         })}
+      </td>
+    </tr>
+  )
+}
+
+// The granular level for a labour job: which plot carried which share of it.
+// Sibling of BillLines rather than a branch inside it — a bill's line is an item
+// at a unit price, a labour line is a plot with a slice of one job's cost.
+//
+// The quantity is deliberately absent here. `contract_qty` is not split, so every
+// row of the ₹6,520 job stores the whole 163 tanks; printed beside a ₹1,157 share
+// it reads as a contradiction. It belongs on the grouped line above, and does
+// appear there.
+function LabourLines({ items, colSpan }) {
+  return (
+    <tr style={{ background: 'var(--c-ghost)' }}>
+      <td colSpan={colSpan} className="px-3 py-1.5">
+        {items.map(i => (
+          <div key={i.id} className="flex items-center gap-2 py-0.5">
+            <span className="text-[10px] flex-1 min-w-0 truncate" style={{ color: 'var(--c-text)' }}>
+              {i.plotLabel || 'Farm-wide'}
+            </span>
+            <span className="text-[10px] font-medium shrink-0 w-20 text-right" style={{ color: 'var(--c-text)' }}>
+              {fmt(i.share)}
+            </span>
+          </div>
+        ))}
+        <div className="text-[9px] pt-1 mt-0.5 italic" style={{
+          color: 'var(--c-faint)', borderTop: '0.5px solid var(--c-border)' }}>
+          One job, split across plots so each crop carries its own cost. Paid once.
+        </div>
       </td>
     </tr>
   )
@@ -1754,7 +1878,8 @@ function collapseBills(rows, purchaseById) {
 
 function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                        canPay = false, onPayRow, onGoVendors, onGoSalary,
-                       purchases = [], inventoryMaster = [], openingCost = 0 }) {
+                       purchases = [], inventoryMaster = [], labourLogs = [],
+                       openingCost = 0 }) {
   // Group by expense_type / category.
   // NOTE: vendor_purchase rows never carry a real is_paid flag — vendor
   // payments are lump-sum against a vendor's running balance, not matched to
@@ -1786,6 +1911,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
   const toggleRow = (key) => setOpenRows(o => ({ ...o, [key]: !o[key] }))
   const purchaseById = useMemo(
     () => Object.fromEntries(purchases.map(p => [p.id, p])), [purchases])
+  // Only for the plot names in a job's breakup — the money and the grouping key
+  // come from the ledger rows. Already in the store: loadAll fetches every log
+  // with its plot on login (App.jsx), so no second query for the same rows.
+  const labourById = useMemo(
+    () => Object.fromEntries(labourLogs.map(l => [l.id, l])), [labourLogs])
 
   return (
     <div className="flex flex-col gap-3 pt-3">
@@ -1824,7 +1954,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
       {Object.entries(grouped).map(([key, data]) => {
         const pending = data.total - data.paid
         const isOpen = expanded === key
-        const entries = collapseBills(data.rows, purchaseById)
+        // Purchases collapse by bill, labour by job. Two different readings of
+        // the same complaint: the ledger reports the parts, the books owe one line.
+        const entries = key === 'labour'
+          ? groupLabourRows(data.rows, labourById)
+          : collapseBills(data.rows, purchaseById)
         return (
           <Card key={key} className="p-0">
             <button className="w-full flex items-center justify-between px-4 py-3"
@@ -1889,9 +2023,12 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                               Pay in Labour → Salary →
                             </button>
                           ) : row.is_paid ? (
+                            /* The method is written to paid_via on every payment
+                               but was read back nowhere, so a bank payment was
+                               indistinguishable from a cash one. */
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
                               style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
-                              Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}
+                              Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}{payModeLabel(row.payment_mode)}
                             </span>
                           ) : canPay && (row.expense_type === 'labour' || row.expense_type === 'farm_expense') ? (
                             <button onClick={() => onPayRow?.(row)}
@@ -1908,7 +2045,9 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                         </td>
                       </tr>
                       {openRows[row.key] && row.items?.length > 0 && (
-                        <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
+                        row.expense_type === 'labour'
+                          ? <LabourLines items={row.items} colSpan={4} />
+                          : <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
                       )}
                       </React.Fragment>
                     ))}
@@ -2137,7 +2276,7 @@ export default function LedgerPage() {
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
-    markLabourPaid, addExpensePayment, salaryDues, salaryPayments,
+    markLabourGroupPaid, addExpensePayment, salaryDues, salaryPayments, labourLogs,
     accounts, recordTransfer, capitalPurchases,
     ownerCashEntries, addBuyerReceipt,
   } = useAppStore()
@@ -2174,6 +2313,7 @@ export default function LedgerPage() {
   const [showPayVendor, setShowPayVendor] = useState(false)
   const [showAddVendor, setShowAddVendor] = useState(false)
   const [editVendor,    setEditVendor]    = useState(null)
+  const [payRow,        setPayRow]        = useState(null)   // expense row being settled
 
   useEffect(() => {
     loadLedgerData().finally(() => setLoading(false))
@@ -2645,25 +2785,11 @@ export default function LedgerPage() {
             salaryPaidTotal={salaryPaidTotal}
             openingCost={openingCostFY}
             purchases={purchases} inventoryMaster={inventoryMaster}
+            labourLogs={labourLogs}
             canPay={canManage}
             onGoVendors={() => setMoneyOutView('parties')}
             onGoSalary={() => navigate('/labour')}
-            onPayRow={async (row) => {
-              if (!confirm(`Pay ${row.description} — ₹${Math.round(row.amount).toLocaleString('en-IN')} in cash today?`)) return
-              try {
-                if (row.expense_type === 'labour') {
-                  await markLabourPaid(row)
-                } else {
-                  await addExpensePayment({
-                    payment_date: new Date().toISOString().slice(0, 10),
-                    amount:       row.amount,
-                    expense_type: 'farm_expense',
-                    reference_id: row.id,
-                    notes:        row.description,
-                  })
-                }
-              } catch (e) { alert('Payment failed: ' + e.message) }
-            }}
+            onPayRow={setPayRow}
           />
           </>
         )}
@@ -2680,6 +2806,27 @@ export default function LedgerPage() {
       </div>
 
       {/* Modals */}
+      {payRow && (
+        <PayExpenseModal
+          row={payRow}
+          bankName={accounts.find(a => a.type === 'bank')?.name || ''}
+          onClose={() => setPayRow(null)}
+          onPay={async (mode) => {
+            if (payRow.expense_type === 'labour') {
+              await markLabourGroupPaid(payRow, { paidVia: mode })
+            } else {
+              await addExpensePayment({
+                payment_date: new Date().toISOString().slice(0, 10),
+                amount:       payRow.amount,
+                expense_type: 'farm_expense',
+                reference_id: payRow.id,
+                payment_mode: mode,
+                notes:        payRow.description,
+              })
+            }
+          }}
+        />
+      )}
       {showAddCash    && <AddCashModal   accounts={accounts} onClose={() => setShowAddCash(false)} onSave={addOwnerCashEntry} />}
       {showMoveMoney  && <MoveMoneyModal accounts={accounts} onClose={() => setShowMoveMoney(false)} onSave={recordTransfer} />}
       {showPayVendor  && <PayVendorModal vendors={vendors} selectedVendor={selectedVendor} onClose={() => setShowPayVendor(false)} onSave={addVendorPayment} />}

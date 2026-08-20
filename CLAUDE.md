@@ -11,27 +11,42 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-19 (Manpower is two tabs now — the Logs tab folded into Attendance) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-20 (one job, one payment — labour grouped in the Ledger) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (19 Aug) — Manpower lost a tab.** The owner saw the Logs tab holding
-one row of cards over an empty list and asked for it inside Attendance, *"just above staff
-and labour tab with month filter"*. Done: **Manpower is now Attendance + Salary**.
-`MonthSummaryStrip` (month picker + Staff Salary / Regular Labour / Contractual) sits
-directly above the Staff/Labour toggle, and the month's entries render at the bottom as
-`MonthWorkLogs`, newest first with a TODAY pill. **The old "Today's Work Logged" block was
-deleted, deliberately** — today falls inside the selected month, so keeping both printed the
-same rows twice on one screen; the pill preserves the post-logging confirmation it gave.
-The month is the **same `logMonth` the Salary tab uses**, so changing it on one changes the
-other — inside `LabourToday` it is named `summaryMonth` to keep it distinct from that
-screen's own `selMonth`, which only drives a worker's expanded calendar. The summary maths
-moved out of the deleted `LabourLogs` into [`lib/labourMonth.js`](frontend/src/lib/labourMonth.js)
-(20 tests) — `monthlyLabourSummary`, plus `calcStaffEarned` which had been duplicated at
-four call sites, and a `monthLabel` that parses `'YYYY-MM'` by parts rather than through
-`new Date()` (the same UTC off-by-one `period.js` already had to fix). **Fixed en route:
-marking a day never refreshed `logMonthAtt`, so the Staff Salary figure sat stale** — it went
-unnoticed while the strip lived on another tab, and would have been obvious the moment it
-moved next to the attendance buttons. `markAttendance` now bumps an `attVersion` the loader
-depends on, and skips the query when the shown month cannot contain today. **72 tests green.**
+**Just shipped (20 Aug) — one job, one payment.** The owner's ₹6,520 spraying job (10 Aug,
+163 tanks @ ₹40) showed in the Ledger as **seven** payments, because its cost is split
+pro-rata across seven plots: *"as far as payment is concerned this is a single payment …
+also the process of payment user just click pay and it get paid neither ask for payment
+method."* Built exactly as planned in
+[`docs/HANDOFF-labour-payment-grouping.md`](docs/HANDOFF-labour-payment-grouping.md), which
+now records what shipped and three deviations. **The per-plot split STAYS** — it is the only
+route to per-plot cost, and he said so himself; only the *payment* collapses. The Labour
+category now shows **one line reading ₹6,520 describing the job** ("— 7 plots · 163 tanks @
+₹40", his refinement: *"should also show the details not only the date"*), with the per-plot
+breakup behind the existing chevron via a new `LabourLines` beside `BillLines`. Grouping is
+pure and tested in [`lib/labourGroups.js`](frontend/src/lib/labourGroups.js) (21 specs) on
+`(entry_date, description, is_paid)` — the key `v_expense_ledger` already produces, so **no
+migration**; paid and unpaid never merge; a one-plot job stays one row and grows no chevron;
+`wholeShares` hands the rounding residue to the largest part so the breakup adds to the
+₹6,520 in the header rather than to ₹6,521. **`markLabourPaid` is gone**, replaced by
+`markLabourGroupPaid`: one `.in('id', ids)` update, **one** cash entry, `reference_id` on the
+group's anchor log (`groupAnchorId` = lexicographically first id — any future unpay MUST
+resolve the group the same way or it reverses one seventh of a payment). **And Pay now
+asks how the money moved** — a thin `PayExpenseModal` (cash preselected, last choice
+remembered in `localStorage`, bank = the main account) replacing a bare `confirm()` that
+hardcoded cash and, since the six accounts went live on 17 Aug, silently drained the cash box.
+It covers farm expenses too — `addExpensePayment` always accepted a mode; the Ledger never
+passed one. The paid pill now reads `Paid 19 Aug · Cash`. **93 tests green.**
+
+**Shipped 19 Aug — Manpower lost a tab.** Logs folded into Attendance at his ask:
+`MonthSummaryStrip` (month picker + Staff Salary / Regular Labour / Contractual) sits above
+the Staff/Labour toggle, the month's entries render below as `MonthWorkLogs`. The old
+"Today's Work Logged" block was **deleted deliberately** — today is inside the selected
+month, so both printed the same rows; the TODAY pill keeps the confirmation. Same `logMonth`
+as the Salary tab (named `summaryMonth` inside `LabourToday`). Maths in
+[`lib/labourMonth.js`](frontend/src/lib/labourMonth.js) (20 tests). Fixed en route: marking a
+day never refreshed `logMonthAtt`, so Staff Salary sat stale — `markAttendance` now bumps an
+`attVersion` the loader depends on.
 
 **Second/third ship of 17 Aug — the Ledger's FY default is gone, at the owner's explicit
 ask, and the filter is TWO dropdowns after he refined it** (*"keep the FY filter with the
@@ -142,24 +157,14 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT — one job, one payment: group labour in the Ledger. Designed and verified 20 Aug, NOT
-built — the whole plan is in [`docs/HANDOFF-labour-payment-grouping.md`](docs/HANDOFF-labour-payment-grouping.md),
-read it first and do not re-investigate.** The owner caught a single ₹6,520 spraying job (163
-tanks @ ₹40, 10 Aug) showing as **seven** cash-book payments, because its cost is split
-pro-rata across seven plots: *"as far as payment is concerned this is a single payment and
-showing it as a breakup in ledger will make it confusing … also the process of payment user
-just click pay and it get paid neither ask for payment method."* **The per-plot split STAYS**
-(it is the only route to per-plot cost, and he said so himself) — only the *payment* collapses
-to one line, which must **describe the job, not just carry a date** (his refinement). Verified:
-the grouping key already exists (`v_expense_ledger` gives all seven an identical `entry_date`
-+ `description`), so **no migration**; but the view has no plot column and `loadLedgerData`
-never fetches `labour_logs`, so the breakup has nothing to name until it does — the same shape
-as the `accounts` bug fixed on 17 Aug. Also settles a standing flag: `markLabourPaid`
-([`store/index.js:1158`](frontend/src/store/index.js#L1158)) **hardcodes `paid_via: 'cash'`**,
-so every labour payment silently drains the cash box even though six bank accounts went live on
-17 Aug. Open question to decide before coding: one cash entry covering seven logs breaks the
-`reference_id` link an unpay depends on. After that, Phase 3 of the plan (teach
-`go_live_convert` the bill-date standard), then the Books Health check.
+**NEXT, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
+`go_live_convert` the bill-date standard — then the Books Health check (cash book vs account
+balances, bill header vs lines). Trial Balance stays rejected; do not relitigate.
+
+**Worth putting to the owner (small):** the 10 Aug spraying job was already paid on 19 Aug,
+so its **seven historic `owner_cash_entries` are still seven rows** in the Cash Book. The fix
+only changes payments made from now on; consolidating those seven means unpaying and re-paying
+live data, which is his call. Everything else about that job now reads as one line.
 
 **Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances are
 DONE (2026-08-17)** — migration `0031_accounts_partner_link.sql` added `accounts.partner_id`
@@ -215,9 +220,6 @@ live only in the dismissible checklist sheet; livestock and tree counts appear i
 checklist. Copy bugs: the labour row says "in Labour" but navigates to Admin → Manpower,
 and the party row names "Party Ledger" while the toggle says "Party Khata".
 
-**Next, and needs nothing from the owner:** Books Health check — cash book vs account
-balances, bill header vs lines. Trial Balance stays rejected; do not relitigate.
-
 **Blocked on the owner:** the three Balance Sheet numbers (land + plot value, loans against
 the farm, what counts as owner capital).
 
@@ -225,8 +227,11 @@ the farm, what counts as owner capital).
 [`Assets.jsx`](frontend/src/pages/Assets.jsx#L250) (machinery, asset) still default
 `purchaseDate` to today — the **same pattern** the bill form just lost, and `TODAY` there is
 still the UTC one. Not changed: the owner asked for the bill form, and an asset is usually
-added when acquired. Fix it the same way when he wants it. Also payment-mode pickers
-disagree across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx`. The owner has not ruled.
+added when acquired. Fix it the same way when he wants it. Payment-mode pickers still disagree
+across `Labour.jsx`, `Expenses.jsx`, `livestock/ui.jsx` — but he **has now ruled for the
+Ledger's Pay button** (cash default, cash/bank only, remembered): match that shape when the
+others are touched, and do not add an account picker there — choosing among the six accounts
+lives in Move Money.
 (The former flags here — Dashboard's lump `opening_cost` sum, the cane-only Net Position,
 and the Dashboard-all-time vs Ledger-FY mismatch — were all retired by the 17 Aug farm-wide
 Dashboard: it reads `v_crop_pnl` like the Ledger, and its whole-cycle scope is now the

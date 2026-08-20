@@ -37,7 +37,15 @@
       "mcp__supabase__execute_sql",
       "mcp__supabase__apply_migration",
       "Bash(npm run *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(git remote *)",
+      "Bash(git pull *)",
+      "Bash(npx vitest *)",
+      "Bash(git commit -m '@ *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'docs: hand off the labour payment grouping - one job, one payment' -m 'A single 6,520 spraying job shows as seven cash-book payments because its *)"
     ],
     "additionalDirectories": [
       "\\"

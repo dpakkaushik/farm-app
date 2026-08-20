@@ -7,18 +7,21 @@ import { supabase } from '../lib/supabase'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSummary } from '../lib/labourMonth'
+import { contractUnit } from '../lib/labourGroups'
 
 const TODAY_STR   = new Date().toISOString().slice(0, 10)
 const TODAY_LABEL = format(new Date(), 'EEEE, d MMMM yyyy')
 
+// Units come from the lib so this screen and the Ledger's grouped labour line
+// can never name the same contract differently.
 const CONTRACT_TYPES = [
-  { value: 'area_wise', label: 'Area Wise',  unit: 'Acres',  emoji: '🌾' },
-  { value: 'bag_wise',  label: 'Bag Wise',   unit: 'Bags',   emoji: '🧺' },
-  { value: 'tank_wise', label: 'Tank Wise',  unit: 'Tanks',  emoji: '🪣' },
-  { value: 'per_day',   label: 'Per Day',    unit: 'Days',   emoji: '📅' },
-  { value: 'kg_wise',   label: 'KG Wise',    unit: 'KG',     emoji: '⚖️' },
-  { value: 'rate_wise', label: 'Rate Wise',  unit: 'Units',  emoji: '💰' },
-]
+  { value: 'area_wise', label: 'Area Wise',  emoji: '🌾' },
+  { value: 'bag_wise',  label: 'Bag Wise',   emoji: '🧺' },
+  { value: 'tank_wise', label: 'Tank Wise',  emoji: '🪣' },
+  { value: 'per_day',   label: 'Per Day',    emoji: '📅' },
+  { value: 'kg_wise',   label: 'KG Wise',    emoji: '⚖️' },
+  { value: 'rate_wise', label: 'Rate Wise',  emoji: '💰' },
+].map(c => ({ ...c, unit: contractUnit(c.value) }))
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
@@ -627,8 +630,14 @@ function MonthWorkLogs({ logs, month }) {
         // A log from the Assign/Log Task modal carries no contract type, so it falls
         // back to the plain day rate — otherwise those rows would show no rate at all.
         const ct   = l.contractType ? CONTRACT_TYPES.find(c => c.value === l.contractType) : null
+        // A job spanning plots is one log per plot, but `contract_qty` is not
+        // split — every row stores the job's whole 163 tanks. Printed unqualified
+        // beside this row's ₹1,157 share it reads as a contradiction, so a row
+        // that is only a share says so.
+        const isShare = ct && l.contractQty
+          && Math.abs(l.contractQty * l.ratePerDay - (l.totalCost || 0)) > 1
         const rate = ct && l.contractQty
-          ? `${l.contractQty} ${ct.unit} @ ₹${l.ratePerDay}/${ct.unit}`
+          ? `${isShare ? 'share of ' : ''}${l.contractQty} ${ct.unit} @ ₹${l.ratePerDay}/${ct.unit}`
           : l.ratePerDay > 0 ? `₹${l.ratePerDay}/day` : null
         const sub  = [
           l.plotLabel && l.plotLabel !== '—' ? l.plotLabel : 'Farm-wide',

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
+import { groupAnchorId, shortDate } from '../lib/labourGroups'
 import { useAuthStore } from './auth'
 
 const getFarmId = () => useAuthStore.getState().activeFarmId
@@ -295,6 +296,9 @@ function mapLabourLog(l) {
     workTypeId:   l.work_type_id || null,
     contractType: l.contract_type || null,
     contractQty:  Number(l.contract_qty) || 0,
+    isPaid:       l.is_paid === true,
+    paidDate:     l.paid_date || null,
+    paidVia:      l.paid_via  || null,
   }
 }
 
@@ -1153,23 +1157,43 @@ const useAppStore = create((set, get) => ({
   },
 
   // ── Settle an unpaid expense row (Ledger → Expenses tab) ────────────────────
-  // Daily labour accrues when logged and is settled here: the log is flagged
+  //
+  // Daily labour accrues when logged and is settled here: the logs are flagged
   // paid and the cash leaves the book on the settlement date, not the work date.
-  markLabourPaid: async (row, paidDate) => {
+  //
+  // One job, one payment. A spraying job across seven plots is seven
+  // `labour_logs` rows — the pro-rata split is the only route to per-plot cost —
+  // but it was a single handover of ₹6,520, so it settles as ONE cash entry.
+  // `group.groupIds` is built by groupLabourRows(); a lone row arrives as a group
+  // of one, so there is only this door.
+  //
+  // The cash entry keys back to the group's anchor log. There is no unpay path in
+  // the app today; when one is built it MUST resolve the group and delete by
+  // groupAnchorId(), or it reverses one seventh of a payment and strands the
+  // rest. `paidVia` is now asked for rather than assumed — until 2026-08-20 this
+  // hardcoded cash and silently drained the cash box however the money moved.
+  markLabourGroupPaid: async (group, { paidVia = 'cash', paidDate } = {}) => {
+    const ids  = group.groupIds?.length ? group.groupIds : [group.id]
     const date = paidDate || new Date().toISOString().slice(0, 10)
     const { error } = await supabase.from('labour_logs')
-      .update({ is_paid: true, paid_date: date, paid_via: 'cash' })
-      .eq('id', row.id)
+      .update({ is_paid: true, paid_date: date, paid_via: paidVia })
+      .in('id', ids)
     if (error) throw error
+    // The cash book is read on its own; without the work date a payment dated
+    // the 19th says nothing about the job of the 10th it settled.
+    const worked = group.entry_date && group.entry_date !== date
+      ? ` · work of ${shortDate(group.entry_date)}` : ''
     await get().writeCashEntry({
-      entry_date: date, amount: Number(row.amount), direction: 'out',
-      entry_type: 'labour_payment', notes: row.description, reference_id: row.id,
-      payment_mode: 'cash',   // matches the paid_via written two statements up
+      entry_date: date, amount: Number(group.amount), direction: 'out',
+      entry_type: 'labour_payment', notes: group.description + worked,
+      reference_id: groupAnchorId(ids),
+      payment_mode: paidVia,   // matches the paid_via written above
     })
     const { data: el } = await supabase.from('v_expense_ledger').select('*').order('entry_date', { ascending: false })
     set(s => ({
       expenseLedger: el || [],
-      labourLogs: s.labourLogs.map(l => l.id === row.id ? { ...l, isPaid: true, paidDate: date } : l),
+      labourLogs: s.labourLogs.map(l =>
+        ids.includes(l.id) ? { ...l, isPaid: true, paidDate: date, paidVia } : l),
     }))
   },
 

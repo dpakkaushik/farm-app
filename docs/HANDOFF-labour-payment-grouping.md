@@ -1,7 +1,45 @@
 # Handoff — one job, one payment: grouping labour in the Ledger
 
-**Written:** 2026-08-20 · **Status:** designed and verified against the live DB, **not built**
-· Nothing in this document has been implemented. No code or data was changed while producing it.
+**Written:** 2026-08-20 · **Status: SHIPPED 2026-08-20.** The plan below was built as
+written, bar the three deviations recorded here. Kept as the reasoning behind the code.
+
+## What shipped, and where it differs from the plan
+
+| Plan | Shipped |
+|---|---|
+| 1. `lib/labourGroups.js`, pure + tested | ✅ `groupLabourRows`, `jobSummary`, `wholeShares`, `groupAnchorId`, `contractUnit`, `shortDate` — 21 specs |
+| 2. `loadLedgerData` fetches labour logs | ❌ **not needed** — see below |
+| 3. `ExpensesTab` renders the grouped line | ✅ with a `LabourLines` sibling to `BillLines` |
+| 4. `markLabourGroupPaid` | ✅ replaces `markLabourPaid`, which is deleted |
+| 5. Payment-method picker | ✅ `PayExpenseModal`, covering farm expenses too |
+
+**Deviation 1 — step 2 was unnecessary.** The claim that "`labour_logs` is fetched only by
+`loadAll`, so the Ledger page cannot see them" does not hold: `loadAll()` runs app-wide on
+login from [`App.jsx:79`](../frontend/src/App.jsx#L79), so the logs are already in the store
+when the Ledger mounts — it simply never *read* them. The Ledger now reads `labourLogs` from
+the store; no second query for the same rows. (The `accounts` bug this was compared to was
+genuinely different: `loadAll` did not fetch accounts at all.)
+
+**Deviation 2 — the open question is answered with option 1.** `reference_id` points at the
+group's anchor log, `groupAnchorId(ids)` = the lexicographically first id, stable whatever
+order the rows arrive in. No unpay path exists today; when one is built it must resolve the
+group through the same function. Option 2 (a synthetic md5 id) was rejected: it would point
+the cash entry at a row no table holds.
+
+**Deviation 3 — the picker covers farm expenses as well as labour.** `addExpensePayment`
+already accepted `payment_mode` and routed the account by it; the Ledger just never passed
+one. Same one-line hole, closed in the same modal.
+
+**Smaller finding 1 is fixed both places.** The quantity now appears only on the grouped line
+(`LabourLines` deliberately omits it), and the Manpower Work Logged list prefixes a part with
+*"share of"* when `contract_qty × rate` does not equal that row's own payment.
+**Smaller finding 2 is fixed**: the paid pill reads `Paid 19 Aug · Cash`.
+
+**Left alone, deliberately:** the seven `owner_cash_entries` already written for the 10 Aug
+job on 19 Aug. They are historic and predate the fix; consolidating them means unpaying and
+re-paying live data, which is the owner's call, not a refactor's. New payments write one row.
+The Excel **Expenses** sheet still lists every plot line — it is the itemised ledger, and the
+**Cash Book** sheet is the one that reports what moved.
 
 ---
 
