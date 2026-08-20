@@ -142,8 +142,24 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT — Phase 3 of the plan: teach `go_live_convert` the same standard.** The bill form is
-done, so the remaining piece is the conversion path. After that, Books Health check (below).
+**NEXT — one job, one payment: group labour in the Ledger. Designed and verified 20 Aug, NOT
+built — the whole plan is in [`docs/HANDOFF-labour-payment-grouping.md`](docs/HANDOFF-labour-payment-grouping.md),
+read it first and do not re-investigate.** The owner caught a single ₹6,520 spraying job (163
+tanks @ ₹40, 10 Aug) showing as **seven** cash-book payments, because its cost is split
+pro-rata across seven plots: *"as far as payment is concerned this is a single payment and
+showing it as a breakup in ledger will make it confusing … also the process of payment user
+just click pay and it get paid neither ask for payment method."* **The per-plot split STAYS**
+(it is the only route to per-plot cost, and he said so himself) — only the *payment* collapses
+to one line, which must **describe the job, not just carry a date** (his refinement). Verified:
+the grouping key already exists (`v_expense_ledger` gives all seven an identical `entry_date`
++ `description`), so **no migration**; but the view has no plot column and `loadLedgerData`
+never fetches `labour_logs`, so the breakup has nothing to name until it does — the same shape
+as the `accounts` bug fixed on 17 Aug. Also settles a standing flag: `markLabourPaid`
+([`store/index.js:1158`](frontend/src/store/index.js#L1158)) **hardcodes `paid_via: 'cash'`**,
+so every labour payment silently drains the cash box even though six bank accounts went live on
+17 Aug. Open question to decide before coding: one cash entry covering seven logs breaks the
+`reference_id` link an unpay depends on. After that, Phase 3 of the plan (teach
+`go_live_convert` the bill-date standard), then the Books Health check.
 
 **Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances are
 DONE (2026-08-17)** — migration `0031_accounts_partner_link.sql` added `accounts.partner_id`
