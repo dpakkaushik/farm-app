@@ -33,10 +33,18 @@ So a worker's debt could only ever grow.
 `deletePermanentStaff` / `deleteRegularLabourer` set `status = 'inactive'`, and
 `loadAll` only fetches `status in ('active','paused')`. So a removed worker
 disappears from every screen — but **`v_salary_dues` has no status filter**, so his
-balance keeps feeding the Ledger's dues total. Money owed by nobody you can name.
+balance lives on in the books with no screen that can reach it. Money owed by
+nobody you can name.
+
+Worth being precise about which harm this is. The Ledger's on-screen dues strip
+computes `Math.max(0, balance_due)` per worker, so an over-drawn man was already
+clamped out of it — the debt never *inflated* that figure. It simply went
+**invisible**, while still sitting in `v_salary_dues` and still printing in the
+Excel "Salary Khata" sheet. A number that exists in the export and on no screen is
+the worse of the two failures, and it is what the guard and the new section fix.
 
 This was already live in a milder form: two *paused* workers are filtered out of
-the Salary tab by `isActive !== false` while the Ledger still counts them.
+the Salary tab by `isActive !== false`, holding ₹15,620 between them.
 
 ### 3. The worker's own khata was folding the numbers wrongly
 

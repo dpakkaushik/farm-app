@@ -718,6 +718,8 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
   }
 
   const dayCount    = daysInMonth(month)
+  const monthPayments = salaryPayments.filter(p => p.month === month)
+  const monthAdvances = advances.filter(a => a.date?.startsWith(month))
   const allWorkers  = [
     ...permanentStaff.map(s => ({ ...s, workerType: 'staff' })),
     ...regularLabourers.map(l => ({ ...l, workerType: 'regular' })),
@@ -953,8 +955,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       {/* Workers who have left the farm but still owe it money.
           Removing a worker only sets status='inactive' and paused workers are
           filtered out upstream, so neither appears on any card above — while
-          v_salary_dues, which has no status filter, keeps counting their balance
-          in the Ledger's dues total. Two paused men account for ₹15,620 of it.
+          v_salary_dues, which has no status filter, still holds their balance
+          and the Ledger's Excel export still lists it. The Ledger's on-screen
+          dues strip clamps negatives away, so the debt does not inflate it — it
+          simply becomes invisible, which is worse. Two paused men hold ₹15,620.
           This is the only screen that can see them, and the only door to the
           money. */}
       {formerOwing.length > 0 && (

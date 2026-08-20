@@ -22,8 +22,11 @@ Jhingur 2,125 · Harinder 1,139) and there was **no door for that money coming b
 advance and a salary payment are both cash going *out*, and `amount > 0` guarded every route
 in, so a debt could only grow. Worse, **Remove detached the debt from the person**:
 `status='inactive'` hides a man from every screen while `v_salary_dues` (no status filter)
-keeps counting him — ₹15,620 already sat behind two *paused* workers the Salary tab filters
-out. **The mechanic is a NEGATIVE `salary_advances` row.** `balance_due = opening + earned −
+still holds his balance — ₹15,620 already sat behind two *paused* workers the Salary tab
+filters out. (Precisely: the Ledger's dues strip clamps negatives with `Math.max(0, …)`, so
+the debt never inflated that figure — it just became **invisible**, which is worse. It does
+still print in the Excel "Salary Khata" sheet.) **The mechanic is a NEGATIVE
+`salary_advances` row.** `balance_due = opening + earned −
 advances − paid`, so subtracting a negative advance adds the money back: migration
 [`0033`](supabase/migrations/0033_worker_recovery.sql) is four lines (`amount > 0` →
 `amount <> 0`), **no view change, no new table — the sign IS the record**. Cash side needed
@@ -43,6 +46,13 @@ the escape hatch (clear the opening balance — **there is no write-off feature,
 way (paying a man made the farm owe him *more*) and omitted wages earned, so it could never
 close on the Ledger's figure. It now folds the same four things `v_salary_dues` does and closes
 on `balance_due` **by construction**. **126 tests green.**
+**Hotfixed minutes later — the Salary tab rendered BLANK.** The recovery edit dropped
+`monthPayments`/`monthAdvances` from `LabourSalary`, so the first card threw
+`ReferenceError` and React unmounted the tree. `npm run build` was green throughout: **Vite
+does no undefined-variable analysis, and no test mounts a page component**, so neither gate
+could have caught it. There is no ESLint config in `frontend/`. Until there is, an edit that
+rewrites a block of a page must be re-read for identifiers it no longer declares — the
+one-liner that found it compares `const X =` declarations against the previous commit.
 
 **Shipped 20 Aug (1st) — one job, one payment.** The ₹6,520 spraying job (10 Aug, 163 tanks @
 ₹40) showed as **seven** Ledger payments because its cost splits pro-rata across seven plots.
