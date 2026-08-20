@@ -161,10 +161,22 @@ genuine August data and was asserted untouched. The form fix has shipped.
 `go_live_convert` the bill-date standard — then the Books Health check (cash book vs account
 balances, bill header vs lines). Trial Balance stays rejected; do not relitigate.
 
-**Worth putting to the owner (small):** the 10 Aug spraying job was already paid on 19 Aug,
-so its **seven historic `owner_cash_entries` are still seven rows** in the Cash Book. The fix
-only changes payments made from now on; consolidating those seven means unpaying and re-paying
-live data, which is his call. Everything else about that job now reads as one line.
+**Done same day, at his ask — the seven HISTORIC cash entries were collapsed too.** He opened
+the Cash Book and saw the breakup he had just had fixed (*"still showing as breakup? not a
+single entry — and make sure it is only about ledger otherwise the cost should split plot
+(crop cycle) wise only"*): the code fix only governs *new* payments. So the 19 Aug rows were
+archived (`go_live_archive` batch `dcda331b`, 5th) and merged into one ₹6,519.98 entry on the
+**anchor** row — its `reference_id` is the same log `groupAnchorId()` picks, so historic and
+future rows key back identically. **The seven `labour_logs` were NOT touched** and must never
+be: plot-wise cost is the point of the split. Asserted before/after — cash net −28,819.98
+unchanged, 7 cash rows → 1, ₹6,519.98 unchanged, 7 logs still 7. Full record in
+[`supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md`](supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md).
+
+**Found while in there, needs the owner: CASH IN HAND IS NEGATIVE, ₹−16,841** (opening ₹11,979
+less ₹28,820 paid out). A cash box cannot go below zero, so money booked as cash actually left
+a bank. Cause is known and now fixed forward — every labour payment before 20 Aug hardcoded
+`paid_via: 'cash'` — but the past rows are still wrong. **Ask which pre-20-Aug payments came
+from a bank before trusting the cash figure**; do not "correct" it by guessing.
 
 **Still needed from the owner:** his **1-Aug opening stock count**. The **bank balances are
 DONE (2026-08-17)** — migration `0031_accounts_partner_link.sql` added `accounts.partner_id`
