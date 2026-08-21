@@ -19,12 +19,20 @@ separate tab."* Today is a single board again; the day card's action row now car
 buttons — **+ Log Activity** first, **🧾 Log Expense** second, both the same solid green at
 his correction (the first cut styled Log Expense as a red outline and he read it as the odd
 one out; the date row got `flex-wrap` so they drop to their own line on a narrow phone).
-**Open design question he raised, answered with a recommendation, NOT built:** replace the
-bell + Tasks Due with a calendar of upcoming activity dates coloured by crop. My call, given
-to him: put the calendar BEHIND THE BELL (it genuinely beats a list for looking ahead) but
-KEEP the day card's Tasks Due for overdue+today — a calendar cannot nag about the past and
-would turn the one-tap Done into three taps, against design rule #5 (manager UI ≤3 taps).
-Also flagged: crops have no colour field yet, so one would need assigning. Awaiting his word. `Expenses.jsx` kept only the
+**Then, on his "ok go" — the bell became a TASK CALENDAR.** He'd noticed the bell list and
+the card's Tasks Due were the same thing twice and proposed a calendar of upcoming activity
+dates coloured by crop, asking my call first. The shipped shape is the recommended hybrid he
+approved: the bell's popover now holds a month grid ([`lib/taskCalendar.js`](frontend/src/lib/taskCalendar.js),
+17 tests — grid maths, month nav, colour assignment, dot rules; component in
+[`TaskCalendar.jsx`](frontend/src/pages/today/TaskCalendar.jsx)), dates dotted per crop, a
+missed date collapsing to ONE red dot; tapping a date lists its tasks underneath as the same
+`ScheduledCard`s the day card uses, Done included. **The day card's Tasks Due block
+deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
+past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
+have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —
+deterministic, distinct up to 8 crops; if he ever wants to pick colours, that becomes a
+column on `crops` read first. `UpcomingBlock.jsx` is deleted (the calendar replaced it); the
+bell badge still counts overdue + tomorrow + next-7-days. **156 tests green.** `Expenses.jsx` kept only the
 form, exported as **`AddExpenseModal`** — the list page (summary header, category chips,
 delete) is DELETED. Deep links still work: `/today?log=expense` and the old `?tab=expenses`
 both open the form (param cleared after), `/expenses` redirects there, and Livestock →

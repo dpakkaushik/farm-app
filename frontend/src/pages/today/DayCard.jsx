@@ -5,7 +5,7 @@ import { ACT_EMOJI, ACT_COLOR } from './dayBundle'
 const ROW_CAP = 5
 
 // ── Scheduled crop-template task card (moved here unchanged — only DayCard's
-//    "Tasks Due" category and UpcomingBlock use it now) ────────────────────────
+//    "Tasks Due" category and TaskCalendar's date panel use it now) ────────────
 export function ScheduledCard({ task, status, onDone }) {
   const isDone    = status === 'done'
   const isOverdue = status === 'overdue'

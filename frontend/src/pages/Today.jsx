@@ -8,7 +8,7 @@ import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
 import { buildDayBundle, datesInRange } from './today/dayBundle'
 import DayCard from './today/DayCard'
-import UpcomingBlock from './today/UpcomingBlock'
+import TaskCalendar from './today/TaskCalendar'
 
 const getTodayStr  = () => new Date().toISOString().slice(0, 10)
 const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
@@ -112,9 +112,11 @@ function TodayBoard() {
       .sort((a, b) => a.label.localeCompare(b.label))
   }, [plots, cropCycles, cropMaster])
 
-  // Scheduled tasks derived from crop templates
-  const { overdue, todayTasks, tomorrow, upcoming } = useMemo(() => {
-    const overdue = [], todayTasks = [], tomorrow = [], upcoming = []
+  // Scheduled tasks derived from crop templates. The buckets feed the badge and
+  // the day card; allPending — every pending task inside the nag window or any
+  // distance into the future, each carrying its dateStr — feeds the calendar.
+  const { overdue, todayTasks, tomorrow, upcoming, allPending } = useMemo(() => {
+    const overdue = [], todayTasks = [], tomorrow = [], upcoming = [], allPending = []
     const doneKeys = new Set(activities.map(a => `${a.plotId}|${a.type}|${a.date}`))
 
     const isAlreadyLogged = (plotId, type, scheduledDateStr) => {
@@ -143,18 +145,21 @@ function TodayBoard() {
         if (isAlreadyLogged(cycle.plotId, act.type, scheduledDateStr)) return
         if (doneTasks.has(`${cycle.id}-d${act.day}`)) return
 
+        if (daysUntil < -OVERDUE_WINDOW_DAYS) return
+
         const task = {
           id: `${cycle.id}-d${act.day}`, plotId: cycle.plotId, plotLabel: cycle.plotLabel,
           cropName: template.name, label: act.label, type: act.type,
-          day: act.day, daysUntil, cycleId: cycle.id,
+          day: act.day, daysUntil, cycleId: cycle.id, dateStr: scheduledDateStr,
         }
-        if      (daysUntil === 0)                   todayTasks.push(task)
-        else if (daysUntil === 1)                   tomorrow.push(task)
-        else if (daysUntil < 0 && daysUntil >= -OVERDUE_WINDOW_DAYS) overdue.push({ ...task, daysOverdue: -daysUntil })
+        allPending.push(daysUntil < 0 ? { ...task, daysOverdue: -daysUntil } : task)
+        if      (daysUntil === 0)                  todayTasks.push(task)
+        else if (daysUntil === 1)                  tomorrow.push(task)
+        else if (daysUntil < 0)                    overdue.push({ ...task, daysOverdue: -daysUntil })
         else if (daysUntil > 1 && daysUntil <= 7)  upcoming.push(task)
       })
     })
-    return { overdue, todayTasks, tomorrow, upcoming: upcoming.sort((a, b) => a.daysUntil - b.daysUntil) }
+    return { overdue, todayTasks, tomorrow, upcoming: upcoming.sort((a, b) => a.daysUntil - b.daysUntil), allPending }
   }, [cropCycles, cropMaster, activities, doneTasks])
 
   const loggedToday    = useMemo(() => activities.filter(a => a.date === TODAY_STR), [activities])
@@ -322,8 +327,12 @@ function TodayBoard() {
           </h1>
           <p className="text-sm text-[var(--c-muted)]">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
-        {/* Notifications — what was missed and what is coming. Log Activity now
-            lives on the day card's date row, where the day it writes to is named. */}
+        {/* The bell — a month calendar of scheduled tasks, dotted in crop
+            colours, red where a date was missed. The badge still counts what
+            was missed and what is coming. It replaced a flat list that only
+            repeated the day card's Tasks Due; the card keeps that block for
+            overdue + today because the calendar cannot nag and Done must stay
+            one tap. */}
         <div className="relative">
           <button
             onClick={() => setShowNotif(o => !o)}
@@ -348,15 +357,14 @@ function TodayBoard() {
                 style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border-md)', maxHeight: '70vh', overflowY: 'auto' }}>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
-                    Upcoming
+                    Task Calendar
                   </p>
                   <button onClick={() => setShowNotif(false)}
                     className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)]">
                     <X size={13} />
                   </button>
                 </div>
-                <UpcomingBlock
-                  overdue={pendingOverdue} tomorrow={tomorrow} upcoming={upcoming}
+                <TaskCalendar tasks={allPending} todayStr={TODAY_STR}
                   onMarkDone={isManager(activeFarmRole) ? markDone : undefined} />
               </div>
             </>
