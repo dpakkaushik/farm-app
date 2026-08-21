@@ -202,6 +202,11 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
   const today = new Date().toISOString().slice(0, 10)
   const bank = accounts.find(a => a.type === 'bank')
   const cash = accounts.find(a => a.type === 'cash')
+  // The owner's ask (21 Aug): the common transfer source leads the list; the
+  // other five partner accounts stay reachable beneath. Same main-account rule
+  // as accountFor('bank') and the Summary card — first bank row is the main.
+  const rank = (a) => (a.id === bank?.id ? 0 : a.type === 'cash' ? 1 : 2)
+  const ordered = [...accounts].sort((x, y) => rank(x) - rank(y))
   const [form, setForm] = useState({
     // The common case on a farm: owner's bank feeds the manager's cash box.
     fromAccountId: bank?.id || accounts[0]?.id || '',
@@ -223,7 +228,7 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
     finally { setSaving(false) }
   }
 
-  const accountLabel = (a) => `${a.type === 'bank' ? '🏦' : '💵'} ${a.name}`
+  const accountLabel = (a) => `${a.type === 'bank' ? '🏦' : '💵'} ${a.name}${a.id === bank?.id ? ' · main' : ''}`
 
   return (
     <Modal title="Move Money" onClose={onClose}>
@@ -234,13 +239,13 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
       <Field label="From">
         <select className={inputCls} style={inputStyle} value={form.fromAccountId}
           onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))}>
-          {accounts.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+          {ordered.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
         </select>
       </Field>
       <Field label="To">
         <select className={inputCls} style={inputStyle} value={form.toAccountId}
           onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))}>
-          {accounts.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+          {ordered.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
         </select>
       </Field>
       {form.fromAccountId === form.toAccountId && (

@@ -32,7 +32,9 @@ account). **139 tests green.** Follow-up same day, his ask: **the Summary card n
 — its breakdown shows 💵 Cash in hand + one **🏦 Bank** line (all six summed), tap Bank to
 expand the per-account breakup (MAIN pill kept on Vipul's). This **reverses his 17 Aug
 "only main account, no partner detail" ruling** — his words, 21 Aug: *"should show Bank and
-should be expandable to show breakup of bank accounts"* — do not collapse it back. Also live
+should be expandable to show breakup of bank accounts"* — do not collapse it back. Move Money
+keeps all six banks in its dropdowns (his call: *"keep the choice"*), reordered at his ask so
+Vipul's main account leads the list, tagged "· main". Also live
 in production, seen in his screenshot: **the first
 real recovery** — Deepak repaid **₹5,000 cash on 19 Aug** (still owes ₹8,933; workers' total
 debt now ₹56,420), which moved cash in hand −16,841 → **−11,841** — the recovery makes the
