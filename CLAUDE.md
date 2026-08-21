@@ -11,9 +11,23 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-21 (the Cash Book folded to two pockets — cash + one Bank figure) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-21 (Today's Expenses tab became a Log Expense button) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (21 Aug) — the Cash Book's seven account chips became three.** The owner,
+**Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
+of the two-tab strip: *"i rather want expense to be log expense like log activity not a
+separate tab."* Today is a single board again; the day card's action row now carries TWO
+buttons — outlined red **🧾 Log Expense** beside green **+ Log Activity** (the date row got
+`flex-wrap` so they drop to their own line on a narrow phone). `Expenses.jsx` kept only the
+form, exported as **`AddExpenseModal`** — the list page (summary header, category chips,
+delete) is DELETED. Deep links still work: `/today?log=expense` and the old `?tab=expenses`
+both open the form (param cleared after), `/expenses` redirects there, and Livestock →
+Finance's Add Expense navigates to it. **Known, deliberate loss to flag if he misses it: the
+delete-an-expense door.** `deleteFarmExpense` is now called from nowhere — the Ledger's
+General Expenses rows show and pay but don't delete. If a mis-entered expense needs removing,
+that is the thing to build (a bin on the Ledger row), not a tab revival. Browsing survives
+elsewhere by design: day cards per day, Ledger for the full list.
+
+**Also shipped (21 Aug) — the Cash Book's seven account chips became three.** The owner,
 shown the seven-chip strip: *"it is not account heavy app mainly for keeping records …
 can we combine all bank in one just for cash book and show as a overall figure?"* — his own
 framing was the classic two-column cash book, confirmed via two choices: **one combined

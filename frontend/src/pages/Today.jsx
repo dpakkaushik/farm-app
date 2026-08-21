@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell, Receipt } from 'lucide-react'
-import Expenses from './Expenses'
+import { AddExpenseModal } from './Expenses'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
@@ -48,8 +48,9 @@ function TodayBoard() {
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const [showModal,     setShowModal]     = useState(false)
-  const [showNotif,     setShowNotif]     = useState(false)
+  const [showModal,        setShowModal]        = useState(false)
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [showNotif,        setShowNotif]        = useState(false)
   const [selPlots,      setSelPlots]      = useState(new Set())
   const [actType,       setActType]       = useState('irrigation')
   const [selWorkers,    setSelWorkers]    = useState(new Set())  // labour_master IDs
@@ -59,6 +60,19 @@ function TodayBoard() {
   const [actNotes,      setActNotes]      = useState('')
   const [doneTasks,     setDoneTasks]     = useState(new Set())
   const [saving,        setSaving]        = useState(false)
+
+  // Deep link: /today?log=expense opens the expense form straight away — the
+  // door Livestock's Add Expense and the /expenses route walk through. The old
+  // ?tab=expenses (from when Expenses was a tab here) lands in the same place,
+  // so any stale link still works. The param is cleared so Back and refresh
+  // don't reopen the form.
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (params.get('log') === 'expense' || params.get('tab') === 'expenses') {
+      setShowExpenseModal(true)
+      setParams({}, { replace: true })
+    }
+  }, [params, setParams])
 
   // ── History (collapsed, gated behind an explicit date-range + Fetch) ───────
   const [showHistory,       setShowHistory]       = useState(false)
@@ -398,12 +412,20 @@ function TodayBoard() {
           tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
           onMarkDone={markDone}
           action={isManager(activeFarmRole) ? (
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
-              style={{ background: '#1D9E75', color: '#fff' }}>
-              <Plus size={13} strokeWidth={2.5} /> Log Activity
-            </button>
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => setShowExpenseModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border"
+                style={{ background: 'transparent', borderColor: '#E24B4A', color: '#E24B4A' }}>
+                <Receipt size={13} strokeWidth={2.5} /> Log Expense
+              </button>
+              <button
+                onClick={() => setShowModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                style={{ background: '#1D9E75', color: '#fff' }}>
+                <Plus size={13} strokeWidth={2.5} /> Log Activity
+              </button>
+            </div>
           ) : null} />
 
         {/* Last 7 days — always visible; older days live behind History below */}
@@ -730,6 +752,11 @@ function TodayBoard() {
         </div>
       )}
 
+      {/* ── Log Expense Modal — the whole former Expenses tab, as a form ── */}
+      {showExpenseModal && (
+        <AddExpenseModal animals={livestockMaster} onClose={() => setShowExpenseModal(false)} />
+      )}
+
       <style>{`.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
     </div>
   )
@@ -748,47 +775,9 @@ function Pill({ count, label, color, dim, icon }) {
   )
 }
 
-// ── Today, with Expenses alongside it ─────────────────────────────────────────
-// Expenses used to be the third tab inside Resources — next to Inventory and
-// Assets — which put the farm's money entry behind a screen named for its stock.
-// It also had no route of its own: Resources holds its tab in local state, so
-// nothing could link to it, which is why Livestock could only print the words
-// "Resources → Expenses" instead of taking you there.
-//
-// It lives here now, next to the day the spend happened. The tab is in the URL
-// (?tab=expenses) precisely so other screens can send you straight to it.
-const TABS = [
-  { key: 'today',    label: 'Today',    Icon: ClipboardList },
-  { key: 'expenses', label: 'Expenses', Icon: Receipt       },
-]
-
-export default function Today() {
-  const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'expenses' ? 'expenses' : 'today'
-
-  // Replace rather than push: Back should leave Today, not walk its two tabs.
-  const setTab = k => setParams(k === 'today' ? {} : { tab: k }, { replace: true })
-
-  return (
-    <div className="h-full flex flex-col" style={{ background: 'var(--c-bg)' }}>
-      <div className="shrink-0 flex gap-2 px-3 py-2 border-b"
-        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-        {TABS.map(({ key, label, Icon }) => (
-          <button key={key} onClick={() => setTab(key)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all"
-            style={tab === key
-              ? { background: '#1D9E75', color: '#fff' }
-              : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }
-            }>
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {tab === 'today'    ? <TodayBoard /> : <Expenses />}
-      </div>
-    </div>
-  )
-}
+// Expenses was the second tab here (and before that, a tab inside Resources).
+// The owner asked for the tab to go — "i rather want expense to be log expense
+// like log activity" — so Today is a single board again, and the expense form
+// opens from the Log Expense button on the day card. Deep links land in the
+// same place: /today?log=expense (and the old ?tab=expenses) open the form.
+export default TodayBoard

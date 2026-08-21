@@ -1,10 +1,15 @@
-import React, { useState, useRef } from 'react'
-import { Plus, Trash2, Paperclip, X } from 'lucide-react'
+import React, { useState } from 'react'
 import { useAppStore } from '../store'
-import { supabase } from '../lib/supabase'
 import FilePicker from '../components/FilePicker'
-import Attachment from '../components/Attachment'
 import { uploadAttachment, BUCKETS } from '../lib/attachments'
+
+// This file used to be a full page — the Expenses tab on Today, with a summary
+// header, category filter chips and a delete-able list. The owner asked for the
+// tab to go: logging an expense should be a button like Log Activity, not a
+// screen. So only the form survives, as AddExpenseModal, opened from Today's
+// day card (and deep-linked via /today?log=expense). Browsing lives where it
+// already lived — the day cards show each day's spend, the Ledger's Expenses
+// tab shows the full list and settles unpaid ones.
 
 const DOCS  = BUCKETS.docs
 const TODAY = new Date().toISOString().slice(0, 10)
@@ -38,9 +43,6 @@ const EXPENSE_TYPES = [
 ]
 
 const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
-
-const fmt  = n => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—'
-const fmtK = n => n >= 1000 ? `₹${(n / 1000).toFixed(1)}K` : fmt(n)
 
 const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
 
@@ -83,7 +85,7 @@ function AttachmentRow({ value, onChange, uploading, onUpload }) {
   )
 }
 
-function AddExpenseModal({ animals, onClose }) {
+export function AddExpenseModal({ animals, onClose }) {
   const addFarmExpense = useAppStore(s => s.addFarmExpense)
   const [form, setForm] = useState({
     expenseDate: TODAY, expenseType: '', category: '', amount: '', description: '',
@@ -253,126 +255,5 @@ function AddExpenseModal({ animals, onClose }) {
         {saving ? 'Saving…' : 'Save Expense'}
       </button>
     </Modal>
-  )
-}
-
-export default function Expenses() {
-  const { farmExpenses, livestockMaster, deleteFarmExpense } = useAppStore(s => ({
-    farmExpenses:      s.farmExpenses,
-    livestockMaster:   s.livestockMaster,
-    deleteFarmExpense: s.deleteFarmExpense,
-  }))
-  const [filterCat, setFilterCat] = useState('all')
-  const [showModal, setShowModal] = useState(false)
-
-  const filtered = filterCat === 'all'
-    ? farmExpenses
-    : farmExpenses.filter(e => e.category === filterCat)
-
-  const total = filtered.reduce((s, e) => s + e.amount, 0)
-
-  const catInfo    = cat => EXPENSE_CATS.find(([v]) => v === cat) || ['other', '📦', cat]
-  const animalName = id => {
-    if (!id) return null
-    const a = livestockMaster.find(a => a.id === id)
-    return a ? (a.name || a.tagId) : null
-  }
-
-  async function confirmDelete(id) {
-    if (!confirm('Delete this expense?')) return
-    try { await deleteFarmExpense(id) } catch (e) { alert(e.message) }
-  }
-
-  return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--c-bg)' }}>
-      {/* Summary + add */}
-      <div className="shrink-0 px-4 pt-3 pb-3 border-b space-y-3" style={{ borderColor: 'var(--c-border)' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-              {filterCat === 'all' ? 'All Expenses' : catInfo(filterCat)[2]}
-            </p>
-            <p className="text-lg font-bold" style={{ color: '#E24B4A' }}>{fmtK(total)}</p>
-          </div>
-          <button onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-white"
-            style={{ background: '#1D9E75' }}>
-            <Plus size={15} /> Add
-          </button>
-        </div>
-
-        {/* Category filter chips */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-          <button onClick={() => setFilterCat('all')}
-            className="shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold"
-            style={{ background: filterCat === 'all' ? '#1D9E75' : 'var(--c-ghost)', color: filterCat === 'all' ? '#fff' : 'var(--c-muted)' }}>
-            All
-          </button>
-          {EXPENSE_CATS.map(([v, emoji, label]) => (
-            <button key={v} onClick={() => setFilterCat(v)}
-              className="shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold"
-              style={{ background: filterCat === v ? '#1D9E75' : 'var(--c-ghost)', color: filterCat === v ? '#fff' : 'var(--c-muted)' }}>
-              {emoji} {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4 space-y-2">
-        {filtered.length === 0 && (
-          <p className="text-center text-sm py-10" style={{ color: 'var(--c-muted)' }}>No expenses recorded</p>
-        )}
-        {filtered.map(e => {
-          const [, emoji, label] = catInfo(e.category)
-          const animal = animalName(e.livestockId)
-          return (
-            <div key={e.id} className="p-4 rounded-2xl border"
-              style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-xl shrink-0">{emoji}</span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>
-                      {e.description}
-                    </p>
-                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-                      {label}
-                      {e.attributedTo !== 'general' && ` · ${e.attributedTo}`}
-                      {animal ? ` · ${animal}` : ''}
-                      {e.paidTo ? ` · ${e.paidTo}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <p className="text-sm font-bold" style={{ color: '#E24B4A' }}>{fmt(e.amount)}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{e.expenseDate}</p>
-                  </div>
-                  <button onClick={() => confirmDelete(e.id)} className="p-1" style={{ color: 'var(--c-muted)' }}>
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-              {(e.attachmentPath || e.paymentMode) && (
-                <div className="mt-2 flex items-center gap-2 text-[10px]" style={{ color: 'var(--c-muted)' }}>
-                  {e.paymentMode && (
-                    <span className="capitalize px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>
-                      {e.paymentMode}
-                    </span>
-                  )}
-                  {/* A saved receipt is an audit record: expand only — no change, no remove. */}
-                  {e.attachmentPath && (
-                    <Attachment variant="chip" value={e.attachmentPath} bucket={DOCS} name="View receipt" />
-                  )}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {showModal && <AddExpenseModal animals={livestockMaster} onClose={() => setShowModal(false)} />}
-    </div>
   )
 }

@@ -175,21 +175,20 @@ export default function FinanceTab({ animals, face, mode }) {
         </div>
       )}
 
-      {/* Expenses — read-only, add goes to Today → Expenses */}
+      {/* Expenses — read-only, add opens the expense form on Today */}
       {mode === 'expenses' && (
         <>
-          {/* This was a line of text naming where to go — "Resources →
-              Expenses" — and not a link, because that tab lived in local state
-              and had no route. Expenses is on Today now, with its tab in the
-              URL, so this can finally be the way there instead of directions. */}
-          <button onClick={() => navigate('/today?tab=expenses')}
+          {/* Expenses is no longer a tab anywhere — Today's day card logs it
+              through a form, and /today?log=expense opens that form directly,
+              so this button lands the manager inside it in one tap. */}
+          <button onClick={() => navigate('/today?log=expense')}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
             style={{ borderColor: '#E24B4A', color: '#E24B4A', background: 'transparent' }}>
             <Plus size={15} /> Add Expense
           </button>
           <p className="text-[10px] text-center px-4" style={{ color: 'var(--c-muted)' }}>
             {spendOnly
-              ? 'Opens Today → Expenses. Tag the spend to the pet and it lands here.'
+              ? 'Opens the expense form. Tag the spend to the pet and it lands here.'
               : `Showing ${face.title.toLowerCase()} spend and shared livestock spend`}
           </p>
           {expenseRows}
