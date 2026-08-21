@@ -61,18 +61,27 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone }) {
           <div key={wi} className="grid grid-cols-7 gap-1">
             {week.map(cell => {
               const dots       = dateDots(byDate[cell.dateStr], cell.dateStr, todayStr, colorMap)
+              // Task dates read as boxes, the way today does — the owner's ask
+              // (dots alone were too quiet on a phone). The box takes the
+              // date's lead colour: red for a missed date, the first crop's
+              // colour otherwise. Selecting deepens the fill instead of adding
+              // a second competing outline.
+              const boxColor   = dots[0] || null
               const isToday    = cell.dateStr === todayStr
               const isSelected = cell.dateStr === selected
               return (
                 <button key={cell.dateStr} onClick={() => setSelected(cell.dateStr)}
                   className="h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-colors"
                   style={{
-                    background:  isSelected ? 'var(--c-ghost)' : 'transparent',
-                    borderColor: isToday ? '#1D9E75' : isSelected ? 'var(--c-border-md)' : 'transparent',
+                    background:  boxColor ? boxColor + (isSelected ? '30' : '14')
+                               : isSelected ? 'var(--c-ghost)' : 'transparent',
+                    borderColor: isToday ? '#1D9E75'
+                               : boxColor ? boxColor + (isSelected ? 'ff' : '55')
+                               : isSelected ? 'var(--c-border-md)' : 'transparent',
                     opacity:     cell.inMonth ? 1 : 0.3,
                   }}>
-                  <span className="text-[11px] font-semibold leading-none"
-                    style={{ color: isToday ? '#1D9E75' : 'var(--c-sub)' }}>
+                  <span className="text-[11px] font-bold leading-none"
+                    style={{ color: isToday ? '#1D9E75' : boxColor || 'var(--c-sub)' }}>
                     {Number(cell.dateStr.slice(8))}
                   </span>
                   <span className="flex gap-0.5 h-1">

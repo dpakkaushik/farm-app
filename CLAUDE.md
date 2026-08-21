@@ -26,7 +26,10 @@ approved: the bell's popover now holds a month grid ([`lib/taskCalendar.js`](fro
 17 tests — grid maths, month nav, colour assignment, dot rules; component in
 [`TaskCalendar.jsx`](frontend/src/pages/today/TaskCalendar.jsx)), dates dotted per crop, a
 missed date collapsing to ONE red dot; tapping a date lists its tasks underneath as the same
-`ScheduledCard`s the day card uses, Done included. **The day card's Tasks Due block
+`ScheduledCard`s the day card uses, Done included. His follow-up from the live screen: task
+dates must read as BOXES like today's cell, not just dots — so a task date now gets a
+coloured border + tinted fill (red for missed, first crop's colour otherwise) with the day
+number in that colour; the dots stay for multi-crop days; selection deepens the fill. **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —
