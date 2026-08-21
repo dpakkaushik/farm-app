@@ -6,6 +6,7 @@ import { isManager, isAdmin, getActiveFarmRole } from '../store/auth'
 import { isPet } from './livestock/ui'
 import CashFlowTab from './ledger/CashFlowTab'
 import { buildCashFlow } from '../lib/cashflow'
+import { annotatePockets } from '../lib/cashPockets'
 import {
   isMonth, fyLabel, periodRange, inPeriod, fyOptions, fyMonths,
   monthLabel, periodLabel, periodSlug,
@@ -686,17 +687,21 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
 
 // ── Tab: Cash Book ────────────────────────────────────────────────────────────
 function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening = false, onAdd, onMove }) {
-  // null = whole farm; an account id = that pocket's own book. Transfers net
-  // to zero at farm level and show as ordinary in/out per pocket.
-  const [accountFilter, setAccountFilter] = useState(null)
-  const filtered = accountFilter ? cashBook.filter(r => r.account_id === accountFilter) : cashBook
+  // Two pockets, the classic cash-book shape the owner asked for: 'cash' is the
+  // box, 'bank' is all six partner accounts combined (lib/cashPockets.js folds
+  // them — each row keeps its real account underneath). null = whole farm.
+  // Opens on cash because day-to-day spending is cash; Move Money tops it up
+  // from the bank. Transfers net to zero at farm level and show as ordinary
+  // in/out per pocket.
+  const [accountFilter, setAccountFilter] = useState('cash')
+  const filtered = accountFilter ? cashBook.filter(r => r.pocket === accountFilter) : cashBook
   const rows = [...filtered].reverse() // newest first for display
 
-  // Each pocket's balance is its last row's account_running_balance — as of
-  // today, never scoped to the period, same rule as every balance-sheet fact.
-  const balanceOf = (accountId) => {
+  // Each pocket's balance is its last row's pocket_running_balance — the same
+  // walk the per-account chips used, just over the folded pocket.
+  const pocketBalanceOf = (pocket) => {
     for (let i = cashBook.length - 1; i >= 0; i--) {
-      if (cashBook[i].account_id === accountId) return Number(cashBook[i].account_running_balance || 0)
+      if (cashBook[i].pocket === pocket) return Number(cashBook[i].pocket_running_balance || 0)
     }
     return 0
   }
@@ -726,8 +731,10 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
         </div>
       </div>
 
-      {/* One chip per pocket: its balance, and tap to see only its book */}
-      {accounts.length > 0 && (
+      {/* Three chips: the whole farm, the cash box, and one combined Bank
+          figure. Which real bank a row touched still prints under its
+          particulars; the full per-account detail lives in Admin → Partners. */}
+      {accounts.length > 1 && (
         <div className="flex gap-2 overflow-x-auto">
           <button onClick={() => setAccountFilter(null)}
             className="px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0"
@@ -738,16 +745,19 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
             }}>
             All accounts
           </button>
-          {accounts.map(a => (
-            <button key={a.id} onClick={() => setAccountFilter(f => f === a.id ? null : a.id)}
+          {[
+            { key: 'cash', label: '💵 Cash in hand' },
+            { key: 'bank', label: '🏦 Bank' },
+          ].map(p => (
+            <button key={p.key} onClick={() => setAccountFilter(f => f === p.key ? null : p.key)}
               className="px-3 py-1.5 rounded-xl text-[11px] shrink-0 text-left"
               style={{
-                background: accountFilter === a.id ? '#1D9E75' : 'var(--c-ghost)',
-                color:      accountFilter === a.id ? '#fff'    : 'var(--c-text)',
-                border:     `1px solid ${accountFilter === a.id ? '#1D9E75' : 'var(--c-border)'}`,
+                background: accountFilter === p.key ? '#1D9E75' : 'var(--c-ghost)',
+                color:      accountFilter === p.key ? '#fff'    : 'var(--c-text)',
+                border:     `1px solid ${accountFilter === p.key ? '#1D9E75' : 'var(--c-border)'}`,
               }}>
-              <span className="font-semibold">{a.type === 'bank' ? '🏦' : '💵'} {a.name}</span>
-              <span className="ml-1.5 font-bold">{fmt(balanceOf(a.id))}</span>
+              <span className="font-semibold">{p.label}</span>
+              <span className="ml-1.5 font-bold">{fmt(pocketBalanceOf(p.key))}</span>
             </button>
           ))}
         </div>
@@ -799,8 +809,8 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
                   </td>
                   {/* Filtered to one pocket, the balance shown is that pocket's */}
                   <td className="px-3 py-2 text-right font-bold"
-                    style={{ color: Number(accountFilter ? row.account_running_balance : row.running_balance) >= 0 ? '#1D9E75' : '#E24B4A' }}>
-                    {fmt(accountFilter ? row.account_running_balance : row.running_balance)}
+                    style={{ color: Number(accountFilter ? row.pocket_running_balance : row.running_balance) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    {fmt(accountFilter ? row.pocket_running_balance : row.running_balance)}
                   </td>
                 </tr>
               ))}
@@ -2433,11 +2443,15 @@ export default function LedgerPage() {
   // Cash Book: list only the period's transactions, but carry forward an
   // opening balance from everything before the period started so the
   // running balance shown is still correct, not reset to zero.
+  // Pockets (cash vs one combined Bank figure) are annotated on the FULL book
+  // first, so pocket_running_balance is all-time — same semantics as the view's
+  // account_running_balance, never rebased to the period.
+  const cashBookPocketed = annotatePockets(cashBook, accounts)
   const range = periodRange(fy)
   const cashBookOpening = range
-    ? cashBook.filter(r => r.entry_date < range.start).reduce((s, r) => s + (r.direction === 'in' ? Number(r.amount) : -Number(r.amount)), 0)
+    ? cashBookPocketed.filter(r => r.entry_date < range.start).reduce((s, r) => s + (r.direction === 'in' ? Number(r.amount) : -Number(r.amount)), 0)
     : 0
-  const cashBookPeriodRows = range ? cashBook.filter(r => r.entry_date >= range.start && r.entry_date <= range.end) : cashBook
+  const cashBookPeriodRows = range ? cashBookPocketed.filter(r => r.entry_date >= range.start && r.entry_date <= range.end) : cashBookPocketed
   let _cashRunning = cashBookOpening
   const cashBookFY = cashBookPeriodRows.map(r => {
     _cashRunning += r.direction === 'in' ? Number(r.amount) : -Number(r.amount)

@@ -11,7 +11,28 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-20 (money can now come back FROM a worker) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-21 (the Cash Book folded to two pockets — cash + one Bank figure) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just shipped (21 Aug) — the Cash Book's seven account chips became three.** The owner,
+shown the seven-chip strip: *"it is not account heavy app mainly for keeping records …
+can we combine all bank in one just for cash book and show as a overall figure?"* — his own
+framing was the classic two-column cash book, confirmed via two choices: **one combined
+🏦 Bank chip** (all six partner accounts summed — the alternative, showing only Vipul's,
+would orphan revenue landing in the other five) and **the tab now OPENS ON 💵 Cash in hand**
+(day-to-day spending is cash; Move Money tops it up from the bank). Display-only, no
+migration: every row keeps its real `account_id` and the small line naming the actual bank;
+Admin → Partners, Move Money (still the only place to pick among the six) and the Excel
+export are untouched. The one non-obvious bit: `v_cash_book` has no combined-bank running
+balance, so [`lib/cashPockets.js`](frontend/src/lib/cashPockets.js) (8 tests) annotates the
+FULL cash book with `pocket` + `pocket_running_balance` **before** the period filter in
+`LedgerPage` — all-time semantics mirroring `account_running_balance`; fed period rows it
+would start a pocket at zero mid-history. Invariant pinned by test: the cash pocket's
+running figure equals the view's `account_running_balance` (one cash account, so pocket ≡
+account). **139 tests green.** Also live in production, seen in his screenshot: **the first
+real recovery** — Deepak repaid **₹5,000 cash on 19 Aug** (still owes ₹8,933; workers' total
+debt now ₹56,420), which moved cash in hand −16,841 → **−11,841** — the recovery makes the
+hole look smaller without fixing the mis-booked rows, so the pre-20-Aug bank question below
+still stands.
 
 **Just shipped (20 Aug, 2nd of the day) — recovering money FROM a worker.** *"deepak … has
 a negative opening balance and he leaves the job how we gonna recover money from him?"* →
@@ -46,23 +67,17 @@ the escape hatch (clear the opening balance — **there is no write-off feature,
 way (paying a man made the farm owe him *more*) and omitted wages earned, so it could never
 close on the Ledger's figure. It now folds the same four things `v_salary_dues` does and closes
 on `balance_due` **by construction**. **131 tests green.**
-**Then, at his ask — a PART recovery had to be visibly possible.** *"recover shouldnt be
-always whole amount … received 5000 out of 13000 rest remains the balance."* It already was:
-nothing in `recordWorkerRecovery` caps the amount, and the khata test walks −13,933 → −3,933
-→ 0. But the modal **prefilled the full outstanding and said nothing**, so all-or-nothing was
-the only reading available. New `recoveryOutcome(outstanding, entered)` (5 specs, NaN-guarded
-so a half-typed field never renders ₹NaN) drives a live line under the amount: *"₹8,933 stays
-on his khata"* / *"✓ This clears his khata"* / *"More than he owes — the farm will owe him
-₹X"*. Over-recovery stays **allowed**, just named. The toast now carries the remainder too, so
-a part recovery cannot read as a full one. `modal.outstanding` holds the figure; **the prefill
-is a convenience, never a cap** — do not add one.
-**Hotfixed before that — the Salary tab rendered BLANK.** The recovery edit dropped
-`monthPayments`/`monthAdvances` from `LabourSalary`, so the first card threw
-`ReferenceError` and React unmounted the tree. `npm run build` was green throughout: **Vite
-does no undefined-variable analysis, and no test mounts a page component**, so neither gate
-could have caught it. There is no ESLint config in `frontend/`. Until there is, an edit that
-rewrites a block of a page must be re-read for identifiers it no longer declares — the
-one-liner that found it compares `const X =` declarations against the previous commit.
+**Then, at his ask — a PART recovery had to be visibly possible.** Nothing ever capped the
+amount, but the modal prefilled the full outstanding and said nothing, so all-or-nothing was
+the only reading. `recoveryOutcome(outstanding, entered)` (5 specs, NaN-guarded) now drives a
+live line — *"₹8,933 stays on his khata"* / *"✓ clears his khata"* / *"the farm will owe him
+₹X"* — and the toast carries the remainder. Over-recovery stays allowed, just named.
+**The prefill is a convenience, never a cap — do not add one.**
+**Hotfixed before that — the Salary tab rendered BLANK:** an edit dropped two variables
+`LabourSalary` still used; `npm run build` stayed green because **Vite does no
+undefined-variable analysis and no test mounts a page component**, and there is no ESLint in
+`frontend/`. Until there is, any edit that rewrites a block of a page must be re-read for
+identifiers it no longer declares.
 
 **Shipped 20 Aug (1st) — one job, one payment.** The ₹6,520 spraying job (10 Aug, 163 tanks @
 ₹40) showed as **seven** Ledger payments because its cost splits pro-rata across seven plots.
@@ -215,12 +230,13 @@ unchanged, 7 cash rows → 1, ₹6,519.98 unchanged, 7 logs still 7. Full record
 [`supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md`](supabase/data-fixes/2026-08-20-collapse-historic-labour-payment.md).
 
 **Two things need the owner, both found by reading live data:**
-1. **CASH IN HAND IS NEGATIVE, ₹−16,841** (opening ₹11,979 less ₹28,820 paid out). A cash box
-   cannot go below zero, so money booked as cash actually left a bank. Cause is known and fixed
-   forward — every labour payment before 20 Aug hardcoded `paid_via: 'cash'` — but the past rows
-   are still wrong. **Ask which pre-20-Aug payments came from a bank before trusting the cash
-   figure**; do not "correct" it by guessing. (A cash *recovery* from a worker would mask this,
-   so ask first.)
+1. **CASH IN HAND IS NEGATIVE, ₹−11,841** (opening ₹11,979 less ₹28,820 paid out, plus
+   Deepak's ₹5,000 cash recovery of 19 Aug — which masks the hole exactly as predicted). A
+   cash box cannot go below zero, so money booked as cash actually left a bank. Cause is known
+   and fixed forward — every labour payment before 20 Aug hardcoded `paid_via: 'cash'` — but
+   the past rows are still wrong, and the new default Cash chip puts the red figure first on
+   the Cash Book. **Ask which pre-20-Aug payments came from a bank before trusting the cash
+   figure**; do not "correct" it by guessing.
 2. **Is Deepak's salary missing?** His `monthly_salary` AND `daily_base_rate` are both **0**, so
    he accrues nothing and his ₹13,933 can never work itself off against wages even while he is
    employed. Harinder is ₹10,000, Ram Bachan ₹11,000 — his looks simply never entered.
