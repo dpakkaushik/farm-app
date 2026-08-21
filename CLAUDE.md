@@ -28,7 +28,12 @@ FULL cash book with `pocket` + `pocket_running_balance` **before** the period fi
 `LedgerPage` — all-time semantics mirroring `account_running_balance`; fed period rows it
 would start a pocket at zero mid-history. Invariant pinned by test: the cash pocket's
 running figure equals the view's `account_running_balance` (one cash account, so pocket ≡
-account). **139 tests green.** Also live in production, seen in his screenshot: **the first
+account). **139 tests green.** Follow-up same day, his ask: **the Summary card now matches**
+— its breakdown shows 💵 Cash in hand + one **🏦 Bank** line (all six summed), tap Bank to
+expand the per-account breakup (MAIN pill kept on Vipul's). This **reverses his 17 Aug
+"only main account, no partner detail" ruling** — his words, 21 Aug: *"should show Bank and
+should be expandable to show breakup of bank accounts"* — do not collapse it back. Also live
+in production, seen in his screenshot: **the first
 real recovery** — Deepak repaid **₹5,000 cash on 19 Aug** (still owes ₹8,933; workers' total
 debt now ₹56,420), which moved cash in hand −16,841 → **−11,841** — the recovery makes the
 hole look smaller without fixing the mis-booked rows, so the pre-20-Aug bank question below
@@ -253,11 +258,10 @@ table for one row. Settled: sheet "PUNEESH" = master "Puneet Nanda". Still open:
 **Sai Kiran Nanda** have an account, or was it just not listed?
 **Same day, the accounts went live in the UI at his ask** (*"show vipul nanda as main
 account … in partners list add the bank detail and amount … when a ganna payment is done
-they will get credits"*): (1) the Summary breakdown shows **ONLY cash + the MAIN account** (his refinement: *"only
-show main account in summary dont show all while keep other account in master"*) — MAIN =
-the first bank account, the same pick `accountFor('bank')` routes transactions through, so
-badge and behaviour cannot disagree; the five partner accounts roll into one muted line
-("5 partner accounts · in Partners master") so the card still sums to its own total, and
+they will get credits"*): (1) the Summary breakdown — *superseded 21 Aug*: it now shows cash
++ one expandable **Bank** line (see "Just shipped" above; his 17 Aug "only main account"
+refinement is reversed by his own 21 Aug ask). MAIN = the first bank account, the same pick
+`accountFor('bank')` routes transactions through, so badge and behaviour cannot disagree, and
 the Excel export keeps listing every account for the accountant;
 (2) Admin → Partners shows each partner's linked account with its **live balance**
 (new light loader `loadAccountBalances`: accounts + v_cash_book only);

@@ -537,6 +537,9 @@ function ViewToggle({ value, onChange, options }) {
 function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpenses, totalVendorDues, totalReceivables,
                       totalWageDues = 0, totalSalaryDues = 0, capitalSpendFY = 0, openingCost = 0,
                       expectedRevenue = 0, onGoSalary, monthlySummary }) {
+  // The Bank line folds every bank account into one figure (same two-pocket
+  // shape as the Cash Book); tapping it opens the per-account breakup.
+  const [showBanks, setShowBanks] = useState(false)
   const netProfit = totalIncome - totalExpenses
   const chartData = monthlySummary.slice(0, 12).reverse().map(m => ({
     month: MonthLabel(m.month),
@@ -560,32 +563,58 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
         <div className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
           Across all accounts, after every payment recorded
         </div>
-        {/* Which pocket holds it — cash with the manager, plus the MAIN bank
-            account transactions route through. The partners' accounts appear
-            ONLY in Admin → Partners (the owner, twice: no partner account
-            details on this card, not even rolled up). Their balances are
-            still inside the headline figure — that is what its "across all
-            accounts" subtitle states. */}
-        {accountBalances.length > 1 && (
-          <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
-            {accountBalances.filter(a => a.isMain || a.type === 'cash').map(a => (
-              <div key={a.id} className="flex justify-between text-[11px]">
-                <span style={{ color: 'var(--c-muted)' }}>
-                  {a.type === 'bank' ? '🏦' : '💵'} {a.name}
-                  {a.isMain && (
-                    <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
-                      style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
-                      MAIN
+        {/* The two pockets the Cash Book shows: cash with the manager, and ONE
+            combined Bank figure. Tapping Bank opens the per-account breakup —
+            the owner asked for exactly this (21 Aug: "should show Bank and
+            should be expandable"), reversing his earlier no-detail ruling, so
+            do not collapse it back to main-account-only. */}
+        {accountBalances.length > 1 && (() => {
+          const cashRows  = accountBalances.filter(a => a.type === 'cash')
+          const bankRows  = accountBalances.filter(a => a.type === 'bank')
+          const bankTotal = bankRows.reduce((s, a) => s + a.balance, 0)
+          return (
+            <div className="mt-2 pt-2 flex flex-col gap-1" style={{ borderTop: '0.5px solid var(--c-border)' }}>
+              {cashRows.map(a => (
+                <div key={a.id} className="flex justify-between text-[11px]">
+                  <span style={{ color: 'var(--c-muted)' }}>💵 {a.name}</span>
+                  <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
+                    {fmt(a.balance)}
+                  </span>
+                </div>
+              ))}
+              {bankRows.length > 0 && (
+                <button onClick={() => setShowBanks(v => !v)}
+                  className="flex justify-between items-center text-[11px] w-full text-left">
+                  <span style={{ color: 'var(--c-muted)' }}>
+                    🏦 Bank
+                    <span className="ml-1" style={{ color: 'var(--c-faint)' }}>
+                      {showBanks ? '▾' : '▸'} {bankRows.length} accounts
                     </span>
-                  )}
-                </span>
-                <span className="font-semibold" style={{ color: a.balance >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
-                  {fmt(a.balance)}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+                  </span>
+                  <span className="font-semibold" style={{ color: bankTotal >= 0 ? 'var(--c-text)' : '#E24B4A' }}>
+                    {fmt(bankTotal)}
+                  </span>
+                </button>
+              )}
+              {showBanks && bankRows.map(a => (
+                <div key={a.id} className="flex justify-between text-[10px] pl-5">
+                  <span style={{ color: 'var(--c-faint)' }}>
+                    {a.name}
+                    {a.isMain && (
+                      <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
+                        style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                        MAIN
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-medium" style={{ color: a.balance >= 0 ? 'var(--c-muted)' : '#E24B4A' }}>
+                    {fmt(a.balance)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        })()}
       </Card>
 
       {/* Receivables alert — money owed TO the farm by buyers */}
