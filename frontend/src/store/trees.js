@@ -122,15 +122,18 @@ export const useTreeStore = create((set, get) => ({
   },
 
   addSpecies: async ({ nameLocal, nameEn, purpose, notes }) => {
-    const { error } = await supabase.from('tree_species').insert({
+    // Returns the created row so the add-tree flow can chain straight into the
+    // planting form — where the tree gets its count and its location.
+    const { data, error } = await supabase.from('tree_species').insert({
       farm_id:    getFarmId(),
       name_local: nameLocal.trim(),
       name_en:    nameEn?.trim() || null,
       purpose,
       notes:      notes?.trim() || null,
-    })
+    }).select().single()
     if (error) throw error
     await get().load()
+    return data
   },
 
   updateSpecies: async (id, { nameLocal, nameEn, purpose, notes }) => {

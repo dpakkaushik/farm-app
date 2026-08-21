@@ -88,7 +88,7 @@ function Choice({ options, value, onChange }) {
 const displayName = sp => sp.nameEn?.trim() || sp.nameLocal
 
 // ── Species form ──────────────────────────────────────────────────────────────
-function SpeciesModal({ species, onClose }) {
+function SpeciesModal({ species, onClose, onCreated }) {
   const { addSpecies, updateSpecies } = useTreeStore()
   const [form, setForm] = useState({
     nameLocal: species?.nameLocal || '',
@@ -106,9 +106,18 @@ function SpeciesModal({ species, onClose }) {
       // name_local is NOT NULL in the database, but the English name is the one
       // that gets typed. If only English is given, it stands for both.
       const payload = { ...form, nameLocal: form.nameLocal.trim() || form.nameEn.trim() }
-      if (species) await updateSpecies(species.id, payload)
-      else         await addSpecies(payload)
-      onClose()
+      if (species) {
+        await updateSpecies(species.id, payload)
+        onClose()
+      } else {
+        // A new tree flows straight into the planting form — count and
+        // location live there, and the owner rightly expected "add a tree" to
+        // ask where it stands.
+        const created = await addSpecies(payload)
+        onCreated
+          ? onCreated({ id: created.id, name: payload.nameEn.trim() || payload.nameLocal })
+          : onClose()
+      }
     } catch (e) { alert('Save failed: ' + e.message) }
     finally { setSaving(false) }
   }
@@ -967,6 +976,7 @@ export default function Trees() {
   const [tab, setTab]           = useState('trees')   // 'trees' | 'sales'
   const [filter, setFilter]     = useState('all')     // fruit / timber, within the trees tab
   const [newSpecies, setNew]    = useState(false)
+  const [plantNew, setPlantNew] = useState(null)      // {id, name} — planting step of add-a-tree
   const [error, setError]       = useState(null)
 
   useEffect(() => {
@@ -1023,6 +1033,16 @@ export default function Trees() {
 
         {!error && loaded && tab === 'trees' && (
           <>
+            {/* Add sits above the list at the owner's ask — with many species
+                it had sunk below a screenful of cards. */}
+            {canEdit && (
+              <button onClick={() => setNew(true)}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
+                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                <Plus size={15} /> Add a tree
+              </button>
+            )}
+
             {species.length > 0 && (
               <FilterChips value={filter} onChange={setFilter}
                 options={[['all', 'All'], ['fruit', '🍋 Fruiting'], ['timber', '🪵 Timber']]} />
@@ -1037,21 +1057,22 @@ export default function Trees() {
             {shown.map(s => (
               <SpeciesCard key={s.id} species={s} plantings={plantingsOf(s.id)} canEdit={canEdit} />
             ))}
-
-            {canEdit && (
-              <button onClick={() => setNew(true)}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
-                <Plus size={15} /> Add a tree
-              </button>
-            )}
           </>
         )}
 
         {!error && loaded && tab === 'sales' && <SalesTab canEdit={canEdit} />}
       </div>
 
-      {newSpecies && <SpeciesModal onClose={() => setNew(false)} />}
+      {newSpecies && (
+        <SpeciesModal
+          onClose={() => setNew(false)}
+          onCreated={s => { setNew(false); setPlantNew(s) }} />
+      )}
+      {/* Step 2 of add-a-tree: how many, and where they stand. */}
+      {plantNew && (
+        <PlantingModal speciesId={plantNew.id} speciesName={plantNew.name}
+          onClose={() => setPlantNew(null)} />
+      )}
     </div>
   )
 }

@@ -37,7 +37,18 @@ Attendance tab, Log Work form scrolled into view via `#log-work-form`); "Issue I
 in-place modals they used to open — `LogActivityModal` and `IssueInputModal` at the bottom of
 Field.jsx — are **DELETED, and deservedly**: the activity modal silently logged today's date
 whatever date was picked, and the issue modal's labour path wrote plain day-rate `logLabour`
-rows bypassing the contract-type Log Work system. Do not resurrect them. **The day card's Tasks Due block
+rows bypassing the contract-type Log Work system. Do not resurrect them.
+**Trees, four screenshot points (21 Aug):** (1) Add-a-tree moved to the TOP of the list —
+shipped. (2) "Add tree has no location" — the location was never missing, it lives on the
+PLANTING (plot/boundary + sides, migration 0006), one step past the species form he was
+looking at; now Add a tree CHAINS into the planting form automatically (`addSpecies` returns
+the created row for this). (3) Sapling-purchase expenses: answered, not built — today it's
+Log Expense → Other; recommended a 🌳 Trees expense type (needs a category added to the 0019
+check constraint, so a migration) — awaiting his word. (4) Buyer-not-in-list on tree sales:
+already handled by design — the Buyer dropdown plus a free-text name (`tree_revenue.
+buyer_name`, the deliberate fallback); dues tracked per sale via pending/partial/paid, not in
+the party khata. Told him: type the thekedar once; add him to Buyers only if he becomes a
+regular. **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —
