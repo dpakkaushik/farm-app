@@ -34,7 +34,14 @@ expand the per-account breakup (MAIN pill kept on Vipul's). This **reverses his 
 "only main account, no partner detail" ruling** — his words, 21 Aug: *"should show Bank and
 should be expandable to show breakup of bank accounts"* — do not collapse it back. Move Money
 keeps all six banks in its dropdowns (his call: *"keep the choice"*), reordered at his ask so
-Vipul's main account leads the list, tagged "· main". Also live
+Vipul's main account leads the list, tagged "· main". **Also 21 Aug, three phone-screenshot
+fixes:** (1) the per-card "📋 Assign / Log Task" button and its `LogTaskModal` are DELETED —
+his call, Log Work below attendance does the job better; old logs it wrote (no contract type)
+still render via the day-rate fallback in `MonthWorkLogs`; (2) full-screen overlays now pad
+past the phone's status bar / gesture bar with `env(safe-area-inset-*)` (the pattern App.jsx
+already used): ImageCropper's Done sat behind the gesture bar, ImageViewer's pencil/bin sat
+under the clock, plus Labour's khata overlay header and Media's capture ✕ / tag form /
+gallery nav (its guessed `pt-12` replaced with the exact inset). Also live
 in production, seen in his screenshot: **the first
 real recovery** — Deepak repaid **₹5,000 cash on 19 Aug** (still owes ₹8,933; workers' total
 debt now ₹56,420), which moved cash in hand −16,841 → **−11,841** — the recovery makes the

@@ -69,7 +69,11 @@ export default function ImageViewer({
 
   return (
     <div className="fixed inset-0 z-[60] bg-black flex flex-col" onClick={onClose}>
-      <div className="flex items-center justify-between px-3 py-2.5 shrink-0" onClick={e => e.stopPropagation()}>
+      {/* Full-screen overlay: pad past the phone's status bar or the pencil/bin/download
+          buttons sit under the clock and network icons, near-impossible to tap */}
+      <div className="flex items-center justify-between px-3 py-2.5 shrink-0"
+        style={{ paddingTop: 'calc(0.625rem + env(safe-area-inset-top, 0px))' }}
+        onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center">
           <X size={16} />
         </button>
@@ -133,7 +137,10 @@ export default function ImageViewer({
       </div>
 
       {!pdf && (
-        <p className="text-center text-[10px] text-white/40 pb-3 shrink-0">Double-tap to zoom</p>
+        <p className="text-center text-[10px] text-white/40 shrink-0"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+          Double-tap to zoom
+        </p>
       )}
     </div>
   )

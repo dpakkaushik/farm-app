@@ -66,7 +66,9 @@ export default function ImageCropper({ file, onDone, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-[70] bg-black flex flex-col">
-      <div className="flex items-center justify-between px-3 py-2.5 shrink-0">
+      {/* Full-screen overlay: pad past the phone's status bar or ✕/Skip sit under it */}
+      <div className="flex items-center justify-between px-3 py-2.5 shrink-0"
+        style={{ paddingTop: 'calc(0.625rem + env(safe-area-inset-top, 0px))' }}>
         <button onClick={onCancel} className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center">
           <X size={16} />
         </button>
@@ -84,8 +86,10 @@ export default function ImageCropper({ file, onDone, onCancel }) {
       </div>
 
       {/* Dark chrome, both themes. The controls are white-on-translucent, so a themed
-          surface (white in light mode) would render them invisible. */}
-      <div className="shrink-0 px-4 py-3 space-y-3" style={{ background: '#141414' }}>
+          surface (white in light mode) would render them invisible. Bottom padding
+          clears the phone's gesture bar — Done was sitting behind it. */}
+      <div className="shrink-0 px-4 py-3 space-y-3"
+        style={{ background: '#141414', paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="flex items-center gap-3">
           <button onClick={() => setRotation(r => (r + 90) % 360)} title="Rotate"
             className="w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center shrink-0 active:bg-white/25">

@@ -38,7 +38,7 @@ const MODAL_KIND = {
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, logLabour, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, plots, logLabourBatch } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, plots, logLabourBatch } = useAppStore()
   const permanentStaff    = allStaff.filter(s => s.isActive !== false)
   const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
@@ -95,7 +95,7 @@ export default function Labour() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} logLabour={logLabour} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} summaryMonth={logMonth} setSummaryMonth={setLogMonth} summaryAtt={logMonthAtt} onAttendanceMarked={onAttendanceMarked} />}
+        {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} summaryMonth={logMonth} setSummaryMonth={setLogMonth} summaryAtt={logMonthAtt} onAttendanceMarked={onAttendanceMarked} />}
         {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} recordWorkerRecovery={recordWorkerRecovery} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
 
@@ -216,14 +216,13 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
 // `summaryMonth` is the month the folded-in Logs strip reports on, shared with the
 // Salary tab. Deliberately distinct from this screen's own `selMonth`, which only
 // drives a worker's expanded attendance calendar.
-function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, logLabour, showToast, plots, logLabourBatch, summaryMonth, setSummaryMonth, summaryAtt, onAttendanceMarked }) {
+function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles, cropMaster, showToast, plots, logLabourBatch, summaryMonth, setSummaryMonth, summaryAtt, onAttendanceMarked }) {
   const { activityTypes } = useAppStore()
   const { activeFarmId } = useAuthStore()
   const [attTab,        setAttTab]       = useState(() => permanentStaff.length > 0 ? 'staff' : 'labour')
   const [attendance,    setAttendance]   = useState({})
   const [loadingAtt,    setLoadingAtt]   = useState(true)
   const [savingAtt,     setSavingAtt]    = useState({})
-  const [showLogModal,  setShowLogModal] = useState(null)
   const [selMonth,      setSelMonth]     = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [monthAtt,      setMonthAtt]     = useState([])
   const [monthLogs,     setMonthLogs]    = useState([])
@@ -478,12 +477,6 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                   ))}
                 </div>
 
-                {attTab === 'labour' && (status === 'present' || status === 'half_day') && (
-                  <button onClick={() => setShowLogModal(l.id)}
-                    className="mt-2 w-full py-1.5 text-[10px] font-semibold rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:border-[#1D9E75]/40 hover:text-[#1D9E75] transition-colors">
-                    📋 Assign / Log Task
-                  </button>
-                )}
                 {expandedWorker === l.id && (
                   <WorkerCalendar
                     workerId={l.id}
@@ -517,79 +510,6 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           pilled, so logging still confirms itself on the spot. */}
       <MonthWorkLogs logs={summaryLogs} month={summaryMonth} />
 
-      {showLogModal && (
-        <LogTaskModal
-          labourer={regularLabourers.find(l => l.id === showLogModal)}
-          cropCycles={cropCycles}
-          cropMaster={cropMaster}
-          logLabour={logLabour}
-          showToast={showToast}
-          onClose={() => setShowLogModal(null)}
-        />
-      )}
-    </div>
-  )
-}
-
-// ── Assign / Log Task for a regular labourer ──────────────────────────────────
-function LogTaskModal({ labourer, cropCycles, cropMaster, logLabour, showToast, onClose }) {
-  const [form, setForm] = useState({ cycleId: '', purpose: '', date: TODAY_STR })
-  const [saving, setSaving] = useState(false)
-
-  const submit = async () => {
-    if (!labourer) return
-    const cycle = cropCycles.find(c => c.id === form.cycleId)
-    setSaving(true)
-    try {
-      await logLabour({
-        labourType:     'regular',
-        labourMasterId: labourer.id,
-        labourName:     labourer.name,
-        plotId:         cycle?.plotId || null,
-        cropCycleId:    form.cycleId || null,
-        date:           form.date,
-        workers:        1,
-        ratePerDay:     labourer.ratePerDay,
-        totalCost:      labourer.ratePerDay,
-        purpose:        form.purpose || 'Daily work',
-      })
-      showToast(`Task logged for ${labourer.name}`)
-      onClose()
-    } catch (e) { showToast('Failed: ' + e.message, 'warn') }
-    setSaving(false)
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.75)' }} onClick={onClose}>
-      <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 border-t border-[var(--c-border-md)] space-y-3" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-[var(--c-text)]">Log Task</h3>
-            <p className="text-xs text-[var(--c-muted)]">{labourer?.name} · ₹{labourer?.ratePerDay}/day</p>
-          </div>
-          <button onClick={onClose} className="text-[var(--c-muted)] hover:text-[var(--c-text)]"><X size={18}/></button>
-        </div>
-        <FRow label="Plot / Cycle">
-          <select className="finput" value={form.cycleId} onChange={e => setForm(p => ({ ...p, cycleId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
-            <option value="" style={{ background: 'var(--c-surface)' }}>Farm-wide / General</option>
-            {cropCycles.filter(c => c.status === 'active').map(c => {
-              const crop = cropMaster.find(cr => cr.id === c.cropId)
-              return <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.plotLabel} — {crop?.name || ''}</option>
-            })}
-          </select>
-        </FRow>
-        <FRow label="Task / Purpose">
-          <input className="finput" placeholder="e.g. Irrigation, weeding, spraying" value={form.purpose} onChange={e => setForm(p => ({ ...p, purpose: e.target.value }))} />
-        </FRow>
-        <FRow label="Date">
-          <input type="date" className="finput" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={{ colorScheme: 'dark' }} />
-        </FRow>
-        <button onClick={submit} disabled={saving}
-          className="w-full py-3 bg-[#1D9E75] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
-          {saving ? 'Saving…' : 'Log Task'}
-        </button>
-        <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
-      </div>
     </div>
   )
 }
@@ -640,7 +560,8 @@ function MonthWorkLogs({ logs, month }) {
         <p className="text-center text-[var(--c-faint)] text-sm py-4">No logs for this month.</p>
       )}
       {ordered.map(l => {
-        // A log from the Assign/Log Task modal carries no contract type, so it falls
+        // Logs written by the old Assign/Log Task modal (removed 21 Aug — Log Work
+        // below attendance does its job) carry no contract type, so they fall
         // back to the plain day rate — otherwise those rows would show no rate at all.
         const ct   = l.contractType ? CONTRACT_TYPES.find(c => c.value === l.contractType) : null
         // A job spanning plots is one log per plot, but `contract_qty` is not
@@ -1022,8 +943,9 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       {/* Ledger overlay */}
       {ledger && (
         <div className="fixed inset-0 z-50 flex flex-col bg-[var(--c-bg)]">
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-nav)]">
+          {/* Header — padded past the phone's status bar (full-screen overlay) */}
+          <div className="px-4 py-3 border-b border-[var(--c-border)] bg-[var(--c-nav)]"
+            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h2 className="text-sm font-bold text-[var(--c-text)]">📒 {ledger.worker.name}</h2>

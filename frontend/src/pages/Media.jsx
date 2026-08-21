@@ -439,13 +439,15 @@ export default function Media() {
               <img src={preview} alt="capture" className="w-full h-full object-contain"/>
             )}
             <button onClick={resetCapture} disabled={isBusy}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center disabled:opacity-40">
+              className="absolute right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center disabled:opacity-40"
+              style={{ top: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
               <X size={18} className="text-[var(--c-text)]"/>
             </button>
           </div>
 
-          {/* Tag form */}
-          <div className="shrink-0 bg-[var(--c-nav)] rounded-t-3xl p-5 space-y-4 border-t border-[var(--c-border-md)]">
+          {/* Tag form — bottom padding clears the phone's gesture bar */}
+          <div className="shrink-0 bg-[var(--c-nav)] rounded-t-3xl p-5 space-y-4 border-t border-[var(--c-border-md)]"
+            style={{ paddingBottom: 'calc(1.25rem + env(safe-area-inset-bottom, 0px))' }}>
             <p className="text-sm font-bold text-[var(--c-text)]">
               Tag this {captureType === 'video' ? 'video' : 'photo'}
             </p>
@@ -517,9 +519,11 @@ export default function Media() {
       {viewerIdx !== null && filtered[viewerIdx] && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col" onClick={() => setViewerIdx(null)}>
 
-          {/* Nav bar */}
-          <div className="shrink-0 flex items-center justify-between px-4 pt-12 pb-3 absolute top-0 left-0 right-0 z-10
+          {/* Nav bar — safe-area instead of a guessed pt-12, so it clears the
+              status bar exactly on every phone */}
+          <div className="shrink-0 flex items-center justify-between px-4 pb-3 absolute top-0 left-0 right-0 z-10
                           bg-gradient-to-b from-black/80 to-transparent"
+            style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             onClick={e => e.stopPropagation()}>
             <button onClick={() => setViewerIdx(null)}
               className="w-9 h-9 rounded-full bg-[var(--c-ghost)] flex items-center justify-center">
