@@ -40,9 +40,9 @@ export default function CreateFarmModal({ onClose }) {
         {/* Crosshair fixed in screen center */}
         <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ position: 'relative', width: '40px', height: '40px' }}>
-            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', background: '#1D9E75', transform: 'translateY(-50%)' }} />
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#1D9E75', transform: 'translateX(-50%)' }} />
-            <div style={{ position: 'absolute', top: '50%', left: '50%', width: '8px', height: '8px', borderRadius: '50%', background: '#1D9E75', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2px #fff' }} />
+            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', background: '#8A9A5B', transform: 'translateY(-50%)' }} />
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#8A9A5B', transform: 'translateX(-50%)' }} />
+            <div style={{ position: 'absolute', top: '50%', left: '50%', width: '8px', height: '8px', borderRadius: '50%', background: '#8A9A5B', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2px #fff' }} />
           </div>
         </div>
 
@@ -65,7 +65,7 @@ export default function CreateFarmModal({ onClose }) {
             </button>
             <button
               onClick={confirmPickedLocation}
-              style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#1D9E75', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+              style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#8A9A5B', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
             >
               ✓ Confirm Location
             </button>
@@ -125,7 +125,7 @@ export default function CreateFarmModal({ onClose }) {
               <button
                 type="button"
                 onClick={() => setPickMode(true)}
-                style={{ fontSize: '12px', color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ fontSize: '12px', color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
               >
                 📍 Pick on Map
               </button>
@@ -179,7 +179,7 @@ export default function CreateFarmModal({ onClose }) {
             <button
               type="submit"
               disabled={loading}
-              style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '8px', background: loading ? '#9ca3af' : '#1D9E75', color: '#fff', fontSize: '14px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+              style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '8px', background: loading ? '#9ca3af' : '#8A9A5B', color: '#fff', fontSize: '14px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600 }}
             >
               {loading ? 'Creating…' : 'Create Farm'}
             </button>

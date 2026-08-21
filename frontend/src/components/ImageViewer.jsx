@@ -82,7 +82,7 @@ export default function ImageViewer({
         <div className="flex items-center gap-1.5">
           {onReplace && (
             <button onClick={() => inputRef.current?.click()} disabled={busy} title="Change"
-              className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-[#1D9E75] disabled:opacity-40">
+              className="w-9 h-9 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-[#8A9A5B] disabled:opacity-40">
               <Pencil size={15} />
             </button>
           )}
@@ -115,7 +115,7 @@ export default function ImageViewer({
             <div className="text-5xl mb-3">📄</div>
             <p className="text-xs text-white/60 mb-4">PDFs open in a new tab.</p>
             <a href={url} target="_blank" rel="noreferrer"
-              className="inline-block px-5 py-2.5 rounded-xl bg-[#1D9E75] text-white text-xs font-bold">
+              className="inline-block px-5 py-2.5 rounded-xl bg-[#8A9A5B] text-white text-xs font-bold">
               Open document
             </a>
           </div>

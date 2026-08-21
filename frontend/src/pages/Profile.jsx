@@ -94,7 +94,7 @@ export default function Profile({ mustComplete = false }) {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             className="relative w-24 h-24 rounded-full flex items-center justify-center font-extrabold text-3xl overflow-hidden"
-            style={{ background: '#1D9E75', color: '#fff' }}>
+            style={{ background: '#8A9A5B', color: '#fff' }}>
             {avatar
               ? <img src={avatar} alt="" className="w-full h-full object-cover" />
               : initial}
@@ -172,7 +172,7 @@ export default function Profile({ mustComplete = false }) {
           onClick={save}
           disabled={!canSave}
           className="w-full mt-6 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
-          style={{ background: saved ? '#16a34a' : '#1D9E75', color: '#fff' }}>
+          style={{ background: saved ? '#16a34a' : '#8A9A5B', color: '#fff' }}>
           {saved   ? <><Check size={15} /> Saved</>
            : saving ? 'Saving…'
            : mustComplete ? 'Continue →'

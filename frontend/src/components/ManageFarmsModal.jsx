@@ -62,7 +62,7 @@ function FarmList({ farms, onEdit, onDelete, onAdd }) {
         const admin = isAdmin(f.role)
         return (
           <div key={f.farm_id} className="flex items-center gap-3 px-5 py-3">
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: '#1D9E7520' }}>🌾</div>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: '#8A9A5B20' }}>🌾</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.farm_name}</p>
               <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
@@ -83,7 +83,7 @@ function FarmList({ farms, onEdit, onDelete, onAdd }) {
 
       <button onClick={onAdd}
         className="w-full flex items-center gap-3 px-5 py-3 mt-1 text-left"
-        style={{ color: '#1D9E75' }}>
+        style={{ color: '#8A9A5B' }}>
         <Plus size={18} />
         <span className="text-sm font-semibold">Add New Farm</span>
       </button>
@@ -209,5 +209,5 @@ const input   = { width: '100%', padding: '10px 12px', border: '1px solid var(--
 const errBox  = { background: 'rgba(226,75,74,0.1)', border: '1px solid rgba(226,75,74,0.3)', borderRadius: '8px', padding: '10px 14px', color: '#E24B4A', fontSize: '13px' }
 const btnBase = { flex: 1, padding: '11px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }
 const btnGhost   = { ...btnBase, border: '1px solid var(--c-border-md)', background: 'transparent', color: 'var(--c-text)' }
-const btnPrimary = { ...btnBase, border: 'none', background: '#1D9E75', color: '#fff' }
+const btnPrimary = { ...btnBase, border: 'none', background: '#8A9A5B', color: '#fff' }
 const btnDanger  = { ...btnBase, border: 'none', background: '#E24B4A', color: '#fff' }

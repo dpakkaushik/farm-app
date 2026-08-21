@@ -20,7 +20,7 @@ const TABS = [
   { key: 'assets',    label: 'Farm Assets', Icon: Boxes  },
 ]
 const STATUS_STYLE = {
-  in_use:       { bg: '#1D9E7518', color: '#1D9E75', label: 'In Use'    },
+  in_use:       { bg: '#8A9A5B18', color: '#8A9A5B', label: 'In Use'    },
   spare:        { bg: '#4169E118', color: '#4169E1', label: 'Spare'     },
   under_repair: { bg: '#BA751718', color: '#BA7517', label: 'Repair'    },
   disposed:     { bg: '#88888820', color: '#888',    label: 'Disposed'  },
@@ -117,7 +117,7 @@ function SegPicker({ value, options, onChange, danger }) {
       {options.map(([v, l]) => (
         <button key={v} onClick={() => onChange(v)}
           className="flex-1 py-2 text-xs font-semibold transition-colors"
-          style={{ background: value === v ? (danger ? '#E24B4A' : '#1D9E75') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
+          style={{ background: value === v ? (danger ? '#E24B4A' : '#8A9A5B') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
           {l}
         </button>
       ))}
@@ -171,12 +171,12 @@ function EditMachineryModal({ item, onClose, onSave, saving }) {
         <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="0" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
       </div>
       <label className="flex items-center gap-2 cursor-pointer py-1">
-        <input type="checkbox" checked={f.requiresDiesel} onChange={e => u('requiresDiesel', e.target.checked)} className="w-4 h-4 accent-[#1D9E75]" />
+        <input type="checkbox" checked={f.requiresDiesel} onChange={e => u('requiresDiesel', e.target.checked)} className="w-4 h-4 accent-[#8A9A5B]" />
         <span className="text-sm" style={{ color: 'var(--c-text)' }}>⛽ Requires diesel</span>
       </label>
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => onSave(f)} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Save Changes'}
       </button>
     </Modal>
@@ -213,7 +213,7 @@ function EditFarmAssetModal({ item, onClose, onSave, saving }) {
       <FRow label="Purchase Date"><input type="date" className={inp} value={f.purchaseDate} onChange={e => u('purchaseDate', e.target.value)} /></FRow>
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => onSave(f)} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Save Changes'}
       </button>
     </Modal>
@@ -267,13 +267,13 @@ function AddMachineryModal({ onClose, onConfirm, saving, vendors, moneyFields })
         <FRow label="Purchase Price (₹)"><input type="number" className={inp} placeholder="0" value={f.purchasePrice} onChange={e => u('purchasePrice', e.target.value)} /></FRow>
       </div>
       <label className="flex items-center gap-2 cursor-pointer py-1">
-        <input type="checkbox" checked={f.requiresDiesel} onChange={e => u('requiresDiesel', e.target.checked)} className="w-4 h-4 accent-[#1D9E75]" />
+        <input type="checkbox" checked={f.requiresDiesel} onChange={e => u('requiresDiesel', e.target.checked)} className="w-4 h-4 accent-[#8A9A5B]" />
         <span className="text-sm" style={{ color: 'var(--c-text)' }}>⛽ Requires diesel</span>
       </label>
       {moneyFields && <PurchaseSource f={f} u={u} vendors={vendors} billFile={billFile} setBillFile={setBillFile} />}
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => f.name && onConfirm({ ...f, billFile })} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Add Machinery'}
       </button>
     </Modal>
@@ -303,7 +303,7 @@ function AddFarmAssetModal({ onClose, onConfirm, saving, vendors, moneyFields })
       {moneyFields && <PurchaseSource f={f} u={u} vendors={vendors} billFile={billFile} setBillFile={setBillFile} />}
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => f.name && onConfirm({ ...f, billFile })} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Add Asset'}
       </button>
     </Modal>
@@ -322,12 +322,12 @@ function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
           {['all', ...types].map(t => (
             <button key={t} onClick={() => setFilter(t)}
               className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors ${filter===t ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
-              style={{ background: filter===t ? '#1D9E75' : 'var(--c-ghost)' }}>
+              style={{ background: filter===t ? '#8A9A5B' : 'var(--c-ghost)' }}>
               {t === 'all' ? 'All' : (CAT_EMOJI[t]||'🔧')+' '+t.replace(/_/g,' ')}
             </button>
           ))}
         </div>
-        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#1D9E75' }}>
+        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#8A9A5B' }}>
           <Plus size={11} /> Add
         </button>
       </div>
@@ -351,7 +351,7 @@ function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
                 <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
                   {CAT_EMOJI[m.type]||'🔧'} {m.type.replace(/_/g,' ')}{m.make ? ` · ${m.make}` : ''} · Qty {m.quantity}
                 </p>
-                <p className="text-[11px] mt-1 font-bold" style={{ color: m.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
+                <p className="text-[11px] mt-1 font-bold" style={{ color: m.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
                   {fmt(m.purchasePrice) || 'Tap ✏ Edit to set price'}
                 </p>
                 <BillChip item={m} />
@@ -383,12 +383,12 @@ function FarmAssetsTab({ assets, onEdit, onDispose, onPhoto, onAdd }) {
           {['all', ...cats].map(c => (
             <button key={c} onClick={() => setFilter(c)}
               className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors ${filter===c ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
-              style={{ background: filter===c ? '#1D9E75' : 'var(--c-ghost)' }}>
+              style={{ background: filter===c ? '#8A9A5B' : 'var(--c-ghost)' }}>
               {c === 'all' ? 'All' : (CAT_EMOJI[c]||'📦')+' '+c.charAt(0).toUpperCase()+c.slice(1)}
             </button>
           ))}
         </div>
-        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#1D9E75' }}>
+        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#8A9A5B' }}>
           <Plus size={11} /> Add
         </button>
       </div>
@@ -409,7 +409,7 @@ function FarmAssetsTab({ assets, onEdit, onDispose, onPhoto, onAdd }) {
                   <StatusPill status={a.status} />
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>{CAT_EMOJI[a.category]||'📦'} {a.category} · Qty {a.quantity}</p>
-                <p className="text-[11px] mt-1 font-bold" style={{ color: a.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
+                <p className="text-[11px] mt-1 font-bold" style={{ color: a.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
                   {fmt(a.purchasePrice) || 'Tap ✏ Edit to set price'}
                 </p>
                 <BillChip item={a} />
@@ -580,7 +580,7 @@ export default function Assets() {
       <div className="flex border-b shrink-0" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
         {TABS.map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${tab===key ? 'text-[#1D9E75] border-b-2 border-[#1D9E75]' : 'text-[var(--c-muted)]'}`}>
+            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${tab===key ? 'text-[#8A9A5B] border-b-2 border-[#8A9A5B]' : 'text-[var(--c-muted)]'}`}>
             <Icon size={16} />{label}
           </button>
         ))}
@@ -589,7 +589,7 @@ export default function Assets() {
       {/* Book value strip */}
       <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)' }}>
         <div className="flex-1 py-2.5 px-4">
-          <p className="text-base font-bold" style={{ color: '#1D9E75' }}>{tabValue > 0 ? fmt(tabValue) : '₹—'}</p>
+          <p className="text-base font-bold" style={{ color: '#8A9A5B' }}>{tabValue > 0 ? fmt(tabValue) : '₹—'}</p>
           <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>This tab · {tabCount} items</p>
         </div>
         <div className="px-4 py-2.5 text-right border-l" style={{ borderColor: 'var(--c-border)' }}>
@@ -621,7 +621,7 @@ export default function Assets() {
 
       {toast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-lg text-white"
-          style={{ background: toast.type === 'error' ? '#E24B4A' : toast.type === 'warn' ? '#BA7517' : '#1D9E75' }}>
+          style={{ background: toast.type === 'error' ? '#E24B4A' : toast.type === 'warn' ? '#BA7517' : '#8A9A5B' }}>
           {toast.msg}
         </div>
       )}

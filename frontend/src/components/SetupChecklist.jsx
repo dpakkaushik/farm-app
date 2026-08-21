@@ -148,8 +148,8 @@ function CardButton({ done, label, onClick }) {
     <button onClick={onClick}
       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold"
       style={done
-        ? { background: '#1D9E7518', color: '#1D9E75', border: '1px solid #1D9E7540' }
-        : { background: '#1D9E75', color: '#fff', border: '1px solid #1D9E75' }}>
+        ? { background: '#8A9A5B18', color: '#8A9A5B', border: '1px solid #8A9A5B40' }
+        : { background: '#8A9A5B', color: '#fff', border: '1px solid #8A9A5B' }}>
       {done && <Check size={13} />}{label}
     </button>
   )
@@ -212,7 +212,7 @@ function SaveBar({ onSave, saving, disabled, label = 'Save' }) {
     <div className="px-4 pt-4">
       <button onClick={onSave} disabled={saving || disabled}
         className="w-full py-3 rounded-xl text-[14px] font-bold"
-        style={{ background: saving || disabled ? 'var(--c-ghost)' : '#1D9E75',
+        style={{ background: saving || disabled ? 'var(--c-ghost)' : '#8A9A5B',
                  color: saving || disabled ? 'var(--c-faint)' : '#fff' }}>
         {saving ? 'Saving…' : label}
       </button>
@@ -270,11 +270,11 @@ function MenuView({ done, goLiveDate, onPick, onCycles, onLedger, onLabour, onCl
           <button key={key} onClick={go}
             className="flex items-start gap-3 rounded-xl border p-3.5 text-left"
             style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
-            <Icon size={18} style={{ color: '#1D9E75', marginTop: '1px' }} />
+            <Icon size={18} style={{ color: '#8A9A5B', marginTop: '1px' }} />
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-bold flex items-center gap-1.5" style={{ color: 'var(--c-text)' }}>
                 {title}
-                {done && <Check size={13} style={{ color: '#1D9E75' }} />}
+                {done && <Check size={13} style={{ color: '#8A9A5B' }} />}
               </p>
               <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>{body}</p>
             </div>
@@ -484,7 +484,7 @@ function BuyersForm({ buyers, goLiveDate, onBack, onSave, onDone }) {
               <div className="flex-1 min-w-0">
                 <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{b.name}</p>
                 {Number(b.openingBalance || 0) !== 0 && (
-                  <p className="text-[10px]" style={{ color: '#1D9E75' }}>
+                  <p className="text-[10px]" style={{ color: '#8A9A5B' }}>
                     already set: ₹{Number(b.openingBalance).toLocaleString('en-IN')}
                   </p>
                 )}

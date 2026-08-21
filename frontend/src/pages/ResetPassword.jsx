@@ -65,7 +65,7 @@ export default function ResetPassword() {
   const wrap = (children) => (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f4c35 0%, #1D9E75 100%)',
+      background: 'linear-gradient(135deg, #0f4c35 0%, #8A9A5B 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
     }}>
       <div style={{
@@ -97,7 +97,7 @@ export default function ResetPassword() {
         and they expire. Request a fresh one from the sign-in screen.
       </p>
       <button onClick={() => navigate('/', { replace: true })}
-        style={{ padding: '11px 24px', border: 'none', borderRadius: '10px', background: '#1D9E75', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
+        style={{ padding: '11px 24px', border: 'none', borderRadius: '10px', background: '#8A9A5B', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
         Back to sign in
       </button>
     </>
@@ -132,7 +132,7 @@ export default function ResetPassword() {
         <button type="submit" disabled={saving}
           style={{
             padding: '14px', border: 'none', borderRadius: '10px',
-            background: saving ? '#9ca3af' : '#1D9E75', color: '#fff',
+            background: saving ? '#9ca3af' : '#8A9A5B', color: '#fff',
             fontSize: '16px', fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', marginTop: '4px',
           }}>
           {saving ? 'Saving…' : 'Update password'}

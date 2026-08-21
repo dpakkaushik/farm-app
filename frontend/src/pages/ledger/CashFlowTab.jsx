@@ -17,7 +17,7 @@ const fmtDate = (d) => {
 }
 
 const amountColour = (n) =>
-  n > 0 ? '#1D9E75' : n < 0 ? '#E24B4A' : 'var(--c-faint)'
+  n > 0 ? '#8A9A5B' : n < 0 ? '#E24B4A' : 'var(--c-faint)'
 
 // A signed amount, with the minus sign inside the rupee formatting rather than
 // bolted on front of it.
@@ -70,7 +70,7 @@ function Line({ line }) {
                 </span>
               </span>
               <span className="text-[10px] tabular-nums shrink-0"
-                style={{ color: e.direction === 'in' ? '#1D9E75' : '#E24B4A' }}>
+                style={{ color: e.direction === 'in' ? '#8A9A5B' : '#E24B4A' }}>
                 {e.direction === 'in' ? fmt(e.amount) : `−${fmt(e.amount)}`}
               </span>
             </div>
@@ -213,7 +213,7 @@ export default function CashFlowTab({
       <Band label="Closing cash (all pockets)" value={flow.closingCash}>
         <div className="flex items-center gap-1 pt-1.5">
           {flow.reconciles ? (
-            <span className="text-[9px] font-semibold" style={{ color: '#1D9E75' }}>
+            <span className="text-[9px] font-semibold" style={{ color: '#8A9A5B' }}>
               ✓ matches Cash Book
             </span>
           ) : (

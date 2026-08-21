@@ -85,7 +85,7 @@ export default function Login() {
     setLoading(false)
   }
 
-  const inputCls = 'w-full rounded-xl px-4 py-3 text-sm outline-none border focus:border-[#1D9E75]'
+  const inputCls = 'w-full rounded-xl px-4 py-3 text-sm outline-none border focus:border-[#8A9A5B]'
   const inputStyle = { background: 'var(--c-ghost)', borderColor: 'var(--c-border-md)', color: 'var(--c-text)' }
 
   // Everything that isn't signup is a way of getting back into an existing account.
@@ -118,10 +118,10 @@ export default function Login() {
               <button key={t.key} onClick={() => switchMode(t.key)}
                 className="py-2.5 text-sm font-bold rounded-lg transition-all"
                 style={{
-                  background: t.active ? '#1D9E75' : 'transparent',
+                  background: t.active ? '#8A9A5B' : 'transparent',
                   color:      t.active ? '#fff'    : 'var(--c-muted)',
                   border: 'none', cursor: 'pointer',
-                  boxShadow: t.active ? '0 2px 8px rgba(29,158,117,0.35)' : 'none',
+                  boxShadow: t.active ? '0 2px 8px rgba(138,154,91,0.35)' : 'none',
                 }}>
                 {t.label}
               </button>
@@ -135,9 +135,9 @@ export default function Login() {
                 <button key={m} onClick={() => switchMode(m)}
                   className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors"
                   style={{
-                    background:  mode === m ? '#1D9E7518' : 'transparent',
-                    borderColor: mode === m ? '#1D9E7560' : 'var(--c-border-md)',
-                    color:       mode === m ? '#1D9E75'   : 'var(--c-muted)',
+                    background:  mode === m ? '#8A9A5B18' : 'transparent',
+                    borderColor: mode === m ? '#8A9A5B60' : 'var(--c-border-md)',
+                    color:       mode === m ? '#8A9A5B'   : 'var(--c-muted)',
                     cursor: 'pointer',
                   }}>
                   {m === 'password' ? '🔑 Password' : '📧 Email Link'}
@@ -161,11 +161,11 @@ export default function Login() {
               </div>
               {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
               <button type="submit" disabled={loading}
-                className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
                 {loading ? 'Signing in…' : 'Sign In'}
               </button>
               <button type="button" onClick={() => switchMode('reset')}
-                className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', paddingTop: '4px' }}>
+                className="w-full text-xs text-center" style={{ background: 'none', border: 'none', color: '#8A9A5B', cursor: 'pointer', paddingTop: '4px' }}>
                 Forgot password?
               </button>
               <button type="button" onClick={() => switchMode('magic')}
@@ -190,7 +190,7 @@ export default function Login() {
                     Click it, then come back here and sign in with your password to set up your farm.
                   </div>
                   <button type="button" onClick={() => switchMode('password')}
-                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', textDecoration: 'underline' }}>
+                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#8A9A5B', cursor: 'pointer', textDecoration: 'underline' }}>
                     ← Back to sign in
                   </button>
                 </div>
@@ -216,7 +216,7 @@ export default function Login() {
                   </div>
                   {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
                   <button type="submit" disabled={loading}
-                    className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    className="w-full py-3 bg-[#8A9A5B] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
                     {loading ? 'Creating account…' : 'Create Account →'}
                   </button>
                 </>
@@ -237,7 +237,7 @@ export default function Login() {
                     Click it to choose a new password.
                   </div>
                   <button type="button" onClick={() => setResetSent(false)}
-                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', textDecoration: 'underline' }}>
+                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#8A9A5B', cursor: 'pointer', textDecoration: 'underline' }}>
                     Resend link
                   </button>
                 </div>
@@ -253,7 +253,7 @@ export default function Login() {
                   </div>
                   {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
                   <button type="submit" disabled={loading}
-                    className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    className="w-full py-3 bg-[#8A9A5B] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
                     {loading ? 'Sending…' : '🔑 Send Reset Link'}
                   </button>
                   <button type="button" onClick={() => switchMode('password')}
@@ -278,7 +278,7 @@ export default function Login() {
                     Click it to sign in — no password needed.
                   </div>
                   <button type="button" onClick={() => setMagicSent(false)}
-                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#1D9E75', cursor: 'pointer', textDecoration: 'underline' }}>
+                    className="text-xs mt-4" style={{ background: 'none', border: 'none', color: '#8A9A5B', cursor: 'pointer', textDecoration: 'underline' }}>
                     Resend link
                   </button>
                 </div>
@@ -294,7 +294,7 @@ export default function Login() {
                   </div>
                   {error && <p className="text-xs text-[#E24B4A] bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl px-3 py-2">{error}</p>}
                   <button type="submit" disabled={loading}
-                    className="w-full py-3 bg-[#1D9E75] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
+                    className="w-full py-3 bg-[#8A9A5B] text-white font-semibold rounded-xl text-sm disabled:opacity-50">
                     {loading ? 'Sending…' : '📧 Send Login Link'}
                   </button>
                 </>

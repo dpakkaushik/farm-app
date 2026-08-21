@@ -10,7 +10,7 @@ import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/w
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
 const PALETTE_COLORS = [
-  '#DCBC28','#1D9E75','#BA7517','#4169E1','#C23B22',
+  '#DCBC28','#8A9A5B','#BA7517','#4169E1','#C23B22',
   '#7B2D8B','#2AB5B5','#86B335','#E8742A','#E84393',
   '#8B4513','#1A3A5C','#FF6B6B','#5F8A5E','#8B2252',
 ]
@@ -47,7 +47,7 @@ export default function Admin() {
           {TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors
-                ${tab === t ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
+                ${tab === t ? 'border-[#8A9A5B] text-[#8A9A5B]' : 'border-transparent text-[var(--c-muted)]'}`}>
               {t}
             </button>
           ))}
@@ -134,13 +134,13 @@ function CropsMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => { setEnterCustom(false); setForm({}) }}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add Crop to Master
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
           <FRow label="Crop">
             <select
               className="finput"
@@ -179,7 +179,7 @@ function CropsMaster() {
                 return (
                   <button key={emoji} type="button"
                     onClick={() => !isUsed && setForm(p => ({ ...p, emoji }))}
-                    className={`text-lg p-1 rounded-lg border transition-all ${isSel ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : isUsed ? 'opacity-25 cursor-not-allowed border-transparent' : 'border-[var(--c-border-md)] hover:border-white/30'}`}
+                    className={`text-lg p-1 rounded-lg border transition-all ${isSel ? 'bg-[#8A9A5B]/30 border-[#8A9A5B] scale-110' : isUsed ? 'opacity-25 cursor-not-allowed border-transparent' : 'border-[var(--c-border-md)] hover:border-white/30'}`}
                     title={isUsed ? 'Already used by another crop' : emoji}>
                     {emoji}
                   </button>
@@ -253,7 +253,7 @@ function CropsMaster() {
               <p className="text-[11px] font-semibold text-[var(--c-text)]">By-products / Residuals</p>
               <button type="button"
                 onClick={() => setForm(p => ({ ...p, residuals: [...(p.residuals || []), { name: '', unit: 'quintal', qty_per_acre: '', expected_rate: '' }] }))}
-                className="text-[10px] text-[#1D9E75] border border-[#1D9E75]/40 px-2 py-0.5 rounded-lg hover:bg-[#1D9E75]/10">
+                className="text-[10px] text-[#8A9A5B] border border-[#8A9A5B]/40 px-2 py-0.5 rounded-lg hover:bg-[#8A9A5B]/10">
                 + Add Residual
               </button>
             </div>
@@ -285,7 +285,7 @@ function CropsMaster() {
 
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Crop' : 'Save to Database'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -301,7 +301,7 @@ function CropsMaster() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--c-text)]">{c.emoji} {c.name}</p>
               <p className="text-[10px] text-[var(--c-muted)]">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
-              {activeCycles > 0 && <p className="text-[10px] text-[#1D9E75] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
+              {activeCycles > 0 && <p className="text-[10px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -309,7 +309,7 @@ function CropsMaster() {
                   setEnterCustom(!CROP_NAME_LIST.includes(c.name))
                   setForm({ id: c.id, name: c.name, emoji: c.emoji, color: c.color, duration_days: c.duration_days, harvest_window_days: c.harvest_window_days, season_type: c.season_type, yieldPerAcre: c.yieldPerAcre, pricePerQtl: c.pricePerQtl, varietyCategory: c.varietyCategory || null, residuals: c.residuals || [] })
                 }}
-                className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+                className="text-xs text-[#8A9A5B] px-2 py-1 border border-[#8A9A5B]/30 rounded-lg hover:bg-[#8A9A5B]/10 transition-colors">
                 Edit
               </button>
               <button onClick={() => handleDelete(c.id, c.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A] shrink-0">
@@ -386,13 +386,13 @@ function InventoryMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm({ category: 'fertilizer' })}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add Inventory Item
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Item' : 'New Item'}</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Item' : 'New Item'}</p>
           <FRow label="Name">
             <input className="finput" placeholder="e.g. DAP"
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -420,7 +420,7 @@ function InventoryMaster() {
           </div>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Item' : 'Save to Database'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -433,12 +433,12 @@ function InventoryMaster() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--c-text)]">{i.name}</p>
             <p className="text-[10px] text-[var(--c-muted)]">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
-            <p className="text-[10px] text-[#1D9E75] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
+            <p className="text-[10px] text-[#8A9A5B] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
           </div>
           <div className="flex items-center gap-2 ml-3 shrink-0">
             <button
               onClick={() => setForm({ id: i.id, name: i.name, category: i.category, unit: i.unit, costPerUnit: i.costPerUnit, minThreshold: i.minThreshold })}
-              className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+              className="text-xs text-[#8A9A5B] px-2 py-1 border border-[#8A9A5B]/30 rounded-lg hover:bg-[#8A9A5B]/10 transition-colors">
               Edit
             </button>
             <button onClick={() => handleDelete(i.id, i.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
@@ -506,13 +506,13 @@ function ActivityTypesMaster() {
       {/* Custom types */}
       <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mt-2">Custom</p>
       <button onClick={() => setForm({ label: '', emoji: '📋' })}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add Custom Activity Type
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">New Activity Type</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">New Activity Type</p>
           <FRow label="Name">
             <input className="finput" placeholder="e.g. Land Levelling"
               value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
@@ -522,7 +522,7 @@ function ActivityTypesMaster() {
             <div className="flex flex-wrap gap-1.5">
               {ACT_EMOJIS.map(e => (
                 <button key={e} onClick={() => setForm(p => ({ ...p, emoji: e }))}
-                  className={`text-lg p-1 rounded-lg border transition-all ${form.emoji === e ? 'bg-[#1D9E75]/30 border-[#1D9E75] scale-110' : 'border-[var(--c-border-md)]'}`}>
+                  className={`text-lg p-1 rounded-lg border transition-all ${form.emoji === e ? 'bg-[#8A9A5B]/30 border-[#8A9A5B] scale-110' : 'border-[var(--c-border-md)]'}`}>
                   {e}
                 </button>
               ))}
@@ -530,7 +530,7 @@ function ActivityTypesMaster() {
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving || !form.label.trim()}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : 'Save'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -593,7 +593,7 @@ function WorkTypesSection({ showToast }) {
           onKeyDown={e => e.key === 'Enter' && save()}
         />
         <button onClick={save} disabled={saving || !newName.trim()}
-          className="px-4 py-2 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+          className="px-4 py-2 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl disabled:opacity-40">
           {saving ? '…' : 'Add'}
         </button>
       </div>
@@ -779,7 +779,7 @@ function LabourMaster() {
       <div className="flex gap-1 bg-[var(--c-nav)] rounded-xl p-1 overflow-x-auto no-scrollbar">
         {LABOUR_TABS.map(([k, lbl]) => (
           <button key={k} onClick={() => { setTab(k); setForm(null) }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${tab === k ? 'bg-[#1D9E75] text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`}>
+            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap ${tab === k ? 'bg-[#8A9A5B] text-[var(--c-text)]' : 'text-[var(--c-muted)]'}`}>
             {lbl}
           </button>
         ))}
@@ -796,7 +796,7 @@ function LabourMaster() {
                   <input type="number" min="0" max="31" autoFocus className="finput w-20 text-sm py-1"
                     value={holidayEdit} onChange={e => setHolidayEdit(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') saveHoliday(); if (e.key === 'Escape') setHolidayEdit(null) }} />
-                  <button onClick={saveHoliday} className="px-3 py-1 bg-[#1D9E75] text-white text-xs font-bold rounded-lg">Save</button>
+                  <button onClick={saveHoliday} className="px-3 py-1 bg-[#8A9A5B] text-white text-xs font-bold rounded-lg">Save</button>
                   <button onClick={() => setHolidayEdit(null)} className="px-2 py-1 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-lg">✕</button>
                 </div>
               : <p className="text-sm font-bold text-[var(--c-text)] mt-0.5">{manpowerSettings.staffMonthlyHolidays} days / month</p>
@@ -804,16 +804,16 @@ function LabourMaster() {
           </div>
           {holidayEdit === null && (
             <button onClick={() => setHolidayEdit(String(manpowerSettings.staffMonthlyHolidays))}
-              className="text-[11px] text-[#1D9E75] border border-[#1D9E75]/30 px-3 py-1.5 rounded-lg hover:bg-[#1D9E75]/10">Edit</button>
+              className="text-[11px] text-[#8A9A5B] border border-[#8A9A5B]/30 px-3 py-1.5 rounded-lg hover:bg-[#8A9A5B]/10">Edit</button>
           )}
         </div>
         <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
-          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
           <Plus size={14} /> Add Staff Member
         </button>
         {form !== null && (
-          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Staff' : 'New Staff Member'}</p>
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+            <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Staff' : 'New Staff Member'}</p>
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Full name">
                 <input className="finput" placeholder="e.g. Suresh Sharma"
@@ -850,7 +850,7 @@ function LabourMaster() {
             </FRow>
             <div className="flex gap-2">
               <button onClick={saveStaff} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+                className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                 {saving ? 'Saving…' : form.id ? 'Update' : 'Save to Database'}
               </button>
               <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -877,12 +877,12 @@ function LabourMaster() {
       {tab === 'regular' && (<>
         <p className="text-[11px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
         <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
-          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
           <Plus size={14} /> Add Regular Labourer
         </button>
         {form !== null && (
-          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-            <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Labourer' : 'New Regular Labourer'}</p>
+          <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+            <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Labourer' : 'New Regular Labourer'}</p>
             <FRow label="Full name">
               <input className="finput" placeholder="e.g. Ramesh Kumar"
                 value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -913,7 +913,7 @@ function LabourMaster() {
             </FRow>
             <div className="flex gap-2">
               <button onClick={saveRegular} disabled={saving}
-                className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+                className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                 {saving ? 'Saving…' : form.id ? 'Update Labourer' : 'Save to Database'}
               </button>
               <button onClick={() => { setForm(null); setPhotoFile(null) }} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -922,7 +922,7 @@ function LabourMaster() {
         )}
         {regularLabourers.map(l => (
           <PersonCard key={l.id}
-            person={l} accentColor="#1D9E75"
+            person={l} accentColor="#8A9A5B"
             isLogOpen={openLog === l.id}
             onToggleLog={() => setOpenLog(openLog === l.id ? null : l.id)}
             onEdit={() => { setPhotoFile(null); setOpenLog(null); setForm({ id: l.id, name: l.name, workType: l.workType, ratePerDay: l.ratePerDay, phone: l.phone || '', openingBalance: l.openingBalance, photoUrl: l.photoUrl }) }}
@@ -1030,7 +1030,7 @@ const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 const ATT_STYLES = {
-  present:    { bg: '#1D9E75', label: 'P' },
+  present:    { bg: '#8A9A5B', label: 'P' },
   half_day:   { bg: '#BA7517', label: 'H' },
   leave:      { bg: '#4169E1', label: 'L' },
   holiday:    { bg: '#7B2D8B', label: 'PH' },
@@ -1192,7 +1192,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
       ) : (
         <div className="flex items-center gap-2 px-1">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-            style={{ background: isStaffPerson ? '#4169E1' + '20' : '#1D9E75' + '20', color: isStaffPerson ? '#4169E1' : '#1D9E75' }}>
+            style={{ background: isStaffPerson ? '#4169E1' + '20' : '#8A9A5B' + '20', color: isStaffPerson ? '#4169E1' : '#8A9A5B' }}>
             {person?.name?.charAt(0)}
           </div>
           <div>
@@ -1244,7 +1244,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
                   <span className="text-[7px] text-[#7B2D8B] leading-none">PH</span>
                 )}
                 {isToday && !style && (
-                  <div className="w-1 h-1 rounded-full bg-[#1D9E75] mt-0.5" />
+                  <div className="w-1 h-1 rounded-full bg-[#8A9A5B] mt-0.5" />
                 )}
               </button>
             )
@@ -1255,7 +1255,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Present',      val: stats.present,  color: '#1D9E75' },
+          { label: 'Present',      val: stats.present,  color: '#8A9A5B' },
           { label: 'Half Day',     val: stats.half_day, color: '#BA7517' },
           { label: 'Leave',        val: stats.leave,    color: '#4169E1' },
           { label: 'P. Holiday',   val: phCount,         color: '#7B2D8B' },
@@ -1274,7 +1274,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
             <p className="text-xs text-[var(--c-muted)]">Estimated salary</p>
             <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{salaryNote}</p>
           </div>
-          <p className="text-xl font-bold text-[#1D9E75]">₹{estSalary.toLocaleString('en-IN')}</p>
+          <p className="text-xl font-bold text-[#8A9A5B]">₹{estSalary.toLocaleString('en-IN')}</p>
         </div>
       )}
 
@@ -1396,18 +1396,18 @@ function PlotsMaster() {
 
   const PointRow = ({ label, latKey, lngKey }) => (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-mono font-semibold text-[#1D9E75] w-6 shrink-0">{label}</span>
+      <span className="text-xs font-mono font-semibold text-[#8A9A5B] w-6 shrink-0">{label}</span>
       <div className="flex-1">
         <input type="number" step="any" placeholder="Latitude (28.xxx)"
           value={form?.[latKey] || ''}
           onChange={e => f(latKey, e.target.value)}
-          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]" />
+          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]" />
       </div>
       <div className="flex-1">
         <input type="number" step="any" placeholder="Longitude (80.xxx)"
           value={form?.[lngKey] || ''}
           onChange={e => f(lngKey, e.target.value)}
-          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]" />
+          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]" />
       </div>
     </div>
   )
@@ -1415,13 +1415,13 @@ function PlotsMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm({ ...EMPTY_PLOT })}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add New Plot
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Plot' : 'New Plot'}</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Plot' : 'New Plot'}</p>
 
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Plot name">
@@ -1465,7 +1465,7 @@ function PlotsMaster() {
 
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Plot' : 'Save to Database'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -1490,7 +1490,7 @@ function PlotsMaster() {
                   <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                     {[['A', plot.point_a_lat, plot.point_a_lng], ['B', plot.point_b_lat, plot.point_b_lng],
                       ['C', plot.point_c_lat, plot.point_c_lng], ['D', plot.point_d_lat, plot.point_d_lng]].map(([lbl, lat, lng]) => (
-                      <span key={lbl} className="text-[9px] text-[#1D9E75]/70 font-mono">
+                      <span key={lbl} className="text-[9px] text-[#8A9A5B]/70 font-mono">
                         {lbl}: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
                       </span>
                     ))}
@@ -1498,7 +1498,7 @@ function PlotsMaster() {
                 ) : (
                   <p className="text-[10px] text-[#BA7517]/70 mt-0.5">No boundary set</p>
                 )}
-                {activeCycles > 0 && <p className="text-[10px] text-[#1D9E75] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
+                {activeCycles > 0 && <p className="text-[10px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
               </div>
               <div className="flex items-center gap-2 ml-3 shrink-0">
                 <button onClick={() => setForm({
@@ -1508,7 +1508,7 @@ function PlotsMaster() {
                   point_b_lat: String(plot.point_b_lat || ''), point_b_lng: String(plot.point_b_lng || ''),
                   point_c_lat: String(plot.point_c_lat || ''), point_c_lng: String(plot.point_c_lng || ''),
                   point_d_lat: String(plot.point_d_lat || ''), point_d_lng: String(plot.point_d_lng || ''),
-                })} className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 transition-colors">
+                })} className="text-xs text-[#8A9A5B] px-2 py-1 border border-[#8A9A5B]/30 rounded-lg hover:bg-[#8A9A5B]/10 transition-colors">
                   Edit
                 </button>
                 <button onClick={() => handleDelete(plot.id, plot.name)} className="text-[var(--c-faint)] hover:text-[#E24B4A]">
@@ -1529,7 +1529,7 @@ function PlotsMaster() {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 const ROLES = [
-  { value: 'admin',     label: 'Admin',     color: '#1D9E75', desc: 'Full access including masters' },
+  { value: 'admin',     label: 'Admin',     color: '#8A9A5B', desc: 'Full access including masters' },
   { value: 'manager',   label: 'Manager',   color: '#BA7517', desc: 'Log activities, issue inventory' },
   { value: 'view_only', label: 'View Only', color: '#888',    desc: 'View + save media only' },
 ]
@@ -1596,13 +1596,13 @@ function UsersMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm({ email:'', password:'', full_name:'', role:'manager', phone:'' })}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <UserPlus size={14} /> Add New User
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">New User</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">New User</p>
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Full name">
               <input className="finput" placeholder="Ramesh Kumar"
@@ -1626,20 +1626,20 @@ function UsersMaster() {
               {ROLES.map(r => (
                 <button key={r.value} type="button"
                   onClick={() => setForm(p => ({ ...p, role: r.value }))}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${form.role === r.value ? 'border-[#1D9E75]/60 bg-[#1D9E75]/10' : 'border-[var(--c-border)] bg-[var(--c-card)]'}`}>
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all text-left ${form.role === r.value ? 'border-[#8A9A5B]/60 bg-[#8A9A5B]/10' : 'border-[var(--c-border)] bg-[var(--c-card)]'}`}>
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
                   <div>
                     <p className="text-xs font-semibold text-[var(--c-text)]">{r.label}</p>
                     <p className="text-[10px] text-[var(--c-muted)]">{r.desc}</p>
                   </div>
-                  {form.role === r.value && <span className="ml-auto text-[#1D9E75] text-xs">✓</span>}
+                  {form.role === r.value && <span className="ml-auto text-[#8A9A5B] text-xs">✓</span>}
                 </button>
               ))}
             </div>
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Creating…' : 'Create User'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -1679,7 +1679,7 @@ function UsersMaster() {
                     </button>
                   ) : (
                     <button onClick={() => handleReactivate(user)}
-                      className="text-[10px] px-2 py-1 rounded-lg border border-[#1D9E75]/30 text-[#1D9E75] hover:bg-[#1D9E75]/10 transition-colors">
+                      className="text-[10px] px-2 py-1 rounded-lg border border-[#8A9A5B]/30 text-[#8A9A5B] hover:bg-[#8A9A5B]/10 transition-colors">
                       Reactivate
                     </button>
                   )}
@@ -1725,7 +1725,7 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
             </a>
           )}
           {person.openingBalance !== 0 && (
-            <p className="text-[10px] mt-1" style={{ color: person.openingBalance > 0 ? '#1D9E75' : '#E24B4A' }}>
+            <p className="text-[10px] mt-1" style={{ color: person.openingBalance > 0 ? '#8A9A5B' : '#E24B4A' }}>
               Opening bal: {person.openingBalance > 0 ? '+' : ''}₹{Number(person.openingBalance).toLocaleString()}
             </p>
           )}
@@ -1746,7 +1746,7 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
           📋 Log
         </button>
         <button onClick={onEdit}
-          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] flex items-center justify-center gap-1 transition-colors">
+          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#8A9A5B] flex items-center justify-center gap-1 transition-colors">
           ✏️ Edit
         </button>
         {isActive ? (
@@ -1757,7 +1757,7 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
         ) : (
           <button onClick={onReactivate}
             className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors"
-            style={{ color: '#1D9E75' }}>
+            style={{ color: '#8A9A5B' }}>
             ▶ Activate
           </button>
         )}
@@ -1874,7 +1874,7 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
               </div>
               {earned !== null && (
                 <div className="text-right shrink-0 ml-3">
-                  <p className="text-sm font-bold text-[#1D9E75]">₹{earned.toLocaleString()}</p>
+                  <p className="text-sm font-bold text-[#8A9A5B]">₹{earned.toLocaleString()}</p>
                   {advance > 0 && (
                     <p className="text-[10px] text-[var(--c-muted)]">Net ₹{net.toLocaleString()}</p>
                   )}
@@ -1922,7 +1922,7 @@ function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onC
 }
 
 function Toast({ msg, type = 'success' }) {
-  const bg   = type === 'warn' ? '#BA7517' : '#1D9E75'
+  const bg   = type === 'warn' ? '#BA7517' : '#8A9A5B'
   const Icon = type === 'warn' ? AlertTriangle : CheckCircle2
   return (
     <div className="fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2"
@@ -1933,7 +1933,7 @@ function Toast({ msg, type = 'success' }) {
 }
 
 const Style = () => (
-  <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
+  <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#8A9A5B;}.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
 )
 
 // ── Buyers Master ─────────────────────────────────────────────────────────────
@@ -1999,27 +1999,27 @@ function BuyersMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm(blank())}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add Buyer
       </button>
 
       {/* filter pills */}
       <div className="flex gap-1.5 flex-wrap">
         <button onClick={() => setFilter('all')}
-          className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === 'all' ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/50'}`}>
+          className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === 'all' ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/50'}`}>
           All
         </button>
         {BUYER_CATEGORIES.map(cat => (
           <button key={cat.key} onClick={() => setFilter(cat.key)}
-            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === cat.key ? 'bg-[#1D9E75] border-[#1D9E75] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/50'}`}>
+            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === cat.key ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/50'}`}>
             {cat.emoji} {cat.label}
           </button>
         ))}
       </div>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">{form.id ? 'Edit Buyer' : 'New Buyer'}</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Buyer' : 'New Buyer'}</p>
           <FRow label="Name">
             <input className="finput" placeholder="Buyer / mill name"
               value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
@@ -2045,7 +2045,7 @@ function BuyersMaster() {
                 const sel = form.buys.includes(cat.key)
                 return (
                   <button key={cat.key} type="button" onClick={() => toggleBuys(cat.key)}
-                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${sel ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#1D9E75]/40'}`}>
+                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${sel ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/40'}`}>
                     {cat.emoji} {cat.label}
                   </button>
                 )
@@ -2055,7 +2055,7 @@ function BuyersMaster() {
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : form.id ? 'Update Buyer' : 'Add Buyer'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -2074,7 +2074,7 @@ function BuyersMaster() {
               {b.contact && <p className="text-[10px] text-[var(--c-faint)]">{b.contact}</p>}
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {cats.length ? cats.map(c => (
-                  <span key={c.key} className="text-[9px] px-1.5 py-0.5 rounded-full border border-[#1D9E75]/30 text-[#1D9E75] bg-[#1D9E75]/08">
+                  <span key={c.key} className="text-[9px] px-1.5 py-0.5 rounded-full border border-[#8A9A5B]/30 text-[#8A9A5B] bg-[#8A9A5B]/08">
                     {c.emoji} {c.label}
                   </span>
                 )) : (
@@ -2083,7 +2083,7 @@ function BuyersMaster() {
               </div>
             </div>
             <button onClick={() => setForm({ id: b.id, name: b.name, address: b.address, contact: b.contact, type: b.type, buys: b.buys })}
-              className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10 shrink-0">
+              className="text-xs text-[#8A9A5B] px-2 py-1 border border-[#8A9A5B]/30 rounded-lg hover:bg-[#8A9A5B]/10 shrink-0">
               Edit
             </button>
           </div>
@@ -2151,7 +2151,7 @@ function PartnersMaster() {
                 autoFocus />
               <div className="flex gap-2">
                 <button onClick={save} disabled={saving}
-                  className="flex-1 py-2 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+                  className="flex-1 py-2 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
                   {saving ? 'Saving…' : 'Save'}
                 </button>
                 <button onClick={() => setEditRow(null)}
@@ -2163,7 +2163,7 @@ function PartnersMaster() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-[var(--c-text)]">{p.name}</p>
                 <button onClick={() => setEditRow({ id: p.id, name: p.name })}
-                  className="text-xs text-[#1D9E75] px-2 py-1 border border-[#1D9E75]/30 rounded-lg hover:bg-[#1D9E75]/10">
+                  className="text-xs text-[#8A9A5B] px-2 py-1 border border-[#8A9A5B]/30 rounded-lg hover:bg-[#8A9A5B]/10">
                   Edit
                 </button>
               </div>
@@ -2172,7 +2172,7 @@ function PartnersMaster() {
                   style={{ borderTop: '0.5px solid var(--c-border)' }}>
                   <span className="text-[11px] text-[var(--c-muted)]">🏦 {a.name}</span>
                   <span className="text-[11px] font-semibold"
-                    style={{ color: balanceOf(a.id) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    style={{ color: balanceOf(a.id) >= 0 ? '#8A9A5B' : '#E24B4A' }}>
                     ₹{balanceOf(a.id).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -2293,13 +2293,13 @@ function CyclesMaster() {
   return (
     <div className="p-4 space-y-3 pb-6">
       <button onClick={() => setForm({ sowDate: today })}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1D9E75]/30 rounded-2xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60">
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Start New Crop Cycle
       </button>
 
       {form !== null && (
-        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#1D9E75]">New Crop Cycle</p>
+        <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
+          <p className="text-xs font-bold text-[#8A9A5B]">New Crop Cycle</p>
 
           <FRow label="Plot (empty plots only)">
             <select className="finput" value={form.plotId || ''} onChange={e => setForm(p => ({ ...p, plotId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
@@ -2371,7 +2371,7 @@ function CyclesMaster() {
 
           <div className="flex gap-2">
             <button onClick={save} disabled={saving || availablePlots.length === 0}
-              className="flex-1 py-2.5 bg-[#1D9E75] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Starting…' : 'Start Cycle'}
             </button>
             <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
@@ -2391,7 +2391,7 @@ function CyclesMaster() {
             return (
               <div key={c.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 mb-2 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-base"
-                  style={{ background: crop?.color || '#1D9E7520' }}>
+                  style={{ background: crop?.color || '#8A9A5B20' }}>
                   {crop?.emoji || '🌱'}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2418,7 +2418,7 @@ function CyclesMaster() {
                         <div className="flex items-center gap-1.5">
                           <button onClick={saveOpeningCost}
                             className="px-2.5 py-1 text-[10px] font-bold rounded-lg"
-                            style={{ background: '#1D9E75', color: '#fff' }}>Save</button>
+                            style={{ background: '#8A9A5B', color: '#fff' }}>Save</button>
                           <button onClick={() => setEditCost(null)}
                             className="px-1.5 py-1 text-[10px] rounded-lg text-[var(--c-muted)]">✕</button>
                         </div>

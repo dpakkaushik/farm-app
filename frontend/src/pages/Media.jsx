@@ -299,7 +299,7 @@ export default function Media() {
       {/* ── Activity filter ── */}
       <div className="shrink-0 px-4 pb-3 overflow-x-auto no-scrollbar">
         <div className="flex gap-2 w-max">
-          <Chip active={actFilter === 'all'} onClick={() => setActFilter('all')} color="#1D9E75">All</Chip>
+          <Chip active={actFilter === 'all'} onClick={() => setActFilter('all')} color="#8A9A5B">All</Chip>
           {ACTIVITIES.map(a => {
             const c = actColor(a)
             return (
@@ -416,7 +416,7 @@ export default function Media() {
         </button>
         <button onClick={() => openCapture('photo')}
           className="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-transform active:scale-95"
-          style={{ background: 'linear-gradient(135deg,#1D9E75,#15805e)', boxShadow: '0 4px 24px rgba(29,158,117,0.5)' }}>
+          style={{ background: 'linear-gradient(135deg,#8A9A5B,#15805e)', boxShadow: '0 4px 24px rgba(138,154,91,0.5)' }}>
           <Camera size={22} className="text-[var(--c-text)]"/>
         </button>
       </div>
@@ -480,7 +480,7 @@ export default function Media() {
                     const opt = e.target.options[e.target.selectedIndex]
                     setForm(p => ({ ...p, plotId: e.target.value, plotLabel: opt.text }))
                   }}
-                  className="w-full border border-[var(--c-border-md)] rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]"
+                  className="w-full border border-[var(--c-border-md)] rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]"
                   style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>Select plot…</option>
                   {allPlots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.label}</option>)}
@@ -492,20 +492,20 @@ export default function Media() {
               <label className="text-xs text-[var(--c-sub)] block mb-1.5">Caption (optional)</label>
               <input placeholder="What's happening here…" value={form.caption}
                 onChange={e => setForm(p => ({ ...p, caption: e.target.value }))}
-                className="w-full border border-[var(--c-border-md)] rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] focus:outline-none focus:border-[#1D9E75]"
+                className="w-full border border-[var(--c-border-md)] rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]"
                 style={{ background: 'var(--c-surface)' }}/>
             </div>
 
             {isBusy && (
               <div className="w-full h-1.5 bg-[var(--c-ghost)] rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-300"
-                  style={{ width: `${uploadProgress}%`, background: '#1D9E75' }}/>
+                  style={{ width: `${uploadProgress}%`, background: '#8A9A5B' }}/>
               </div>
             )}
 
             <button onClick={submitMedia} disabled={(form.activity !== 'events' && !form.plotId) || isBusy}
               className="w-full py-3 rounded-xl text-sm font-bold text-[var(--c-text)] disabled:opacity-50 transition-opacity"
-              style={{ background: '#1D9E75' }}>
+              style={{ background: '#8A9A5B' }}>
               {uploadPhase === 'compressing'
                 ? (captureType === 'video' ? 'Generating thumbnail…' : `Compressing… ${uploadProgress}%`)
                 : uploadPhase === 'uploading' ? 'Uploading…'
@@ -603,7 +603,7 @@ function Chip({ active, onClick, children, color }) {
     <button onClick={onClick}
       className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
       style={active
-        ? { background: (color || '#1D9E75') + '22', borderColor: (color || '#1D9E75') + '60', color: color || '#1D9E75' }
+        ? { background: (color || '#8A9A5B') + '22', borderColor: (color || '#8A9A5B') + '60', color: color || '#8A9A5B' }
         : { background: 'transparent', borderColor: 'var(--c-border-md)', color: 'var(--c-muted)' }}>
       {children}
     </button>

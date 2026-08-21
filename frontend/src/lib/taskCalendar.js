@@ -12,7 +12,7 @@
 // fewer crops than the palette holds. If the owner ever wants to pick colours,
 // that becomes a column on `crops` and this map reads it first.
 export const CROP_PALETTE = [
-  '#1D9E75', // teal — the app's own green
+  '#8A9A5B', // teal — the app's own green
   '#f59e0b', // amber
   '#6366f1', // indigo
   '#ec4899', // pink

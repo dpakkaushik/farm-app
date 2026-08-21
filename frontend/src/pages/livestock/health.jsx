@@ -187,7 +187,7 @@ export function HealthPanel({ animal, animals }) {
       <div className="p-3">
         <button onClick={() => setShowAdd(true)}
           className="w-full py-2 rounded-xl text-[11px] font-semibold border-2 border-dashed flex items-center justify-center gap-1.5"
-          style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
+          style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
           <Plus size={12} /> Log a Vet Visit
         </button>
       </div>
@@ -243,9 +243,9 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
             <button key={v} onClick={() => u('healthStatus', v)}
               className="py-2 rounded-xl text-xs font-semibold border transition-colors"
               style={{
-                background:  f.healthStatus === v ? '#1D9E7518' : 'var(--c-ghost)',
-                borderColor: f.healthStatus === v ? '#1D9E75'   : 'var(--c-border)',
-                color:       f.healthStatus === v ? '#1D9E75'   : 'var(--c-muted)',
+                background:  f.healthStatus === v ? '#8A9A5B18' : 'var(--c-ghost)',
+                borderColor: f.healthStatus === v ? '#8A9A5B'   : 'var(--c-border)',
+                color:       f.healthStatus === v ? '#8A9A5B'   : 'var(--c-muted)',
               }}>
               {l}
             </button>
@@ -287,7 +287,7 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
 
       <button onClick={() => f.livestockId && onConfirm(f)} disabled={saving || !f.livestockId}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Save Visit'}
       </button>
     </Modal>
@@ -342,9 +342,9 @@ export default function HealthTab({ animals, allAnimals, face }) {
           <button key={label} onClick={() => setScope(v)}
             className="flex-1 py-2 text-[11px] font-semibold transition-colors"
             style={{
-              background: wide === v ? '#1D9E7514' : 'var(--c-ghost)',
-              color:      wide === v ? '#1D9E75'   : 'var(--c-muted)',
-              boxShadow:  wide === v ? 'inset 0 -2px 0 #1D9E75' : 'none',
+              background: wide === v ? '#8A9A5B14' : 'var(--c-ghost)',
+              color:      wide === v ? '#8A9A5B'   : 'var(--c-muted)',
+              boxShadow:  wide === v ? 'inset 0 -2px 0 #8A9A5B' : 'none',
             }}>
             {label}
           </button>
@@ -353,7 +353,7 @@ export default function HealthTab({ animals, allAnimals, face }) {
 
       <button onClick={open}
         className="w-full py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
-        style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
+        style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
         <Plus size={14} /> Log a Vet Visit
       </button>
 

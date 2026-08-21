@@ -96,7 +96,7 @@ export default function ImageCropper({ file, onDone, onCancel }) {
             <RotateCw size={15} />
           </button>
           <input type="range" min={1} max={3} step={0.01} value={zoom}
-            onChange={e => setZoom(Number(e.target.value))} className="flex-1 accent-[#1D9E75]" />
+            onChange={e => setZoom(Number(e.target.value))} className="flex-1 accent-[#8A9A5B]" />
         </div>
 
         <div className="flex gap-2">
@@ -104,7 +104,7 @@ export default function ImageCropper({ file, onDone, onCancel }) {
             <button key={a.key} onClick={() => setAspect(a.key)}
               className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
                 aspect === a.key
-                  ? 'bg-[#1D9E75] text-white'
+                  ? 'bg-[#8A9A5B] text-white'
                   : 'bg-white/15 text-white/80 active:bg-white/25'}`}>
               {a.label}
             </button>
@@ -112,7 +112,7 @@ export default function ImageCropper({ file, onDone, onCancel }) {
         </div>
 
         <button onClick={done} disabled={busy}
-          className="w-full py-3 rounded-xl bg-[#1D9E75] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
+          className="w-full py-3 rounded-xl bg-[#8A9A5B] text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50">
           <Check size={16} /> {busy ? 'Saving…' : 'Done'}
         </button>
       </div>

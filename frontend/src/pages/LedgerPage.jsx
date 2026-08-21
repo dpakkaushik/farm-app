@@ -184,7 +184,7 @@ function AddCashModal({ accounts = [], onClose, onSave }) {
       <button disabled={saving || !form.amount}
         onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Save Entry'}
       </button>
     </Modal>
@@ -269,7 +269,7 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
       )}
       <button disabled={saving || !valid} onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Moving…' : 'Move Money'}
       </button>
     </Modal>
@@ -319,9 +319,9 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
             <button key={m} onClick={() => setForm(f => ({ ...f, payment_mode: m }))}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
-                background: form.payment_mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.payment_mode === m ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.payment_mode === m ? '#fff'    : 'var(--c-muted)',
-                border:     `1px solid ${form.payment_mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${form.payment_mode === m ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>{label}</button>
           ))}
         </div>
@@ -333,7 +333,7 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
       <button disabled={saving || !form.amount}
         onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Record Payment'}
       </button>
     </Modal>
@@ -398,9 +398,9 @@ function PayExpenseModal({ row, bankName, onClose, onPay }) {
             <button key={m} onClick={() => setMode(m)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
-                background: mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                background: mode === m ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      mode === m ? '#fff'    : 'var(--c-muted)',
-                border:     `1px solid ${mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${mode === m ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>{label}</button>
           ))}
         </div>
@@ -416,7 +416,7 @@ function PayExpenseModal({ row, bankName, onClose, onPay }) {
       )}
       <button disabled={saving} onClick={pay}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Paying…' : `Pay ${fmt(row.amount)}`}
       </button>
     </Modal>
@@ -512,7 +512,7 @@ function VendorModal({ vendor, onClose, onSave }) {
       )}
       <button disabled={saving || !form.name.trim()} onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : editing ? 'Save Changes' : 'Add Vendor'}
       </button>
     </Modal>
@@ -557,12 +557,12 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
       {/* Cash balance — hero card */}
       <Card>
         <div className="flex items-center gap-2 mb-1">
-          <Wallet size={14} color="#1D9E75" />
+          <Wallet size={14} color="#8A9A5B" />
           <span className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--c-faint)' }}>
             Current Cash Balance
           </span>
         </div>
-        <div className="text-3xl font-bold" style={{ color: cashBalance >= 0 ? '#1D9E75' : '#E24B4A' }}>
+        <div className="text-3xl font-bold" style={{ color: cashBalance >= 0 ? '#8A9A5B' : '#E24B4A' }}>
           {fmt(cashBalance)}
         </div>
         <div className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
@@ -607,7 +607,7 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
                     {a.name}
                     {a.isMain && (
                       <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full align-middle"
-                        style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                        style={{ background: 'rgba(138,154,91,0.15)', color: '#8A9A5B' }}>
                         MAIN
                       </span>
                     )}
@@ -625,10 +625,10 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
       {/* Receivables alert — money owed TO the farm by buyers */}
       {totalReceivables > 0 && (
         <div className="flex items-start gap-2 rounded-xl px-3 py-2.5"
-          style={{ background: 'rgba(29,158,117,0.1)', border: '0.5px solid rgba(29,158,117,0.3)' }}>
-          <AlertCircle size={14} color="#1D9E75" className="mt-0.5 shrink-0" />
+          style={{ background: 'rgba(138,154,91,0.1)', border: '0.5px solid rgba(138,154,91,0.3)' }}>
+          <AlertCircle size={14} color="#8A9A5B" className="mt-0.5 shrink-0" />
           <div>
-            <div className="text-xs font-medium" style={{ color: '#1D9E75' }}>
+            <div className="text-xs font-medium" style={{ color: '#8A9A5B' }}>
               Receivables outstanding: {fmt(totalReceivables)}
             </div>
             <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
@@ -660,15 +660,15 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
           cash can fall by lakhs while profit does not move: a capitalised
           purchase is real money out and deliberately absent from the P&L. */}
       <div className="grid grid-cols-2 gap-3">
-        <MetricCard label="Total Income" value={fmt(totalIncome)} color="#1D9E75" />
+        <MetricCard label="Total Income" value={fmt(totalIncome)} color="#8A9A5B" />
         {/* The forward-looking number beside the actuals: what the period's
             cycles should bring at harvest, same rule as the Dashboard. */}
-        <MetricCard label="Expected Revenue" value={fmt(expectedRevenue)} color="#1D9E75"
+        <MetricCard label="Expected Revenue" value={fmt(expectedRevenue)} color="#8A9A5B"
           sub={expectedRevenue > 0 ? 'At harvest, if crops sell as expected' : undefined} />
         <MetricCard label="Total Expenses" value={fmt(totalExpenses)} color="#E24B4A"
           sub={openingCost > 0 ? `incl. ${fmt(openingCost)} spent before the app` : undefined} />
         <MetricCard label="Net Profit / Loss" value={fmt(netProfit)}
-          color={netProfit >= 0 ? '#1D9E75' : '#E24B4A'} />
+          color={netProfit >= 0 ? '#8A9A5B' : '#E24B4A'} />
         <MetricCard label="Capital Purchases" value={fmt(capitalSpendFY)} color="#7c3aed"
           sub={capitalSpendFY > 0 ? 'Machinery & assets — kept out of P&L' : undefined} />
         <MetricCard label="Unpaid Wages & Expenses" value={fmt(totalWageDues)} color="#BA7517"
@@ -709,7 +709,7 @@ function SummaryTab({ cashBalance, accountBalances = [], totalIncome, totalExpen
                 tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
               <Tooltip formatter={v => fmt(v)} contentStyle={{ fontSize: 11, borderRadius: 8 }} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
-              <Bar dataKey="Income"   fill="#1D9E75" radius={[3,3,0,0]} />
+              <Bar dataKey="Income"   fill="#8A9A5B" radius={[3,3,0,0]} />
               <Bar dataKey="Expenses" fill="#E24B4A" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -753,13 +753,13 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
           {accounts.length > 1 && (
             <button onClick={onMove}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium"
-              style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
+              style={{ background: 'var(--c-ghost)', color: '#8A9A5B', border: '0.5px solid var(--c-border)' }}>
               ⇄ Move Money
             </button>
           )}
           <button onClick={onAdd}
             className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-white"
-            style={{ background: '#1D9E75' }}>
+            style={{ background: '#8A9A5B' }}>
             <Plus size={12} /> Add Entry
           </button>
         </div>
@@ -773,9 +773,9 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
           <button onClick={() => setAccountFilter(null)}
             className="px-3 py-1.5 rounded-xl text-[11px] font-semibold shrink-0"
             style={{
-              background: !accountFilter ? '#1D9E75' : 'var(--c-ghost)',
+              background: !accountFilter ? '#8A9A5B' : 'var(--c-ghost)',
               color:      !accountFilter ? '#fff'    : 'var(--c-muted)',
-              border:     `1px solid ${!accountFilter ? '#1D9E75' : 'var(--c-border)'}`,
+              border:     `1px solid ${!accountFilter ? '#8A9A5B' : 'var(--c-border)'}`,
             }}>
             All accounts
           </button>
@@ -786,9 +786,9 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
             <button key={p.key} onClick={() => setAccountFilter(f => f === p.key ? null : p.key)}
               className="px-3 py-1.5 rounded-xl text-[11px] shrink-0 text-left"
               style={{
-                background: accountFilter === p.key ? '#1D9E75' : 'var(--c-ghost)',
+                background: accountFilter === p.key ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      accountFilter === p.key ? '#fff'    : 'var(--c-text)',
-                border:     `1px solid ${accountFilter === p.key ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${accountFilter === p.key ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               <span className="font-semibold">{p.label}</span>
               <span className="ml-1.5 font-bold">{fmt(pocketBalanceOf(p.key))}</span>
@@ -800,7 +800,7 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
       {showOpening && (
         <div className="flex items-center justify-between px-3 py-2 rounded-xl" style={{ background: 'var(--c-ghost)' }}>
           <span className="text-[10px] font-medium" style={{ color: 'var(--c-faint)' }}>Opening Balance (carried from before this period)</span>
-          <span className="text-xs font-bold" style={{ color: openingBalance >= 0 ? '#1D9E75' : '#E24B4A' }}>{fmt(openingBalance)}</span>
+          <span className="text-xs font-bold" style={{ color: openingBalance >= 0 ? '#8A9A5B' : '#E24B4A' }}>{fmt(openingBalance)}</span>
         </div>
       )}
 
@@ -835,7 +835,7 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium" style={{ color: '#1D9E75' }}>
+                  <td className="px-3 py-2 text-right font-medium" style={{ color: '#8A9A5B' }}>
                     {Number(row.receipt_amount) > 0 ? fmt(row.receipt_amount) : '—'}
                   </td>
                   <td className="px-3 py-2 text-right font-medium" style={{ color: '#E24B4A' }}>
@@ -843,7 +843,7 @@ function CashBookTab({ cashBook, accounts = [], openingBalance = 0, showOpening 
                   </td>
                   {/* Filtered to one pocket, the balance shown is that pocket's */}
                   <td className="px-3 py-2 text-right font-bold"
-                    style={{ color: Number(accountFilter ? row.pocket_running_balance : row.running_balance) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    style={{ color: Number(accountFilter ? row.pocket_running_balance : row.running_balance) >= 0 ? '#8A9A5B' : '#E24B4A' }}>
                     {fmt(accountFilter ? row.pocket_running_balance : row.running_balance)}
                   </td>
                 </tr>
@@ -893,7 +893,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   // Anything unrecognised falls through to Crop, so a new source_type must be named
   // here or it gets silently counted as a crop sale.
   const sourceBadge = (type) => {
-    if (type === 'livestock')     return { bg: 'rgba(29,158,117,0.12)',  color: '#1D9E75',  label: 'Livestock' }
+    if (type === 'livestock')     return { bg: 'rgba(138,154,91,0.12)',  color: '#8A9A5B',  label: 'Livestock' }
     if (type === 'crop_residual') return { bg: 'rgba(139,92,246,0.12)',  color: '#7c3aed',  label: 'Residual'  }
     if (type === 'tree')          return { bg: 'rgba(101,163,13,0.12)',  color: '#65a30d',  label: 'Trees'     }
     return                               { bg: 'rgba(186,117,23,0.12)',  color: '#BA7517',  label: 'Crop'      }
@@ -902,11 +902,11 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   return (
     <div className="flex flex-col gap-3 pt-3">
       <div className="grid grid-cols-2 gap-2">
-        <MetricCard label="Total Revenue"   value={fmt(totalIncome)}    color="#1D9E75" />
-        <MetricCard label="Collected"       value={fmt(collectedTotal)} color="#1D9E75" />
+        <MetricCard label="Total Revenue"   value={fmt(totalIncome)}    color="#8A9A5B" />
+        <MetricCard label="Collected"       value={fmt(collectedTotal)} color="#8A9A5B" />
         <MetricCard label="Pending Collection" value={fmt(pendingTotal)} color="#BA7517" />
         <MetricCard label="Crop Sales"      value={fmt(cropTotal)}      color="#BA7517" />
-        <MetricCard label="Livestock"       value={fmt(livestockTotal)} color="#1D9E75" />
+        <MetricCard label="Livestock"       value={fmt(livestockTotal)} color="#8A9A5B" />
         <MetricCard label="Residuals Sold"  value={fmt(residualTotal)}  color="#7c3aed" />
         <MetricCard label="Tree Sales"      value={fmt(treeTotal)}      color="#65a30d" />
       </div>
@@ -933,7 +933,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
                 </div>
                 <button onClick={() => openForm(r)}
                   className="shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-lg"
-                  style={{ background: '#1D9E75', color: '#fff' }}>
+                  style={{ background: '#8A9A5B', color: '#fff' }}>
                   Record Sale
                 </button>
               </div>
@@ -967,7 +967,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
               </div>
             </div>
             {saleData.actualRate > 0 && (
-              <p className="text-xs font-bold" style={{ color: '#1D9E75' }}>
+              <p className="text-xs font-bold" style={{ color: '#8A9A5B' }}>
                 Total: {fmt(parseFloat(saleData.actualRate) * saleForm.quantity)}
               </p>
             )}
@@ -983,7 +983,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
                   <button key={s} onClick={() => setSaleData(p => ({ ...p, paymentStatus: s }))}
                     className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors"
                     style={{
-                      background: saleData.paymentStatus === s ? '#1D9E75' : 'var(--c-ghost)',
+                      background: saleData.paymentStatus === s ? '#8A9A5B' : 'var(--c-ghost)',
                       color:      saleData.paymentStatus === s ? '#fff'    : 'var(--c-muted)',
                     }}>
                     {s === 'pending' ? 'Cash Pending' : 'Cash Received'}
@@ -993,7 +993,7 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
             </div>
             <button onClick={submitSale} disabled={saving || !saleData.actualRate || !saleData.saleDate}
               className="w-full py-3 rounded-xl text-xs font-bold disabled:opacity-40"
-              style={{ background: '#1D9E75', color: '#fff' }}>
+              style={{ background: '#8A9A5B', color: '#fff' }}>
               {saving ? 'Saving…' : 'Record Sale'}
             </button>
           </div>
@@ -1041,12 +1041,12 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
                         <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{row.buyer_name}</div>
                       )}
                     </td>
-                    <td className="px-3 py-2 font-bold" style={{ color: '#1D9E75' }}>{fmt(row.amount)}</td>
+                    <td className="px-3 py-2 font-bold" style={{ color: '#8A9A5B' }}>{fmt(row.amount)}</td>
                     <td className="px-3 py-2">
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
                         style={{
-                          background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
-                          color:      paid ? '#1D9E75'               : '#BA7517',
+                          background: paid ? 'rgba(138,154,91,0.15)' : 'rgba(186,117,23,0.15)',
+                          color:      paid ? '#8A9A5B'               : '#BA7517',
                         }}>
                         {paid ? 'Collected' : partial ? `Part — ${fmt(row.amount_received)}` : 'Pending'}
                       </span>
@@ -1357,8 +1357,8 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                       )}
                     </td>
                     <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(pFY)}</td>
-                    <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(yFY)}</td>
-                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(balanceDue)}</td>
+                    <td className="px-3 py-2.5" style={{ color: '#8A9A5B' }}>{fmt(yFY)}</td>
+                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#E24B4A' : '#8A9A5B' }}>{fmt(balanceDue)}</td>
                     <td className="px-2 py-2.5 text-right">
                       <button title="Edit party / set opening balance"
                         onClick={e => { e.stopPropagation(); onEditVendor(vendor) }}
@@ -1402,11 +1402,11 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
         </Card>
         <Card className="p-3">
           <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Paid</div>
-          <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(paidFY)}</div>
+          <div className="text-sm font-bold" style={{ color: '#8A9A5B' }}>{fmt(paidFY)}</div>
         </Card>
         <Card className="p-3">
           <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
-          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(balanceDueAllTime)}</div>
+          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#E24B4A' : '#8A9A5B' }}>{fmt(balanceDueAllTime)}</div>
         </Card>
       </div>
 
@@ -1418,7 +1418,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
               onPay()
             }}
             className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white"
-            style={{ background: '#1D9E75' }}>
+            style={{ background: '#8A9A5B' }}>
             <CheckCircle size={14} /> Record Payment to {activeVendor.name}
           </button>
         ) : (
@@ -1473,7 +1473,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                                 {row.debit > 0 ? fmt(row.debit) : '—'}
                               </td>
                               <td className="px-3 py-2 text-right w-20 font-medium"
-                                style={{ color: row.credit > 0 ? '#1D9E75' : 'var(--c-faint)' }}>
+                                style={{ color: row.credit > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>
                                 {row.credit > 0 ? fmt(row.credit) : '—'}
                               </td>
                             </tr>
@@ -1488,7 +1488,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                       style={{ background: 'var(--c-ghost)', borderTop: '0.5px solid var(--c-border)' }}>
                       <span className="text-[10px] font-semibold" style={{ color: 'var(--c-text)' }}>Closing Balance</span>
                       <span className="text-[12px] font-bold"
-                        style={{ color: closingBal > 0 ? '#E24B4A' : '#1D9E75' }}>
+                        style={{ color: closingBal > 0 ? '#E24B4A' : '#8A9A5B' }}>
                         {fmt(closingBal)}
                       </span>
                     </div>
@@ -1518,7 +1518,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right font-bold" style={{ color: openingBal > 0 ? '#E24B4A' : '#1D9E75' }}>{fmt(openingBal)}</td>
+                      <td className="px-3 py-2 text-right font-bold" style={{ color: openingBal > 0 ? '#E24B4A' : '#8A9A5B' }}>{fmt(openingBal)}</td>
                     </tr>
                   )}
                   {ledgerWithBal.map((row, i) => (
@@ -1532,11 +1532,11 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                         <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
                           {row.debit > 0 ? fmt(row.debit) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right" style={{ color: '#1D9E75' }}>
+                        <td className="px-3 py-2 text-right" style={{ color: '#8A9A5B' }}>
                           {row.credit > 0 ? fmt(row.credit) : '—'}
                         </td>
                         <td className="px-3 py-2 text-right font-bold"
-                          style={{ color: row.balance > 0 ? '#E24B4A' : '#1D9E75' }}>
+                          style={{ color: row.balance > 0 ? '#E24B4A' : '#8A9A5B' }}>
                           {fmt(row.balance)}
                         </td>
                       </tr>
@@ -1689,8 +1689,8 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
                       )}
                     </td>
                     <td className="px-3 py-2.5" style={{ color: 'var(--c-text)' }}>{fmt(sFY)}</td>
-                    <td className="px-3 py-2.5" style={{ color: '#1D9E75' }}>{fmt(rFY)}</td>
-                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDue)}</td>
+                    <td className="px-3 py-2.5" style={{ color: '#8A9A5B' }}>{fmt(rFY)}</td>
+                    <td className="px-3 py-2.5 font-bold" style={{ color: balanceDue > 0 ? '#BA7517' : '#8A9A5B' }}>{fmt(balanceDue)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1722,11 +1722,11 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
         </Card>
         <Card className="p-3">
           <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Received</div>
-          <div className="text-sm font-bold" style={{ color: '#1D9E75' }}>{fmt(receivedFY)}</div>
+          <div className="text-sm font-bold" style={{ color: '#8A9A5B' }}>{fmt(receivedFY)}</div>
         </Card>
         <Card className="p-3">
           <div className="text-[9px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-faint)' }}>Balance Due</div>
-          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#BA7517' : '#1D9E75' }}>{fmt(balanceDueAllTime)}</div>
+          <div className="text-sm font-bold" style={{ color: balanceDueAllTime > 0 ? '#BA7517' : '#8A9A5B' }}>{fmt(balanceDueAllTime)}</div>
         </Card>
       </div>
 
@@ -1752,13 +1752,13 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
               <span className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
                 {fmtDate(e.entry_date)} — receipt
               </span>
-              <span className="text-[10px] font-semibold" style={{ color: '#1D9E75' }}>− {fmt(e.amount)}</span>
+              <span className="text-[10px] font-semibold" style={{ color: '#8A9A5B' }}>− {fmt(e.amount)}</span>
             </div>
           ))}
           {canRecordReceipt && typeof active.key === 'string' && !active.key.startsWith('name:') && (
             <button onClick={() => setReceiptFor(active)}
               className="mt-1.5 w-full py-1.5 rounded-lg text-[10px] font-semibold"
-              style={{ background: 'rgba(29,158,117,0.12)', color: '#1D9E75' }}>
+              style={{ background: 'rgba(138,154,91,0.12)', color: '#8A9A5B' }}>
               + Record receipt against this balance
             </button>
           )}
@@ -1804,8 +1804,8 @@ function BuyersTab({ sales, buyers, harvestSessions, cropCycles, cropMaster, tre
                   <td className="px-3 py-2">
                     <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap"
                       style={{
-                        background: paid ? 'rgba(29,158,117,0.15)' : 'rgba(186,117,23,0.15)',
-                        color:      paid ? '#1D9E75'               : '#BA7517',
+                        background: paid ? 'rgba(138,154,91,0.15)' : 'rgba(186,117,23,0.15)',
+                        color:      paid ? '#8A9A5B'               : '#BA7517',
                       }}>
                       {paid ? 'Received' : partial ? `Part — ${fmt(r.amountReceived)}` : 'Pending'}
                     </span>
@@ -1860,9 +1860,9 @@ function BuyerReceiptModal({ buyer, onClose, onSave }) {
             <button key={m} onClick={() => setForm(f => ({ ...f, mode: m }))}
               className="flex-1 py-2 rounded-xl text-xs font-semibold"
               style={{
-                background: form.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.mode === m ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.mode === m ? '#fff'    : 'var(--c-muted)',
-                border:     `1px solid ${form.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${form.mode === m ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>{label}</button>
           ))}
         </div>
@@ -1873,7 +1873,7 @@ function BuyerReceiptModal({ buyer, onClose, onSave }) {
       </Field>
       <button disabled={saving || !form.amount} onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
-        style={{ background: '#1D9E75' }}>
+        style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Record Receipt'}
       </button>
     </Modal>
@@ -2023,7 +2023,7 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <div className="text-xs font-bold" style={{ color: '#E24B4A' }}>{fmt(data.total)}</div>
-                  <div className="text-[9px]" style={{ color: '#1D9E75' }}>Paid: {fmt(data.paid)}</div>
+                  <div className="text-[9px]" style={{ color: '#8A9A5B' }}>Paid: {fmt(data.paid)}</div>
                 </div>
                 <ChevronDown size={14} style={{
                   color: 'var(--c-faint)',
@@ -2057,13 +2057,13 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                           {key === 'vendor_purchase' ? (
                             <button onClick={onGoVendors}
                               className="text-[9px] font-semibold underline"
-                              style={{ color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer' }}>
+                              style={{ color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer' }}>
                               Pay in Party Ledger →
                             </button>
                           ) : key === 'salary' ? (
                             <button onClick={onGoSalary}
                               className="text-[9px] font-semibold underline"
-                              style={{ color: '#1D9E75', background: 'none', border: 'none', cursor: 'pointer' }}>
+                              style={{ color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer' }}>
                               Pay in Labour → Salary →
                             </button>
                           ) : row.is_paid ? (
@@ -2071,13 +2071,13 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                                but was read back nowhere, so a bank payment was
                                indistinguishable from a cash one. */
                             <span className="px-2 py-0.5 rounded-full text-[9px] font-semibold"
-                              style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}>
+                              style={{ background: 'rgba(138,154,91,0.15)', color: '#8A9A5B' }}>
                               Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}{payModeLabel(row.payment_mode)}
                             </span>
                           ) : canPay && (row.expense_type === 'labour' || row.expense_type === 'farm_expense') ? (
                             <button onClick={() => onPayRow?.(row)}
                               className="px-2.5 py-1 rounded-full text-[9px] font-semibold"
-                              style={{ background: '#1D9E75', color: '#fff' }}>
+                              style={{ background: '#8A9A5B', color: '#fff' }}>
                               Pay {fmt(row.amount)}
                             </button>
                           ) : (
@@ -2140,8 +2140,8 @@ function MarginPill({ actualPct, expectedPct, isActual }) {
   return (
     <span className="px-2 py-0.5 rounded-full text-[9px] font-bold"
       style={{
-        background: pct >= 0 ? '#1D9E75/15' : '#E24B4A/15',
-        color:      pct >= 0 ? '#1D9E75'    : '#E24B4A',
+        background: pct >= 0 ? '#8A9A5B/15' : '#E24B4A/15',
+        color:      pct >= 0 ? '#8A9A5B'    : '#E24B4A',
       }}>
       {pct}%{isActual ? '' : ' est.'}
     </span>
@@ -2179,7 +2179,7 @@ function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cro
             </span>
           )}
         </div>
-        <span className="text-xs font-bold" style={{ color: net >= 0 ? '#1D9E75' : '#E24B4A' }}>
+        <span className="text-xs font-bold" style={{ color: net >= 0 ? '#8A9A5B' : '#E24B4A' }}>
           Net {net >= 0 ? 'Profit' : 'Loss'} {fmt(Math.abs(net))}
         </span>
       </div>
@@ -2209,9 +2209,9 @@ function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cro
                     <div className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{row.species}</div>
                   </td>
                   <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.total_cost)}</td>
-                  <td className="px-3 py-2" style={{ color: '#1D9E75' }}>{fmt(row.total_revenue)}</td>
+                  <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>{fmt(row.total_revenue)}</td>
                   <td className="px-3 py-2 font-bold"
-                    style={{ color: Number(row.profit_loss) >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                    style={{ color: Number(row.profit_loss) >= 0 ? '#8A9A5B' : '#E24B4A' }}>
                     {fmt(Math.abs(row.profit_loss))}
                     {Number(row.profit_loss) < 0 ? ' ▼' : ' ▲'}
                   </td>
@@ -2250,7 +2250,7 @@ function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cro
                       </div>
                     </td>
                     <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.cost)}</td>
-                    <td className="px-3 py-2" style={{ color: '#1D9E75' }}>
+                    <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>
                       {fmt(rev)}
                       {!isActual && <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}> est.</span>}
                     </td>
@@ -2289,7 +2289,7 @@ function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cro
                     </div>
                   </td>
                   <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.total_cost)}</td>
-                  <td className="px-3 py-2" style={{ color: '#1D9E75' }}>{fmt(row.revenue)}</td>
+                  <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>{fmt(row.revenue)}</td>
                   <td className="px-3 py-2">
                     <MarginPill actualPct={row.margin_pct} expectedPct={row.expected_margin_pct}
                       isActual={Number(row.revenue) > 0} />
@@ -2688,7 +2688,7 @@ export default function LedgerPage() {
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--c-bg)' }}>
       {/* Header */}
       <div className="shrink-0 flex items-center gap-2 px-4 pt-4 pb-2">
-        <BookOpen size={17} color="#1D9E75" />
+        <BookOpen size={17} color="#8A9A5B" />
         <h1 className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>Accounts Ledger</h1>
       </div>
 
@@ -2700,7 +2700,7 @@ export default function LedgerPage() {
             onClick={() => setTab(t.id)}
             className="shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
             style={{
-              background: tab === t.id ? '#1D9E75' : 'var(--c-ghost)',
+              background: tab === t.id ? '#8A9A5B' : 'var(--c-ghost)',
               color:      tab === t.id ? '#fff'    : 'var(--c-muted)',
             }}>
             {t.label}
@@ -2739,7 +2739,7 @@ export default function LedgerPage() {
         </select>
         <button onClick={downloadExcel}
           className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium shrink-0"
-          style={{ background: 'var(--c-ghost)', color: '#1D9E75', border: '0.5px solid var(--c-border)' }}>
+          style={{ background: 'var(--c-ghost)', color: '#8A9A5B', border: '0.5px solid var(--c-border)' }}>
           <Download size={12} /> Excel
         </button>
       </div>

@@ -15,7 +15,7 @@ export function ScheduledCard({ task, status, onDone }) {
     <div className={`rounded-2xl border p-3.5 transition-opacity ${isDone ? 'opacity-35' : ''}`}
       style={{
         background:  isDone ? 'transparent' : isOverdue ? 'var(--c-card-danger)' : isToday ? 'var(--c-card-success)' : 'var(--c-card)',
-        borderColor: isDone ? 'var(--c-card)' : isOverdue ? '#7f1d1d60' : isToday ? '#1D9E7530' : 'var(--c-border)',
+        borderColor: isDone ? 'var(--c-card)' : isOverdue ? '#7f1d1d60' : isToday ? '#8A9A5B30' : 'var(--c-border)',
       }}>
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-base"
@@ -43,8 +43,8 @@ export function ScheduledCard({ task, status, onDone }) {
         </div>
         {(isToday || isOverdue) && onDone && (
           <button onClick={onDone}
-            className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors hover:bg-[#1D9E75] hover:text-[var(--c-text)] hover:border-[#1D9E75]"
-            style={{ color: '#1D9E75', borderColor: '#1D9E7540', background: '#1D9E7510' }}>
+            className="shrink-0 px-3 py-1.5 text-xs font-bold rounded-xl border transition-colors hover:bg-[#8A9A5B] hover:text-[var(--c-text)] hover:border-[#8A9A5B]"
+            style={{ color: '#8A9A5B', borderColor: '#8A9A5B40', background: '#8A9A5B10' }}>
             Done
           </button>
         )}
@@ -105,7 +105,7 @@ function FarmActivitySection({ rows }) {
   const { visible, hidden, expanded, toggle } = useCappedList(rows)
   if (rows.length === 0) return null
   return (
-    <CategoryBlock label="Farm Activity" color="#1D9E75" count={rows.length}>
+    <CategoryBlock label="Farm Activity" color="#8A9A5B" count={rows.length}>
       {visible.map(r => (
         <Row key={r.type}
           icon={r.emoji} iconBg={r.color + '22'}
@@ -157,12 +157,12 @@ function HarvestSalesSection({ rows }) {
         if (r.kind === 'sale') return (
           <Row key={idx} icon="💰" iconBg="#eab30822"
             title={`Sold — ${r.plotLabel}${r.cropName ? ` (${r.cropName})` : ''}`} detail={r.buyerName}
-            right={`₹${r.amount.toLocaleString('en-IN')}`} rightColor="#1D9E75" />
+            right={`₹${r.amount.toLocaleString('en-IN')}`} rightColor="#8A9A5B" />
         )
         return (
           <Row key={idx} icon="♻️" iconBg="#eab30822"
             title={`${r.productName || 'By-product'} sold — ${r.plotLabel}`} detail={r.buyerName}
-            right={r.amount ? `₹${r.amount.toLocaleString('en-IN')}` : null} rightColor="#1D9E75" />
+            right={r.amount ? `₹${r.amount.toLocaleString('en-IN')}` : null} rightColor="#8A9A5B" />
         )
       })}
       <MoreToggle hidden={hidden} expanded={expanded} onToggle={toggle} />
@@ -181,7 +181,7 @@ function LivestockSection({ rows }) {
       ) : (
         <Row key={idx} icon={r.isSale ? '💰' : '🥛'} iconBg="#a855f722"
           title={`${r.revenueType}${r.animalName ? ` — ${r.animalName}` : ''}`} detail={r.buyerName}
-          right={`₹${r.amount.toLocaleString('en-IN')}`} rightColor="#1D9E75" />
+          right={`₹${r.amount.toLocaleString('en-IN')}`} rightColor="#8A9A5B" />
       ))}
       <MoreToggle hidden={hidden} expanded={expanded} onToggle={toggle} />
     </CategoryBlock>
@@ -254,7 +254,7 @@ export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone, a
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm font-bold text-[var(--c-text)]">{format(parseISO(date), 'EEEE, d MMMM')}</p>
         {isToday && (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#1D9E7520', color: '#1D9E75' }}>
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
             Today
           </span>
         )}

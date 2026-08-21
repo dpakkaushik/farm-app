@@ -373,12 +373,12 @@ export default function Harvest() {
       </div>
       {r.status === 'open' ? (
         <button onClick={() => openResidualModal(r)}
-          className="text-[10px] px-2.5 py-1 rounded-lg bg-[#1D9E75]/15 text-[#1D9E75] font-semibold border border-[#1D9E75]/30">
+          className="text-[10px] px-2.5 py-1 rounded-lg bg-[#8A9A5B]/15 text-[#8A9A5B] font-semibold border border-[#8A9A5B]/30">
           Sell
         </button>
       ) : (
         <div className="text-right">
-          <p className="text-[10px] font-semibold text-[#1D9E75]">₹{r.actualRevenue?.toLocaleString('en-IN')}</p>
+          <p className="text-[10px] font-semibold text-[#8A9A5B]">₹{r.actualRevenue?.toLocaleString('en-IN')}</p>
           <p className="text-[9px] text-[var(--c-faint)]">{r.paymentStatus === 'paid' ? '✓ Paid' : 'Pending'}</p>
         </div>
       )}
@@ -396,7 +396,7 @@ export default function Harvest() {
             {active.length} active{openSales.length > 0 ? ` · ${openSales.length} open sale${openSales.length !== 1 ? 's' : ''}` : ''}
           </p>
         </div>
-        <button onClick={openNewCycle} className="flex items-center gap-1.5 px-3 py-2 bg-[#1D9E75]/20 border border-[#1D9E75]/40 rounded-xl text-xs text-[#1D9E75] font-semibold">
+        <button onClick={openNewCycle} className="flex items-center gap-1.5 px-3 py-2 bg-[#8A9A5B]/20 border border-[#8A9A5B]/40 rounded-xl text-xs text-[#8A9A5B] font-semibold">
           <Plus size={13}/> New Cycle
         </button>
       </div>
@@ -419,7 +419,7 @@ export default function Harvest() {
             const varietyLabel = crop?.varietyCategory === 'early' ? 'Early Maturing' : crop?.varietyCategory === 'common' ? 'Common Variety' : crop?.varietyCategory === 'late' ? 'Late Maturing' : null
 
             return (
-              <div key={cycle.id} className="bg-[var(--c-nav)] rounded-2xl border border-[#1D9E75]/30 p-4">
+              <div key={cycle.id} className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="flex items-center gap-2">
@@ -434,7 +434,7 @@ export default function Harvest() {
                 <div className="flex items-center gap-2 mb-3 text-xs text-[var(--c-faint)]">
                   <Building2 size={12} className="shrink-0"/>
                   {cycle.millName ? <span>{cycle.millName}{cycle.growerCode ? ` · Code: ${cycle.growerCode}` : ''}</span> : <span className="italic">Mill not set — tap pencil to add</span>}
-                  {crop?.pricePerQtl > 0 && <span className="ml-auto text-[#1D9E75] font-semibold whitespace-nowrap">SAP ₹{crop.pricePerQtl}/qtl{varietyLabel ? ` (${varietyLabel})` : ''}</span>}
+                  {crop?.pricePerQtl > 0 && <span className="ml-auto text-[#8A9A5B] font-semibold whitespace-nowrap">SAP ₹{crop.pricePerQtl}/qtl{varietyLabel ? ` (${varietyLabel})` : ''}</span>}
                 </div>
                 {supplies.length > 0 ? (
                   <div className="mb-3 rounded-xl overflow-hidden border border-[var(--c-border)]">
@@ -455,7 +455,7 @@ export default function Harvest() {
                           </span>
                           <span className="text-xs text-[var(--c-muted)]">{supply.date?.slice(5).replace('-', ' ')}</span>
                           <span className="text-xs text-[var(--c-text)]">{supply.qtyQtl.toFixed(1)}</span>
-                          <span className={`text-[10px] font-semibold ${isPaid ? 'text-[#1D9E75]' : overdue > 0 ? 'text-[#E24B4A]' : 'text-[#BA7517]'}`}>
+                          <span className={`text-[10px] font-semibold ${isPaid ? 'text-[#8A9A5B]' : overdue > 0 ? 'text-[#E24B4A]' : 'text-[#BA7517]'}`}>
                             {isPaid ? 'Paid' : overdue > 0 ? `${overdue}d due` : 'Pending'}
                           </span>
                         </button>
@@ -472,13 +472,13 @@ export default function Harvest() {
                     </div>
                     <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
                       <p className="text-[10px] text-[var(--c-faint)]">Received</p>
-                      <p className="text-sm font-bold text-[#1D9E75]">₹{totalPaid.toLocaleString('en-IN')}</p>
+                      <p className="text-sm font-bold text-[#8A9A5B]">₹{totalPaid.toLocaleString('en-IN')}</p>
                       {arrears > 0 && <p className="text-[10px] text-[#E24B4A]">₹{arrears.toLocaleString('en-IN')} arrears</p>}
                     </div>
                   </div>
                 )}
                 <div className="space-y-2">
-                  <button onClick={() => openSupplyModal(cycle)} className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40">
+                  <button onClick={() => openSupplyModal(cycle)} className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#8A9A5B]/15 text-[#8A9A5B] border-[#8A9A5B]/40">
                     <Plus size={11} className="inline mr-1"/>Log Supply (Parchi)
                   </button>
                   {supplies.length > 0 && (
@@ -502,13 +502,13 @@ export default function Harvest() {
           const pct           = Math.min(100, Math.round(daysSown / totalDays * 100))
 
           return (
-            <div key={cycle.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${isReady ? 'border-[#1D9E75]/50' : isNear ? 'border-[#BA7517]/40' : 'border-[var(--c-border)]'}`}>
+            <div key={cycle.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${isReady ? 'border-[#8A9A5B]/50' : isNear ? 'border-[#BA7517]/40' : 'border-[var(--c-border)]'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-base">{crop?.emoji || '🌾'}</span>
                     <p className="text-sm font-bold text-[var(--c-text)]">{crop?.name || cycle.cropId}</p>
-                    {isReady && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] font-semibold pulse">READY</span>}
+                    {isReady && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8A9A5B]/20 text-[#8A9A5B] font-semibold pulse">READY</span>}
                     {isNear  && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#BA7517]/20 text-[#BA7517] font-semibold">Soon</span>}
                     {cycle.parentCycleId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/50 font-medium">Ratoon</span>}
                   </div>
@@ -516,7 +516,7 @@ export default function Harvest() {
                   <p className="text-[10px] text-[var(--c-faint)] mt-0.5">Sown {cycle.sowDate}</p>
                 </div>
                 <div className="text-right">
-                  {isReady ? <p className="text-lg font-bold text-[#1D9E75]">Harvest!</p> : (
+                  {isReady ? <p className="text-lg font-bold text-[#8A9A5B]">Harvest!</p> : (
                     <><p className="text-2xl font-bold text-[var(--c-text)]">{daysToWindow}</p><p className="text-[10px] text-[var(--c-muted)]">days to harvest</p></>
                   )}
                   <p className="text-[10px] text-[var(--c-faint)] mt-1">Day {daysSown}</p>
@@ -525,7 +525,7 @@ export default function Harvest() {
               <div className="mb-3">
                 <div className="flex justify-between text-[10px] text-[var(--c-faint)] mb-1"><span>Progress</span><span>{pct}%</span></div>
                 <div className="h-1.5 bg-[var(--c-ghost)] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isReady ? '#1D9E75' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isReady ? '#8A9A5B' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
                 </div>
               </div>
               {crop?.yieldPerAcre > 0 && (
@@ -536,7 +536,7 @@ export default function Harvest() {
               )}
               <button onClick={() => isReady && openRecord(cycle)} disabled={!isReady}
                 className={`w-full py-2.5 text-xs font-bold rounded-xl border transition-colors ${
-                  isReady ? 'bg-[#1D9E75] text-white border-transparent cursor-pointer' : 'bg-[var(--c-card)] text-[var(--c-sub)] border-[var(--c-border-md)] opacity-60 cursor-not-allowed'
+                  isReady ? 'bg-[#8A9A5B] text-white border-transparent cursor-pointer' : 'bg-[var(--c-card)] text-[var(--c-sub)] border-[var(--c-border-md)] opacity-60 cursor-not-allowed'
                 }`}>
                 {isReady ? `Record Harvest${crop?.ratoonCropId ? ' · Ratoon auto-starts' : ''}` : `Harvest window opens in ${daysToWindow} day${daysToWindow !== 1 ? 's' : ''}`}
               </button>
@@ -589,7 +589,7 @@ export default function Harvest() {
                           <p className="text-base font-bold text-[var(--c-text)]">{session.qtyQtl.toFixed(1)} qtl</p>
                         </div>
                         {session.quality && (
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {session.quality}</span>
+                          <span className="text-xs px-2.5 py-1 rounded-full bg-[#8A9A5B]/15 text-[#8A9A5B] font-semibold">Grade {session.quality}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap">
@@ -615,7 +615,7 @@ export default function Harvest() {
                   {/* Sale action */}
                   {session && !sale && (
                     <button onClick={() => openSaleModal(cycle, session)}
-                      className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#1D9E75]/15 text-[#1D9E75] border-[#1D9E75]/40 mb-3">
+                      className="w-full py-2.5 text-xs font-bold rounded-xl border bg-[#8A9A5B]/15 text-[#8A9A5B] border-[#8A9A5B]/40 mb-3">
                       <Plus size={11} className="inline mr-1"/>Record Sale
                     </button>
                   )}
@@ -672,14 +672,14 @@ export default function Harvest() {
                       </div>
                       <p className="text-xs text-[var(--c-muted)]">{session?.date || h.actualHarvestDate} · {h.acres} acres</p>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1D9E75]/20 text-[#1D9E75] font-semibold">✓ Paid</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8A9A5B]/20 text-[#8A9A5B] font-semibold">✓ Paid</span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs mt-2">
                     <span className="text-[var(--c-muted)]">
                       {session?.qtyQtl?.toFixed(1)} qtl{session?.quality ? ` · Grade ${session.quality}` : ''}
                     </span>
-                    <span className="font-bold text-[#1D9E75]">₹{sale?.netAmount?.toLocaleString('en-IN')}</span>
+                    <span className="font-bold text-[#8A9A5B]">₹{sale?.netAmount?.toLocaleString('en-IN')}</span>
                   </div>
                   {sale?.buyerName && (
                     <p className="text-[10px] text-[var(--c-faint)] mt-0.5">
@@ -722,9 +722,9 @@ export default function Harvest() {
             {(() => {
               const crop = cropMaster.find(c => c.id === selected.cropId)
               return crop?.ratoonCropId ? (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2">
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2.5 mb-4 flex items-start gap-2">
                   <span className="text-sm">🌱</span>
-                  <p className="text-xs text-[#1D9E75] leading-relaxed">After recording, <strong>{cropMaster.find(c => c.id === crop.ratoonCropId)?.name}</strong> will auto-start on this plot.</p>
+                  <p className="text-xs text-[#8A9A5B] leading-relaxed">After recording, <strong>{cropMaster.find(c => c.id === crop.ratoonCropId)?.name}</strong> will auto-start on this plot.</p>
                 </div>
               ) : null
             })()}
@@ -760,10 +760,10 @@ export default function Harvest() {
 
               {/* Auto-calculated yield per acre */}
               {form.qtyQtl && parseFloat(form.qtyQtl) > 0 && (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5 flex items-center justify-between">
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2.5 flex items-center justify-between">
                   <div>
                     <p className="text-[10px] text-[var(--c-faint)]">Yield per acre</p>
-                    <p className="text-xl font-bold text-[#1D9E75]">
+                    <p className="text-xl font-bold text-[#8A9A5B]">
                       {(parseFloat(form.qtyQtl) / selected.acres).toFixed(1)} qtl/acre
                     </p>
                   </div>
@@ -781,7 +781,7 @@ export default function Harvest() {
                     <button key={g} type="button" onClick={() => f('quality', g)}
                       className={`flex-1 py-2.5 text-sm font-bold rounded-xl border transition-colors ${
                         form.quality === g
-                          ? 'bg-[#1D9E75] text-white border-transparent'
+                          ? 'bg-[#8A9A5B] text-white border-transparent'
                           : 'bg-transparent text-[var(--c-muted)] border-[var(--c-border)]'
                       }`}>
                       Grade {g}
@@ -838,7 +838,7 @@ export default function Harvest() {
               </div>
 
               <button onClick={confirmRecord} disabled={saving || !form.qtyQtl || !weighingSlip}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Uploading & saving…' : 'Confirm Harvest'}
               </button>
             </div>
@@ -904,15 +904,15 @@ export default function Harvest() {
                 const windowOpen = new Date(form.sowDate)
                 windowOpen.setDate(windowOpen.getDate() + crop.duration_days - crop.harvest_window_days)
                 return (
-                  <div className="bg-[#1D9E75]/8 border border-[#1D9E75]/15 rounded-xl px-3 py-2">
+                  <div className="bg-[#8A9A5B]/8 border border-[#8A9A5B]/15 rounded-xl px-3 py-2">
                     <p className="text-[10px] text-[var(--c-faint)]">Harvest window opens</p>
-                    <p className="text-sm font-semibold text-[#1D9E75]">{windowOpen.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                    <p className="text-sm font-semibold text-[#8A9A5B]">{windowOpen.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     <p className="text-[10px] text-[var(--c-faint)]">±{crop.harvest_window_days} days from {crop.duration_days}d growing period</p>
                   </div>
                 )
               })()}
               <button onClick={confirmNewCycle} disabled={saving || !form.plotId || !form.cropId || !form.sowDate}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Starting…' : newPlotHasActive ? 'Start Mixed Cycle' : 'Start Cycle'}
               </button>
             </div>
@@ -945,7 +945,7 @@ export default function Harvest() {
                   <p className="text-base font-bold text-[var(--c-text)]">{saleModal.session.qtyQtl.toFixed(2)} qtl</p>
                 </div>
                 {saleModal.session.quality && (
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#1D9E75]/15 text-[#1D9E75] font-semibold">Grade {saleModal.session.quality}</span>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#8A9A5B]/15 text-[#8A9A5B] font-semibold">Grade {saleModal.session.quality}</span>
                 )}
               </div>
 
@@ -972,7 +972,7 @@ export default function Harvest() {
                         onClick={() => { f('buyer', b.name); f('buyerId', b.id); f('localMarketMode', false) }}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
                           form.buyerId === b.id
-                            ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
+                            ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]'
                             : 'bg-[var(--c-ghost)] border-[var(--c-border-md)] text-[var(--c-sub)]'
                         }`}>
                         {b.name}
@@ -1006,7 +1006,7 @@ export default function Harvest() {
 
                 {/* Live breakdown card */}
                 {gross > 0 && (
-                  <div className={`rounded-xl px-3 py-2.5 border ${hasBreakdown ? 'bg-[var(--c-ghost)] border-[var(--c-border-md)]' : 'bg-[#1D9E75]/10 border-[#1D9E75]/20'}`}>
+                  <div className={`rounded-xl px-3 py-2.5 border ${hasBreakdown ? 'bg-[var(--c-ghost)] border-[var(--c-border-md)]' : 'bg-[#8A9A5B]/10 border-[#8A9A5B]/20'}`}>
                     {hasBreakdown ? (
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
@@ -1027,13 +1027,13 @@ export default function Harvest() {
                         )}
                         <div className="border-t border-[var(--c-border-md)] pt-1.5 flex justify-between">
                           <span className="text-xs font-semibold text-[var(--c-text)]">Net receivable</span>
-                          <span className="text-base font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</span>
+                          <span className="text-base font-bold text-[#8A9A5B]">₹{net.toLocaleString('en-IN')}</span>
                         </div>
                       </div>
                     ) : (
                       <>
                         <p className="text-xs text-[var(--c-sub)]">Gross amount</p>
-                        <p className="text-xl font-bold text-[#1D9E75]">₹{gross.toLocaleString('en-IN')}</p>
+                        <p className="text-xl font-bold text-[#8A9A5B]">₹{gross.toLocaleString('en-IN')}</p>
                       </>
                     )}
                   </div>
@@ -1041,7 +1041,7 @@ export default function Harvest() {
 
                 <p className="text-[10px] text-[var(--c-faint)] text-center">Payment receipt uploaded in next step →</p>
                 <button onClick={confirmSale} disabled={saving || !form.buyer || !form.rate}
-                  className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                  className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                   {saving ? 'Saving…' : 'Record Sale'}
                 </button>
               </div>
@@ -1114,9 +1114,9 @@ export default function Harvest() {
                       <button key={m} onClick={() => setCropPayModal(p => ({ ...p, mode: m }))}
                         className="flex-1 py-2 rounded-xl text-xs font-semibold"
                         style={{
-                          background: cropPayModal.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                          background: cropPayModal.mode === m ? '#8A9A5B' : 'var(--c-ghost)',
                           color:      cropPayModal.mode === m ? '#fff'    : 'var(--c-muted)',
-                          border:     `1px solid ${cropPayModal.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                          border:     `1px solid ${cropPayModal.mode === m ? '#8A9A5B' : 'var(--c-border)'}`,
                         }}>{label}</button>
                     ))}
                   </div></div>
@@ -1130,7 +1130,7 @@ export default function Harvest() {
                 )}
 
                 {/* Net amount card */}
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2.5">
                   {(hasSaleDeds || extraDed > 0) ? (
                     <div className="space-y-1">
                       <div className="flex justify-between text-xs">
@@ -1140,15 +1140,15 @@ export default function Harvest() {
                       {commAmt > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Commission</span><span className="text-[#E24B4A]">− ₹{commAmt.toLocaleString('en-IN')}</span></div>}
                       {freight > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Freight</span><span className="text-[#E24B4A]">− ₹{freight.toLocaleString('en-IN')}</span></div>}
                       {extraDed > 0 && <div className="flex justify-between text-xs"><span className="text-[var(--c-faint)]">Extra deductions</span><span className="text-[#E24B4A]">− ₹{extraDed.toLocaleString('en-IN')}</span></div>}
-                      <div className="border-t border-[#1D9E75]/30 pt-1 flex justify-between">
+                      <div className="border-t border-[#8A9A5B]/30 pt-1 flex justify-between">
                         <span className="text-xs font-semibold text-[var(--c-text)]">Net receivable</span>
-                        <span className="text-base font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</span>
+                        <span className="text-base font-bold text-[#8A9A5B]">₹{net.toLocaleString('en-IN')}</span>
                       </div>
                     </div>
                   ) : (
                     <>
                       <p className="text-xs text-[var(--c-faint)]">Net receivable</p>
-                      <p className="text-lg font-bold text-[#1D9E75]">₹{net.toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-[#8A9A5B]">₹{net.toLocaleString('en-IN')}</p>
                     </>
                   )}
                 </div>
@@ -1160,7 +1160,7 @@ export default function Harvest() {
                 </div>
                 {canMarkPayment ? (
                   <button onClick={confirmCropPayment} disabled={saving || !cropPayFile}
-                    className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                    className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                     {saving ? 'Confirming…' : 'Confirm Payment — Move to Past Harvests'}
                   </button>
                 ) : (
@@ -1194,9 +1194,9 @@ export default function Harvest() {
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Rate ₹/{residualModal.unit} <span className="text-[#E24B4A]">*</span></label>
                 <input type="number" placeholder={String(residualModal.expectedRate || '')} value={form.actualRate} onChange={e => f('actualRate', e.target.value)} className="finput"/></div>
               {form.actualRate && (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2">
                   <p className="text-xs text-[var(--c-sub)]">Total</p>
-                  <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(residualModal.quantity * parseFloat(form.actualRate)).toLocaleString('en-IN')}</p>
+                  <p className="text-xl font-bold text-[#8A9A5B]">₹{Math.round(residualModal.quantity * parseFloat(form.actualRate)).toLocaleString('en-IN')}</p>
                 </div>
               )}
               <div>
@@ -1206,7 +1206,7 @@ export default function Harvest() {
                     <button key={s} onClick={() => f('paymentStatus', s)}
                       className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors ${
                         form.paymentStatus === s
-                          ? s === 'paid' ? 'bg-[#1D9E75] text-white border-transparent' : 'bg-[#BA7517]/20 text-[#BA7517] border-[#BA7517]/40'
+                          ? s === 'paid' ? 'bg-[#8A9A5B] text-white border-transparent' : 'bg-[#BA7517]/20 text-[#BA7517] border-[#BA7517]/40'
                           : 'bg-transparent text-[var(--c-muted)] border-[var(--c-border)]'
                       }`}>
                       {s === 'paid' ? '✓ Received' : 'Pending'}
@@ -1215,7 +1215,7 @@ export default function Harvest() {
                 </div>
               </div>
               <button onClick={confirmResidualSale} disabled={saving || !form.actualRate}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Record Residual Sale'}
               </button>
             </div>
@@ -1255,9 +1255,9 @@ export default function Harvest() {
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">SAP rate ₹/qtl</label>
                 <input type="number" placeholder="e.g. 400" value={form.sap} onChange={e => f('sap', e.target.value)} className="finput"/></div>
               {form.qtyQtl && form.sap && (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2">
                   <p className="text-xs text-[var(--c-sub)]">Gross amount at SAP</p>
-                  <p className="text-xl font-bold text-[#1D9E75]">₹{Math.round(parseFloat(form.qtyQtl) * parseFloat(form.sap)).toLocaleString('en-IN')}</p>
+                  <p className="text-xl font-bold text-[#8A9A5B]">₹{Math.round(parseFloat(form.qtyQtl) * parseFloat(form.sap)).toLocaleString('en-IN')}</p>
                 </div>
               )}
               <div>
@@ -1267,7 +1267,7 @@ export default function Harvest() {
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Notes (optional)</label>
                 <input placeholder="Any notes…" value={form.notes} onChange={e => f('notes', e.target.value)} className="finput"/></div>
               <button onClick={confirmAddSupply} disabled={saving || !form.qtyQtl || !form.partnerId || !form.buyerId}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Log Supply'}
               </button>
             </div>
@@ -1303,11 +1303,11 @@ export default function Harvest() {
                 )}
               </div>
               {payModal.sale?.paymentStatus === 'paid' ? (
-                <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
-                  <p className="text-sm font-semibold text-[#1D9E75]">Payment Received</p>
+                <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2.5">
+                  <p className="text-sm font-semibold text-[#8A9A5B]">Payment Received</p>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">Date: {payModal.sale.paymentDate}</p>
                   {payModal.sale.deductions > 0 && <p className="text-xs text-[var(--c-muted)] mt-0.5">Deductions: ₹{payModal.sale.deductions.toLocaleString('en-IN')}{payModal.sale.deductionsNote && ` (${payModal.sale.deductionsNote})`}</p>}
-                  <p className="text-sm font-bold text-[#1D9E75] mt-1">Net: ₹{payModal.sale.netAmount?.toLocaleString('en-IN')}</p>
+                  <p className="text-sm font-bold text-[#8A9A5B] mt-1">Net: ₹{payModal.sale.netAmount?.toLocaleString('en-IN')}</p>
                   {payModal.sale.paymentAttachmentPath && (
                     <div className="mt-1">
                       <Attachment variant="chip" value={payModal.sale.paymentAttachmentPath} name="View Receipt" />
@@ -1325,9 +1325,9 @@ export default function Harvest() {
                         <button key={m} onClick={() => setPayModal(p => ({ ...p, mode: m }))}
                           className="flex-1 py-2 rounded-xl text-xs font-semibold"
                           style={{
-                            background: payModal.mode === m ? '#1D9E75' : 'var(--c-ghost)',
+                            background: payModal.mode === m ? '#8A9A5B' : 'var(--c-ghost)',
                             color:      payModal.mode === m ? '#fff'    : 'var(--c-muted)',
-                            border:     `1px solid ${payModal.mode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                            border:     `1px solid ${payModal.mode === m ? '#8A9A5B' : 'var(--c-border)'}`,
                           }}>{label}</button>
                       ))}
                     </div></div>
@@ -1338,7 +1338,7 @@ export default function Harvest() {
                   {payModal.sale && (
                     <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
                       <p className="text-xs text-[var(--c-faint)]">Net amount to receive</p>
-                      <p className="text-lg font-bold text-[#1D9E75]">₹{Math.max(0, (payModal.sale.grossAmount || 0) - (parseFloat(payModal.ded) || 0)).toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-[#8A9A5B]">₹{Math.max(0, (payModal.sale.grossAmount || 0) - (parseFloat(payModal.ded) || 0)).toLocaleString('en-IN')}</p>
                     </div>
                   )}
                   <div>
@@ -1347,7 +1347,7 @@ export default function Harvest() {
                   </div>
                   {canMarkPayment ? (
                     <button onClick={confirmPayment} disabled={saving}
-                      className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                      className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                       {saving ? 'Saving…' : 'Mark as Paid'}
                     </button>
                   ) : (
@@ -1376,7 +1376,7 @@ export default function Harvest() {
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Grower code</label>
                 <input placeholder="e.g. UP-1234" value={millForm.growerCode} onChange={e => setMillForm(p => ({ ...p, growerCode: e.target.value }))} className="finput"/></div>
               <button onClick={confirmMillInfo} disabled={saving}
-                className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-50">
+                className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-50">
                 {saving ? 'Saving…' : 'Save Mill Info'}
               </button>
             </div>
@@ -1419,14 +1419,14 @@ export default function Harvest() {
       )}
 
       {toast && (
-        <div className="fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 bg-[#1D9E75]">
+        <div className="fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 bg-[#8A9A5B]">
           <CheckCircle2 size={16}/>{toast}
         </div>
       )}
 
       <style>{`
         .finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}
-        .finput:focus{border-color:#1D9E75;}
+        .finput:focus{border-color:#8A9A5B;}
         .pulse{animation:pulse-ring 1.8s ease-in-out infinite;}
         @keyframes pulse-ring{0%,100%{opacity:1}50%{opacity:0.4}}
       `}</style>

@@ -77,8 +77,8 @@ export default function GoLive() {
     return (
       <Shell onBack={() => navigate(-1)}>
         <div className="flex items-start gap-2.5 p-3.5 rounded-xl"
-          style={{ background: 'rgba(29,158,117,0.1)' }}>
-          <CheckCircle2 size={18} style={{ color: '#1D9E75', flexShrink: 0 }} />
+          style={{ background: 'rgba(138,154,91,0.1)' }}>
+          <CheckCircle2 size={18} style={{ color: '#8A9A5B', flexShrink: 0 }} />
           <div>
             <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
               These books are live
@@ -99,8 +99,8 @@ export default function GoLive() {
     return (
       <Shell onBack={() => navigate('/ledger')}>
         <div className="flex items-start gap-2.5 p-3.5 rounded-xl mb-3"
-          style={{ background: 'rgba(29,158,117,0.1)' }}>
-          <CheckCircle2 size={18} style={{ color: '#1D9E75', flexShrink: 0 }} />
+          style={{ background: 'rgba(138,154,91,0.1)' }}>
+          <CheckCircle2 size={18} style={{ color: '#8A9A5B', flexShrink: 0 }} />
           <div>
             <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
               Books start fresh from {result.cutover}
@@ -122,7 +122,7 @@ export default function GoLive() {
           ))}
         </div>
         <button onClick={() => navigate('/ledger')} className="mt-4 w-full py-3 rounded-xl text-sm font-bold text-white"
-          style={{ background: '#1D9E75' }}>
+          style={{ background: '#8A9A5B' }}>
           Open the Ledger →
         </button>
       </Shell>
@@ -146,7 +146,7 @@ export default function GoLive() {
           style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', color: 'var(--c-text)' }} />
         <button onClick={loadPreview} disabled={busy || !month}
           className="px-4 py-2.5 rounded-xl text-sm font-bold text-white"
-          style={{ background: busy ? 'var(--c-faint)' : '#1D9E75' }}>
+          style={{ background: busy ? 'var(--c-faint)' : '#8A9A5B' }}>
           {busy && !preview ? 'Working…' : 'Preview'}
         </button>
       </div>

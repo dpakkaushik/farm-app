@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { TreePine, Plus, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, CalendarOff } from 'lucide-react'
 import { useTreeStore } from '../store/trees'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
+import ImageViewer from '../components/ImageViewer'
+import ImageCropper from '../components/ImageCropper'
+import { uploadAttachment, deleteAttachment } from '../lib/attachments'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const YEAR  = new Date().getFullYear()
@@ -17,7 +20,7 @@ const CHANGE_TYPES = [
 ]
 
 const PURPOSE = {
-  fruit:  { emoji: '🍋', label: 'Fruit',  color: '#1D9E75' },
+  fruit:  { emoji: '🍋', label: 'Fruit',  color: '#8A9A5B' },
   timber: { emoji: '🪵', label: 'Timber', color: '#BA7517' },
 }
 
@@ -25,14 +28,14 @@ const PURPOSE = {
 // one lump sum — so they are the same row, and each maps to the kind of tree it can
 // possibly cover.
 const REVENUE = {
-  fruit_lease: { emoji: '🍋', label: 'Fruit lease', color: '#1D9E75', purpose: 'fruit'  },
+  fruit_lease: { emoji: '🍋', label: 'Fruit lease', color: '#8A9A5B', purpose: 'fruit'  },
   timber_sale: { emoji: '🪵', label: 'Timber sale', color: '#BA7517', purpose: 'timber' },
 }
 
 const PAY = {
   pending: { label: 'Unpaid',    color: '#E24B4A' },
   partial: { label: 'Part paid', color: '#BA7517' },
-  paid:    { label: 'Paid',      color: '#1D9E75' },
+  paid:    { label: 'Paid',      color: '#8A9A5B' },
 }
 
 const money = n => `₹${Math.round(n || 0).toLocaleString('en-IN')}`
@@ -70,9 +73,9 @@ function Choice({ options, value, onChange }) {
         <button key={v} onClick={() => onChange(v)}
           className="py-2 rounded-xl text-xs font-medium transition-colors"
           style={{
-            background: value === v ? '#1D9E75' : 'var(--c-ghost)',
+            background: value === v ? '#8A9A5B' : 'var(--c-ghost)',
             color:      value === v ? '#fff'    : 'var(--c-muted)',
-            border:    `1px solid ${value === v ? '#1D9E75' : 'var(--c-border)'}`,
+            border:    `1px solid ${value === v ? '#8A9A5B' : 'var(--c-border)'}`,
           }}>
           {label}
         </button>
@@ -143,7 +146,7 @@ function SpeciesModal({ species, onClose, onCreated }) {
       </FRow>
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : species ? 'Save changes' : 'Add tree'}
       </button>
     </Modal>
@@ -228,9 +231,9 @@ function PlantingModal({ speciesId, speciesName, planting, onClose }) {
                 <button key={side} onClick={() => toggleSide(side)}
                   className="py-2 rounded-xl text-xs font-medium capitalize"
                   style={{
-                    background: on ? '#1D9E75' : 'var(--c-ghost)',
+                    background: on ? '#8A9A5B' : 'var(--c-ghost)',
                     color:      on ? '#fff'    : 'var(--c-muted)',
-                    border:    `1px solid ${on ? '#1D9E75' : 'var(--c-border)'}`,
+                    border:    `1px solid ${on ? '#8A9A5B' : 'var(--c-border)'}`,
                   }}>
                   {side}
                 </button>
@@ -247,7 +250,7 @@ function PlantingModal({ speciesId, speciesName, planting, onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : editing ? 'Save changes' : 'Add planting'}
       </button>
     </Modal>
@@ -287,9 +290,9 @@ function CountModal({ planting, speciesName, onClose }) {
             <button key={v} onClick={() => set('changeType', v)}
               className="py-2 rounded-xl text-xs font-medium"
               style={{
-                background: form.changeType === v ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.changeType === v ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.changeType === v ? '#fff'    : 'var(--c-muted)',
-                border:    `1px solid ${form.changeType === v ? '#1D9E75' : 'var(--c-border)'}`,
+                border:    `1px solid ${form.changeType === v ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               {emoji} {label}
             </button>
@@ -320,7 +323,7 @@ function CountModal({ planting, speciesName, onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : 'Record change'}
       </button>
     </Modal>
@@ -377,7 +380,7 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
         {canEdit && (
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={onCount} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
-              style={{ background: '#1D9E7518', color: '#1D9E75' }}>Count</button>
+              style={{ background: '#8A9A5B18', color: '#8A9A5B' }}>Count</button>
             <button onClick={onEdit} className="p-1" style={{ color: 'var(--c-muted)' }}><Pencil size={13} /></button>
             <button onClick={remove} className="p-1" style={{ color: 'var(--c-muted)' }}><Trash2 size={13} /></button>
           </div>
@@ -393,7 +396,7 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
                 return (
                   <div key={l.id} className="flex items-center gap-2 text-[10px] pt-1.5">
                     <span>{meta ? meta[1] : '📄'}</span>
-                    <span className="font-semibold" style={{ color: l.quantity < 0 ? '#E24B4A' : '#1D9E75' }}>
+                    <span className="font-semibold" style={{ color: l.quantity < 0 ? '#E24B4A' : '#8A9A5B' }}>
                       {l.quantity > 0 ? '+' : ''}{l.quantity}
                     </span>
                     <span style={{ color: 'var(--c-muted)' }}>
@@ -411,7 +414,7 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
 }
 
 // ── Species card ──────────────────────────────────────────────────────────────
-function SpeciesCard({ species, plantings, canEdit }) {
+function SpeciesCard({ species, plantings, canEdit, onPhoto }) {
   const deleteSpecies = useTreeStore(s => s.deleteSpecies)
   const [open, setOpen]           = useState(false)
   const [editSpecies, setEdit]    = useState(false)
@@ -433,22 +436,40 @@ function SpeciesCard({ species, plantings, canEdit }) {
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center gap-3 p-4 text-left">
-        <span className="text-xl shrink-0">{p.emoji}</span>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{name}</p>
-          <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-            {localName ? `${localName} · ` : ''}
-            {plantings.length} {plantings.length === 1 ? 'planting' : 'plantings'}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-base font-bold" style={{ color: p.color }}>{total}</p>
-          <p className="text-[9px]" style={{ color: 'var(--c-muted)' }}>{p.label}</p>
-        </div>
-        {open ? <ChevronDown size={15} style={{ color: 'var(--c-muted)' }} />
-              : <ChevronRight size={15} style={{ color: 'var(--c-muted)' }} />}
-      </button>
+      {/* The photo slot is its own button (like the livestock cards) — it can't
+          nest inside the expand button, and tapping a mango's photo shouldn't
+          also fold the card open. */}
+      <div className="w-full flex items-center gap-3 p-4">
+        {canEdit ? (
+          <button onClick={() => onPhoto(species)} className="shrink-0">
+            {species.photoUrl
+              ? <img src={species.photoUrl} alt={name} className="w-11 h-11 rounded-xl object-cover" />
+              : <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl border border-dashed"
+                  style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
+                  {p.emoji}
+                </div>}
+          </button>
+        ) : (
+          species.photoUrl
+            ? <img src={species.photoUrl} alt={name} className="w-11 h-11 rounded-xl object-cover shrink-0" />
+            : <span className="text-xl shrink-0">{p.emoji}</span>
+        )}
+        <button onClick={() => setOpen(v => !v)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{name}</p>
+            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+              {localName ? `${localName} · ` : ''}
+              {plantings.length} {plantings.length === 1 ? 'planting' : 'plantings'}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-base font-bold" style={{ color: p.color }}>{total}</p>
+            <p className="text-[9px]" style={{ color: 'var(--c-muted)' }}>{p.label}</p>
+          </div>
+          {open ? <ChevronDown size={15} style={{ color: 'var(--c-muted)' }} />
+                : <ChevronRight size={15} style={{ color: 'var(--c-muted)' }} />}
+        </button>
+      </div>
 
       {open && (
         <div className="px-4 pb-4 space-y-2">
@@ -461,7 +482,7 @@ function SpeciesCard({ species, plantings, canEdit }) {
             <div className="flex gap-2 pt-1">
               <button onClick={() => setNew(true)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 border"
-                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
                 <Plus size={13} /> Add planting
               </button>
               <button onClick={() => setEdit(true)} className="px-3 py-2 rounded-xl border"
@@ -592,10 +613,10 @@ function SaleModal({ onClose }) {
                 <button key={p.id} onClick={() => toggle(p.id)}
                   className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left"
                   style={{
-                    background: on ? '#1D9E7514' : 'var(--c-ghost)',
-                    border: `1px solid ${on ? '#1D9E75' : 'var(--c-border)'}`,
+                    background: on ? '#8A9A5B14' : 'var(--c-ghost)',
+                    border: `1px solid ${on ? '#8A9A5B' : 'var(--c-border)'}`,
                   }}>
-                  <span className="text-xs" style={{ color: on ? '#1D9E75' : 'var(--c-faint)' }}>
+                  <span className="text-xs" style={{ color: on ? '#8A9A5B' : 'var(--c-faint)' }}>
                     {on ? '☑' : '☐'}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -703,7 +724,7 @@ function SaleModal({ onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : 'Record sale'}
       </button>
     </Modal>
@@ -767,7 +788,7 @@ function PaymentModal({ sale, onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : 'Save'}
       </button>
     </Modal>
@@ -832,7 +853,7 @@ function SaleRow({ sale, canEdit }) {
             )}
             {sale.amountReceived > 0 && (
               <div><span style={{ color: 'var(--c-muted)' }}>Received </span>
-                <span style={{ color: '#1D9E75' }}>{money(sale.amountReceived)}</span></div>
+                <span style={{ color: '#8A9A5B' }}>{money(sale.amountReceived)}</span></div>
             )}
             {outstanding > 0 && (
               <div><span style={{ color: 'var(--c-muted)' }}>Outstanding </span>
@@ -870,7 +891,7 @@ function SaleRow({ sale, canEdit }) {
             <div className="flex gap-2 pt-1">
               <button onClick={() => setPay(true)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold border"
-                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
                 Update payment
               </button>
               <button onClick={remove} className="px-3 py-2 rounded-xl border"
@@ -905,7 +926,7 @@ function SalesTab({ canEdit }) {
         <div className="grid grid-cols-3 gap-2">
           {[
             ['Agreed',      earned,   'var(--c-text)'],
-            ['Received',    received, '#1D9E75'],
+            ['Received',    received, '#8A9A5B'],
             ['Outstanding', owed,     owed > 0 ? '#E24B4A' : 'var(--c-muted)'],
           ].map(([label, val, color]) => (
             <div key={label} className="rounded-xl border p-3"
@@ -933,7 +954,7 @@ function SalesTab({ canEdit }) {
       {canEdit && (
         <button onClick={() => setNew(true)}
           className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-          style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+          style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
           <Plus size={15} /> Record a sale
         </button>
       )}
@@ -955,9 +976,9 @@ function FilterChips({ options, value, onChange }) {
           <button key={k} onClick={() => onChange(k)}
             className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
             style={{
-              background: on ? '#1D9E75' : 'var(--c-ghost)',
+              background: on ? '#8A9A5B' : 'var(--c-ghost)',
               color:      on ? '#fff'    : 'var(--c-muted)',
-              border:    `1px solid ${on ? '#1D9E75' : 'var(--c-border)'}`,
+              border:    `1px solid ${on ? '#8A9A5B' : 'var(--c-border)'}`,
             }}>
             {label}
           </button>
@@ -969,7 +990,7 @@ function FilterChips({ options, value, onChange }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Trees() {
-  const { species, plantings, loading, loaded, load } = useTreeStore()
+  const { species, plantings, loading, loaded, load, updateSpeciesPhoto } = useTreeStore()
   const { farms, activeFarmId } = useAuthStore()
   const canEdit = isManager(farms.find(f => f.farm_id === activeFarmId)?.role)
 
@@ -978,6 +999,40 @@ export default function Trees() {
   const [newSpecies, setNew]    = useState(false)
   const [plantNew, setPlantNew] = useState(null)      // {id, name} — planting step of add-a-tree
   const [error, setError]       = useState(null)
+
+  // Photo slot — the livestock cards' tap-crop-save flow, verbatim: an empty
+  // slot goes straight to the picker, an existing photo opens in the viewer
+  // (which carries Change and Remove).
+  const photoInputRef = useRef()
+  const [pendingPhoto, setPendingPhoto] = useState(null)  // species id awaiting a file
+  const [cropFile,     setCropFile]     = useState(null)
+  const [photoView,    setPhotoView]    = useState(null)  // species being viewed
+
+  const handlePhotoClick = (sp) => {
+    if (sp.photoUrl) return setPhotoView(sp)
+    setPendingPhoto(sp.id)
+    photoInputRef.current?.click()
+  }
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (file && pendingPhoto) setCropFile(file)
+  }
+  const savePhoto = async (id, file, oldPath) => {
+    try {
+      const path = await uploadAttachment(file, { folder: 'asset_photos/tree_species', entityId: id })
+      await updateSpeciesPhoto(id, path)
+      if (oldPath) await deleteAttachment(oldPath)   // don't orphan the replaced file
+    } catch (e) { alert('Upload failed: ' + e.message) }
+    finally { setPendingPhoto(null); setCropFile(null); setPhotoView(null) }
+  }
+  const removePhoto = async (sp) => {
+    try {
+      await updateSpeciesPhoto(sp.id, null)
+      if (sp.photoPath) await deleteAttachment(sp.photoPath)
+    } catch (e) { alert(e.message) }
+    finally { setPhotoView(null) }
+  }
 
   useEffect(() => {
     load().catch(e => setError(e.message))
@@ -997,7 +1052,7 @@ export default function Trees() {
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--c-bg)' }}>
       <div className="shrink-0 px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--c-border)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <TreePine size={20} style={{ color: '#1D9E75' }} />
+          <TreePine size={20} style={{ color: '#8A9A5B' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>Trees</p>
           <div className="flex gap-1.5 ml-auto text-[10px]">
             <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
@@ -1013,7 +1068,7 @@ export default function Trees() {
           {[['trees', 'Trees'], ['sales', 'Sales']].map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)}
               className="flex-1 py-2 text-xs font-semibold transition-colors"
-              style={{ background: tab === k ? '#1D9E75' : 'var(--c-ghost)',
+              style={{ background: tab === k ? '#8A9A5B' : 'var(--c-ghost)',
                        color:      tab === k ? '#fff'    : 'var(--c-muted)' }}>
               {label}
             </button>
@@ -1038,7 +1093,7 @@ export default function Trees() {
             {canEdit && (
               <button onClick={() => setNew(true)}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-                style={{ borderColor: '#1D9E75', color: '#1D9E75' }}>
+                style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
                 <Plus size={15} /> Add a tree
               </button>
             )}
@@ -1055,13 +1110,33 @@ export default function Trees() {
             )}
 
             {shown.map(s => (
-              <SpeciesCard key={s.id} species={s} plantings={plantingsOf(s.id)} canEdit={canEdit} />
+              <SpeciesCard key={s.id} species={s} plantings={plantingsOf(s.id)} canEdit={canEdit}
+                onPhoto={handlePhotoClick} />
             ))}
           </>
         )}
 
         {!error && loaded && tab === 'sales' && <SalesTab canEdit={canEdit} />}
       </div>
+
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+
+      {/* Crop on the way in, for a photo picked into an empty slot */}
+      {cropFile && pendingPhoto && (
+        <ImageCropper file={cropFile}
+          onDone={f => savePhoto(pendingPhoto, f, null)}
+          onCancel={() => { setCropFile(null); setPendingPhoto(null) }} />
+      )}
+
+      {/* Tapping an existing photo expands it; Change and Remove live in the viewer */}
+      {photoView && (
+        <ImageViewer
+          value={photoView.photoUrl}
+          name={displayName(photoView)}
+          onClose={() => setPhotoView(null)}
+          onReplace={f => savePhoto(photoView.id, f, photoView.photoPath)}
+          onRemove={() => removePhoto(photoView)} />
+      )}
 
       {newSpecies && (
         <SpeciesModal

@@ -20,7 +20,7 @@
   --c-sub:          rgba(255,255,255,0.60);
   --c-muted:        rgba(255,255,255,0.40);
   --c-faint:        rgba(255,255,255,0.25);
-  --primary: #1D9E75;
+  --primary: #8A9A5B;
   --danger:  #E24B4A;
   --warning: #BA7517;
   color-scheme: dark;
@@ -43,7 +43,7 @@
   --c-sub:          #4b5e3c;
   --c-muted:        #728060;
   --c-faint:        #9aab88;
-  --primary: #1D9E75;
+  --primary: #8A9A5B;
   --danger:  #E24B4A;
   --warning: #BA7517;
   color-scheme: light;
@@ -102,7 +102,7 @@ select:-webkit-autofill {
   -webkit-text-fill-color: var(--c-text);
 }
 
-.finput:focus { border-color: #1D9E75; }
+.finput:focus { border-color: #8A9A5B; }
 
 .finput::placeholder {
   color: var(--c-faint);

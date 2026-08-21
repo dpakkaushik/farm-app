@@ -77,7 +77,7 @@ export default function AcceptInvite() {
   const wrap = (children) => (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f4c35 0%, #1D9E75 100%)',
+      background: 'linear-gradient(135deg, #0f4c35 0%, #8A9A5B 100%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
     }}>
       <div style={{
@@ -102,7 +102,7 @@ export default function AcceptInvite() {
       <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>Invitation Failed</h2>
       <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 24px' }}>{error}</p>
       <button onClick={() => navigate('/')}
-        style={{ padding: '11px 24px', border: 'none', borderRadius: '10px', background: '#1D9E75', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
+        style={{ padding: '11px 24px', border: 'none', borderRadius: '10px', background: '#8A9A5B', color: '#fff', fontSize: '15px', fontWeight: 700, cursor: 'pointer' }}>
         Go to App
       </button>
     </>
@@ -119,7 +119,7 @@ export default function AcceptInvite() {
         </h2>
         <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 20px', lineHeight: 1.5 }}>
           Join <strong style={{ color: '#111827' }}>{preview?.farm_name}</strong> as{' '}
-          <strong style={{ color: '#1D9E75' }}>{ROLE_LABELS[preview?.role]}</strong>
+          <strong style={{ color: '#8A9A5B' }}>{ROLE_LABELS[preview?.role]}</strong>
         </p>
 
         {sent ? (
@@ -134,7 +134,7 @@ export default function AcceptInvite() {
               Click the link in the email — no password needed. You'll land straight on this invitation.
             </div>
             <button type="button" onClick={() => setSent(false)}
-              style={{ background: 'none', border: 'none', color: '#1D9E75', fontSize: '12px', cursor: 'pointer', marginTop: '12px', textDecoration: 'underline' }}>
+              style={{ background: 'none', border: 'none', color: '#8A9A5B', fontSize: '12px', cursor: 'pointer', marginTop: '12px', textDecoration: 'underline' }}>
               Resend link
             </button>
           </div>
@@ -149,7 +149,7 @@ export default function AcceptInvite() {
                 <button
                   onClick={() => sendMagicLink(inviteEmail)}
                   disabled={sending}
-                  style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '10px', background: sending ? '#9ca3af' : '#1D9E75', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', marginBottom: '12px' }}>
+                  style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '10px', background: sending ? '#9ca3af' : '#8A9A5B', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: sending ? 'not-allowed' : 'pointer', marginBottom: '12px' }}>
                   {sending ? 'Sending…' : '📧 Send me a sign-in link'}
                 </button>
               </>
@@ -168,7 +168,7 @@ export default function AcceptInvite() {
                 <button
                   onClick={() => sendMagicLink(manualEmail)}
                   disabled={sending || !manualEmail}
-                  style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '10px', background: sending || !manualEmail ? '#9ca3af' : '#1D9E75', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', marginBottom: '12px' }}>
+                  style={{ width: '100%', padding: '14px', border: 'none', borderRadius: '10px', background: sending || !manualEmail ? '#9ca3af' : '#8A9A5B', color: '#fff', fontSize: '16px', fontWeight: 700, cursor: 'pointer', marginBottom: '12px' }}>
                   {sending ? 'Sending…' : '📧 Send sign-in link'}
                 </button>
               </>
@@ -191,7 +191,7 @@ export default function AcceptInvite() {
       <h2 style={{ margin: '0 0 8px', fontSize: '20px', fontWeight: 800, color: '#111827' }}>You're in!</h2>
       <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 24px', lineHeight: 1.5 }}>
         You've joined <strong style={{ color: '#111827' }}>{preview?.farm_name}</strong> as{' '}
-        <strong style={{ color: '#1D9E75' }}>{ROLE_LABELS[preview?.role]}</strong>.
+        <strong style={{ color: '#8A9A5B' }}>{ROLE_LABELS[preview?.role]}</strong>.
       </p>
 
       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '20px', marginBottom: '20px', textAlign: 'left' }}>
@@ -230,14 +230,14 @@ export default function AcceptInvite() {
       <h2 style={{ margin: '0 0 6px', fontSize: '22px', fontWeight: 800, color: '#111827' }}>Farm Invitation</h2>
       <p style={{ color: '#6b7280', fontSize: '14px', margin: '0 0 4px' }}>You've been invited to join</p>
       <p style={{ color: '#111827', fontSize: '20px', fontWeight: 800, margin: '0 0 4px' }}>{preview?.farm_name}</p>
-      <p style={{ color: '#1D9E75', fontSize: '14px', fontWeight: 600, margin: '0 0 28px' }}>as {ROLE_LABELS[preview?.role]}</p>
+      <p style={{ color: '#8A9A5B', fontSize: '14px', fontWeight: 600, margin: '0 0 28px' }}>as {ROLE_LABELS[preview?.role]}</p>
 
       <button
         onClick={handleAccept}
         disabled={status === 'accepting'}
         style={{
           width: '100%', padding: '14px', border: 'none', borderRadius: '10px',
-          background: status === 'accepting' ? '#9ca3af' : '#1D9E75', color: '#fff',
+          background: status === 'accepting' ? '#9ca3af' : '#8A9A5B', color: '#fff',
           fontSize: '16px', fontWeight: 700, cursor: status === 'accepting' ? 'not-allowed' : 'pointer', marginBottom: '12px',
         }}>
         {status === 'accepting' ? 'Joining…' : 'Accept Invitation →'}

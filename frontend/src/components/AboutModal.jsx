@@ -29,7 +29,7 @@ export default function AboutModal({ onClose }) {
         <div className="px-5 pb-5">
           <a href={mailto}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-semibold"
-            style={{ background: '#1D9E75', color: '#fff', textDecoration: 'none' }}>
+            style={{ background: '#8A9A5B', color: '#fff', textDecoration: 'none' }}>
             <Mail size={16} /> Contact the team
           </a>
           <p className="text-[11px] text-center mt-2" style={{ color: 'var(--c-faint)' }}>{SUPPORT_EMAIL}</p>

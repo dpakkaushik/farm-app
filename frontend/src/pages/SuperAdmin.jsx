@@ -46,7 +46,7 @@ export default function SuperAdmin() {
               { label: 'Total Members', value: farms.reduce((s, f) => s + (f.farm_memberships?.[0]?.count || 0), 0) },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: '#fff', borderRadius: '12px', border: '0.5px solid #e5e7eb', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '24px', fontWeight: 800, color: '#1D9E75' }}>{value}</div>
+                <div style={{ fontSize: '24px', fontWeight: 800, color: '#8A9A5B' }}>{value}</div>
                 <div style={{ fontSize: '12px', color: '#6b7280' }}>{label}</div>
               </div>
             ))}

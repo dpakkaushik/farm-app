@@ -43,7 +43,7 @@ export default function Attachment({
       <div className={`relative inline-flex items-center gap-2 group ${className}`}>
         <button type="button" onClick={() => setViewing(true)}
           className={variant === 'chip'
-            ? 'flex items-center gap-1.5 text-[10px] text-[#1D9E75] underline underline-offset-2'
+            ? 'flex items-center gap-1.5 text-[10px] text-[#8A9A5B] underline underline-offset-2'
             : `${size} rounded-lg overflow-hidden border shrink-0`}
           style={variant === 'chip' ? undefined : { borderColor: 'var(--c-border-md)' }}>
           {variant === 'chip' ? (
@@ -61,7 +61,7 @@ export default function Attachment({
             {onReplace && (
               <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
                 title="Change"
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--c-muted)] hover:text-[#1D9E75] disabled:opacity-40"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--c-muted)] hover:text-[#8A9A5B] disabled:opacity-40"
                 style={{ background: 'var(--c-ghost)' }}>
                 <Pencil size={11} />
               </button>

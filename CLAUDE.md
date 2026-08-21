@@ -42,13 +42,30 @@ rows bypassing the contract-type Log Work system. Do not resurrect them.
 shipped. (2) "Add tree has no location" — the location was never missing, it lives on the
 PLANTING (plot/boundary + sides, migration 0006), one step past the species form he was
 looking at; now Add a tree CHAINS into the planting form automatically (`addSpecies` returns
-the created row for this). (3) Sapling-purchase expenses: answered, not built — today it's
-Log Expense → Other; recommended a 🌳 Trees expense type (needs a category added to the 0019
-check constraint, so a migration) — awaiting his word. (4) Buyer-not-in-list on tree sales:
+the created row for this). (3) Sapling-purchase expenses: he approved the 🌳 Trees
+expense type next turn — BUILT: migration [`0034`](supabase/migrations/0034_trees_expense_category.sql)
+added a `plants` category to the check constraint (**applied to the live DB via MCP**), and
+Log Expense gained type 🌳 Trees (cats: plants/maintenance/other). (4) Buyer-not-in-list on tree sales:
 already handled by design — the Buyer dropdown plus a free-text name (`tree_revenue.
 buyer_name`, the deliberate fallback); dues tracked per sale via pending/partial/paid, not in
 the party khata. Told him: type the thekedar once; add him to Buyers only if he becomes a
-regular. **The day card's Tasks Due block
+regular.
+**Next batch, same day (all four of his asks, shipped):** (1) **PRIMARY COLOUR IS NOW
+`#8A9A5B`** (sage/olive) — one sweep replaced `#1D9E75` and its `29,158,117` rgba components
+across all 47 frontend files + tailwind config + index.css; there is no colour token, the hex
+is literal everywhere, so any future rebrand is another sweep. (2) **Tree species have a
+photo slot** exactly like the livestock cards (tap empty → pick+crop → save; tap photo →
+viewer with Change/Remove): `tree_species.photo_path` (existed since 0006, unused till now),
+`updateSpeciesPhoto` in the tree store, URL derived via `resolveUrl` on map — the emoji is
+now only the empty-slot placeholder. (3) 🌳 Trees expense type live (see above). (4) **Log
+Expense's Crop/Field type leads with two dashed REDIRECT chips** — "👷 Log Work →"
+(`/labour?go=log-work`) and "📦 Buy Inputs →" (`/resources`) — his call: one place to start
+booking any spend, routed to the right screen. Audit finding, stated to him: crop_field is
+the only type needing redirects (wages → Log Work; input/machine purchases → Resources bill
+for vendor khata + stock); feed/vet/saplings/utilities are genuine farm_expenses and stay.
+**The bottom nav is a floating icon-only pill** (his reference screenshot): dark olive
+rounded-full bar, active tab = filled `#8A9A5B` circle + white dot beneath, labels now
+aria-only, Media unread badge kept. **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —
@@ -622,7 +639,7 @@ Simple mobile-first form. Manager fills every evening in 5–7 minutes:
 ### 5.4 Design System
 
 - **Font:** System sans-serif, clean
-- **Primary color:** `#1D9E75` (teal-green — farm feel)
+- **Primary color:** `#8A9A5B` (sage/olive — owner's pick, 21 Aug; replaced the original `#1D9E75` teal everywhere in one sweep)
 - **Danger:** `#E24B4A`
 - **Warning:** `#BA7517`
 - **Cards:** White background, `border-radius: 12px`, `0.5px border`

@@ -105,8 +105,8 @@ export default function MapPicker({
 
       map.current.addLayer({ id: 'existing-fill', type: 'fill', source: 'existing', paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.14 } })
       map.current.addLayer({ id: 'existing-line', type: 'line', source: 'existing', paint: { 'line-color': '#ffffff', 'line-width': 1.5, 'line-opacity': 0.7, 'line-dasharray': [2, 1] } })
-      map.current.addLayer({ id: 'draft-fill',    type: 'fill', source: 'draft',    paint: { 'fill-color': '#1D9E75', 'fill-opacity': 0.35 } })
-      map.current.addLayer({ id: 'draft-line',    type: 'line', source: 'draft',    paint: { 'line-color': '#1D9E75', 'line-width': 2.5 } })
+      map.current.addLayer({ id: 'draft-fill',    type: 'fill', source: 'draft',    paint: { 'fill-color': '#8A9A5B', 'fill-opacity': 0.35 } })
+      map.current.addLayer({ id: 'draft-line',    type: 'line', source: 'draft',    paint: { 'line-color': '#8A9A5B', 'line-width': 2.5 } })
 
       setReady(true)
     })
@@ -139,7 +139,7 @@ export default function MapPicker({
       const el = document.createElement('div')
       Object.assign(el.style, {
         width: '26px', height: '26px', borderRadius: '50%',
-        background: '#1D9E75', border: '2.5px solid #fff',
+        background: '#8A9A5B', border: '2.5px solid #fff',
         boxShadow: '0 2px 8px rgba(0,0,0,0.45)',
         color: '#fff', fontSize: '12px', fontWeight: '800',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -225,7 +225,7 @@ export default function MapPicker({
       <div style={footRow}>
         <div style={{ fontSize: '12px', color: '#6b7280', minWidth: 0 }}>
           {mode === 'corners' && done && (
-            <span><strong style={{ color: '#1D9E75' }}>≈ {acres.toFixed(2)} acres</strong> from the shape you drew</span>
+            <span><strong style={{ color: '#8A9A5B' }}>≈ {acres.toFixed(2)} acres</strong> from the shape you drew</span>
           )}
           {mode === 'point' && value && (
             <span>{value.lat.toFixed(5)}, {value.lng.toFixed(5)}</span>

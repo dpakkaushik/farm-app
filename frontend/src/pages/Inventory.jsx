@@ -182,7 +182,7 @@ export default function Inventory() {
         {TABS.map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setTab(key)}
             className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors
-              ${tab === key ? 'text-[#1D9E75] border-b-2 border-[#1D9E75]' : 'text-[var(--c-muted)]'}`}>
+              ${tab === key ? 'text-[#8A9A5B] border-b-2 border-[#8A9A5B]' : 'text-[var(--c-muted)]'}`}>
             <Icon size={16} />{label}
           </button>
         ))}
@@ -192,15 +192,15 @@ export default function Inventory() {
       {tab === 'items' && (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
-            <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
+            <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
               <div>
                 <p className="text-xs text-[var(--c-sub)]">Total stock value ({inventoryMaster.length} items)</p>
-                <p className="text-lg font-bold text-[#1D9E75]">
+                <p className="text-lg font-bold text-[#8A9A5B]">
                   ₹{(inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0) / 1000).toFixed(1)}K
                 </p>
               </div>
               <button onClick={openBillModal}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl shadow-md">
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl shadow-md">
                 <ShoppingBag size={14} /> New Purchase
               </button>
             </div>
@@ -238,7 +238,7 @@ export default function Inventory() {
                   </div>
                   <button onClick={() => openIssue(item)} disabled={isOut}
                     className="w-full py-2 text-xs font-semibold rounded-xl border flex items-center justify-center gap-1 disabled:opacity-30"
-                    style={{ background: '#1D9E7518', borderColor: '#1D9E7540', color: '#1D9E75' }}>
+                    style={{ background: '#8A9A5B18', borderColor: '#8A9A5B40', color: '#8A9A5B' }}>
                     → Issue to Plot
                   </button>
                 </div>
@@ -415,7 +415,7 @@ export default function Inventory() {
               </div>
 
               <button onClick={addLine}
-                className="mt-2 w-full py-2 border border-dashed border-[#1D9E75]/30 rounded-xl text-xs text-[#1D9E75] hover:border-[#1D9E75]/60 flex items-center justify-center gap-1">
+                className="mt-2 w-full py-2 border border-dashed border-[#8A9A5B]/30 rounded-xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60 flex items-center justify-center gap-1">
                 <Plus size={12} /> Add Item
               </button>
             </div>
@@ -424,10 +424,10 @@ export default function Inventory() {
                 The split is spelled out when it is not all stock, so the number
                 here can be checked against the bill in hand. */}
             {billTotal > 0 && (
-              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-4 py-2.5">
+              <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-4 py-2.5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-[var(--c-sub)]">Bill Total ({billLines.filter(lineFilled).length} items)</p>
-                  <p className="text-xl font-bold text-[#1D9E75]">₹{billTotal.toLocaleString()}</p>
+                  <p className="text-xl font-bold text-[#8A9A5B]">₹{billTotal.toLocaleString()}</p>
                 </div>
                 {capitalTotal > 0 && (
                   <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
@@ -444,7 +444,7 @@ export default function Inventory() {
             </FRow>
 
             <button onClick={confirmBill} disabled={saving}
-              className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl disabled:opacity-40">
+              className="w-full py-3 bg-[#8A9A5B] text-white text-sm font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : 'Confirm Purchase Bill'}
             </button>
           </div>
@@ -474,7 +474,7 @@ export default function Inventory() {
                         f('plotIds', sel ? curr.filter(id => id !== p.id) : [...curr, p.id])
                       }}
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                        sel ? 'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'
+                        sel ? 'bg-[#8A9A5B]/20 border-[#8A9A5B]/50 text-[#8A9A5B]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'
                       }`}>
                       {p.name}{p.area_acres ? ` · ${p.area_acres}ac` : ''}
                     </button>
@@ -502,13 +502,13 @@ export default function Inventory() {
             {selectedPlotObjs.length > 0 && (
               <div className="space-y-1.5">
                 {plotSplit.map(({ plot, area, cycle, stage }) => (
-                  <div key={plot.id} className={`rounded-xl px-3 py-2 text-xs border ${stage === 'active' ? 'bg-[#1D9E75]/10 border-[#1D9E75]/30' : 'bg-[#BA7517]/10 border-[#BA7517]/30'}`}>
+                  <div key={plot.id} className={`rounded-xl px-3 py-2 text-xs border ${stage === 'active' ? 'bg-[#8A9A5B]/10 border-[#8A9A5B]/30' : 'bg-[#BA7517]/10 border-[#BA7517]/30'}`}>
                     <div className="flex items-center justify-between">
-                      <p className="font-semibold" style={{ color: stage === 'active' ? '#1D9E75' : '#BA7517' }}>
+                      <p className="font-semibold" style={{ color: stage === 'active' ? '#8A9A5B' : '#BA7517' }}>
                         {plot.name} · {area}ac
                       </p>
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                        style={{ background: (stage === 'active' ? '#1D9E75' : '#BA7517') + '25', color: stage === 'active' ? '#1D9E75' : '#BA7517' }}>
+                        style={{ background: (stage === 'active' ? '#8A9A5B' : '#BA7517') + '25', color: stage === 'active' ? '#8A9A5B' : '#BA7517' }}>
                         {stage === 'active' ? 'Active cycle' : 'Preparation'}
                       </span>
                     </div>
@@ -539,10 +539,10 @@ export default function Inventory() {
             </FRow>
 
             {issueQty > 0 && !qtyOverStock && (
-              <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2 space-y-1">
+              <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2 space-y-1">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-[var(--c-sub)]">Total cost ({issueQty} × ₹{selected.costPerUnit})</p>
-                  <p className="text-base font-bold text-[#1D9E75]">₹{(issueQty * selected.costPerUnit).toLocaleString()}</p>
+                  <p className="text-base font-bold text-[#8A9A5B]">₹{(issueQty * selected.costPerUnit).toLocaleString()}</p>
                 </div>
                 {selectedPlotObjs.length > 1 && plotSplit.map(({ plot, splitQty }) => (
                   <div key={plot.id} className="flex items-center justify-between">
@@ -555,7 +555,7 @@ export default function Inventory() {
 
             <button onClick={confirmIssue}
               disabled={saving || qtyOverStock || !issueQty || selected.currentStock === 0}
-              className="w-full py-3 bg-[#1D9E75] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
+              className="w-full py-3 bg-[#8A9A5B] text-[var(--c-text)] text-sm font-bold rounded-xl disabled:opacity-40">
               {saving ? 'Saving…' : 'Confirm Issue'}
             </button>
           </div>
@@ -563,12 +563,12 @@ export default function Inventory() {
       )}
 
       {toast && (
-        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
+        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-white shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#8A9A5B]'}`}>
           {toastType === 'warn' ? <AlertTriangle size={16} /> : <CheckCircle2 size={16} />} {toast}
         </div>
       )}
 
-      <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}.no-scrollbar::-webkit-scrollbar{display:none;}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
+      <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#8A9A5B;}.no-scrollbar::-webkit-scrollbar{display:none;}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
     </div>
   )
 }
@@ -634,12 +634,12 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
         <div className="flex items-center gap-2">
-          <div className="flex-1 bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
+          <div className="flex-1 bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2">
             <p className="text-[10px] text-[var(--c-muted)]">Total ({filtered.length} rows)</p>
-            <p className="text-lg font-bold text-[#1D9E75]">₹{total.toLocaleString()}</p>
+            <p className="text-lg font-bold text-[#8A9A5B]">₹{total.toLocaleString()}</p>
           </div>
           <button onClick={onNewBill}
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl">
+            className="flex items-center gap-1.5 px-3 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl">
             <ShoppingBag size={13} /> New Bill
           </button>
           <button onClick={() => setShowFilter(f => !f)}
@@ -647,7 +647,7 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
             <Filter size={16} />
           </button>
           <button onClick={downloadCSV}
-            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#1D9E75] transition-colors">
+            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#8A9A5B] transition-colors">
             <Download size={16} />
           </button>
         </div>
@@ -677,11 +677,11 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
               <div key={g.billId} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
                 {/* Bill header */}
                 <div className="px-4 py-3 border-b border-[var(--c-border)] flex items-start justify-between"
-                  style={{ background: '#1D9E7508' }}>
+                  style={{ background: '#8A9A5B08' }}>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-[var(--c-text)]">{g.vendor}</p>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#1D9E75]/15 text-[#1D9E75]">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#8A9A5B]/15 text-[#8A9A5B]">
                         BILL · {g.items.length} items
                       </span>
                     </div>
@@ -775,7 +775,7 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
   const total = filtered.reduce((s, i) => s + i.totalCost, 0)
 
   const STAGE_LABEL = { active: 'Active Cycle', preparation: 'Preparation', farm_wide: 'Farm-wide' }
-  const STAGE_COLOR = { active: '#1D9E75', preparation: '#BA7517', farm_wide: '#4169E1' }
+  const STAGE_COLOR = { active: '#8A9A5B', preparation: '#BA7517', farm_wide: '#4169E1' }
 
   const downloadCSV = () => {
     const rows = [
@@ -890,7 +890,7 @@ function Chip({ active, onClick, children }) {
   return (
     <button onClick={onClick}
       className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-        ${active ? 'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'}`}>
+        ${active ? 'bg-[#8A9A5B]/20 border-[#8A9A5B]/50 text-[#8A9A5B]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'}`}>
       {children}
     </button>
   )

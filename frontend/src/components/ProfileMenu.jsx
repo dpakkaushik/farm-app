@@ -38,12 +38,12 @@ function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent
         paddingLeft: indent ? '2.75rem' : '1.25rem',
         paddingRight: '1.25rem',
         background: active ? 'var(--c-ghost)' : 'transparent',
-        borderLeft: active ? '3px solid #1D9E75' : '3px solid transparent',
+        borderLeft: active ? '3px solid #8A9A5B' : '3px solid transparent',
       }}>
-      <Icon size={indent ? 15 : 17} style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-muted)' }} />
+      <Icon size={indent ? 15 : 17} style={{ color: danger ? '#E24B4A' : active ? '#8A9A5B' : 'var(--c-muted)' }} />
       <div className="flex-1 min-w-0">
         <p className={`${indent ? 'text-[13px]' : 'text-sm'} font-semibold truncate`}
-          style={{ color: danger ? '#E24B4A' : active ? '#1D9E75' : 'var(--c-text)' }}>{label}</p>
+          style={{ color: danger ? '#E24B4A' : active ? '#8A9A5B' : 'var(--c-text)' }}>{label}</p>
         {sub && <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       </div>
       {trailing}
@@ -127,7 +127,7 @@ export default function ProfileMenu() {
         <div className="shrink-0 flex items-start justify-between px-5 pt-5 pb-4 border-b" style={{ borderColor: 'var(--c-border-md)' }}>
           <button onClick={() => go('/profile')} className="flex items-center gap-3 min-w-0 text-left">
             <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg shrink-0 overflow-hidden"
-              style={{ background: '#1D9E75', color: '#fff' }}>
+              style={{ background: '#8A9A5B', color: '#fff' }}>
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                 : initial}
@@ -135,7 +135,7 @@ export default function ProfileMenu() {
             <div className="min-w-0">
               <p className="text-sm font-bold truncate" style={{ color: 'var(--c-text)' }}>{profile?.full_name || 'You'}</p>
               <p className="text-[11px] truncate" style={{ color: 'var(--c-muted)' }}>{profile?.email}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: '#1D9E75' }}>Edit profile →</p>
+              <p className="text-[10px] mt-0.5" style={{ color: '#8A9A5B' }}>Edit profile →</p>
             </div>
           </button>
           <button onClick={() => setOpen(false)}
@@ -152,14 +152,14 @@ export default function ProfileMenu() {
           {farms.map(f => (
             <button key={f.farm_id} onClick={() => { switchFarm(f.farm_id); setOpen(false) }}
               className="w-full flex items-center gap-3 px-5 py-2.5 text-left">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: '#1D9E7520' }}>🌾</div>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: '#8A9A5B20' }}>🌾</div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.farm_name}</p>
                 <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
                   {f.total_acres ? `${f.total_acres} acres · ` : ''}{f.role}
                 </p>
               </div>
-              {f.farm_id === activeFarmId && <Check size={15} style={{ color: '#1D9E75' }} />}
+              {f.farm_id === activeFarmId && <Check size={15} style={{ color: '#8A9A5B' }} />}
             </button>
           ))}
           <Row icon={Pencil} label="Manage Farms" sub="Edit, add or delete a farm"

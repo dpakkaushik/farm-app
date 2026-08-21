@@ -198,7 +198,7 @@ export default function Livestock() {
     }
     const value = groupActive.reduce((s, l) => s + (l.purchasePrice || 0), 0)
     return [{ text: `${n} head` },
-            value ? { text: `${fmtK(value)} book value`, color: '#1D9E75' } : null]
+            value ? { text: `${fmtK(value)} book value`, color: '#8A9A5B' } : null]
   })().filter(Boolean)
 
   return (
@@ -224,7 +224,7 @@ export default function Livestock() {
 
       <div className="shrink-0 px-4 pt-4 pb-3 border-b" style={{ borderColor: 'var(--c-border)' }}>
         <div className="flex items-center gap-2 mb-3">
-          <face.Icon size={20} style={{ color: '#1D9E75' }} />
+          <face.Icon size={20} style={{ color: '#8A9A5B' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{face.title}</p>
           <div className="flex gap-1.5 ml-auto text-[10px] items-center">
             {chips.map(({ text, color }) => (
@@ -244,7 +244,7 @@ export default function Livestock() {
           {face.tabs.map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)}
               className={`flex-1 py-2 font-semibold whitespace-nowrap transition-colors ${face.tabs.length > 3 ? 'text-[10px]' : 'text-xs'}`}
-              style={{ background: tab === key ? '#1D9E75' : 'var(--c-ghost)', color: tab === key ? '#fff' : 'var(--c-muted)' }}>
+              style={{ background: tab === key ? '#8A9A5B' : 'var(--c-ghost)', color: tab === key ? '#fff' : 'var(--c-muted)' }}>
               {label}
             </button>
           ))}
@@ -286,7 +286,7 @@ export default function Livestock() {
 
       {toast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-lg text-white"
-          style={{ background: toast.type === 'error' ? '#E24B4A' : toast.type === 'warn' ? '#BA7517' : '#1D9E75' }}>
+          style={{ background: toast.type === 'error' ? '#E24B4A' : toast.type === 'warn' ? '#BA7517' : '#8A9A5B' }}>
           {toast.msg}
         </div>
       )}

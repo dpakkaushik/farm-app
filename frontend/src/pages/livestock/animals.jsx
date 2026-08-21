@@ -78,7 +78,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
   // "Close" was accounting language for four different events — sold, rehomed,
   // died, culled. What they share is that the animal is no longer on the farm.
   const offFarm = l => ({ label: 'Off Farm', icon: <Archive size={11} />, color: '#E24B4A', onClick: () => onClose(l) })
-  const health  = l => ({ label: 'Health', icon: <Stethoscope size={11} />, color: '#1D9E75', onClick: () => toggle(l.id, 'health') })
+  const health  = l => ({ label: 'Health', icon: <Stethoscope size={11} />, color: '#8A9A5B', onClick: () => toggle(l.id, 'health') })
 
   const healthPanel = l => open === panelKey(l.id, 'health')
     ? <HealthPanel animal={l} animals={animals} />
@@ -123,7 +123,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
                 </p>
               </>
             ) : (
-              <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#1D9E75' : 'var(--c-faint)' }}>
+              <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
                 {l.purchasePrice ? fmt(l.purchasePrice) : l.acquisitionType === 'born' ? '🐣 Born on farm' : 'Tap ✏ Edit to set price'}
               </p>
             )}
@@ -169,7 +169,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
           </button>
         </div>
         <ActionBar actions={[
-          { label: '+ Add',  icon: <Plus  size={11} />, color: '#1D9E75', onClick: () => onCount(l, 'add')    },
+          { label: '+ Add',  icon: <Plus  size={11} />, color: '#8A9A5B', onClick: () => onCount(l, 'add')    },
           { label: 'Remove', icon: <Minus size={11} />, color: '#BA7517', onClick: () => onCount(l, 'reduce') },
           health(l),
           offFarm(l),
@@ -219,7 +219,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
   return (
     <div className="pb-4">
       <button onClick={onAdd} className="w-full mb-3 py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
-        style={{ borderColor: '#1D9E7540', color: '#1D9E75', background: '#1D9E7508' }}>
+        style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
         <Plus size={14} /> {face.add}
       </button>
 

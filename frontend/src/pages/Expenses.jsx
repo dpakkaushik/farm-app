@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import FilePicker from '../components/FilePicker'
 import { uploadAttachment, BUCKETS } from '../lib/attachments'
@@ -24,6 +25,7 @@ const EXPENSE_CATS = [
   ['livestock_care', '🪢', 'Livestock Care'],
   ['machinery',      '🚜', 'Machinery / Hired Equipment'],
   ['maintenance',    '🔧', 'Maintenance'],
+  ['plants',         '🌱', 'Saplings / Plants'],
   ['infrastructure', '🏗',  'Infrastructure'],
   ['construction',   '🧱', 'Construction'],
   ['utilities',      '⚡', 'Utilities'],
@@ -37,10 +39,27 @@ const EXPENSE_TYPES = [
   // vet and medicine — hence the last two.
   { key: 'livestock',      emoji: '🐄', label: 'Livestock',      attributedTo: 'livestock', cats: ['feed', 'veterinary', 'medicine', 'accessories', 'livestock_care'] },
   { key: 'crop_field',     emoji: '🌾', label: 'Crop / Field',   attributedTo: 'general',   cats: ['machinery', 'maintenance'] },
+  // Saplings for new trees — the owner's ask, so tree spend stops hiding in
+  // Other. Bought plants land here; the trees themselves live on the Trees
+  // screen (count via tree_count_logs 'planted'), never in inventory.
+  { key: 'trees',          emoji: '🌳', label: 'Trees',          attributedTo: 'general',   cats: ['plants', 'maintenance', 'other'] },
   { key: 'infrastructure', emoji: '🏗', label: 'Infrastructure', attributedTo: 'asset',     cats: ['infrastructure', 'construction', 'maintenance'] },
   { key: 'admin',          emoji: '📋', label: 'Administrative', attributedTo: 'general',   cats: ['administrative', 'utilities', 'event'] },
   { key: 'other',          emoji: '📦', label: 'Other',          attributedTo: 'general',   cats: ['other'] },
 ]
+
+// Money that looks like an expense but has its own door. These render as the
+// leading options under Crop / Field — the owner's call: whoever opens Log
+// Expense meaning to book field spend gets sent to the right screen instead of
+// double-booking it here. Wages must go through Log Work (plot-wise split,
+// salary khata); input and machine purchases through a Resources bill (vendor
+// khata, stock, and crop cost via issues).
+const REDIRECTS = {
+  crop_field: [
+    { emoji: '👷', label: 'Log Work',   to: '/labour?go=log-work' },
+    { emoji: '📦', label: 'Buy Inputs', to: '/resources' },
+  ],
+}
 
 const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 
@@ -87,6 +106,7 @@ function AttachmentRow({ value, onChange, uploading, onUpload }) {
 
 export function AddExpenseModal({ animals, onClose }) {
   const addFarmExpense = useAppStore(s => s.addFarmExpense)
+  const navigate = useNavigate()
   const [form, setForm] = useState({
     expenseDate: TODAY, expenseType: '', category: '', amount: '', description: '',
     attributedTo: 'general', livestockId: '', paymentMode: 'cash', paidTo: '', notes: '',
@@ -143,9 +163,9 @@ export function AddExpenseModal({ animals, onClose }) {
             <button key={key} onClick={() => selectType(key)}
               className="py-2.5 rounded-xl text-xs font-semibold transition-colors flex flex-col items-center gap-0.5"
               style={{
-                background: form.expenseType === key ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.expenseType === key ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.expenseType === key ? '#fff'     : 'var(--c-muted)',
-                border:     `1px solid ${form.expenseType === key ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${form.expenseType === key ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               <span className="text-base">{emoji}</span>
               <span>{label}</span>
@@ -154,17 +174,29 @@ export function AddExpenseModal({ animals, onClose }) {
         </div>
       </FRow>
 
-      {/* Step 2: Category — filtered by type */}
+      {/* Step 2: Category — filtered by type. Redirect chips lead: spends that
+          have their own screen route there instead of double-booking here. */}
       {visibleCats.length > 0 && (
         <FRow label="Category">
           <div className="grid grid-cols-3 gap-1.5">
+            {(REDIRECTS[form.expenseType] || []).map(({ emoji, label, to }) => (
+              <button key={to} onClick={() => { onClose(); navigate(to) }}
+                className="py-2 rounded-xl text-xs font-semibold transition-colors"
+                style={{
+                  background: 'var(--c-ghost)',
+                  color:      '#8A9A5B',
+                  border:     '1px dashed #8A9A5B',
+                }}>
+                {emoji} {label} →
+              </button>
+            ))}
             {visibleCats.map(([v, emoji, label]) => (
               <button key={v} onClick={() => set('category', v)}
                 className="py-2 rounded-xl text-xs font-medium transition-colors"
                 style={{
-                  background: form.category === v ? '#1D9E75' : 'var(--c-ghost)',
+                  background: form.category === v ? '#8A9A5B' : 'var(--c-ghost)',
                   color:      form.category === v ? '#fff'     : 'var(--c-muted)',
-                  border:     `1px solid ${form.category === v ? '#1D9E75' : 'var(--c-border)'}`,
+                  border:     `1px solid ${form.category === v ? '#8A9A5B' : 'var(--c-border)'}`,
                 }}>
                 {emoji} {label}
               </button>
@@ -209,9 +241,9 @@ export function AddExpenseModal({ animals, onClose }) {
             <button key={label} onClick={() => set('paidNow', v)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold transition-colors"
               style={{
-                background: form.paidNow === v ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.paidNow === v ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.paidNow === v ? '#fff'     : 'var(--c-muted)',
-                border:     `1px solid ${form.paidNow === v ? '#1D9E75' : 'var(--c-border)'}`,
+                border:     `1px solid ${form.paidNow === v ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               {label}
             </button>
@@ -231,9 +263,9 @@ export function AddExpenseModal({ animals, onClose }) {
               <button key={m} onClick={() => set('paymentMode', m)}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-colors"
                 style={{
-                  background: form.paymentMode === m ? '#1D9E75' : 'var(--c-ghost)',
+                  background: form.paymentMode === m ? '#8A9A5B' : 'var(--c-ghost)',
                   color:      form.paymentMode === m ? '#fff'     : 'var(--c-muted)',
-                  border:     `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                  border:     `1px solid ${form.paymentMode === m ? '#8A9A5B' : 'var(--c-border)'}`,
                 }}>
                 {m}
               </button>
@@ -251,7 +283,7 @@ export function AddExpenseModal({ animals, onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : 'Save Expense'}
       </button>
     </Modal>

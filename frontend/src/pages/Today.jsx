@@ -343,7 +343,7 @@ function TodayBoard() {
             {notifCount > 0 && (
               <span
                 className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold"
-                style={{ background: pendingOverdue.length > 0 ? '#E24B4A' : '#1D9E75', color: '#fff' }}>
+                style={{ background: pendingOverdue.length > 0 ? '#E24B4A' : '#8A9A5B', color: '#fff' }}>
                 {notifCount}
               </span>
             )}
@@ -385,7 +385,7 @@ function TodayBoard() {
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {pendingOverdue.length > 0 && <Pill count={pendingOverdue.length} label="Overdue"   color="#E24B4A" />}
-                {pendingToday.length > 0   && <Pill count={pendingToday.length}   label="Scheduled" color="#1D9E75" />}
+                {pendingToday.length > 0   && <Pill count={pendingToday.length}   label="Scheduled" color="#8A9A5B" />}
                 {loggedToday.length > 0    && <Pill count={loggedToday.length}    label="Logged"    color="#3b82f6" />}
                 {completedToday.length > 0 && <Pill count={completedToday.length} label="Done"      color="#6b7280" dim />}
               </div>
@@ -427,13 +427,13 @@ function TodayBoard() {
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                style={{ background: '#1D9E75', color: '#fff' }}>
+                style={{ background: '#8A9A5B', color: '#fff' }}>
                 <Plus size={13} strokeWidth={2.5} /> Log Activity
               </button>
               <button
                 onClick={() => setShowExpenseModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                style={{ background: '#1D9E75', color: '#fff' }}>
+                style={{ background: '#8A9A5B', color: '#fff' }}>
                 <Receipt size={13} strokeWidth={2.5} /> Log Expense
               </button>
             </div>
@@ -486,7 +486,7 @@ function TodayBoard() {
 
               <button onClick={fetchHistory} disabled={historyLoading}
                 className="w-full py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
-                style={{ background: '#1D9E75', color: '#fff' }}>
+                style={{ background: '#8A9A5B', color: '#fff' }}>
                 {historyLoading ? 'Fetching…' : confirmLargeRange ? 'Fetch Anyway' : 'Fetch'}
               </button>
 
@@ -535,7 +535,7 @@ function TodayBoard() {
                 <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
                   {actType === 'events' ? 'Tag (optional)' : 'Select Plots'}
                   {actType !== 'events' && (
-                    <span className="text-[#1D9E75] ml-1">({selPlots.size} selected)</span>
+                    <span className="text-[#8A9A5B] ml-1">({selPlots.size} selected)</span>
                   )}
                 </label>
 
@@ -577,9 +577,9 @@ function TodayBoard() {
                         <button key={p.plotId} onClick={() => togglePlot(p.plotId)}
                           className="flex flex-col items-center px-3 py-2 rounded-xl border text-xs font-semibold transition-all"
                           style={{
-                            background:  sel ? '#1D9E7520' : 'var(--c-card)',
-                            borderColor: sel ? '#1D9E75'   : 'var(--c-border-md)',
-                            color:       sel ? '#1D9E75'   : 'var(--c-sub)',
+                            background:  sel ? '#8A9A5B20' : 'var(--c-card)',
+                            borderColor: sel ? '#8A9A5B'   : 'var(--c-border-md)',
+                            color:       sel ? '#8A9A5B'   : 'var(--c-sub)',
                           }}>
                           <span className="text-sm font-bold">{p.label}</span>
                           <span className="text-[9px] font-normal mt-0.5 opacity-70">{p.crop}</span>
@@ -753,7 +753,7 @@ function TodayBoard() {
                   onClick={handleSubmit}
                   disabled={(actType !== 'events' && selPlots.size === 0) || saving}
                   className="flex-1 py-3 rounded-xl text-sm font-bold transition-opacity disabled:opacity-40"
-                  style={{ background: '#1D9E75', color: '#fff' }}>
+                  style={{ background: '#8A9A5B', color: '#fff' }}>
                   {saving ? 'Saving…' : `Save${selPlots.size > 1 ? ` (${selPlots.size} plots)` : ''}`}
                 </button>
               </div>

@@ -53,7 +53,7 @@ export default function OpeningCostBreakup({ value = [], onChange, disabled }) {
       <div className="flex items-center justify-between pt-2 mt-1"
         style={{ borderTop: '1px solid var(--c-border)' }}>
         <p className="text-[11px]" style={{ color: 'var(--c-sub)' }}>Total spent before the app</p>
-        <p className="text-sm font-bold" style={{ color: total > 0 ? '#1D9E75' : 'var(--c-faint)' }}>{fmt(total)}</p>
+        <p className="text-sm font-bold" style={{ color: total > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>{fmt(total)}</p>
       </div>
 
       <p className="text-[10px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>

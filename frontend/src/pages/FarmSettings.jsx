@@ -162,7 +162,7 @@ export default function FarmSettings() {
             )}
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" onClick={() => setEditFarm(false)} style={{ flex: 1, padding: '9px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', cursor: 'pointer', fontSize: '13px' }}>Cancel</button>
-              <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: '8px', background: '#1D9E75', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
+              <button type="submit" disabled={saving} style={{ flex: 1, padding: '9px', border: 'none', borderRadius: '8px', background: '#8A9A5B', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -189,7 +189,7 @@ export default function FarmSettings() {
             const profile = m.user_profiles || {}
             return (
               <div key={m.user_id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '8px' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#1D9E75', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#8A9A5B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>
                   {(profile.full_name || profile.email || '?')[0].toUpperCase()}
                 </div>
                 <div style={{ flex: 1, overflow: 'hidden' }}>
@@ -266,7 +266,7 @@ export default function FarmSettings() {
             <button
               onClick={handleCreateInvite}
               disabled={creating}
-              style={{ padding: '9px 16px', border: 'none', borderRadius: '8px', background: creating ? '#9ca3af' : '#1D9E75', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: creating ? 'not-allowed' : 'pointer' }}
+              style={{ padding: '9px 16px', border: 'none', borderRadius: '8px', background: creating ? '#9ca3af' : '#8A9A5B', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: creating ? 'not-allowed' : 'pointer' }}
             >
               {creating ? '…' : 'Generate Link'}
             </button>

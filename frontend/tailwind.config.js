@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#1D9E75',
+        primary: '#8A9A5B',
         danger:  '#E24B4A',
         warning: '#BA7517',
       },

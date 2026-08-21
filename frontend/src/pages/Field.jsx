@@ -54,7 +54,7 @@ function buildPolygonFromPoints(p) {
 
 // ── Color helpers (driven by crop.color from DB) ───────────────────────────────
 function hexToRgba(hex, alpha) {
-  if (!hex) return `rgba(29,158,117,${alpha})`
+  if (!hex) return `rgba(138,154,91,${alpha})`
   if (hex.startsWith('rgba')) return hex.replace(/[\d.]+\)$/, `${alpha})`)
   if (hex.startsWith('rgb(')) return hex.replace('rgb(', 'rgba(').replace(')', `,${alpha})`)
   const r = parseInt(hex.slice(1, 3), 16)
@@ -242,7 +242,7 @@ export default function Field() {
           cropId:      cycle.cropId,
           cropName:    crop?.name || 'Unknown',
           cropEmoji:   crop?.emoji || '🌾',
-          cropColor:   crop?.color || '#1D9E75',
+          cropColor:   crop?.color || '#8A9A5B',
           sowDate:     cycle.sowDate,
           daysSinceSow,
           totalDays,
@@ -345,7 +345,7 @@ export default function Field() {
       if (p.isMixed) { hasMixed = true; return }
       if (p.current_crop && !seen.has(p.current_crop)) {
         seen.add(p.current_crop)
-        items.push({ label: p.current_crop, color: hexToRgba(p.crop_color || '#1D9E75', 0.55), isMixed: false })
+        items.push({ label: p.current_crop, color: hexToRgba(p.crop_color || '#8A9A5B', 0.55), isMixed: false })
       }
     })
     if (hasMixed) items.push({ label: 'Mixed Crop', color: null, isMixed: true })
@@ -592,7 +592,7 @@ export default function Field() {
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-auto flex flex-col gap-2"
         style={{ width: 'calc(100% - 24px)', maxWidth: '420px' }}>
         {showNewFarmBanner && (
-          <div style={{ background: '#1D9E75', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+          <div style={{ background: '#8A9A5B', borderRadius: '12px', padding: '12px 14px', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
             <span style={{ fontSize: '22px', lineHeight: 1 }}>🎉</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '2px' }}>Farm created! Now add your first plot.</div>
@@ -601,7 +601,7 @@ export default function Field() {
               </div>
               <button
                 onClick={() => { setShowNewFarmBanner(false); navigate('/admin') }}
-                style={{ marginTop: '8px', padding: '6px 14px', border: 'none', borderRadius: '7px', background: '#fff', color: '#1D9E75', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                style={{ marginTop: '8px', padding: '6px 14px', border: 'none', borderRadius: '7px', background: '#fff', color: '#8A9A5B', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
               >
                 Add First Plot →
               </button>
@@ -688,7 +688,7 @@ export default function Field() {
                 <div key={g.crop} className="bg-white/8 rounded-xl p-2.5 border border-white/10">
                   <p className="text-xs font-bold text-white truncate">{g.crop}</p>
                   <p className="text-[10px] text-white/45 mt-0.5">{g.acres.toFixed(1)} ac</p>
-                  <p className="text-[10px] text-[#1D9E75] font-semibold">~{g.estYield} qtl</p>
+                  <p className="text-[10px] text-[#8A9A5B] font-semibold">~{g.estYield} qtl</p>
                   <p className="text-[10px] text-white/35">₹{(g.estRevenue/1000).toFixed(0)}k est.</p>
                   {g.daysToHarvest !== null && (
                     <p className="text-[10px] text-[#BA7517] font-medium mt-0.5">
@@ -713,7 +713,7 @@ export default function Field() {
             top: '50%', transform: 'translateY(-50%)',
             transition: 'left 0.3s ease-out',
           }}>
-          <ChevronRight size={13} className={`text-[#1D9E75] transition-transform duration-300 ${cropPanelOpen ? 'rotate-180' : ''}`} />
+          <ChevronRight size={13} className={`text-[#8A9A5B] transition-transform duration-300 ${cropPanelOpen ? 'rotate-180' : ''}`} />
         </button>
       </>)}
 
@@ -724,7 +724,7 @@ export default function Field() {
         <button onClick={zoomIn}  className="map-btn"><ZoomIn  size={16}/></button>
         <button onClick={zoomOut} className="map-btn"><ZoomOut size={16}/></button>
         <button onClick={() => { setShowCoordPanel(v=>!v); setShowOverlayPanel(false) }} className="map-btn"><Navigation size={16}/></button>
-        <button onClick={() => { setShowOverlayPanel(v=>!v); setShowCoordPanel(false) }} className={`map-btn ${overlay ? 'ring-1 ring-[#1D9E75]' : ''}`}><Layers size={16}/></button>
+        <button onClick={() => { setShowOverlayPanel(v=>!v); setShowCoordPanel(false) }} className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}><Layers size={16}/></button>
       </div>
 
       {/* Coordinate panel */}
@@ -735,9 +735,9 @@ export default function Field() {
             <button onClick={() => setShowCoordPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
           </div>
           <form onSubmit={flyToCoords} className="space-y-2">
-            <input type="number" step="any" placeholder="Latitude" value={coordInput.lat} onChange={e=>setCoordInput(v=>({...v,lat:e.target.value}))} className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 border border-white/10 focus:outline-none focus:border-[#1D9E75]"/>
-            <input type="number" step="any" placeholder="Longitude" value={coordInput.lng} onChange={e=>setCoordInput(v=>({...v,lng:e.target.value}))} className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 border border-white/10 focus:outline-none focus:border-[#1D9E75]"/>
-            <button type="submit" className="w-full bg-[#1D9E75] text-white text-sm font-medium rounded-lg py-2">Fly There</button>
+            <input type="number" step="any" placeholder="Latitude" value={coordInput.lat} onChange={e=>setCoordInput(v=>({...v,lat:e.target.value}))} className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 border border-white/10 focus:outline-none focus:border-[#8A9A5B]"/>
+            <input type="number" step="any" placeholder="Longitude" value={coordInput.lng} onChange={e=>setCoordInput(v=>({...v,lng:e.target.value}))} className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 border border-white/10 focus:outline-none focus:border-[#8A9A5B]"/>
+            <button type="submit" className="w-full bg-[#8A9A5B] text-white text-sm font-medium rounded-lg py-2">Fly There</button>
           </form>
         </div>
       )}
@@ -751,9 +751,9 @@ export default function Field() {
           </div>
           {!overlay ? (
             <div className="space-y-2">
-              <button onClick={loadFarmLayout} className="w-full flex items-center gap-3 bg-[#1D9E75]/15 border border-[#1D9E75]/40 hover:border-[#1D9E75] rounded-xl px-4 py-3 text-left transition-colors">
-                <Layers size={18} className="text-[#1D9E75] shrink-0"/>
-                <div><p className="text-xs font-semibold text-[#1D9E75]">Use Farm Layout</p><p className="text-[10px] text-white/40">Loads layout.png over your farm</p></div>
+              <button onClick={loadFarmLayout} className="w-full flex items-center gap-3 bg-[#8A9A5B]/15 border border-[#8A9A5B]/40 hover:border-[#8A9A5B] rounded-xl px-4 py-3 text-left transition-colors">
+                <Layers size={18} className="text-[#8A9A5B] shrink-0"/>
+                <div><p className="text-xs font-semibold text-[#8A9A5B]">Use Farm Layout</p><p className="text-[10px] text-white/40">Loads layout.png over your farm</p></div>
               </button>
               <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/20 rounded-xl p-4 cursor-pointer hover:border-white/40 transition-colors">
                 <Upload size={18} className="text-white/30"/>
@@ -764,14 +764,14 @@ export default function Field() {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[#1D9E75] font-medium">✓ Overlay active</span>
+                <span className="text-xs text-[#8A9A5B] font-medium">✓ Overlay active</span>
                 <button onClick={toggleOverlayVisibility} className="flex items-center gap-1 text-xs text-white/50 hover:text-white">
                   {overlayVisible ? <Eye size={13}/> : <EyeOff size={13}/>}{overlayVisible ? 'Visible' : 'Hidden'}
                 </button>
               </div>
               <div>
                 <div className="flex justify-between mb-1"><label className="text-xs text-white/50">Opacity</label><span className="text-xs text-white/50">{Math.round(overlayOpacity*100)}%</span></div>
-                <input type="range" min="0.1" max="1" step="0.05" value={overlayOpacity} onChange={e=>updateOverlayOpacity(parseFloat(e.target.value))} className="w-full accent-[#1D9E75]"/>
+                <input type="range" min="0.1" max="1" step="0.05" value={overlayOpacity} onChange={e=>updateOverlayOpacity(parseFloat(e.target.value))} className="w-full accent-[#8A9A5B]"/>
               </div>
               <div className="flex gap-2 pt-1">
                 <label className="flex-1 flex items-center justify-center gap-1 text-xs text-white/50 hover:text-white cursor-pointer border border-white/10 rounded-lg py-2 hover:border-white/30 transition-colors">
@@ -826,7 +826,7 @@ export default function Field() {
 
       <style>{`
         .map-btn{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;background:rgba(26,31,46,0.9);border:1px solid var(--c-border-md);color:#fff;cursor:pointer;backdrop-filter:blur(4px);transition:background 0.15s;}
-        .map-btn:hover{background:rgba(29,158,117,0.4);}
+        .map-btn:hover{background:rgba(138,154,91,0.4);}
         @keyframes slide-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
         .animate-slide-up{animation:slide-up 0.25s ease-out;}
         @keyframes pulse-ring{0%,100%{opacity:1}50%{opacity:0.4}}
@@ -879,10 +879,10 @@ const moneyK = (n) => {
 
 const STAGE = {
   fallow:        { label: 'Fallow',      color: '#888780' },
-  growing:       { label: 'Growing',     color: '#1D9E75' },
-  seeded:        { label: 'Seeded',      color: '#1D9E75' },
+  growing:       { label: 'Growing',     color: '#8A9A5B' },
+  seeded:        { label: 'Seeded',      color: '#8A9A5B' },
   pre_harvest:   { label: 'Pre-harvest', color: '#BA7517' },
-  harvest_ready: { label: 'Ready ✓',     color: '#1D9E75' },
+  harvest_ready: { label: 'Ready ✓',     color: '#8A9A5B' },
   mixed:         { label: 'Mixed crop',  color: '#4169E1' },
 }
 
@@ -918,7 +918,7 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
             </p>
           </div>
           <button onClick={() => navigate(`/media?plot=${plot.id}`)}
-            className="shrink-0 flex items-center gap-1 text-[11px] text-white/40 hover:text-[#1D9E75] px-2 py-1 rounded-lg transition-colors">
+            className="shrink-0 flex items-center gap-1 text-[11px] text-white/40 hover:text-[#8A9A5B] px-2 py-1 rounded-lg transition-colors">
             <Camera size={13}/> Photos
           </button>
           <button onClick={onClose} className="shrink-0 text-white/40 hover:text-white p-1"><X size={18}/></button>
@@ -952,7 +952,7 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
                   sub="Today" highlight />
               )}
               {plot.last_task && (
-                <TimelineRow icon={<CheckCircle2 size={13} className="text-[#1D9E75]"/>}
+                <TimelineRow icon={<CheckCircle2 size={13} className="text-[#8A9A5B]"/>}
                   label={plot.last_task.label}
                   sub={plot.last_task.days_ago === 0 ? 'Today' : `${plot.last_task.days_ago}d ago`} done />
               )}
@@ -977,7 +977,7 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
             </>}
             {isReady && (
               <button onClick={() => navigate('/harvest')}
-                className="flex-1 py-2.5 text-xs font-bold rounded-xl text-[#1D9E75] border border-[#1D9E75]/30 bg-[#1D9E75]/12 hover:bg-[#1D9E75]/20 transition-colors">
+                className="flex-1 py-2.5 text-xs font-bold rounded-xl text-[#8A9A5B] border border-[#8A9A5B]/30 bg-[#8A9A5B]/12 hover:bg-[#8A9A5B]/20 transition-colors">
                 🎯 Harvest
               </button>
             )}
@@ -1003,7 +1003,7 @@ function CropRow({ c, showAcres }) {
           {showAcres && <span className="text-[10px] text-white/35 shrink-0">{c.acres} ac</span>}
         </div>
         <span className="text-[11px] font-bold shrink-0"
-          style={{ color: c.isReady ? '#1D9E75' : c.cropColor }}>
+          style={{ color: c.isReady ? '#8A9A5B' : c.cropColor }}>
           {c.isReady ? '🎯 Ready' : `${c.daysToWindow}d to harvest`}
         </span>
       </div>
@@ -1027,7 +1027,7 @@ function CropRow({ c, showAcres }) {
 function MoneyStrip({ cost, yieldQtl, revenue }) {
   const margin = Number(revenue || 0) - Number(cost || 0)
   const good   = margin >= 0
-  const tone   = good ? '#1D9E75' : '#E24B4A'
+  const tone   = good ? '#8A9A5B' : '#E24B4A'
   return (
     <div>
       <div className="grid grid-cols-3 gap-2">

@@ -7,7 +7,7 @@ const FARM_ID = import.meta.env.VITE_FARM_ID || 'demo'
 const PLOTS   = ['Plot A', 'Plot B', 'Plot C', 'Plot D']
 const ACT_TYPES = ['Irrigation', 'Weeding', 'Spraying', 'Fertilizer', 'Harvest', 'Other']
 const HEALTH  = [
-  { value: 'good',    label: '✅ Good',    color: '#1D9E75' },
+  { value: 'good',    label: '✅ Good',    color: '#8A9A5B' },
   { value: 'average', label: '🟡 Average', color: '#BA7517' },
   { value: 'concern', label: '🔴 Concern', color: '#E24B4A' },
 ]
@@ -54,7 +54,7 @@ export default function Diary() {
   if (submitted) {
     return (
       <div className="h-full flex flex-col items-center justify-center gap-4 bg-[var(--c-bg)] p-8 text-center">
-        <CheckCircle size={56} className="text-[#1D9E75]" />
+        <CheckCircle size={56} className="text-[#8A9A5B]" />
         <h2 className="text-xl font-bold text-[var(--c-text)]">Diary Submitted!</h2>
         <p className="text-sm text-white/50">Owner has been notified. See you tomorrow.</p>
         <button onClick={() => setSubmitted(false)} className="mt-4 px-6 py-2.5 bg-white/10 rounded-xl text-sm text-[var(--c-text)] hover:bg-white/20 transition-colors">
@@ -80,7 +80,7 @@ export default function Diary() {
               onClick={() => togglePlot(p)}
               className={`py-3 rounded-xl text-sm font-medium border transition-colors ${
                 selectedPlots.includes(p)
-                  ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
+                  ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]'
                   : 'bg-white/5 border-white/10 text-[var(--c-sub)] hover:border-white/30'
               }`}
             >
@@ -104,7 +104,7 @@ export default function Diary() {
                       onClick={() => setPlotActivity(plot, act)}
                       className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
                         plotActivities[plot] === act
-                          ? 'bg-[#1D9E75]/20 border-[#1D9E75] text-[#1D9E75]'
+                          ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]'
                           : 'bg-white/5 border-white/10 text-white/50 hover:border-white/30'
                       }`}
                     >
@@ -153,7 +153,7 @@ export default function Diary() {
           placeholder="What was done today? Any issues observed?"
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#8A9A5B] resize-none"
         />
         <label className="flex items-center gap-2 text-xs text-[var(--c-muted)] cursor-pointer hover:text-[var(--c-sub)] mt-2">
           <Camera size={14} /> Attach photo
@@ -168,7 +168,7 @@ export default function Diary() {
           placeholder="What's the plan for tomorrow?"
           value={tomorrowPlan}
           onChange={e => setTomorrowPlan(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75] resize-none"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#8A9A5B] resize-none"
         />
       </Section>
 
@@ -176,7 +176,7 @@ export default function Diary() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--c-bg)]/95 backdrop-blur-sm border-t border-white/8">
         <button
           type="submit" disabled={submitting || selectedPlots.length === 0}
-          className="w-full py-4 rounded-xl font-semibold text-sm bg-[#1D9E75] text-[var(--c-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#17a97e] transition-colors"
+          className="w-full py-4 rounded-xl font-semibold text-sm bg-[#8A9A5B] text-[var(--c-text)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#17a97e] transition-colors"
         >
           {submitting ? 'Submitting…' : 'Submit Diary'}
         </button>
@@ -198,7 +198,7 @@ function LabelInput({ label, ...props }) {
   return (
     <div>
       <label className="text-xs text-[var(--c-muted)] block mb-1">{label}</label>
-      <input {...props} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#1D9E75]" />
+      <input {...props} className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-[var(--c-text)] placeholder-white/25 focus:outline-none focus:border-[#8A9A5B]" />
     </div>
   )
 }

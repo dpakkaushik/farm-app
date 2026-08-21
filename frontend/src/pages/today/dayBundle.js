@@ -11,7 +11,7 @@ export const ACT_EMOJI = {
 export const ACT_COLOR = {
   irrigation: '#3b82f6', weeding: '#f97316', fertilizer: '#a855f7',
   spray: '#ef4444', pesticide: '#ef4444', ploughing: '#f59e0b',
-  sowing: '#34d399', harvesting: '#1D9E75', harvest: '#1D9E75',
+  sowing: '#34d399', harvesting: '#8A9A5B', harvest: '#8A9A5B',
   intercultural: '#64748b', crop_ops: '#22c55e', events: '#ec4899', other: '#6b7280',
 }
 

@@ -57,7 +57,7 @@ function FarmsUnavailable({ message }) {
           Your data is safe — this is a connection or setup problem, not missing farms.
         </p>
         <button onClick={() => window.location.reload()}
-          className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#1D9E75' }}>
+          className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#8A9A5B' }}>
           Try again
         </button>
       </div>
@@ -136,7 +136,7 @@ export default function App() {
 
       {/* Top bar — profile menu only; farm switching, admin, theme, logout all live in its drawer */}
       <div className="shrink-0 flex items-center px-3 py-1.5 border-b"
-        style={{ background: '#1D9E75', borderColor: 'rgba(255,255,255,0.15)',
+        style={{ background: '#8A9A5B', borderColor: 'rgba(255,255,255,0.15)',
                  paddingTop: 'calc(0.375rem + env(safe-area-inset-top, 0px))' }}>
         <ProfileMenu />
       </div>
@@ -175,28 +175,35 @@ export default function App() {
         </Routes>
       </main>
 
-      {/* Bottom nav — same 4 tabs for every role; everything else lives in the profile drawer */}
-      <nav className="flex shrink-0 border-t"
-        style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)',
-                 paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}>
-        {NAV.map(({ to, label, Icon }) => (
-          <NavLink key={to} to={to} className="flex-1">
-            {({ isActive }) => (
-              <div className="flex flex-col items-center gap-1 py-2.5 transition-colors"
-                style={{ color: isActive ? '#1D9E75' : 'var(--c-faint)' }}>
-                <div className="relative">
-                  <Icon size={19} strokeWidth={isActive ? 2.4 : 1.7} />
-                  {to === '/media' && mediaUnread > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
-                      {mediaUnread > 9 ? '9+' : mediaUnread}
-                    </span>
-                  )}
+      {/* Bottom nav — same 4 tabs for every role; everything else lives in the
+          profile drawer. A floating icon-only pill at the owner's ask (his
+          reference: dark rounded bar, active item in a filled circle with a
+          dot beneath). Labels moved into aria-label. */}
+      <nav className="shrink-0 px-4 pt-1.5"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 10px)' }}>
+        <div className="flex items-center justify-around rounded-full px-2 py-1.5 shadow-lg"
+          style={{ background: '#252B16', border: '1px solid rgba(255,255,255,0.07)' }}>
+          {NAV.map(({ to, label, Icon }) => (
+            <NavLink key={to} to={to} aria-label={label} className="flex-1 flex justify-center">
+              {({ isActive }) => (
+                <div className="flex flex-col items-center">
+                  <div className="relative w-10 h-10 rounded-full flex items-center justify-center transition-all"
+                    style={{ background: isActive ? '#8A9A5B' : 'transparent' }}>
+                    <Icon size={19} strokeWidth={isActive ? 2.3 : 1.8}
+                      style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }} />
+                    {to === '/media' && mediaUnread > 0 && (
+                      <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                        {mediaUnread > 9 ? '9+' : mediaUnread}
+                      </span>
+                    )}
+                  </div>
+                  <span className="w-1 h-1 rounded-full -mt-0.5"
+                    style={{ background: isActive ? '#fff' : 'transparent' }} />
                 </div>
-                <span className="text-[8px] font-medium tracking-wide">{label}</span>
-              </div>
-            )}
-          </NavLink>
-        ))}
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
     </div>
   )

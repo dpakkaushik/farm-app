@@ -43,7 +43,7 @@ export default function FilePicker({
 
   const PickBtn = ({ inputRef, Icon, text }) => (
     <button type="button" onClick={() => inputRef.current?.click()}
-      className="flex-1 py-2.5 rounded-xl border border-dashed text-xs transition-colors flex items-center justify-center gap-1.5 hover:border-[#1D9E75]/50 hover:text-[#1D9E75]"
+      className="flex-1 py-2.5 rounded-xl border border-dashed text-xs transition-colors flex items-center justify-center gap-1.5 hover:border-[#8A9A5B]/50 hover:text-[#8A9A5B]"
       style={{ borderColor: 'var(--c-border-md)', color: 'var(--c-muted)' }}>
       <Icon size={13} /> {text}
     </button>
@@ -72,7 +72,7 @@ export default function FilePicker({
 
           <div className="absolute top-1.5 right-1.5 flex gap-1">
             <button type="button" onClick={() => browseRef.current?.click()} title="Change"
-              className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-[#1D9E75]">
+              className="w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-[#8A9A5B]">
               <Pencil size={12} />
             </button>
             <button type="button" onClick={() => onFile(null)} title="Remove"

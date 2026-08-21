@@ -32,7 +32,7 @@ const CONTRACT_TYPES = [
 // the only one where cash comes IN — so it gets its own accent and its own words
 // rather than borrowing the advance's amber.
 const MODAL_KIND = {
-  salary:   { accent: '#1D9E75', cta: 'Record Payment',  notes: 'Payment notes',        who: 'Given By',    whoHint: 'Name of person giving payment' },
+  salary:   { accent: '#8A9A5B', cta: 'Record Payment',  notes: 'Payment notes',        who: 'Given By',    whoHint: 'Name of person giving payment' },
   advance:  { accent: '#BA7517', cta: 'Record Advance',  notes: 'Reason for advance',   who: 'Given By',    whoHint: 'Name of person giving payment' },
   recovery: { accent: '#6366f1', cta: 'Record Recovery', notes: 'Why he is paying back', who: 'Received By', whoHint: 'Who collected the money' },
 }
@@ -103,7 +103,7 @@ export default function Labour() {
           {[['attendance','📋 Attendance'], ['salary','💰 Salary']].map(([k, lbl]) => (
             <button key={k} onClick={() => setSubTab(k)}
               className={`flex-1 py-2.5 text-xs font-semibold border-b-2 transition-colors
-                ${subTab === k ? 'border-[#1D9E75] text-[#1D9E75]' : 'border-transparent text-[var(--c-muted)]'}`}>
+                ${subTab === k ? 'border-[#8A9A5B] text-[#8A9A5B]' : 'border-transparent text-[var(--c-muted)]'}`}>
               {lbl}
             </button>
           ))}
@@ -116,7 +116,7 @@ export default function Labour() {
       </div>
 
       {toast && (
-        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#1D9E75]'}`}>
+        <div className={`fixed bottom-24 left-4 right-4 px-4 py-3 rounded-2xl text-sm font-medium text-[var(--c-text)] shadow-xl z-50 flex items-center gap-2 ${toastType === 'warn' ? 'bg-[#BA7517]' : 'bg-[#8A9A5B]'}`}>
           {toastType === 'warn' ? <AlertTriangle size={16}/> : <CheckCircle2 size={16}/>} {toast}
         </div>
       )}
@@ -126,7 +126,7 @@ export default function Labour() {
 
 // ── Worker attendance calendar ────────────────────────────────────────────────
 const ATT_STYLE = {
-  present:  { bg: '#1D9E7520', border: '#1D9E75', color: '#1D9E75' },
+  present:  { bg: '#8A9A5B20', border: '#8A9A5B', color: '#8A9A5B' },
   half_day: { bg: '#BA751720', border: '#BA7517', color: '#BA7517' },
   absent:   { bg: '#E24B4A20', border: '#E24B4A', color: '#E24B4A' },
 }
@@ -159,9 +159,9 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
     <div className="mt-2 border-t border-[var(--c-border)] pt-2.5 space-y-2" onClick={e => e.stopPropagation()}>
       {/* Days present summary */}
       <div className="flex gap-3 justify-center">
-        <div className="flex items-center gap-1.5 bg-[#1D9E75]/10 rounded-lg px-2.5 py-1">
-          <div className="w-2 h-2 rounded-full bg-[#1D9E75]"/>
-          <p className="text-[10px] font-bold text-[#1D9E75]">{daysPresent} Present</p>
+        <div className="flex items-center gap-1.5 bg-[#8A9A5B]/10 rounded-lg px-2.5 py-1">
+          <div className="w-2 h-2 rounded-full bg-[#8A9A5B]"/>
+          <p className="text-[10px] font-bold text-[#8A9A5B]">{daysPresent} Present</p>
         </div>
         {daysHalf > 0 && (
           <div className="flex items-center gap-1.5 bg-[#BA7517]/10 rounded-lg px-2.5 py-1">
@@ -202,7 +202,7 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
       </div>
       {/* Legend */}
       <div className="flex gap-3 justify-center">
-        {[['#1D9E75','Present'],['#BA7517','Half Day'],['#E24B4A','Absent']].map(([c,l]) => (
+        {[['#8A9A5B','Present'],['#BA7517','Half Day'],['#E24B4A','Absent']].map(([c,l]) => (
           <div key={l} className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full" style={{ background: c }}/>
             <p className="text-[8px] text-[var(--c-faint)]">{l}</p>
@@ -221,7 +221,7 @@ function WorkerCalendar({ workerId, ratePerDay, monthlySalary, monthlyHoliday, m
         </div>
         <div className="text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-0.5">Total</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{(attPay + contractPay).toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#8A9A5B]">₹{(attPay + contractPay).toLocaleString('en-IN')}</p>
         </div>
       </div>
     </div>
@@ -365,9 +365,9 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2.5">
+        <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2.5">
           <p className="text-[10px] text-[var(--c-muted)]">Regular wages today</p>
-          <p className="text-xl font-bold text-[#1D9E75]">₹{todayWages.toLocaleString()}</p>
+          <p className="text-xl font-bold text-[#8A9A5B]">₹{todayWages.toLocaleString()}</p>
           <p className="text-[10px] text-[var(--c-muted)]">{presentCount} present · {halfCount} half · {absentCount} absent</p>
         </div>
         <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl px-3 py-2.5">
@@ -395,9 +395,9 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
           <button onClick={() => setAttTab('labour')}
             className="flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all"
             style={{
-              background:  attTab === 'labour' ? '#1D9E7522' : 'var(--c-card)',
-              borderColor: attTab === 'labour' ? '#1D9E75'   : 'var(--c-border-md)',
-              color:       attTab === 'labour' ? '#1D9E75'   : 'var(--c-muted)',
+              background:  attTab === 'labour' ? '#8A9A5B22' : 'var(--c-card)',
+              borderColor: attTab === 'labour' ? '#8A9A5B'   : 'var(--c-border-md)',
+              color:       attTab === 'labour' ? '#8A9A5B'   : 'var(--c-muted)',
             }}>
             👷 Labour {regularLabourers.length > 0 ? `(${regularLabourers.length})` : ''}
           </button>
@@ -411,7 +411,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
         {/* People list */}
         {(() => {
           const people = attTab === 'staff' ? permanentStaff : regularLabourers
-          const accentColor = attTab === 'staff' ? '#4169E1' : '#1D9E75'
+          const accentColor = attTab === 'staff' ? '#4169E1' : '#8A9A5B'
 
           if (people.length === 0) return (
             <div className="bg-[var(--c-nav)] rounded-xl border border-[var(--c-border)] px-4 py-6 text-center">
@@ -445,7 +445,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <p className="text-sm font-semibold text-[var(--c-text)]">{l.name}</p>
-                      <p className="text-sm font-bold text-[#1D9E75]">₹{(workerSalary[l.id]?.total || 0).toLocaleString('en-IN')}</p>
+                      <p className="text-sm font-bold text-[#8A9A5B]">₹{(workerSalary[l.id]?.total || 0).toLocaleString('en-IN')}</p>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <p className="text-[10px] text-[var(--c-muted)]">{attTab === 'staff' ? `${l.designation || 'Staff'} · ₹${l.monthlySalary || 0}/mo` : `${l.workType} · ₹${l.ratePerDay}/day`}</p>
@@ -465,7 +465,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
                   </button>
                   {status && (
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0
-                      ${status === 'present'  ? 'bg-[#1D9E75]/20 text-[#1D9E75]'
+                      ${status === 'present'  ? 'bg-[#8A9A5B]/20 text-[#8A9A5B]'
                       : status === 'half_day' ? 'bg-[#BA7517]/20 text-[#BA7517]'
                       :                         'bg-[#E24B4A]/20 text-[#E24B4A]'}`}>
                       {status === 'present' ? '✓ Present' : status === 'half_day' ? '½ Half' : '✗ Absent'}
@@ -475,7 +475,7 @@ function LabourToday({ permanentStaff, regularLabourers, labourLogs, cropCycles,
 
                 <div className="flex gap-1.5">
                   {[
-                    ['present',  '✓ Present',  '#1D9E75'],
+                    ['present',  '✓ Present',  '#8A9A5B'],
                     ['half_day', '½ Half Day', '#BA7517'],
                     ['absent',   '✗ Absent',   '#E24B4A'],
                   ].map(([s, label, color]) => (
@@ -545,13 +545,13 @@ function MonthSummaryStrip({ month, setMonth, summary }) {
           style={{ colorScheme: 'dark' }} />
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl p-3 text-center">
+        <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Staff Salary</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{summary.staffSalary.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#8A9A5B]">₹{summary.staffSalary.toLocaleString('en-IN')}</p>
         </div>
-        <div className="bg-[#1D9E75]/6 border border-[#1D9E75]/15 rounded-xl p-3 text-center">
+        <div className="bg-[#8A9A5B]/6 border border-[#8A9A5B]/15 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Regular Labour</p>
-          <p className="text-sm font-bold text-[#1D9E75]">₹{summary.regularTotal.toLocaleString('en-IN')}</p>
+          <p className="text-sm font-bold text-[#8A9A5B]">₹{summary.regularTotal.toLocaleString('en-IN')}</p>
         </div>
         <div className="bg-[#BA7517]/10 border border-[#BA7517]/20 rounded-xl p-3 text-center">
           <p className="text-[9px] text-[var(--c-muted)] mb-1">Contractual</p>
@@ -600,14 +600,14 @@ function MonthWorkLogs({ logs, month }) {
               <div className="flex items-center gap-1.5">
                 <p className="text-xs font-semibold text-[var(--c-text)]">{l.labourName}</p>
                 {l.date === TODAY_STR && (
-                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[#1D9E75]/15 text-[#1D9E75]">TODAY</span>
+                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[#8A9A5B]/15 text-[#8A9A5B]">TODAY</span>
                 )}
               </div>
               <p className="text-[10px] text-[var(--c-muted)]">{sub}</p>
               <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{l.date}</p>
               {l.purpose && <p className="text-[10px] text-[var(--c-sub)] mt-0.5 italic">{l.purpose}</p>}
             </div>
-            <p className="text-sm font-bold text-[#1D9E75] shrink-0">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
+            <p className="text-sm font-bold text-[#8A9A5B] shrink-0">₹{(l.totalCost || 0).toLocaleString('en-IN')}</p>
           </div>
         )
       })}
@@ -788,10 +788,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             <div className={`grid ${advBack > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-px bg-[var(--c-border)] border-t border-[var(--c-border)]`}>
               {[
                 ['Opening', opening, opening > 0 ? '#E24B4A' : 'var(--c-muted)'],
-                ['Earned',  earned + contractPay, '#1D9E75'],
+                ['Earned',  earned + contractPay, '#8A9A5B'],
                 ['Advance', advGiven, advGiven > 0 ? '#BA7517' : 'var(--c-muted)'],
                 ...(advBack > 0 ? [['Recovered', advBack, '#6366f1']] : []),
-                ['Paid',    paidThisMonth, paidThisMonth > 0 ? '#1D9E75' : 'var(--c-muted)'],
+                ['Paid',    paidThisMonth, paidThisMonth > 0 ? '#8A9A5B' : 'var(--c-muted)'],
               ].map(([label, val, color]) => (
                 <div key={label} className="bg-[var(--c-nav)] py-2.5 text-center">
                   <p className="text-[9px] text-[var(--c-faint)] mb-0.5">{label}</p>
@@ -827,7 +827,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <p className="text-[11px] font-bold text-[#1D9E75]">₹{p.amount.toLocaleString('en-IN')}</p>
+                      <p className="text-[11px] font-bold text-[#8A9A5B]">₹{p.amount.toLocaleString('en-IN')}</p>
                     </div>
                   </div>
                 ))}
@@ -877,7 +877,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 📒 History
               </button>
               <button onClick={() => openPayModal(w, 'salary')}
-                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#1D9E75] transition-colors">
+                className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#8A9A5B] transition-colors">
                 💵 Pay Salary
               </button>
               <button onClick={() => openPayModal(w, 'advance')}
@@ -945,7 +945,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                     </button>
                   ) : (
                     <button onClick={() => openPayModal(w, 'salary', owedToWorker(w.balance))}
-                      className="flex-1 py-2.5 text-[10px] font-semibold text-[#1D9E75] transition-colors">
+                      className="flex-1 py-2.5 text-[10px] font-semibold text-[#8A9A5B] transition-colors">
                       💵 Settle ₹{Math.round(owedToWorker(w.balance)).toLocaleString('en-IN')}
                     </button>
                   )}
@@ -980,7 +980,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             {!ledger.loading && (
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  ['Earned + recovered', ledger.khata.totalCredit, '#1D9E75'],
+                  ['Earned + recovered', ledger.khata.totalCredit, '#8A9A5B'],
                   ['Paid + advances',     ledger.khata.totalDebit,  '#BA7517'],
                   [ledger.khata.closing > 0 ? 'Farm owes' : ledger.khata.closing < 0 ? 'Worker owes' : 'Settled',
                    ledger.khata.closing, null],
@@ -1015,10 +1015,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                   <div>
                     <p className="text-[10px] text-[var(--c-text)]">{e.label}</p>
                     {e.givenBy && <p className="text-[9px] text-[var(--c-faint)]">By {e.givenBy}{e.mode && e.mode !== 'cash' ? ` · ${e.mode === 'upi' ? 'UPI' : 'Bank'}` : ''}</p>}
-                    {e.recovered === true && <p className="text-[9px] text-[#1D9E75]">✓ Recovered</p>}
+                    {e.recovered === true && <p className="text-[9px] text-[#8A9A5B]">✓ Recovered</p>}
                   </div>
                   <p className="text-[10px] font-semibold text-[#E24B4A] text-right">{e.debit ? `₹${e.debit.toLocaleString('en-IN')}` : '—'}</p>
-                  <p className="text-[10px] font-semibold text-[#1D9E75] text-right">{e.credit ? `₹${e.credit.toLocaleString('en-IN')}` : '—'}</p>
+                  <p className="text-[10px] font-semibold text-[#8A9A5B] text-right">{e.credit ? `₹${e.credit.toLocaleString('en-IN')}` : '—'}</p>
                   <p className={`text-[10px] font-bold text-right ${e.balance > 0 ? 'text-[#E24B4A]' : e.balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
                     {e.balance >= 0 ? '₹' : '-₹'}{Math.abs(e.balance).toLocaleString('en-IN')}
                   </p>
@@ -1062,7 +1062,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                       Enter less to recover part of it.
                     </p>
                     <p className="text-[10px] mt-0.5 font-semibold"
-                      style={{ color: left.kind === 'settles' ? '#1D9E75' : left.kind === 'over' ? '#E24B4A' : '#BA7517' }}>
+                      style={{ color: left.kind === 'settles' ? '#8A9A5B' : left.kind === 'over' ? '#E24B4A' : '#BA7517' }}>
                       {left.kind === 'settles'
                         ? '✓ This clears his khata'
                         : left.kind === 'part'
@@ -1105,7 +1105,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
               style={{ background: MODAL_KIND[modal.type].accent }}>
               {saving ? 'Saving…' : MODAL_KIND[modal.type].cta}
             </button>
-            <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
+            <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#8A9A5B;}`}</style>
           </div>
         </div>
       )}
@@ -1218,14 +1218,14 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                     <button key={p.id} onClick={() => togglePlot(p.id)}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all"
                       style={{
-                        background:  sel ? '#1D9E7520' : 'var(--c-card)',
-                        borderColor: sel ? '#1D9E75'   : 'var(--c-border-md)',
-                        color:       sel ? '#1D9E75'   : 'var(--c-sub)',
+                        background:  sel ? '#8A9A5B20' : 'var(--c-card)',
+                        borderColor: sel ? '#8A9A5B'   : 'var(--c-border-md)',
+                        color:       sel ? '#8A9A5B'   : 'var(--c-sub)',
                       }}>
                       {p.name}
                       <span className="text-[9px] opacity-60">{Number(p.area_acres).toFixed(1)}ac</span>
                       {crop && (
-                        <span className="text-[8px] px-1 py-0.5 rounded" style={{ background: '#1D9E7520', color: '#1D9E75' }}>
+                        <span className="text-[8px] px-1 py-0.5 rounded" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
                           {crop.name}
                         </span>
                       )}
@@ -1253,9 +1253,9 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                 onClick={() => { setWorkerType(v); setContractType(''); setWorkers([EMPTY_WORKER()]) }}
                 className="flex-1 py-2 text-xs font-bold rounded-xl border transition-all"
                 style={{
-                  background:  workerType === v ? '#1D9E7522' : 'var(--c-card)',
-                  borderColor: workerType === v ? '#1D9E75'   : 'var(--c-border-md)',
-                  color:       workerType === v ? '#1D9E75'   : 'var(--c-muted)',
+                  background:  workerType === v ? '#8A9A5B22' : 'var(--c-card)',
+                  borderColor: workerType === v ? '#8A9A5B'   : 'var(--c-border-md)',
+                  color:       workerType === v ? '#8A9A5B'   : 'var(--c-muted)',
                 }}>
                 {lbl}
               </button>
@@ -1271,9 +1271,9 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                 onClick={() => { setContractType(c.value); setWorkers([EMPTY_WORKER()]) }}
                 className="py-2 text-[10px] font-bold rounded-xl border text-center transition-all"
                 style={{
-                  background:  contractType === c.value ? '#1D9E7520' : 'var(--c-card)',
-                  borderColor: contractType === c.value ? '#1D9E75'   : 'var(--c-border-md)',
-                  color:       contractType === c.value ? '#1D9E75'   : 'var(--c-sub)',
+                  background:  contractType === c.value ? '#8A9A5B20' : 'var(--c-card)',
+                  borderColor: contractType === c.value ? '#8A9A5B'   : 'var(--c-border-md)',
+                  color:       contractType === c.value ? '#8A9A5B'   : 'var(--c-sub)',
                 }}>
                 {c.emoji}<br/>{c.label}
               </button>
@@ -1337,7 +1337,7 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                   <div>
                     <p className="text-[9px] text-[var(--c-faint)] mb-0.5">Amount</p>
                     <div className="finput flex items-center font-bold"
-                      style={{ fontSize: 12, padding: '8px 10px', color: '#1D9E75' }}>
+                      style={{ fontSize: 12, padding: '8px 10px', color: '#8A9A5B' }}>
                       ₹{((parseFloat(w.qty)||0)*(parseFloat(w.rate)||0)).toLocaleString('en-IN')}
                     </div>
                   </div>
@@ -1346,7 +1346,7 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
             ))}
 
             <button onClick={addWorker}
-              className="w-full py-2 rounded-xl text-xs font-semibold border border-dashed text-[var(--c-muted)] hover:border-[#1D9E75]/50 hover:text-[#1D9E75] transition-colors"
+              className="w-full py-2 rounded-xl text-xs font-semibold border border-dashed text-[var(--c-muted)] hover:border-[#8A9A5B]/50 hover:text-[#8A9A5B] transition-colors"
               style={{ borderColor: 'var(--c-border-md)' }}>
               + Add Another Worker
             </button>
@@ -1355,22 +1355,22 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
 
         {/* Total + area-split preview */}
         {totalCost > 0 && (
-          <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/25 rounded-xl p-3 space-y-2">
+          <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/25 rounded-xl p-3 space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-[var(--c-text)]">Total Work Cost</p>
-              <p className="text-base font-bold text-[#1D9E75]">₹{Math.round(totalCost).toLocaleString('en-IN')}</p>
+              <p className="text-base font-bold text-[#8A9A5B]">₹{Math.round(totalCost).toLocaleString('en-IN')}</p>
             </div>
             {selectedPlots.length > 1 && (
-              <div className="border-t border-[#1D9E75]/20 pt-2 space-y-1.5">
+              <div className="border-t border-[#8A9A5B]/20 pt-2 space-y-1.5">
                 <p className="text-[9px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Split by area</p>
                 {plotSplit.map(p => (
                   <div key={p.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#1D9E75]"/>
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#8A9A5B]"/>
                       <p className="text-[10px] text-[var(--c-text)]">{p.name}</p>
                       <p className="text-[9px] text-[var(--c-faint)]">{Number(p.area_acres).toFixed(1)}ac · {Math.round(p.share*100)}%</p>
                     </div>
-                    <p className="text-[10px] font-bold text-[#1D9E75]">₹{Math.round(p.amount).toLocaleString('en-IN')}</p>
+                    <p className="text-[10px] font-bold text-[#8A9A5B]">₹{Math.round(p.amount).toLocaleString('en-IN')}</p>
                   </div>
                 ))}
               </div>
@@ -1390,10 +1390,10 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
         </FRow>
 
         <button onClick={submit} disabled={saving}
-          className="w-full py-2.5 bg-[#1D9E75] text-white text-xs font-bold rounded-xl disabled:opacity-40">
+          className="w-full py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl disabled:opacity-40">
           {saving ? 'Logging…' : '+ Submit Work Log'}
         </button>
-        <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#1D9E75;}`}</style>
+        <style>{`.finput{width:100%;background:var(--c-input);border:1px solid var(--c-border-md);border-radius:12px;padding:10px 14px;color:var(--c-text);font-size:14px;outline:none;}.finput:focus{border-color:#8A9A5B;}`}</style>
       </div>
     </div>
   )

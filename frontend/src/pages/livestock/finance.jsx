@@ -135,8 +135,8 @@ export default function FinanceTab({ animals, face, mode }) {
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Expenses', value: fmtK(totalExpenses), color: '#E24B4A' },
-            { label: 'Revenue',  value: fmtK(totalRevenue),  color: '#1D9E75' },
-            { label: 'Net',      value: fmtK(Math.abs(net)), color: net >= 0 ? '#1D9E75' : '#E24B4A' },
+            { label: 'Revenue',  value: fmtK(totalRevenue),  color: '#8A9A5B' },
+            { label: 'Net',      value: fmtK(Math.abs(net)), color: net >= 0 ? '#8A9A5B' : '#E24B4A' },
           ].map(({ label, value, color }) => (
             <div key={label} className="p-3 rounded-2xl border text-center"
               style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
@@ -200,7 +200,7 @@ export default function FinanceTab({ animals, face, mode }) {
         <>
           <button onClick={() => setShowRevenue(true)}
             className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-            style={{ borderColor: '#1D9E75', color: '#1D9E75', background: 'transparent' }}>
+            style={{ borderColor: '#8A9A5B', color: '#8A9A5B', background: 'transparent' }}>
             <Plus size={15} /> Add Revenue
           </button>
 
@@ -218,7 +218,7 @@ export default function FinanceTab({ animals, face, mode }) {
                   )}</>}
                   sub={`${animal || 'Shared / general'}${r.buyerName ? ` → ${r.buyerName}` : ''}${r.quantity && r.unit ? ` · ${r.quantity} ${r.unit}` : ''}${r.paymentMode ? ` · ${r.paymentMode}` : ''}`}
                   chip={!r.livestockId ? <SharedChip /> : null}
-                  amount={r.amount} color="#1D9E75" date={r.revenueDate}
+                  amount={r.amount} color="#8A9A5B" date={r.revenueDate}
                   attachment={r.attachmentPath}
                   onDelete={() => confirmDeleteRevenue(r.id)} />
               )
@@ -250,7 +250,7 @@ export default function FinanceTab({ animals, face, mode }) {
                       Cost {fmtK(cost)} · Earned {fmtK(rev)}
                     </p>
                   </div>
-                  <p className="text-sm font-bold shrink-0" style={{ color: gain >= 0 ? '#1D9E75' : '#E24B4A' }}>
+                  <p className="text-sm font-bold shrink-0" style={{ color: gain >= 0 ? '#8A9A5B' : '#E24B4A' }}>
                     {gain >= 0 ? '+' : '−'}{fmtK(Math.abs(gain))}
                   </p>
                 </div>

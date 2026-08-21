@@ -74,7 +74,7 @@ export function AddLivestockModal({ group, onClose, onConfirm, saving }) {
           {g.types.map(([s, l]) => (
             <button key={s} onClick={() => u('species', s)}
               className="flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors"
-              style={{ background: f.species===s ? '#1D9E7518' : 'var(--c-ghost)', borderColor: f.species===s ? '#1D9E75' : 'var(--c-border)', color: f.species===s ? '#1D9E75' : 'var(--c-muted)' }}>
+              style={{ background: f.species===s ? '#8A9A5B18' : 'var(--c-ghost)', borderColor: f.species===s ? '#8A9A5B' : 'var(--c-border)', color: f.species===s ? '#8A9A5B' : 'var(--c-muted)' }}>
               {l}
             </button>
           ))}
@@ -110,7 +110,7 @@ export function AddLivestockModal({ group, onClose, onConfirm, saving }) {
       <PlotRow value={f.plotId} onChange={v => u('plotId', v)} group={group} />
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => f.name && onConfirm(f)} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : g.title}
       </button>
     </Modal>
@@ -157,7 +157,7 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
       <PlotRow value={f.plotId} onChange={v => u('plotId', v)} group={groupOf(item)} />
       <FRow label="Notes"><input className={inp} placeholder="Optional" value={f.notes} onChange={e => u('notes', e.target.value)} /></FRow>
       <button onClick={() => onSave(f)} disabled={saving || !f.name}
-        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#1D9E75' }}>
+        className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50" style={{ background: '#8A9A5B' }}>
         {saving ? 'Saving…' : 'Save Changes'}
       </button>
     </Modal>
@@ -178,7 +178,7 @@ export function CountModal({ animal, changeType, onClose, onConfirm, saving }) {
           {reasons.map(r => (
             <button key={r} onClick={() => f('reason', r)}
               className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors"
-              style={{ background: form.reason === r ? (changeType==='add' ? '#1D9E7518' : '#E24B4A18') : 'var(--c-ghost)', borderColor: form.reason === r ? (changeType==='add' ? '#1D9E75' : '#E24B4A') : 'var(--c-border)', color: form.reason === r ? (changeType==='add' ? '#1D9E75' : '#E24B4A') : 'var(--c-muted)' }}>
+              style={{ background: form.reason === r ? (changeType==='add' ? '#8A9A5B18' : '#E24B4A18') : 'var(--c-ghost)', borderColor: form.reason === r ? (changeType==='add' ? '#8A9A5B' : '#E24B4A') : 'var(--c-border)', color: form.reason === r ? (changeType==='add' ? '#8A9A5B' : '#E24B4A') : 'var(--c-muted)' }}>
               {REASON_LABEL[r]}
             </button>
           ))}
@@ -188,7 +188,7 @@ export function CountModal({ animal, changeType, onClose, onConfirm, saving }) {
       <FRow label="Notes"><input type="text" className={inp} placeholder="Remarks" value={form.notes} onChange={e => f('notes', e.target.value)} /></FRow>
       <button onClick={() => onConfirm(form)} disabled={saving || !form.quantity}
         className="w-full py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
-        style={{ background: changeType === 'add' ? '#1D9E75' : '#E24B4A' }}>
+        style={{ background: changeType === 'add' ? '#8A9A5B' : '#E24B4A' }}>
         {saving ? 'Saving…' : 'Confirm'}
       </button>
     </Modal>
@@ -331,9 +331,9 @@ export function RevenueModal({ animals, group, onClose }) {
             <button key={v} onClick={() => set('revenueType', v)}
               className="py-2 rounded-xl text-xs font-medium transition-colors"
               style={{
-                background: form.revenueType === v ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.revenueType === v ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.revenueType === v ? '#fff'     : 'var(--c-muted)',
-                border:    `1px solid ${form.revenueType === v ? '#1D9E75' : 'var(--c-border)'}`,
+                border:    `1px solid ${form.revenueType === v ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               {emoji} {label}
             </button>
@@ -393,9 +393,9 @@ export function RevenueModal({ animals, group, onClose }) {
             <button key={m} onClick={() => set('paymentMode', m)}
               className="flex-1 py-2 rounded-xl text-xs font-semibold capitalize transition-colors"
               style={{
-                background: form.paymentMode === m ? '#1D9E75' : 'var(--c-ghost)',
+                background: form.paymentMode === m ? '#8A9A5B' : 'var(--c-ghost)',
                 color:      form.paymentMode === m ? '#fff'     : 'var(--c-muted)',
-                border:    `1px solid ${form.paymentMode === m ? '#1D9E75' : 'var(--c-border)'}`,
+                border:    `1px solid ${form.paymentMode === m ? '#8A9A5B' : 'var(--c-border)'}`,
               }}>
               {m}
             </button>
@@ -412,7 +412,7 @@ export function RevenueModal({ animals, group, onClose }) {
 
       <button onClick={save} disabled={saving}
         className="w-full py-3 rounded-xl font-semibold text-sm text-white transition-opacity"
-        style={{ background: '#1D9E75', opacity: saving ? 0.6 : 1 }}>
+        style={{ background: '#8A9A5B', opacity: saving ? 0.6 : 1 }}>
         {saving ? 'Saving…' : isSale ? 'Record Sale & Close Account' : 'Save Revenue'}
       </button>
     </Modal>

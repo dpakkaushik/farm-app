@@ -168,7 +168,7 @@ export default function FarmOnboarding() {
           {STEPS.map((s, i) => (
             <div key={s} style={{
               flex: 1, height: '4px', borderRadius: '99px',
-              background: i <= stepIdx ? '#1D9E75' : '#e5e7eb',
+              background: i <= stepIdx ? '#8A9A5B' : '#e5e7eb',
               transition: 'background 0.3s',
             }} />
           ))}
@@ -423,7 +423,7 @@ function NextStep({ icon, title, body }) {
 
 const wrap = {
   minHeight: '100vh',
-  background: 'linear-gradient(135deg, #0f4c35 0%, #1D9E75 60%, #2dd4a0 100%)',
+  background: 'linear-gradient(135deg, #0f4c35 0%, #8A9A5B 60%, #2dd4a0 100%)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
 }
 const card = {
@@ -453,13 +453,13 @@ const removeBtn = {
 }
 const primaryBtn = (busy) => ({
   marginTop: '8px', padding: '14px', border: 'none', borderRadius: '10px',
-  background: busy ? '#9ca3af' : '#1D9E75', color: '#fff',
+  background: busy ? '#9ca3af' : '#8A9A5B', color: '#fff',
   fontSize: '16px', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
   width: '100%', transition: 'background 0.2s',
 })
 const secondaryBtn = {
   width: '100%', padding: '11px', borderRadius: '10px',
-  border: '1.5px dashed #1D9E75', background: '#f0fdf4', color: '#1D9E75',
+  border: '1.5px dashed #8A9A5B', background: '#f0fdf4', color: '#8A9A5B',
   fontSize: '14px', fontWeight: 700, cursor: 'pointer',
 }
 const footer  = { marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #f3f4f6', textAlign: 'center' }

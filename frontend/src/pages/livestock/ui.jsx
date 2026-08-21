@@ -69,7 +69,7 @@ export const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 // now holds the date of whatever ended the record, so a deceased buffalo must
 // not display "Sold 2026-07-04".
 export const STATUS_STYLE = {
-  active:   { bg: '#1D9E7518', color: '#1D9E75', label: 'Active',   dateLabel: null     },
+  active:   { bg: '#8A9A5B18', color: '#8A9A5B', label: 'Active',   dateLabel: null     },
   sold:     { bg: '#88888820', color: '#888',    label: 'Sold',     dateLabel: 'Sold'   },
   rehomed:  { bg: '#4169E118', color: '#4169E1', label: 'Rehomed',  dateLabel: 'Left'   },
   deceased: { bg: '#E24B4A18', color: '#E24B4A', label: 'Deceased', dateLabel: 'Died'   },
@@ -79,7 +79,7 @@ export const STATUS_STYLE = {
 // under_treatment is what the vet records already in the database use, so it has
 // to be a first-class value here and not fall through to the Healthy default.
 export const HEALTH_STYLE = {
-  healthy:         { color: '#1D9E75', label: '✓ Healthy'      },
+  healthy:         { color: '#8A9A5B', label: '✓ Healthy'      },
   under_treatment: { color: '#E24B4A', label: '💊 On treatment' },
   sick:            { color: '#E24B4A', label: '⚠ Sick'         },
   recovering:      { color: '#BA7517', label: '~ Recovering'   },
@@ -243,7 +243,7 @@ export function SegPicker({ value, options, onChange, danger }) {
       {options.map(([v, l]) => (
         <button key={v} onClick={() => onChange(v)}
           className="flex-1 py-2 text-xs font-semibold transition-colors"
-          style={{ background: value === v ? (danger ? '#E24B4A' : '#1D9E75') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
+          style={{ background: value === v ? (danger ? '#E24B4A' : '#8A9A5B') : 'var(--c-ghost)', color: value === v ? '#fff' : 'var(--c-muted)' }}>
           {l}
         </button>
       ))}

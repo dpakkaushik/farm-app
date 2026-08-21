@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
 import { TIMBER_NOTE_PREFIX } from '../lib/cashflow'
+import { resolveUrl } from '../lib/attachments'
 
 // Trees live in their own store, not in the 2,100-line app store, for two reasons:
 // its loadAll already fires ~26 parallel queries on every boot, and trees are only
@@ -39,7 +40,8 @@ const mapSpecies = s => ({
   nameEn:    s.name_en,
   purpose:   s.purpose,          // 'fruit' | 'timber'
   notes:     s.notes,
-  photoPath: s.photo_path,
+  photoPath: s.photo_path,       // storage path — what the DB holds
+  photoUrl:  s.photo_path ? resolveUrl(s.photo_path) : null,
 })
 
 const mapPlanting = p => ({
@@ -134,6 +136,18 @@ export const useTreeStore = create((set, get) => ({
     if (error) throw error
     await get().load()
     return data
+  },
+
+  // The photo slot on the species card — same tap-crop-save flow the livestock
+  // cards use. Stores the path; the URL is derived on map.
+  updateSpeciesPhoto: async (id, path) => {
+    const { error } = await supabase.from('tree_species').update({ photo_path: path }).eq('id', id)
+    if (error) throw error
+    set(st => ({
+      species: st.species.map(s => s.id === id
+        ? { ...s, photoPath: path, photoUrl: path ? resolveUrl(path) : null }
+        : s),
+    }))
   },
 
   updateSpecies: async (id, { nameLocal, nameEn, purpose, notes }) => {

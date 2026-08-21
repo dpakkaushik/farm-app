@@ -75,13 +75,13 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone }) {
                   style={{
                     background:  boxColor ? boxColor + (isSelected ? '30' : '14')
                                : isSelected ? 'var(--c-ghost)' : 'transparent',
-                    borderColor: isToday ? '#1D9E75'
+                    borderColor: isToday ? '#8A9A5B'
                                : boxColor ? boxColor + (isSelected ? 'ff' : '55')
                                : isSelected ? 'var(--c-border-md)' : 'transparent',
                     opacity:     cell.inMonth ? 1 : 0.3,
                   }}>
                   <span className="text-[11px] font-bold leading-none"
-                    style={{ color: isToday ? '#1D9E75' : boxColor || 'var(--c-sub)' }}>
+                    style={{ color: isToday ? '#8A9A5B' : boxColor || 'var(--c-sub)' }}>
                     {Number(cell.dateStr.slice(8))}
                   </span>
                   <span className="flex gap-0.5 h-1">

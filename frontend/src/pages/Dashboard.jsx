@@ -69,9 +69,9 @@ function ProgressBar({ pct, color }) {
 
 function StatusBadge({ status }) {
   const map = {
-    paid:    { label: 'Paid',    cls: 'bg-[#1D9E75]/20 text-[#1D9E75]' },
+    paid:    { label: 'Paid',    cls: 'bg-[#8A9A5B]/20 text-[#8A9A5B]' },
     pending: { label: 'Pending', cls: 'bg-[#BA7517]/20 text-[#BA7517]' },
-    partial: { label: 'Partial', cls: 'bg-[#1D9E75]/15 text-[#1D9E75]' },
+    partial: { label: 'Partial', cls: 'bg-[#8A9A5B]/15 text-[#8A9A5B]' },
   }
   const m = map[status] || map.pending
   return <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${m.cls}`}>{m.label}</span>
@@ -125,7 +125,7 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
           <button key={b.id} onClick={() => setActiveTab(b.id)}
             className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
               activeTab === b.id
-                ? 'bg-[#1D9E75] border-[#1D9E75] text-white'
+                ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white'
                 : 'border-[var(--c-border)] text-[var(--c-muted)] bg-[var(--c-ghost)]'
             }`}>{b.name.split(' ')[0]}</button>
         ))}
@@ -140,9 +140,9 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
           <p className="text-[8px] text-[#E24B4A] uppercase tracking-wider">Total Dr</p>
           <p className="text-sm font-black text-[#E24B4A] mt-0.5">{fmtK(totalDr)}</p>
         </div>
-        <div className="bg-[#1D9E75]/10 rounded-xl p-2.5 text-center border border-[#1D9E75]/20">
-          <p className="text-[8px] text-[#1D9E75] uppercase tracking-wider">Total Cr</p>
-          <p className="text-sm font-black text-[#1D9E75] mt-0.5">{fmtK(totalCr)}</p>
+        <div className="bg-[#8A9A5B]/10 rounded-xl p-2.5 text-center border border-[#8A9A5B]/20">
+          <p className="text-[8px] text-[#8A9A5B] uppercase tracking-wider">Total Cr</p>
+          <p className="text-sm font-black text-[#8A9A5B] mt-0.5">{fmtK(totalCr)}</p>
         </div>
       </div>
 
@@ -164,17 +164,17 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
           return (
             <div key={i}
               className="grid items-center px-3 py-2.5 border-t border-[var(--c-border)]"
-              style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px', background: isPay ? 'rgba(29,158,117,0.04)' : undefined }}>
+              style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px', background: isPay ? 'rgba(138,154,91,0.04)' : undefined }}>
               <span className="text-[9px] text-[var(--c-faint)]">
                 {row.date ? row.date.slice(5).replace('-', '/') : '—'}
               </span>
               <div className="min-w-0">
-                <p className={`text-[10px] font-semibold truncate ${isPay ? 'text-[#1D9E75]' : 'text-[var(--c-text)]'}`}>{row.label}</p>
+                <p className={`text-[10px] font-semibold truncate ${isPay ? 'text-[#8A9A5B]' : 'text-[var(--c-text)]'}`}>{row.label}</p>
                 <p className="text-[8px] text-[var(--c-faint)] truncate">{row.sub}</p>
               </div>
               <span className="text-[10px] text-right text-[#E24B4A] font-mono">{row.dr > 0 ? fmtK(row.dr) : ''}</span>
-              <span className="text-[10px] text-right text-[#1D9E75] font-mono">{row.cr > 0 ? fmtK(row.cr) : ''}</span>
-              <span className={`text-[10px] text-right font-mono font-bold ${row.balance > 0 ? 'text-[#BA7517]' : 'text-[#1D9E75]'}`}>
+              <span className="text-[10px] text-right text-[#8A9A5B] font-mono">{row.cr > 0 ? fmtK(row.cr) : ''}</span>
+              <span className={`text-[10px] text-right font-mono font-bold ${row.balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
                 {fmtK(Math.abs(row.balance))}{row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
               </span>
               <span className="text-center text-[11px]">
@@ -189,8 +189,8 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
             style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px' }}>
             <span/><span className="text-[9px] font-bold text-[var(--c-sub)] uppercase">Totals</span>
             <span className="text-[10px] text-right text-[#E24B4A] font-mono font-bold">{fmtK(totalDr)}</span>
-            <span className="text-[10px] text-right text-[#1D9E75] font-mono font-bold">{fmtK(totalCr)}</span>
-            <span className={`text-[10px] text-right font-mono font-black ${balance > 0 ? 'text-[#BA7517]' : 'text-[#1D9E75]'}`}>
+            <span className="text-[10px] text-right text-[#8A9A5B] font-mono font-bold">{fmtK(totalCr)}</span>
+            <span className={`text-[10px] text-right font-mono font-black ${balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
               {fmtK(Math.abs(balance))}{balance > 0 ? ' Dr' : balance < 0 ? ' Cr' : ''}
             </span>
             <span/>
@@ -336,13 +336,13 @@ export default function Dashboard() {
             label="Received"
             value={fmt(revPaid)}
             sub="Payments in"
-            color="#1D9E75"
+            color="#8A9A5B"
           />
           <KpiCard
             label="Pending"
             value={fmt(revPending)}
             sub={`${sales.filter(s => s.paymentStatus !== 'paid').length} invoices`}
-            color={revPending > 0 ? '#BA7517' : '#1D9E75'}
+            color={revPending > 0 ? '#BA7517' : '#8A9A5B'}
           />
         </div>
 
@@ -369,7 +369,7 @@ export default function Dashboard() {
                the crops sell at the Admin → Crops rates. */
             value={fmt(Math.abs(overview.net))}
             sub={overview.net >= 0 ? 'Ahead, if crops sell as expected' : 'Short, even if crops sell as expected'}
-            color={overview.net >= 0 ? '#1D9E75' : '#E24B4A'}
+            color={overview.net >= 0 ? '#8A9A5B' : '#E24B4A'}
           />
         </div>
 
@@ -382,7 +382,7 @@ export default function Dashboard() {
             style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}>
             <span>Partner</span>
             <span className="text-right">Expected</span>
-            <span className="text-right text-[#1D9E75]">Recd</span>
+            <span className="text-right text-[#8A9A5B]">Recd</span>
             <span className="text-right text-[#BA7517]">Due</span>
             <span/>
           </div>
@@ -417,7 +417,7 @@ export default function Dashboard() {
                   <span className="text-[11px] text-right font-mono font-semibold text-[var(--c-text)]">
                     {expected > 0 ? fmtK(expected) : '—'}
                   </span>
-                  <span className="text-[11px] text-right font-mono font-semibold text-[#1D9E75]">
+                  <span className="text-[11px] text-right font-mono font-semibold text-[#8A9A5B]">
                     {received > 0 ? fmtK(received) : '—'}
                   </span>
                   <span className="text-[11px] text-right font-mono font-semibold text-[#BA7517]">
@@ -465,7 +465,7 @@ export default function Dashboard() {
                               {sess.qtyQtl ? sess.qtyQtl.toFixed(1) : '—'}
                             </span>
                             <div className="text-right">
-                              <p className={`text-[10px] font-bold font-mono ${isPaid ? 'text-[#1D9E75]' : 'text-[#BA7517]'}`}>
+                              <p className={`text-[10px] font-bold font-mono ${isPaid ? 'text-[#8A9A5B]' : 'text-[#BA7517]'}`}>
                                 {amount ? fmtK(amount) : '—'}
                               </p>
                               <StatusBadge status={sale?.paymentStatus || 'pending'} />
@@ -489,7 +489,7 @@ export default function Dashboard() {
               style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}>
               <span className="text-[var(--c-sub)] uppercase tracking-wider">Total</span>
               <span className="text-right font-mono text-[var(--c-text)]">{fmtK(sales.reduce((n, s) => n + s.grossAmount, 0))}</span>
-              <span className="text-right font-mono text-[#1D9E75]">{fmtK(revPaid)}</span>
+              <span className="text-right font-mono text-[#8A9A5B]">{fmtK(revPaid)}</span>
               <span className="text-right font-mono text-[#BA7517]">{fmtK(revPending)}</span>
               <span/>
             </div>
@@ -544,7 +544,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-1.5">
                             {daysLeft != null && (
                               <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
-                                daysLeft <= 30 ? 'bg-[#1D9E75]/20 text-[#1D9E75]' :
+                                daysLeft <= 30 ? 'bg-[#8A9A5B]/20 text-[#8A9A5B]' :
                                 daysLeft <= 60 ? 'bg-[#BA7517]/20 text-[#BA7517]' :
                                 'bg-[var(--c-border)] text-[var(--c-muted)]'
                               }`}>{daysLeft <= 0 ? 'Harvest now' : `${daysLeft}d`}</span>
@@ -569,9 +569,9 @@ export default function Dashboard() {
                               {cycleCost > 0 ? fmtK(cycleCost) : '₹0'}
                             </p>
                           </div>
-                          <div className={`rounded-lg p-2 text-center border ${netPL >= 0 ? 'bg-[#1D9E75]/10 border-[#1D9E75]/20' : 'bg-[#BA7517]/10 border-[#BA7517]/20'}`}>
-                            <p className={`text-[7px] uppercase tracking-wider ${netPL >= 0 ? 'text-[#1D9E75]' : 'text-[#BA7517]'}`}>P&L</p>
-                            <p className={`text-xs font-black mt-0.5 ${netPL >= 0 ? 'text-[#1D9E75]' : 'text-[#BA7517]'}`}>
+                          <div className={`rounded-lg p-2 text-center border ${netPL >= 0 ? 'bg-[#8A9A5B]/10 border-[#8A9A5B]/20' : 'bg-[#BA7517]/10 border-[#BA7517]/20'}`}>
+                            <p className={`text-[7px] uppercase tracking-wider ${netPL >= 0 ? 'text-[#8A9A5B]' : 'text-[#BA7517]'}`}>P&L</p>
+                            <p className={`text-xs font-black mt-0.5 ${netPL >= 0 ? 'text-[#8A9A5B]' : 'text-[#BA7517]'}`}>
                               {netPL >= 0 ? '+' : '-'}{fmtK(Math.abs(netPL))}
                             </p>
                           </div>
@@ -624,7 +624,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right">
                   <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">Revenue</p>
-                  <p className="text-xs font-bold text-[#1D9E75]">₹0</p>
+                  <p className="text-xs font-bold text-[#8A9A5B]">₹0</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">Expense</p>
@@ -653,7 +653,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <span className={`text-xs font-black px-2.5 py-1 rounded-xl ${
-                    days <= 0  ? 'bg-[#1D9E75]/20 text-[#1D9E75]' :
+                    days <= 0  ? 'bg-[#8A9A5B]/20 text-[#8A9A5B]' :
                     days <= 30 ? 'bg-[#BA7517]/20 text-[#BA7517]' :
                     'bg-[var(--c-ghost)] text-[var(--c-text)]'
                   }`}>{days <= 0 ? 'Now' : `${days}d`}</span>
