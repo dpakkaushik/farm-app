@@ -29,7 +29,15 @@ missed date collapsing to ONE red dot; tapping a date lists its tasks underneath
 `ScheduledCard`s the day card uses, Done included. His follow-up from the live screen: task
 dates must read as BOXES like today's cell, not just dots — so a task date now gets a
 coloured border + tinted fill (red for missed, first crop's colour otherwise) with the day
-number in that colour; the dots stay for multi-crop days; selection deepens the fill. **The day card's Tasks Due block
+number in that colour; the dots stay for multi-crop days; selection deepens the fill.
+**Also on his word, same day: the Fields plot panel's two buttons became NAVIGATION.**
+"Log Activity" → **"Log Work"**, going to `/labour?go=log-work` (Labour's new deep link:
+Attendance tab, Log Work form scrolled into view via `#log-work-form`); "Issue Inputs" →
+`/resources` (Inventory → Current Stock, where each item's "→ Issue to Plot" lives). The two
+in-place modals they used to open — `LogActivityModal` and `IssueInputModal` at the bottom of
+Field.jsx — are **DELETED, and deservedly**: the activity modal silently logged today's date
+whatever date was picked, and the issue modal's labour path wrote plain day-rate `logLabour`
+rows bypassing the contract-type Log Work system. Do not resurrect them. **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —

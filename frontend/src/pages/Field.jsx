@@ -888,11 +888,6 @@ const STAGE = {
 
 function PlotDetailPanel({ plot, trees, stock, onClose }) {
   const navigate = useNavigate()
-  const [showLogActivity, setShowLog]   = useState(false)
-  const [showIssueInput,  setShowIssue] = useState(false)
-
-  if (showLogActivity) return <LogActivityModal plot={plot} onClose={() => setShowLog(false)} />
-  if (showIssueInput)  return <IssueInputModal  plot={plot} onClose={() => setShowIssue(false)} />
 
   const cycles  = plot.mixedCycles || []
   const isReady = cycles.some(c => c.isReady)
@@ -964,13 +959,18 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
             </div>
           )}
 
+          {/* These used to open two in-place modals with their own cut-down
+              forms — a Log Activity that silently ignored the picked date, and
+              an issue form whose labour path bypassed the contract-based Log
+              Work entirely. The owner's call: take him to the real screens
+              instead. Both modals are deleted. */}
           <div className="flex gap-2 pt-1">
             {canLog && <>
-              <button onClick={() => setShowLog(true)}
+              <button onClick={() => navigate('/labour?go=log-work')}
                 className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
-                Log Activity
+                Log Work
               </button>
-              <button onClick={() => setShowIssue(true)}
+              <button onClick={() => navigate('/resources')}
                 className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
                 Issue Inputs
               </button>
@@ -1144,153 +1144,3 @@ function Stat({ label, value, color }) {
   )
 }
 
-// ── Log Activity Modal ─────────────────────────────────────────────────────────
-function LogActivityModal({ plot, onClose }) {
-  const { logActivity } = useAppStore()
-  const [form, setForm] = useState({
-    type: 'irrigation', date: new Date().toISOString().slice(0,10), workers: '', notes: '',
-  })
-  const [done, setDone] = useState(false)
-  const TYPES = ['irrigation','weeding','fertilizer','spray','harvesting','ploughing','other']
-
-  const submit = async () => {
-    if (!form.date) return
-    await logActivity({
-      plotId:      plot.id || null,
-      cropCycleId: plot.cycle_id || null,
-      type:        form.type,
-      date:        new Date().toISOString().slice(0,10),
-      notes:       form.notes,
-      workers:     Number(form.workers) || 0,
-    })
-    setDone(true)
-    setTimeout(onClose, 1200)
-  }
-
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[80vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white">Log Activity — {plot.label}</h3>
-        <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18}/></button>
-      </div>
-      {done ? <p className="text-center text-[#1D9E75] font-semibold py-4">✓ Activity logged!</p> : (
-        <div className="space-y-3">
-          <div><label className="text-xs text-white/50 block mb-1">Activity type</label>
-            <select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{background:'#1a2030'}}>
-              {TYPES.map(t=><option key={t} value={t} style={{background:'#1a2030'}}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
-            </select>
-          </div>
-          <div><label className="text-xs text-white/50 block mb-1">Workers</label>
-            <input type="number" placeholder="0" value={form.workers} onChange={e=>setForm(p=>({...p,workers:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
-          </div>
-          <div><label className="text-xs text-white/50 block mb-1">Notes</label>
-            <textarea rows={2} placeholder="What was done…" value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75] resize-none"/>
-          </div>
-          <button onClick={submit} className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl">Save Activity</button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Issue Input Modal ─────────────────────────────────────────────────────────
-function IssueInputModal({ plot, onClose }) {
-  const { inventoryMaster, regularLabourers, contractualLabour, issueItem, logLabour } = useAppStore()
-  const [tab,  setTab]  = useState('material')
-  const [form, setForm] = useState({ itemId:'', qty:'', purpose:'', date: new Date().toISOString().slice(0,10), labourTypeId:'', workers:'', rate:'' })
-  const [done, setDone] = useState(false)
-
-  const selectedItem = inventoryMaster.find(i=>i.id===form.itemId)
-  const allLabour    = [...regularLabourers, ...contractualLabour]
-  const selectedLT   = allLabour.find(l=>l.id===form.labourTypeId)
-  const totalCost    = tab==='material'
-    ? (parseFloat(form.qty)||0) * (selectedItem?.costPerUnit||0)
-    : (parseFloat(form.workers)||0) * (parseFloat(form.rate)||0)
-
-  const submit = async () => {
-    if (tab==='material') {
-      if (!form.itemId||!form.qty) return
-      await issueItem({
-        itemId:      form.itemId,
-        cropCycleId: plot.cycle_id || null,
-        date:        new Date().toISOString().slice(0,10),
-        qty:         parseFloat(form.qty),
-        purpose:     form.purpose,
-      })
-    } else {
-      if (!form.labourTypeId||!form.workers) return
-      await logLabour({
-        labourTypeId: form.labourTypeId,
-        labourName:   selectedLT?.name || '',
-        plotId:       plot.id || null,
-        cropCycleId:  plot.cycle_id || null,
-        date:         form.date,
-        workers:      parseFloat(form.workers),
-        ratePerDay:   parseFloat(form.rate) || 0,
-        totalCost,
-        purpose:      form.purpose,
-      })
-    }
-    setDone(true)
-    setTimeout(onClose, 1200)
-  }
-
-  return (
-    <div className="absolute bottom-0 left-0 right-0 bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl p-5 shadow-2xl border-t border-white/10 animate-slide-up max-h-[85vh] overflow-y-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white">Issue Input — {plot.label}</h3>
-        <button onClick={onClose} className="text-white/40 hover:text-white"><X size={18}/></button>
-      </div>
-      {done ? <p className="text-center text-[#1D9E75] font-semibold py-4">✓ Input issued!</p> : (<>
-        <div className="flex gap-2 mb-4">
-          {['material','labour'].map(t=>(
-            <button key={t} onClick={()=>setTab(t)} className={`flex-1 py-2 text-xs font-semibold rounded-xl border transition-colors ${tab===t?'bg-[#1D9E75]/20 border-[#1D9E75]/50 text-[#1D9E75]':'bg-white/5 border-white/10 text-white/50'}`}>
-              {t==='material'?'📦 Material':'👷 Labour'}
-            </button>
-          ))}
-        </div>
-        <div className="space-y-3">
-          {tab==='material' ? (<>
-            <div><label className="text-xs text-white/50 block mb-1">Select item</label>
-              <select value={form.itemId} onChange={e=>setForm(p=>({...p,itemId:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{background:'#1a2030'}}>
-                <option value="" style={{background:'#1a2030'}}>Choose item…</option>
-                {inventoryMaster.map(i=><option key={i.id} value={i.id} style={{background:'#1a2030'}}>{i.name} ({i.currentStock} {i.unit})</option>)}
-              </select>
-            </div>
-            <div><label className="text-xs text-white/50 block mb-1">Quantity ({selectedItem?.unit||'unit'})</label>
-              <input type="number" placeholder="0" value={form.qty} onChange={e=>setForm(p=>({...p,qty:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
-            </div>
-          </>) : (<>
-            <div><label className="text-xs text-white/50 block mb-1">Labour</label>
-              <select value={form.labourTypeId} onChange={e=>{
-                const l=allLabour.find(x=>x.id===e.target.value)
-                setForm(p=>({...p,labourTypeId:e.target.value,rate:l?.ratePerDay||l?.defaultRate||''}))
-              }} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]" style={{background:'#1a2030'}}>
-                <option value="" style={{background:'#1a2030'}}>Choose…</option>
-                {allLabour.map(l=><option key={l.id} value={l.id} style={{background:'#1a2030'}}>{l.name} (₹{l.ratePerDay||l.defaultRate}/day)</option>)}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><label className="text-xs text-white/50 block mb-1">Workers</label>
-                <input type="number" placeholder="1" value={form.workers} onChange={e=>setForm(p=>({...p,workers:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
-              </div>
-              <div><label className="text-xs text-white/50 block mb-1">Rate/day (₹)</label>
-                <input type="number" value={form.rate} onChange={e=>setForm(p=>({...p,rate:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
-              </div>
-            </div>
-          </>)}
-          <div><label className="text-xs text-white/50 block mb-1">Purpose</label>
-            <input type="text" placeholder="e.g. Top dressing, weeding…" value={form.purpose} onChange={e=>setForm(p=>({...p,purpose:e.target.value}))} className="w-full bg-white/8 border border-white/12 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-[#1D9E75]"/>
-          </div>
-          {totalCost > 0 && (
-            <div className="bg-[#1D9E75]/10 border border-[#1D9E75]/20 rounded-xl px-3 py-2">
-              <p className="text-xs text-white/50">Estimated cost</p>
-              <p className="text-lg font-bold text-[#1D9E75]">₹{totalCost.toLocaleString()}</p>
-            </div>
-          )}
-          <button onClick={submit} className="w-full py-3 bg-[#1D9E75] text-white text-sm font-bold rounded-xl">Confirm Issue</button>
-        </div>
-      </>)}
-    </div>
-  )
-}

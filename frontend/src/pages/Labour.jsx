@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useAppStore } from '../store'
@@ -76,6 +77,21 @@ export default function Labour() {
   const showToast = (msg, type = 'success') => {
     setToast(msg); setToastType(type); setTimeout(() => setToast(null), 3000)
   }
+
+  // Deep link: /labour?go=log-work lands on the Attendance tab with the Log
+  // Work form scrolled into view — the door the Fields plot panel's Log Work
+  // button walks through. The param is cleared so Back and refresh don't
+  // re-scroll. The short delay lets the tab's content render first.
+  const [params, setParams] = useSearchParams()
+  useEffect(() => {
+    if (params.get('go') === 'log-work') {
+      setSubTab('attendance')
+      setParams({}, { replace: true })
+      setTimeout(() => {
+        document.getElementById('log-work-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 300)
+    }
+  }, [params, setParams])
 
   return (
     <div className="h-full flex flex-col bg-[var(--c-bg)]">
@@ -1182,7 +1198,7 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
   }
 
   return (
-    <div>
+    <div id="log-work-form">
       <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Log Work</p>
       <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-3">
 
