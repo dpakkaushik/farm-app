@@ -132,7 +132,7 @@ export default function App() {
   const admin = isAdmin(role)
 
   return (
-    <div className="flex flex-col" style={{ height: '100dvh', background: 'var(--c-bg)' }}>
+    <div className="relative flex flex-col" style={{ height: '100dvh', background: 'var(--c-bg)' }}>
 
       {/* Top bar — profile menu only; farm switching, admin, theme, logout all live in its drawer */}
       <div className="shrink-0 flex items-center px-3 py-1.5 border-b"
@@ -178,11 +178,15 @@ export default function App() {
       {/* Bottom nav — same 4 tabs for every role; everything else lives in the
           profile drawer. A floating icon-only pill at the owner's ask (his
           reference: dark rounded bar, active item in a filled circle with a
-          dot beneath). Labels moved into aria-label. */}
-      <nav className="shrink-0 px-4 pt-1.5"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 10px)' }}>
-        <div className="flex items-center justify-around rounded-full px-2 py-1.5 shadow-lg"
-          style={{ background: '#252B16', border: '1px solid rgba(255,255,255,0.07)' }}>
+          dot beneath). It genuinely floats: absolutely positioned over the
+          page, so the map runs underneath it instead of stopping at a white
+          band. Every page root keeps its tail clear via the main > * rule in
+          index.css; page-level bottom sheets and modals sit above it (z-50). */}
+      <nav className="absolute inset-x-0 bottom-0 z-40 px-5 pointer-events-none"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
+        <div className="pointer-events-auto flex items-center justify-around rounded-full px-2 py-1.5 shadow-2xl backdrop-blur-md"
+          style={{ background: 'rgba(32,37,19,0.92)', border: '1px solid rgba(255,255,255,0.10)',
+                   boxShadow: '0 8px 28px rgba(0,0,0,0.4)' }}>
           {NAV.map(({ to, label, Icon }) => (
             <NavLink key={to} to={to} aria-label={label} className="flex-1 flex justify-center">
               {({ isActive }) => (

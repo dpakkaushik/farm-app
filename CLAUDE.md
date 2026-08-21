@@ -65,7 +65,16 @@ the only type needing redirects (wages → Log Work; input/machine purchases →
 for vendor khata + stock); feed/vet/saplings/utilities are genuine farm_expenses and stay.
 **The bottom nav is a floating icon-only pill** (his reference screenshot): dark olive
 rounded-full bar, active tab = filled `#8A9A5B` circle + white dot beneath, labels now
-aria-only, Media unread badge kept. **The day card's Tasks Due block
+aria-only, Media unread badge kept. His follow-up ("isn't looking nice over white
+background") made it TRULY float: the nav is `absolute` over the page (translucent
+`rgba(32,37,19,0.92)` + blur + deep shadow), the Field map runs edge-to-edge underneath, and
+every page root keeps its tail clear via the `main > * { padding-bottom … !important }` rule
+in [`index.css`](frontend/src/index.css) — a page's own bg paints that padding, so there is
+no band anywhere. Field's legend climbed above the pill, MapLibre's bottom controls are
+offset in the same CSS, and the plot detail sheet went z-50 so it covers the pill instead of
+sliding up behind it. Any new bottom-anchored overlay must sit at z-50+. Also at his ask:
+the tree "fruit" emoji is now the 🍎🍇 pair everywhere (a single 🍋 read as a mango on his
+phone and confused a guava's row). **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —

@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Floating bottom nav clearance ────────────────────────────────────────────
+   The nav pill overlays the page (see App.jsx), so every page root ends this
+   far up. The root's own background paints its padding, so the pill floats
+   over the page colour instead of sitting on a separate band. Absolutely
+   positioned children — the Field map above all — deliberately ignore the
+   padding and run edge-to-edge underneath the pill.
+   !important: page roots carry their own pb-* utilities, which must lose. */
+main > * {
+  padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+/* MapLibre's bottom-anchored controls (scale bar, attribution) climb above
+   the pill for the same reason. */
+.maplibregl-ctrl-bottom-left, .maplibregl-ctrl-bottom-right {
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+}
+
 /* ── Theme tokens ─────────────────────────────────────────────────────────── */
 :root, [data-theme="dark"] {
   --c-bg:           #0f1117;

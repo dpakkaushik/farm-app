@@ -785,7 +785,9 @@ export default function Field() {
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-10 left-3 bg-black/60 backdrop-blur-sm rounded-xl p-3 text-xs space-y-1.5">
+      {/* Legend sits above the floating nav pill, which overlays the map. */}
+      <div className="absolute left-3 bg-black/60 backdrop-blur-sm rounded-xl p-3 text-xs space-y-1.5"
+        style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
         <p className="text-white/40 text-[10px] uppercase tracking-wide mb-1.5">Crop</p>
         {stageLegend.map(({ label, color, isMixed }) => (
           <div key={label} className="flex items-center gap-2">
@@ -898,10 +900,11 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
     <>
       {/* Tapping the map outside the card closes it. The card used to be
           dismissable only by the ✕, which on a phone is a small target in a
-          corner. */}
-      <div className="absolute inset-0 z-10" onClick={onClose} />
+          corner. z-40/z-50: the sheet must cover the floating nav pill, not
+          slide up behind it. */}
+      <div className="absolute inset-0 z-40" onClick={onClose} />
 
-      <div className="absolute bottom-0 left-0 right-0 z-20 flex flex-col bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl shadow-2xl border-t border-white/10 animate-slide-up max-h-[78vh]">
+      <div className="absolute bottom-0 left-0 right-0 z-50 flex flex-col bg-[var(--c-nav)]/97 backdrop-blur-md rounded-t-2xl shadow-2xl border-t border-white/10 animate-slide-up max-h-[78vh]">
         {/* Header sits outside the scroll area, so ✕ never scrolls away on a
             plot with a lot on it. */}
         <div className="shrink-0 flex items-start gap-2 px-5 pt-4 pb-3 border-b border-white/8">

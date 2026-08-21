@@ -20,7 +20,7 @@ const CHANGE_TYPES = [
 ]
 
 const PURPOSE = {
-  fruit:  { emoji: '🍋', label: 'Fruit',  color: '#8A9A5B' },
+  fruit:  { emoji: '🍎🍇', label: 'Fruit',  color: '#8A9A5B' },
   timber: { emoji: '🪵', label: 'Timber', color: '#BA7517' },
 }
 
@@ -28,7 +28,7 @@ const PURPOSE = {
 // one lump sum — so they are the same row, and each maps to the kind of tree it can
 // possibly cover.
 const REVENUE = {
-  fruit_lease: { emoji: '🍋', label: 'Fruit lease', color: '#8A9A5B', purpose: 'fruit'  },
+  fruit_lease: { emoji: '🍎🍇', label: 'Fruit lease', color: '#8A9A5B', purpose: 'fruit'  },
   timber_sale: { emoji: '🪵', label: 'Timber sale', color: '#BA7517', purpose: 'timber' },
 }
 
@@ -137,7 +137,7 @@ function SpeciesModal({ species, onClose, onCreated }) {
       </FRow>
       <FRow label="Type">
         <Choice
-          options={[['fruit', '🍋 Fruiting'], ['timber', '🪵 Timber']]}
+          options={[['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]}
           value={form.purpose} onChange={v => set('purpose', v)} />
       </FRow>
       <FRow label="Notes (optional)">
@@ -578,7 +578,7 @@ function SaleModal({ onClose }) {
     <Modal title="Record a sale" onClose={onClose}>
       <FRow label="What kind">
         <Choice
-          options={[['fruit_lease', '🍋 Fruit lease'], ['timber_sale', '🪵 Timber sale']]}
+          options={[['fruit_lease', '🍎🍇 Fruit lease'], ['timber_sale', '🪵 Timber sale']]}
           value={form.revenueType} onChange={setType} />
       </FRow>
 
@@ -940,7 +940,7 @@ function SalesTab({ canEdit }) {
 
       {revenue.length > 0 && (
         <FilterChips value={filter} onChange={setFilter}
-          options={[['all', 'All'], ['fruit_lease', '🍋 Leases'], ['timber_sale', '🪵 Timber']]} />
+          options={[['all', 'All'], ['fruit_lease', '🍎🍇 Leases'], ['timber_sale', '🪵 Timber']]} />
       )}
 
       {shown.length === 0 && (
@@ -1056,7 +1056,7 @@ export default function Trees() {
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>Trees</p>
           <div className="flex gap-1.5 ml-auto text-[10px]">
             <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-              🍋 {fruit.toLocaleString('en-IN')}
+              🍎🍇 {fruit.toLocaleString('en-IN')}
             </span>
             <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
               🪵 {timber.toLocaleString('en-IN')}
@@ -1100,7 +1100,7 @@ export default function Trees() {
 
             {species.length > 0 && (
               <FilterChips value={filter} onChange={setFilter}
-                options={[['all', 'All'], ['fruit', '🍋 Fruiting'], ['timber', '🪵 Timber']]} />
+                options={[['all', 'All'], ['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]} />
             )}
 
             {shown.length === 0 && (
