@@ -16,8 +16,15 @@
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a
 separate tab."* Today is a single board again; the day card's action row now carries TWO
-buttons — outlined red **🧾 Log Expense** beside green **+ Log Activity** (the date row got
-`flex-wrap` so they drop to their own line on a narrow phone). `Expenses.jsx` kept only the
+buttons — **+ Log Activity** first, **🧾 Log Expense** second, both the same solid green at
+his correction (the first cut styled Log Expense as a red outline and he read it as the odd
+one out; the date row got `flex-wrap` so they drop to their own line on a narrow phone).
+**Open design question he raised, answered with a recommendation, NOT built:** replace the
+bell + Tasks Due with a calendar of upcoming activity dates coloured by crop. My call, given
+to him: put the calendar BEHIND THE BELL (it genuinely beats a list for looking ahead) but
+KEEP the day card's Tasks Due for overdue+today — a calendar cannot nag about the past and
+would turn the one-tap Done into three taps, against design rule #5 (manager UI ≤3 taps).
+Also flagged: crops have no colour field yet, so one would need assigning. Awaiting his word. `Expenses.jsx` kept only the
 form, exported as **`AddExpenseModal`** — the list page (summary header, category chips,
 delete) is DELETED. Deep links still work: `/today?log=expense` and the old `?tab=expenses`
 both open the form (param cleared after), `/expenses` redirects there, and Livestock →

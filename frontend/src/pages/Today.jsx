@@ -412,18 +412,21 @@ function TodayBoard() {
           tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
           onMarkDone={markDone}
           action={isManager(activeFarmRole) ? (
+            /* Twins, on the owner's word — same green, Log Activity first. The
+               first cut styled Log Expense as a red outline and he read it as
+               the odd one out. */
             <div className="flex gap-1.5">
-              <button
-                onClick={() => setShowExpenseModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border"
-                style={{ background: 'transparent', borderColor: '#E24B4A', color: '#E24B4A' }}>
-                <Receipt size={13} strokeWidth={2.5} /> Log Expense
-              </button>
               <button
                 onClick={() => setShowModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
                 style={{ background: '#1D9E75', color: '#fff' }}>
                 <Plus size={13} strokeWidth={2.5} /> Log Activity
+              </button>
+              <button
+                onClick={() => setShowExpenseModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
+                style={{ background: '#1D9E75', color: '#fff' }}>
+                <Receipt size={13} strokeWidth={2.5} /> Log Expense
               </button>
             </div>
           ) : null} />
