@@ -74,7 +74,14 @@ no band anywhere. Field's legend climbed above the pill, MapLibre's bottom contr
 offset in the same CSS, and the plot detail sheet went z-50 so it covers the pill instead of
 sliding up behind it. Any new bottom-anchored overlay must sit at z-50+. Also at his ask:
 the tree "fruit" emoji is now the 🍎🍇 pair everywhere (a single 🍋 read as a mango on his
-phone and confused a guava's row). **The day card's Tasks Due block
+phone and confused a guava's row).
+**"Profile image vanishes after every push" — diagnosed on live data, fixed, restored.** Not
+the deploys: `Profile.jsx` uploaded the avatar to Storage instantly but wrote `avatar_url`
+only on the form's Save button, so a picked photo LOOKED saved, never persisted, and any hard
+reload (which a deploy forces) lost it — his two orphaned upload files sat in `farm-photos/
+avatars/` with every `user_profiles.avatar_url` NULL. `pickPhoto` now writes `avatar_url`
+immediately on upload (and deletes the replaced file); his latest upload was pointed back at
+his row by direct SQL, so his photo is already back without re-uploading. **The day card's Tasks Due block
 deliberately SURVIVES** (overdue + today, one-tap Done) — a calendar cannot nag about the
 past and Done must stay one tap (design rule #5); do not fold it into the calendar. Crops
 have no colour column: `cropColorMap` assigns from an 8-colour palette by alphabetical rank —

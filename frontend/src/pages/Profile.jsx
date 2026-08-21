@@ -4,7 +4,7 @@ import { Camera, Check } from 'lucide-react'
 import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
 import ImageCropper from '../components/ImageCropper'
-import { uploadAttachment, resolveUrl } from '../lib/attachments'
+import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
 
 // Serves two roles:
 //   <Profile mustComplete />  → the gate. Invited users arrive with only an
@@ -30,13 +30,23 @@ export default function Profile({ mustComplete = false }) {
   const canSave = nameOk && phoneOk && !saving && !uploading
 
   // An avatar renders in a circle, so it goes through the cropper before it is uploaded.
+  // The URL is written to the profile IMMEDIATELY, not on Save: it used to wait
+  // for the Save button, so a picked photo looked saved (it showed on screen),
+  // was never persisted, and vanished on the next reload — the owner met that
+  // after every deploy. The file was already in Storage; only the row was ever
+  // missing.
   const pickPhoto = async (file) => {
     if (!file) return
     setUploading(true)
     setError('')
     try {
-      const path = await uploadAttachment(file, { folder: 'avatars', entityId: user.id })
-      setAvatar(resolveUrl(path))
+      const oldUrl = profile?.avatar_url || null
+      const path   = await uploadAttachment(file, { folder: 'avatars', entityId: user.id })
+      const url    = resolveUrl(path)
+      await updateMyProfile({ avatar_url: url })
+      setAvatar(url)
+      // Cleanup of the replaced file must never fail the save that succeeded.
+      if (oldUrl) await deleteAttachment(oldUrl).catch(() => {})
     } catch (e) {
       setError('Photo upload failed: ' + e.message)
     }
