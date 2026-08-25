@@ -11,6 +11,12 @@ export function ScheduledCard({ task, status, onDone }) {
   const isOverdue = status === 'overdue'
   const isToday   = status === 'today'
   const color     = ACT_COLOR[task.type] || '#6b7280'
+  // The pill names the KIND of work ("Weeding"); the line beneath names the
+  // task ("First weeding"). Both used to print task.label, so every card said
+  // the same thing twice. When the task is just its kind ("Irrigation"), the
+  // line is dropped rather than echoed.
+  const typeLabel   = (task.type || '').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
+  const labelIsType = (task.label || '').trim().toLowerCase() === typeLabel.toLowerCase()
   return (
     <div className={`rounded-2xl border p-3.5 transition-opacity ${isDone ? 'opacity-35' : ''}`}
       style={{
@@ -27,7 +33,7 @@ export function ScheduledCard({ task, status, onDone }) {
             <span className="text-xs font-bold text-[var(--c-text-80)]">{task.plotLabel}</span>
             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
               style={{ background: color + '22', color }}>
-              {task.label || task.type}
+              {typeLabel}
             </span>
             {isOverdue && (
               <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
@@ -36,9 +42,11 @@ export function ScheduledCard({ task, status, onDone }) {
               <span className="text-[9px] text-[var(--c-faint)]">in {task.daysUntil}d</span>
             )}
           </div>
-          <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-[var(--c-faint)] line-through' : 'text-[var(--c-text-80)]'}`}>
-            {task.label}
-          </p>
+          {task.label && !labelIsType && (
+            <p className={`text-sm leading-snug mt-0.5 ${isDone ? 'text-[var(--c-faint)] line-through' : 'text-[var(--c-text-80)]'}`}>
+              {task.label}
+            </p>
+          )}
           <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{task.cropName} · Day {task.day}</p>
         </div>
         {(isToday || isOverdue) && onDone && (

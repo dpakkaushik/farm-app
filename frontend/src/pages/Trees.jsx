@@ -425,9 +425,11 @@ function SpeciesCard({ species, plantings, canEdit, onPhoto }) {
   const total = plantings.reduce((s, p) => s + p.count, 0)
   const p     = PURPOSE[species.purpose]
 
+  // One name per card. The Hindi name used to print beneath the English one,
+  // but it is nearly always the same word in another script (Safeda / सफेदा),
+  // so it read as a repeat — the owner's call. It stays in the data and in the
+  // edit form; the card just stops saying things twice.
   const name = displayName(species)
-  // Only worth showing when it says something the English name doesn't.
-  const localName = species.nameLocal !== name ? species.nameLocal : null
 
   async function remove() {
     if (!confirm(`Delete ${name} and all ${total} of its trees?`)) return
@@ -444,7 +446,7 @@ function SpeciesCard({ species, plantings, canEdit, onPhoto }) {
           <button onClick={() => onPhoto(species)} className="shrink-0">
             {species.photoUrl
               ? <img src={species.photoUrl} alt={name} className="w-11 h-11 rounded-xl object-cover" />
-              : <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl border border-dashed"
+              : <div className="w-11 h-11 rounded-xl flex items-center justify-center text-base leading-none whitespace-nowrap border border-dashed"
                   style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
                   {p.emoji}
                 </div>}
@@ -452,13 +454,12 @@ function SpeciesCard({ species, plantings, canEdit, onPhoto }) {
         ) : (
           species.photoUrl
             ? <img src={species.photoUrl} alt={name} className="w-11 h-11 rounded-xl object-cover shrink-0" />
-            : <span className="text-xl shrink-0">{p.emoji}</span>
+            : <span className="text-base whitespace-nowrap shrink-0">{p.emoji}</span>
         )}
         <button onClick={() => setOpen(v => !v)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{name}</p>
             <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
-              {localName ? `${localName} · ` : ''}
               {plantings.length} {plantings.length === 1 ? 'planting' : 'plantings'}
             </p>
           </div>

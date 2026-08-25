@@ -21,7 +21,17 @@
 title reads "Spray / Pesticide — Plots: E1, E2, P" (singular "Plot:" for one; custom names
 like "Back field" pass through whole); (2) notes dedupe per merged row, trim/case-insensitive,
 first form kept — genuinely different notes still all show, in entry order. Display-only;
-the per-plot `activity_logs` rows are untouched. **165 tests green.**
+the per-plot `activity_logs` rows are untouched. **Then his "why is Irrigation written
+twice" → a de-noise pass, on his word ("remove it if not good … check wherever there is
+additional text like this"):** (1) `dayBundle` drops a note that merely echoes the row's
+label/type — Done on a scheduled task writes the task's name as the note, so "Irrigation"
+sat under Irrigation; "First weeding" under Weeding survives (2 more specs); (2)
+`ScheduledCard` printed `task.label` in BOTH its pill and its text line — the pill now names
+the kind ("Weeding", humanised from `task.type`), the line the task, and the line is dropped
+when they're the same word; (3) the Trees species card lost its Hindi subline — nearly always
+the same word in another script (Safeda / सफेदा); the field stays in the data and edit form;
+(4) the 🍎🍇 pair no longer stacks vertically in the 44px photo slot (`text-base
+whitespace-nowrap`). **167 tests green.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

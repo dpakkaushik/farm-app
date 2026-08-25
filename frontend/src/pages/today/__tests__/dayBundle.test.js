@@ -69,4 +69,24 @@ describe('farm activity merged rows', () => {
     const rows = farmActivity([act({ plotLabel: 'Plot F', notes: '   ' })])
     expect(rows[0].notes).toEqual([])
   })
+
+  // Done on a scheduled task saves the task's name as the note, so a plain
+  // "Irrigation" task printed "Irrigation" under an Irrigation row.
+  it('drops a note that merely repeats the row label or type', () => {
+    const rows = farmActivity([
+      act({ plotLabel: 'Plot F', notes: 'Spray / Pesticide' }),
+      act({ plotLabel: 'Plot G', notes: 'spray' }),
+    ])
+    expect(rows[0].notes).toEqual([])
+  })
+
+  it('keeps a note that adds to the label, like which weeding it was', () => {
+    const rows = farmActivity([
+      act({ type: 'weeding', plotLabel: 'Plot H', notes: 'First weeding' }),
+      act({ type: 'irrigation', plotLabel: 'Plot E1', notes: 'Irrigation' }),
+    ])
+    const byType = Object.fromEntries(rows.map(r => [r.type, r.notes]))
+    expect(byType.weeding).toEqual(['First weeding'])
+    expect(byType.irrigation).toEqual([])
+  })
 })

@@ -48,16 +48,25 @@ function buildFarmActivityRows(dayActivities, activityTypes) {
     }
   }
 
-  return [...byType.entries()].map(([type, g]) => ({
-    type,
-    label:              activityTypes.find(t => t.name === type)?.label || type,
-    emoji:              ACT_EMOJI[type] || '📋',
-    color:              ACT_COLOR[type] || '#6b7280',
-    plotLabels:         [...g.plotLabels].map(shortPlotLabel).sort(),
-    namedWorkerCount:   g.namedIds.size,
-    outsideWorkerCount: g.outside,
-    notes:              g.notes,
-  })).sort((a, b) => a.label.localeCompare(b.label))
+  return [...byType.entries()].map(([type, g]) => {
+    const label = activityTypes.find(t => t.name === type)?.label || type
+    // A note that merely echoes the row — "Irrigation" under Irrigation — says
+    // nothing. Done on a scheduled task writes the task's name as the note, so
+    // every plain task produced one. "First weeding" under Weeding survives:
+    // it says which weeding.
+    const echo  = new Set([label, type, type.replace(/_/g, ' ')].map(s => s.toLowerCase()))
+    const notes = g.notes.filter(n => !echo.has(n.toLowerCase()))
+    return {
+      type,
+      label,
+      emoji:              ACT_EMOJI[type] || '📋',
+      color:              ACT_COLOR[type] || '#6b7280',
+      plotLabels:         [...g.plotLabels].map(shortPlotLabel).sort(),
+      namedWorkerCount:   g.namedIds.size,
+      outsideWorkerCount: g.outside,
+      notes,
+    }
+  }).sort((a, b) => a.label.localeCompare(b.label))
 }
 
 function resolveCropCycle(cropCycles, cycleId) {
