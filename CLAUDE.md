@@ -32,6 +32,13 @@ when they're the same word; (3) the Trees species card lost its Hindi subline �
 the same word in another script (Safeda / सफेदा); the field stays in the data and edit form;
 (4) the 🍎🍇 pair no longer stacks vertically in the 44px photo slot (`text-base
 whitespace-nowrap`). **167 tests green.**
+**Harvest cards, his ask ("both ratoon and cane should have similar cards"):** the cane card
+had no clock/progress bar at all — `Harvest.jsx` branched on `isCane()` and the cane branch
+was built around mill/parchi only. Now the timing maths (`daysSown`, `daysToWindow`, `pct`,
+READY/Soon, border colour) is computed once per cycle ABOVE the branch, and three shared
+components — `CycleClock`, `CycleProgress`, `EstYield` — render identically on both shapes;
+the cane card keeps its mill row, parchi table and Log Supply/Close Harvest beneath. The
+non-cane branch lost its inline copies of the same markup.
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

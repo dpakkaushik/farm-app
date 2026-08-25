@@ -29,6 +29,43 @@ const uploadFile = async (file, folder, entityId) => {
 const attachmentUrl = (path) =>
   path ? supabase.storage.from('farm-photos').getPublicUrl(path).data.publicUrl : null
 
+// The same clock on every active cycle, cane or not. The owner asked why the
+// cane cards had no time bar: they hadn't, because cane goes to the mill in
+// loads rather than being harvested on a date, so that card was built around
+// parchis. But "how far along is the crop" is a question about the crop, not
+// the sale — so both card shapes now share these three pieces.
+function CycleClock({ daysSown, daysToWindow, isReady }) {
+  return (
+    <div className="text-right shrink-0">
+      {isReady ? <p className="text-lg font-bold text-[#8A9A5B]">Harvest!</p> : (
+        <><p className="text-2xl font-bold text-[var(--c-text)]">{daysToWindow}</p><p className="text-[10px] text-[var(--c-muted)]">days to harvest</p></>
+      )}
+      <p className="text-[10px] text-[var(--c-faint)] mt-1">Day {daysSown}</p>
+    </div>
+  )
+}
+
+function CycleProgress({ pct, isReady, isNear }) {
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between text-[10px] text-[var(--c-faint)] mb-1"><span>Progress</span><span>{pct}%</span></div>
+      <div className="h-1.5 bg-[var(--c-ghost)] rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isReady ? '#8A9A5B' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
+      </div>
+    </div>
+  )
+}
+
+function EstYield({ crop, acres }) {
+  if (!(crop?.yieldPerAcre > 0)) return null
+  return (
+    <p className="text-[10px] text-[var(--c-faint)] mb-3">
+      Est. yield: ~{Math.round(crop.yieldPerAcre * acres)} qtl
+      {crop.pricePerQtl > 0 && ` · ₹${Math.round(crop.yieldPerAcre * acres * crop.pricePerQtl / 1000)}k est. revenue`}
+    </p>
+  )
+}
+
 export default function Harvest() {
   const {
     cropCycles, cropMaster, plots,
@@ -408,8 +445,17 @@ export default function Harvest() {
 
         {/* ── Active crop cycles ─────────────────────────────────────────────── */}
         {active.map(cycle => {
+          const crop          = cropMaster.find(c => c.id === cycle.cropId)
+          const daysSown      = daysAgo(cycle.sowDate)
+          const totalDays     = crop?.duration_days || 120
+          const windowOpenDay = totalDays - (crop?.harvest_window_days || 14)
+          const daysToWindow  = windowOpenDay - daysSown
+          const isReady       = daysToWindow <= 0
+          const isNear        = !isReady && daysToWindow <= 14
+          const pct           = Math.min(100, Math.round(daysSown / totalDays * 100))
+          const borderCls     = isReady ? 'border-[#8A9A5B]/50' : isNear ? 'border-[#BA7517]/40' : 'border-[var(--c-border)]'
+
           if (isCane(cycle)) {
-            const crop     = cropMaster.find(c => c.id === cycle.cropId)
             const supplies = cycleSupplies(cycle.id)
             const supSales = supplies.map(s => sessionSale(s.id)).filter(Boolean)
             const totalQtl   = supplies.reduce((n, s) => n + s.qtyQtl, 0)
@@ -419,18 +465,26 @@ export default function Harvest() {
             const varietyLabel = crop?.varietyCategory === 'early' ? 'Early Maturing' : crop?.varietyCategory === 'common' ? 'Common Variety' : crop?.varietyCategory === 'late' ? 'Late Maturing' : null
 
             return (
-              <div key={cycle.id} className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4">
-                <div className="flex items-start justify-between mb-2">
+              <div key={cycle.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${borderCls}`}>
+                <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-base">{crop?.emoji || '🌿'}</span>
                       <p className="text-sm font-bold text-[var(--c-text)]">{crop?.name || 'Sugarcane'}</p>
+                      {isReady && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8A9A5B]/20 text-[#8A9A5B] font-semibold pulse">READY</span>}
+                      {isNear  && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#BA7517]/20 text-[#BA7517] font-semibold">Soon</span>}
                       {cycle.parentCycleId && <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white/50 font-medium">Ratoon</span>}
                     </div>
-                    <p className="text-xs text-[var(--c-muted)] mt-0.5">{cycle.plotLabel} · {cycle.acres} ac · Sown {cycle.sowDate}</p>
+                    <p className="text-xs text-[var(--c-muted)] mt-0.5">{cycle.plotLabel} · {cycle.acres} acres</p>
+                    <p className="text-[10px] text-[var(--c-faint)] mt-0.5">Sown {cycle.sowDate}</p>
                   </div>
-                  <button onClick={() => openMillModal(cycle)} className="text-[var(--c-faint)] hover:text-[var(--c-muted)] p-1"><Pencil size={13}/></button>
+                  <div className="flex items-start gap-1">
+                    <CycleClock daysSown={daysSown} daysToWindow={daysToWindow} isReady={isReady} />
+                    <button onClick={() => openMillModal(cycle)} className="text-[var(--c-faint)] hover:text-[var(--c-muted)] p-1"><Pencil size={13}/></button>
+                  </div>
                 </div>
+                <CycleProgress pct={pct} isReady={isReady} isNear={isNear} />
+                <EstYield crop={crop} acres={cycle.acres} />
                 <div className="flex items-center gap-2 mb-3 text-xs text-[var(--c-faint)]">
                   <Building2 size={12} className="shrink-0"/>
                   {cycle.millName ? <span>{cycle.millName}{cycle.growerCode ? ` · Code: ${cycle.growerCode}` : ''}</span> : <span className="italic">Mill not set — tap pencil to add</span>}
@@ -491,21 +545,12 @@ export default function Harvest() {
             )
           }
 
-          // ── Non-cane: harvest countdown ────────────────────────────────────
-          const crop         = cropMaster.find(c => c.id === cycle.cropId)
-          const daysSown     = daysAgo(cycle.sowDate)
-          const totalDays    = crop?.duration_days || 120
-          const windowOpenDay = totalDays - (crop?.harvest_window_days || 14)
-          const daysToWindow  = windowOpenDay - daysSown
-          const isReady       = daysToWindow <= 0
-          const isNear        = !isReady && daysToWindow <= 14
-          const pct           = Math.min(100, Math.round(daysSown / totalDays * 100))
-
+          // ── Non-cane: harvest countdown — same clock, bar and yield line as cane ──
           return (
-            <div key={cycle.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${isReady ? 'border-[#8A9A5B]/50' : isNear ? 'border-[#BA7517]/40' : 'border-[var(--c-border)]'}`}>
+            <div key={cycle.id} className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${borderCls}`}>
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-base">{crop?.emoji || '🌾'}</span>
                     <p className="text-sm font-bold text-[var(--c-text)]">{crop?.name || cycle.cropId}</p>
                     {isReady && <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#8A9A5B]/20 text-[#8A9A5B] font-semibold pulse">READY</span>}
@@ -515,25 +560,10 @@ export default function Harvest() {
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">{cycle.plotLabel} · {cycle.acres} acres</p>
                   <p className="text-[10px] text-[var(--c-faint)] mt-0.5">Sown {cycle.sowDate}</p>
                 </div>
-                <div className="text-right">
-                  {isReady ? <p className="text-lg font-bold text-[#8A9A5B]">Harvest!</p> : (
-                    <><p className="text-2xl font-bold text-[var(--c-text)]">{daysToWindow}</p><p className="text-[10px] text-[var(--c-muted)]">days to harvest</p></>
-                  )}
-                  <p className="text-[10px] text-[var(--c-faint)] mt-1">Day {daysSown}</p>
-                </div>
+                <CycleClock daysSown={daysSown} daysToWindow={daysToWindow} isReady={isReady} />
               </div>
-              <div className="mb-3">
-                <div className="flex justify-between text-[10px] text-[var(--c-faint)] mb-1"><span>Progress</span><span>{pct}%</span></div>
-                <div className="h-1.5 bg-[var(--c-ghost)] rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: isReady ? '#8A9A5B' : isNear ? '#BA7517' : 'rgba(220,180,40,0.8)' }}/>
-                </div>
-              </div>
-              {crop?.yieldPerAcre > 0 && (
-                <p className="text-[10px] text-[var(--c-faint)] mb-3">
-                  Est. yield: ~{Math.round(crop.yieldPerAcre * cycle.acres)} qtl
-                  {crop.pricePerQtl > 0 && ` · ₹${Math.round(crop.yieldPerAcre * cycle.acres * crop.pricePerQtl / 1000)}k est. revenue`}
-                </p>
-              )}
+              <CycleProgress pct={pct} isReady={isReady} isNear={isNear} />
+              <EstYield crop={crop} acres={cycle.acres} />
               <button onClick={() => isReady && openRecord(cycle)} disabled={!isReady}
                 className={`w-full py-2.5 text-xs font-bold rounded-xl border transition-colors ${
                   isReady ? 'bg-[#8A9A5B] text-white border-transparent cursor-pointer' : 'bg-[var(--c-card)] text-[var(--c-sub)] border-[var(--c-border-md)] opacity-60 cursor-not-allowed'
