@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-25 (day-card Farm Activity rows stopped repeating themselves) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-25 (Assets register: glance-cards + detail sheet; value off the cards) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
 **Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
 "Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
@@ -39,16 +39,26 @@ READY/Soon, border colour) is computed once per cycle ABOVE the branch, and thre
 components — `CycleClock`, `CycleProgress`, `EstYield` — render identically on both shapes;
 the cane card keeps its mill row, parchi table and Log Supply/Close Harvest beneath. The
 non-cane branch lost its inline copies of the same markup.
-**Assets → Machinery de-noise, his screenshot:** (1) the register codes (m1, m10 … / a1 …)
-are off the cards and out of the Edit modal titles — `displayId` still exists in data for the
-import; (2) six machinery rows carried MY import-time notes ("VERIFY: local term", "VERIFY:
-maybe rotavator?") as `notes` and the card printed them — **cleared to NULL on the live DB**
-(Raja Hall, Batt Palao, Carah, Saravan, Harrow, Rajor); the names themselves were never
-confirmed with him — Rajor may be a rotavator; (3) the passive "⛽ Diesel" tag became
-**"⛽ Issue Diesel →"**, navigating to `/resources?tab=inventory&cat=fuel`: ResourcesPage now
-reads `?tab=` (with an effect, since it is already mounted when Assets navigates) and
-Inventory seeds its category filter from `?cat=`. Diesel is fuel stock; there is no diesel UI
-elsewhere (`diesel_logs` is unused in the frontend).
+**Assets register rebuilt (25 Aug, latest), on his question *"does it even make sense to show
+value so prominently … put details inside the card which opens on tap?"* → my assessment, his
+"yeah do make it how a SaaS farm app should":** the card is now a GLANCE ROW — photo · name ·
+status pill · one grey line (`cardSubline`: "Tractor · John Deere · ×2"; Qty 1 prints
+nothing) · chevron; the WHOLE card opens a bottom **`AssetSheet`** (z-50; hero photo tap →
+viewer/add, fact grid from pure `assetFacts` — price, bought on, vendor, model/reg or
+"kept at", life, bill chip, notes; a "Sold/Scrapped" block from `disposalFacts`; actions
+Edit / Photo, and a small red "Dispose or sell" only while in service). Unset price/date show
+as "Not set" (dotted, taps to Edit) — a thin record is visible, not hidden. Only inline card
+action: **⛽ Issue Diesel** (the one weekly act; → `/resources?tab=inventory&cat=fuel`, which
+ResourcesPage/Inventory read from the URL). The two-figure value strip became one muted line
+(`registerSummary`: "25 items · Book value ₹23,00,000" + "All assets ₹26,11,000") — nothing in
+the app reads an asset's price except this screen, and green-bold cost read as money IN. New
+folder [`pages/assets/`](frontend/src/pages/assets/): `vocab.jsx` (STATUS_STYLE/CAT_EMOJI/
+StatusPill), `assetFacts.js` (**20 tests**), `AssetCard.jsx`, `AssetSheet.jsx`; `MachineryTab`
++ `FarmAssetsTab` collapsed into one `RegisterTab`; `ActionBar`/`BillChip` deleted. The sheet
+reads the live store row by id, so Edit/photo changes show instantly and Dispose (which drops
+the row) closes it. Earlier same day: register codes (m1/a1) off cards + Edit titles; six
+"VERIFY: …" import notes **cleared to NULL on the live DB** (Raja Hall, Batt Palao, Carah,
+Saravan, Harrow, Rajor — names never confirmed; Rajor may be a rotavator). **187 tests green.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Boxes, Plus, Camera, Pencil } from 'lucide-react'
+import { Wrench, Boxes, Plus } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import ImageViewer from '../components/ImageViewer'
 import ImageCropper from '../components/ImageCropper'
-import Attachment from '../components/Attachment'
 import FilePicker from '../components/FilePicker'
-import { uploadAttachment, deleteAttachment, resolveUrl, BUCKETS } from '../lib/attachments'
+import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
+import { CAT_EMOJI } from './assets/vocab'
+import { fmtINR as fmt, registerSummary } from './assets/assetFacts'
+import AssetCard  from './assets/AssetCard'
+import AssetSheet from './assets/AssetSheet'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 // Exported: the purchase-bill screen offers the same vocabularies when a bill
@@ -20,22 +23,11 @@ const TABS = [
   { key: 'machinery', label: 'Machinery',   Icon: Wrench },
   { key: 'assets',    label: 'Farm Assets', Icon: Boxes  },
 ]
-const STATUS_STYLE = {
-  in_use:       { bg: '#8A9A5B18', color: '#8A9A5B', label: 'In Use'    },
-  spare:        { bg: '#4169E118', color: '#4169E1', label: 'Spare'     },
-  under_repair: { bg: '#BA751718', color: '#BA7517', label: 'Repair'    },
-  disposed:     { bg: '#88888820', color: '#888',    label: 'Disposed'  },
-  sold:         { bg: '#88888820', color: '#888',    label: 'Sold'      },
-}
-const CAT_EMOJI = { equipment:'🛢', appliance:'🔌', furniture:'🪑', tractor:'🚜', implement:'🔩', generator:'⚡', engine:'⚙️', trailer:'🚛', sprayer:'💧', water_motor:'💧', grass_cutter:'🌿', wood_cutter:'🪚', vehicle:'🏍', other:'📦' }
-const fmt = n => n ? `₹${Number(n).toLocaleString('en-IN')}` : null
+// Status colours, category emoji and the fact wording live in ./assets/ — shared
+// with the register card and the detail sheet.
 
 // ── Shared UI ─────────────────────────────────────────────────────────────────
-function StatusPill({ status }) {
-  const s = STATUS_STYLE[status] || STATUS_STYLE.in_use
-  return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: s.bg, color: s.color }}>{s.label}</span>
-}
-const inp = "w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]"
+const inp ="w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]"
 
 // Who it was bought from, and the paper that proves it.
 //
@@ -79,18 +71,6 @@ function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
   )
 }
 
-// A machine bought on a vendor bill can show that bill. Nothing renders when it
-// was not bought on one — assets entered by hand have no document behind them.
-function BillChip({ item }) {
-  if (!item.billFileUrl) return null
-  return (
-    <div className="mt-1">
-      <Attachment variant="chip" value={item.billFileUrl} bucket={BUCKETS.photos}
-        name={item.billInvoiceNo ? `Bill #${item.billInvoiceNo}` : 'Bill'} />
-    </div>
-  )
-}
-
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
@@ -125,20 +105,6 @@ function SegPicker({ value, options, onChange, danger }) {
     </div>
   )
 }
-function ActionBar({ actions }) {
-  return (
-    <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
-      {actions.map(({ label, icon, color, onClick }) => (
-        <button key={label} onClick={onClick}
-          className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1"
-          style={{ color: color || 'var(--c-muted)' }}>
-          {icon}{label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 // ── Edit Machinery Modal ──────────────────────────────────────────────────────
 function EditMachineryModal({ item, onClose, onSave, saving }) {
   const [f, setF] = useState({
@@ -311,21 +277,25 @@ function AddFarmAssetModal({ onClose, onConfirm, saving, vendors, moneyFields })
   )
 }
 
-// ── Machinery Tab ─────────────────────────────────────────────────────────────
-function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
-  const navigate = useNavigate()
+// ── Register list (both tabs) ─────────────────────────────────────────────────
+// One component for machinery and farm assets: filter chips by kind, Add, and a
+// column of glance-cards. Everything else about an item lives in the sheet the
+// card opens — the register is for finding a thing, not reading its file.
+function RegisterTab({ items, kind, onOpen, onAdd, onIssueDiesel }) {
   const [filter, setFilter] = useState('all')
-  const types = [...new Set(machinery.map(m => m.type))].sort()
-  const list  = filter === 'all' ? machinery : machinery.filter(m => m.type === filter)
+  const field = kind === 'machinery' ? 'type' : 'category'
+  const kinds = [...new Set(items.map(i => i[field]))].filter(Boolean).sort()
+  const list  = filter === 'all' ? items : items.filter(i => i[field] === filter)
+  const label = k => (CAT_EMOJI[k] || (kind === 'machinery' ? '🔧' : '📦')) + ' ' + k.replace(/_/g, ' ')
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-2 px-4 py-2 shrink-0 bg-[var(--c-nav)] border-b border-[var(--c-border)]">
         <div className="flex gap-2 flex-1 overflow-x-auto no-scrollbar">
-          {['all', ...types].map(t => (
-            <button key={t} onClick={() => setFilter(t)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors ${filter===t ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
-              style={{ background: filter===t ? '#8A9A5B' : 'var(--c-ghost)' }}>
-              {t === 'all' ? 'All' : (CAT_EMOJI[t]||'🔧')+' '+t.replace(/_/g,' ')}
+          {['all', ...kinds].map(k => (
+            <button key={k} onClick={() => setFilter(k)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors capitalize ${filter===k ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
+              style={{ background: filter===k ? '#8A9A5B' : 'var(--c-ghost)' }}>
+              {k === 'all' ? 'All' : label(k)}
             </button>
           ))}
         </div>
@@ -333,107 +303,15 @@ function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
           <Plus size={11} /> Add
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {list.map(m => (
-          <div key={m.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
-            <div className="p-4 flex gap-3">
-              <button onClick={() => onPhoto('machinery_master', m)} className="shrink-0">
-                {m.photoUrl
-                  ? <img src={m.photoUrl} alt={m.name} className="w-14 h-14 rounded-xl object-cover" />
-                  : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl" style={{ background: 'var(--c-ghost)' }}>{CAT_EMOJI[m.type]||'🔧'}</div>
-                }
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{m.name}</p>
-                  <StatusPill status={m.status} />
-                  {/* The register's m1/m10 codes are gone from the card (owner: not needed),
-                      and the passive "Diesel" tag became the action it implied — diesel is
-                      fuel stock, issued from Inventory, so this jumps straight to the fuel
-                      shelf there. */}
-                  {m.requiresDiesel && (
-                    <button onClick={() => navigate('/resources?tab=inventory&cat=fuel')}
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
-                      style={{ background: '#BA751718', color: '#BA7517', borderColor: '#BA751740' }}>
-                      ⛽ Issue Diesel →
-                    </button>
-                  )}
-                </div>
-                <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
-                  {CAT_EMOJI[m.type]||'🔧'} {m.type.replace(/_/g,' ')}{m.make ? ` · ${m.make}` : ''} · Qty {m.quantity}
-                </p>
-                <p className="text-[11px] mt-1 font-bold" style={{ color: m.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
-                  {fmt(m.purchasePrice) || 'Tap ✏ Edit to set price'}
-                </p>
-                <BillChip item={m} />
-                {m.notes && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{m.notes}</p>}
-              </div>
-            </div>
-            <ActionBar actions={[
-              { label: 'Edit',    icon: <Pencil size={11} />, color: '#4169E1', onClick: () => onEdit(m) },
-              { label: 'Photo',   icon: <Camera size={11} />,                   onClick: () => onPhoto('machinery_master', m) },
-              { label: 'Dispose', icon: '🗑',                  color: '#E24B4A', onClick: () => onDispose(m) },
-            ]} />
-          </div>
+      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {list.map(item => (
+          <AssetCard key={item.id} item={item} kind={kind} onOpen={onOpen} onIssueDiesel={onIssueDiesel} />
         ))}
-        {list.length === 0 && <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>No machinery</p>}
-      </div>
-    </div>
-  )
-}
-
-// ── Farm Assets Tab ───────────────────────────────────────────────────────────
-function FarmAssetsTab({ assets, onEdit, onDispose, onPhoto, onAdd }) {
-  const [filter, setFilter] = useState('all')
-  const cats = [...new Set(assets.map(a => a.category))].sort()
-  const list = filter === 'all' ? assets : assets.filter(a => a.category === filter)
-  return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-4 py-2 shrink-0 bg-[var(--c-nav)] border-b border-[var(--c-border)]">
-        <div className="flex gap-2 flex-1 overflow-x-auto no-scrollbar">
-          {['all', ...cats].map(c => (
-            <button key={c} onClick={() => setFilter(c)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors ${filter===c ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
-              style={{ background: filter===c ? '#8A9A5B' : 'var(--c-ghost)' }}>
-              {c === 'all' ? 'All' : (CAT_EMOJI[c]||'📦')+' '+c.charAt(0).toUpperCase()+c.slice(1)}
-            </button>
-          ))}
-        </div>
-        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#8A9A5B' }}>
-          <Plus size={11} /> Add
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {list.map(a => (
-          <div key={a.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] overflow-hidden">
-            <div className="p-4 flex gap-3">
-              <button onClick={() => onPhoto('farm_assets', a)} className="shrink-0">
-                {a.photoUrl
-                  ? <img src={a.photoUrl} alt={a.name} className="w-14 h-14 rounded-xl object-cover" />
-                  : <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl" style={{ background: 'var(--c-ghost)' }}>{CAT_EMOJI[a.category]||'📦'}</div>
-                }
-              </button>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{a.name}</p>
-                  <StatusPill status={a.status} />
-                </div>
-                <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>{CAT_EMOJI[a.category]||'📦'} {a.category} · Qty {a.quantity}</p>
-                <p className="text-[11px] mt-1 font-bold" style={{ color: a.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
-                  {fmt(a.purchasePrice) || 'Tap ✏ Edit to set price'}
-                </p>
-                <BillChip item={a} />
-                {a.notes && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{a.notes}</p>}
-              </div>
-            </div>
-            <ActionBar actions={[
-              { label: 'Edit',    icon: <Pencil size={11} />, color: '#4169E1', onClick: () => onEdit(a) },
-              { label: 'Photo',   icon: <Camera size={11} />,                   onClick: () => onPhoto('farm_assets', a) },
-              { label: 'Dispose', icon: '🗑',                  color: '#E24B4A', onClick: () => onDispose(a) },
-            ]} />
-          </div>
-        ))}
-        {list.length === 0 && <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>No assets</p>}
+        {list.length === 0 && (
+          <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>
+            {kind === 'machinery' ? 'No machinery' : 'No assets'}
+          </p>
+        )}
       </div>
     </div>
   )
@@ -449,7 +327,12 @@ export default function Assets() {
     updateAssetPhoto,
   } = useAppStore()
 
+  const navigate = useNavigate()
   const [tab,          setTab]          = useState('machinery')
+  // The open detail sheet, by reference not by copy: it re-reads the live row
+  // from the store, so an Edit or a photo change shows the moment it saves, and
+  // a Dispose (which drops the row from the list) closes it.
+  const [selected,     setSelected]     = useState(null)   // { kind, id }
   const [editModal,    setEditModal]    = useState(null)
   const [dispose,      setDispose]      = useState(null)
   const [addModal,     setAddModal]     = useState(null)
@@ -532,7 +415,7 @@ export default function Assets() {
     try {
       if (dispose.kind === 'machinery') await disposeMachinery(dispose.item.id, form)
       else await disposeFarmAsset(dispose.item.id, form)
-      showToast(`${dispose.item.name} disposed`); setDispose(null)
+      showToast(`${dispose.item.name} disposed`); setDispose(null); setSelected(null)
     } catch (e) { showToast('Failed: ' + e.message, 'error') }
     setSaving(false)
   }
@@ -565,6 +448,14 @@ export default function Assets() {
   const tabValue = tab === 'machinery' ? totalMachinery : totalAssets
   const tabCount = tab === 'machinery' ? machineryMaster.length : farmAssets.length
 
+  const selectedTable = selected?.kind === 'machinery' ? 'machinery_master' : 'farm_assets'
+  const selectedItem  = selected
+    ? (selected.kind === 'machinery' ? machineryMaster : farmAssets).find(i => i.id === selected.id)
+    : null
+  // Diesel is fuel stock: the register hands over to Inventory's fuel shelf,
+  // where each item's "→ Issue to Plot" lives. There is no diesel UI elsewhere.
+  const issueDiesel = () => navigate('/resources?tab=inventory&cat=fuel')
+
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--c-bg)' }}>
       <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
@@ -596,31 +487,36 @@ export default function Assets() {
         ))}
       </div>
 
-      {/* Book value strip */}
-      <div className="flex shrink-0 border-b" style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)' }}>
-        <div className="flex-1 py-2.5 px-4">
-          <p className="text-base font-bold" style={{ color: '#8A9A5B' }}>{tabValue > 0 ? fmt(tabValue) : '₹—'}</p>
-          <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>This tab · {tabCount} items</p>
-        </div>
-        <div className="px-4 py-2.5 text-right border-l" style={{ borderColor: 'var(--c-border)' }}>
-          <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{totalAll > 0 ? fmt(totalAll) : '₹—'}</p>
-          <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>Total book value</p>
-        </div>
+      {/* One quiet line. Book value is a bookkeeping fact, not the reason anyone
+          opens this screen — it stays findable here and in each item's sheet,
+          but no longer shouts from every card (owner, 25 Aug). */}
+      <div className="flex items-center justify-between shrink-0 px-4 py-1.5 border-b text-[11px]"
+        style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)', color: 'var(--c-muted)' }}>
+        <span>{registerSummary(tabCount, tabValue)}</span>
+        {totalAll > 0 && <span>All assets <b style={{ color: 'var(--c-text)' }}>{fmt(totalAll)}</b></span>}
       </div>
 
       {tab === 'machinery' && (
-        <MachineryTab machinery={machineryMaster}
-          onEdit={item   => setEditModal({ kind: 'machinery', item })}
-          onDispose={item => setDispose({ item, kind: 'machinery' })}
-          onPhoto={handlePhotoClick}
-          onAdd={() => setAddModal('machinery')} />
+        <RegisterTab items={machineryMaster} kind="machinery"
+          onOpen={item => setSelected({ kind: 'machinery', id: item.id })}
+          onAdd={() => setAddModal('machinery')}
+          onIssueDiesel={issueDiesel} />
       )}
       {tab === 'assets' && (
-        <FarmAssetsTab assets={farmAssets}
-          onEdit={item   => setEditModal({ kind: 'asset', item })}
-          onDispose={item => setDispose({ item, kind: 'asset' })}
-          onPhoto={handlePhotoClick}
-          onAdd={() => setAddModal('asset')} />
+        <RegisterTab items={farmAssets} kind="asset"
+          onOpen={item => setSelected({ kind: 'asset', id: item.id })}
+          onAdd={() => setAddModal('asset')}
+          onIssueDiesel={issueDiesel} />
+      )}
+
+      {selectedItem && (
+        <AssetSheet item={selectedItem} kind={selected.kind}
+          vendorName={vendors.find(v => v.id === selectedItem.vendorId)?.name}
+          onClose={() => setSelected(null)}
+          onEdit={item => setEditModal({ kind: selected.kind, item })}
+          onPhoto={item => handlePhotoClick(selectedTable, item)}
+          onDispose={item => setDispose({ item, kind: selected.kind })}
+          onIssueDiesel={issueDiesel} />
       )}
       {editModal?.kind === 'machinery' && <EditMachineryModal item={editModal.item} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}
       {editModal?.kind === 'asset'     && <EditFarmAssetModal item={editModal.item} onClose={() => setEditModal(null)} onSave={confirmEdit} saving={saving} />}
