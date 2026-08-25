@@ -11,7 +11,17 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-21 (Today's Expenses tab became a Log Expense button) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-25 (day-card Farm Activity rows stopped repeating themselves) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
+"Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
+×8). Two fixes in [`dayBundle.js`](frontend/src/pages/today/dayBundle.js), both pure + tested
+(new `__tests__/dayBundle.test.js`, 9 specs — vitest picks up tests anywhere under `src/`):
+(1) `shortPlotLabel` strips a leading "Plot " from each label in the merged list, so the
+title reads "Spray / Pesticide — Plots: E1, E2, P" (singular "Plot:" for one; custom names
+like "Back field" pass through whole); (2) notes dedupe per merged row, trim/case-insensitive,
+first form kept — genuinely different notes still all show, in entry order. Display-only;
+the per-plot `activity_logs` rows are untouched. **165 tests green.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

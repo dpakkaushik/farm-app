@@ -15,6 +15,14 @@ export const ACT_COLOR = {
   intercultural: '#64748b', crop_ops: '#22c55e', events: '#ec4899', other: '#6b7280',
 }
 
+// Plots are almost always named "Plot E1", "Plot F", … — repeating that word for
+// every entry in a merged row reads as "Plots Plot E1, Plot E2". Strip the prefix
+// for the list; a custom-named plot ("Back field") passes through untouched.
+export function shortPlotLabel(label) {
+  const short = label.replace(/^plot\s+/i, '')
+  return short || label
+}
+
 // Group same-day activities by TYPE (not plot) — merges "Plot A fertilized" and
 // "Plot B fertilized" into one row listing both plots, per the owner's spec.
 function buildFarmActivityRows(dayActivities, activityTypes) {
@@ -22,13 +30,22 @@ function buildFarmActivityRows(dayActivities, activityTypes) {
 
   for (const a of dayActivities) {
     if (!byType.has(a.type)) {
-      byType.set(a.type, { plotLabels: new Set(), namedIds: new Set(), outside: 0, notes: [] })
+      byType.set(a.type, { plotLabels: new Set(), namedIds: new Set(), outside: 0, notes: [], noteKeys: new Set() })
     }
     const g = byType.get(a.type)
     if (a.plotLabel) g.plotLabels.add(a.plotLabel)
     ;(a.regularWorkerIds || []).forEach(id => g.namedIds.add(id))
     g.outside += (a.outsideLabourCount || 0)
-    if (a.notes) g.notes.push(a.notes)
+    // Merged rows used to concatenate every note, so eight plots sprayed with the
+    // same note printed it eight times. Identical notes (trim/case-insensitive)
+    // now appear once; genuinely different notes still all show.
+    if (a.notes) {
+      const key = a.notes.trim().toLowerCase()
+      if (key && !g.noteKeys.has(key)) {
+        g.noteKeys.add(key)
+        g.notes.push(a.notes.trim())
+      }
+    }
   }
 
   return [...byType.entries()].map(([type, g]) => ({
@@ -36,10 +53,10 @@ function buildFarmActivityRows(dayActivities, activityTypes) {
     label:              activityTypes.find(t => t.name === type)?.label || type,
     emoji:              ACT_EMOJI[type] || '📋',
     color:              ACT_COLOR[type] || '#6b7280',
-    plotLabels:         [...g.plotLabels].sort(),
+    plotLabels:         [...g.plotLabels].map(shortPlotLabel).sort(),
     namedWorkerCount:   g.namedIds.size,
     outsideWorkerCount: g.outside,
-    notes:              g.notes,   // caller joins these (concatenate, per confirmed preference)
+    notes:              g.notes,
   })).sort((a, b) => a.label.localeCompare(b.label))
 }
 

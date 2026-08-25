@@ -109,7 +109,9 @@ function FarmActivitySection({ rows }) {
       {visible.map(r => (
         <Row key={r.type}
           icon={r.emoji} iconBg={r.color + '22'}
-          title={`${r.label} — Plots ${r.plotLabels.join(', ')}`}
+          title={r.plotLabels.length > 0
+            ? `${r.label} — ${r.plotLabels.length > 1 ? 'Plots' : 'Plot'}: ${r.plotLabels.join(', ')}`
+            : r.label}
           detail={r.notes.length > 0 ? r.notes.join('; ') : null}
           right={(r.namedWorkerCount || r.outsideWorkerCount)
             ? `👥${r.namedWorkerCount} 👷${r.outsideWorkerCount}` : null}
