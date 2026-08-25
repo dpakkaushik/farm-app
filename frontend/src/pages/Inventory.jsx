@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Plus, X, CheckCircle2, AlertTriangle, Package, Receipt, FileText,
          Download, Filter, Trash2, ShoppingBag } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
@@ -35,8 +36,10 @@ export default function Inventory() {
     machineryMaster, vendors, recordBillPurchase, issueItem, addVendor,
   } = useAppStore()
 
+  // ?cat=fuel lands on the diesel shelf directly (Assets → "Issue Diesel").
+  const [params]                  = useSearchParams()
   const [tab,       setTab]       = useState('items')
-  const [catFilter, setCat]       = useState('all')
+  const [catFilter, setCat]       = useState(CATS.includes(params.get('cat')) ? params.get('cat') : 'all')
   const [modal,     setModal]     = useState(null)   // 'bill' | 'issue'
   const [selected,  setSelected]  = useState(null)   // for issue only
   const [form,      setForm]      = useState({})

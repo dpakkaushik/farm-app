@@ -39,6 +39,16 @@ READY/Soon, border colour) is computed once per cycle ABOVE the branch, and thre
 components — `CycleClock`, `CycleProgress`, `EstYield` — render identically on both shapes;
 the cane card keeps its mill row, parchi table and Log Supply/Close Harvest beneath. The
 non-cane branch lost its inline copies of the same markup.
+**Assets → Machinery de-noise, his screenshot:** (1) the register codes (m1, m10 … / a1 …)
+are off the cards and out of the Edit modal titles — `displayId` still exists in data for the
+import; (2) six machinery rows carried MY import-time notes ("VERIFY: local term", "VERIFY:
+maybe rotavator?") as `notes` and the card printed them — **cleared to NULL on the live DB**
+(Raja Hall, Batt Palao, Carah, Saravan, Harrow, Rajor); the names themselves were never
+confirmed with him — Rajor may be a rotavator; (3) the passive "⛽ Diesel" tag became
+**"⛽ Issue Diesel →"**, navigating to `/resources?tab=inventory&cat=fuel`: ResourcesPage now
+reads `?tab=` (with an effect, since it is already mounted when Assets navigates) and
+Inventory seeds its category filter from `?cat=`. Diesel is fuel stock; there is no diesel UI
+elsewhere (`diesel_logs` is unused in the frontend).
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

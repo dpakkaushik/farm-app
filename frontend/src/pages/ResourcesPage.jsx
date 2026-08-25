@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Package, Wrench } from 'lucide-react'
 import Inventory from './Inventory'
 import Assets    from './Assets'
@@ -12,7 +13,15 @@ const TABS = [
 ]
 
 export default function ResourcesPage() {
-  const [tab, setTab] = useState('inventory')
+  // ?tab=inventory|assets picks the tab from the URL — the door the Assets
+  // page's "Issue Diesel" walks through while already ON /resources, where a
+  // plain navigate would never remount this page.
+  const [params] = useSearchParams()
+  const [tab, setTab] = useState(params.get('tab') === 'assets' ? 'assets' : 'inventory')
+  useEffect(() => {
+    const t = params.get('tab')
+    if (t === 'inventory' || t === 'assets') setTab(t)
+  }, [params])
 
   return (
     <div className="h-full flex flex-col" style={{ background: 'var(--c-bg)' }}>

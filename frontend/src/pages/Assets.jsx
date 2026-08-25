@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Wrench, Boxes, Plus, Camera, Pencil } from 'lucide-react'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
@@ -148,7 +149,7 @@ function EditMachineryModal({ item, onClose, onSave, saving }) {
   })
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
-    <Modal title={`Edit ${item.displayId} — ${item.name}`} onClose={onClose}>
+    <Modal title={`Edit ${item.name}`} onClose={onClose}>
       <FRow label="Name"><input className={inp} value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Type">
@@ -192,7 +193,7 @@ function EditFarmAssetModal({ item, onClose, onSave, saving }) {
   })
   const u = (k, v) => setF(p => ({ ...p, [k]: v }))
   return (
-    <Modal title={`Edit ${item.displayId} — ${item.name}`} onClose={onClose}>
+    <Modal title={`Edit ${item.name}`} onClose={onClose}>
       <FRow label="Name"><input className={inp} value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Category">
@@ -312,6 +313,7 @@ function AddFarmAssetModal({ onClose, onConfirm, saving, vendors, moneyFields })
 
 // ── Machinery Tab ─────────────────────────────────────────────────────────────
 function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
+  const navigate = useNavigate()
   const [filter, setFilter] = useState('all')
   const types = [...new Set(machinery.map(m => m.type))].sort()
   const list  = filter === 'all' ? machinery : machinery.filter(m => m.type === filter)
@@ -343,10 +345,19 @@ function MachineryTab({ machinery, onEdit, onDispose, onPhoto, onAdd }) {
               </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>{m.displayId}</span>
                   <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{m.name}</p>
                   <StatusPill status={m.status} />
-                  {m.requiresDiesel && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#BA751718', color: '#BA7517' }}>⛽ Diesel</span>}
+                  {/* The register's m1/m10 codes are gone from the card (owner: not needed),
+                      and the passive "Diesel" tag became the action it implied — diesel is
+                      fuel stock, issued from Inventory, so this jumps straight to the fuel
+                      shelf there. */}
+                  {m.requiresDiesel && (
+                    <button onClick={() => navigate('/resources?tab=inventory&cat=fuel')}
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
+                      style={{ background: '#BA751718', color: '#BA7517', borderColor: '#BA751740' }}>
+                      ⛽ Issue Diesel →
+                    </button>
+                  )}
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
                   {CAT_EMOJI[m.type]||'🔧'} {m.type.replace(/_/g,' ')}{m.make ? ` · ${m.make}` : ''} · Qty {m.quantity}
@@ -404,7 +415,6 @@ function FarmAssetsTab({ assets, onEdit, onDispose, onPhoto, onAdd }) {
               </button>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>{a.displayId}</span>
                   <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{a.name}</p>
                   <StatusPill status={a.status} />
                 </div>
