@@ -5,6 +5,7 @@
 // because they answer three different questions.
 import React, { useState } from 'react'
 import { Plus, Minus, Pencil, ChevronDown, ChevronUp, Archive, Stethoscope } from 'lucide-react'
+import AddButton from '../../components/AddButton'
 import { useAppStore } from '../../store'
 import { DueList, HealthPanel, pendingCheckups, isDue } from './health'
 import {
@@ -218,10 +219,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
 
   return (
     <div className="pb-4">
-      <button onClick={onAdd} className="w-full mb-3 py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
-        style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
-        <Plus size={14} /> {face.add}
-      </button>
+      <AddButton onClick={onAdd} className="mb-3">{face.add}</AddButton>
 
       {/* What is owed across the whole group. On the herd this lives on the Health
           tab; here that tab is gone, and a card cannot hold a list about several

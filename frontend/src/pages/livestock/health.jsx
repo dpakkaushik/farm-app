@@ -6,6 +6,8 @@
 // history, and the warning that the next one is owed.
 import React, { useState } from 'react'
 import { Plus, Trash2, Stethoscope, AlertTriangle } from 'lucide-react'
+import FilterSelect from '../../components/FilterSelect'
+import AddButton from '../../components/AddButton'
 import { useAppStore } from '../../store'
 import {
   Modal, FRow, HealthPill, inp, TODAY, HEALTH_OPTIONS,
@@ -351,22 +353,15 @@ export default function HealthTab({ animals, allAnimals, face }) {
         ))}
       </div>
 
-      <button onClick={open}
-        className="w-full py-2.5 rounded-xl text-xs font-semibold border-2 border-dashed flex items-center justify-center gap-2"
-        style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
-        <Plus size={14} /> Log a Vet Visit
-      </button>
+      <AddButton onClick={open}>Log a Vet Visit</AddButton>
 
       {/* Checkups owed — the reason this tab exists */}
       <DueList checkups={checkups} />
 
       {/* Filter to one animal inside the current scope */}
       {scopeLogs.length > 0 && (
-        <select className={inp} value={filter} onChange={e => setFilter(e.target.value)}
-          style={{ background: 'var(--c-ghost)' }}>
-          <option value="all">{wide ? 'All animals' : `All ${face.title.toLowerCase()}`}</option>
-          {inScope.map(a => <option key={a.id} value={a.id}>{animalLabel(a)}</option>)}
-        </select>
+        <FilterSelect value={filter} onChange={setFilter}
+          options={[['all', wide ? 'All animals' : `All ${face.title.toLowerCase()}`], ...inScope.map(a => [a.id, animalLabel(a)])]} />
       )}
 
       {logs.length === 0 ? (

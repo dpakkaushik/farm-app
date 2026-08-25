@@ -1,5 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, AlertTriangle, CheckCircle2, X, UserPlus, Pencil, Wallet } from 'lucide-react'
+import FilterSelect from '../components/FilterSelect'
+import AddButton from '../components/AddButton'
 import FilePicker from '../components/FilePicker'
 import OpeningCostBreakup from '../components/OpeningCostBreakup'
 import { supabase } from '../lib/supabase'
@@ -1998,24 +2000,10 @@ function BuyersMaster() {
 
   return (
     <div className="p-4 space-y-3 pb-6">
-      <button onClick={() => setForm(blank())}
-        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
-        <Plus size={14} /> Add Buyer
-      </button>
+      <AddButton onClick={() => setForm(blank())}>Add Buyer</AddButton>
 
-      {/* filter pills */}
-      <div className="flex gap-1.5 flex-wrap">
-        <button onClick={() => setFilter('all')}
-          className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === 'all' ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/50'}`}>
-          All
-        </button>
-        {BUYER_CATEGORIES.map(cat => (
-          <button key={cat.key} onClick={() => setFilter(cat.key)}
-            className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${filter === cat.key ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/50'}`}>
-            {cat.emoji} {cat.label}
-          </button>
-        ))}
-      </div>
+      <FilterSelect value={filter} onChange={setFilter}
+        options={[['all', 'All buyers'], ...BUYER_CATEGORIES.map(cat => [cat.key, `${cat.emoji} ${cat.label}`])]} />
 
       {form !== null && (
         <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">

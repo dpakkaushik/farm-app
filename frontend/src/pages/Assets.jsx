@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Boxes, Plus } from 'lucide-react'
+import { Wrench, Boxes } from 'lucide-react'
+import FilterSelect from '../components/FilterSelect'
+import AddButton from '../components/AddButton'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import ImageViewer from '../components/ImageViewer'
@@ -8,7 +10,7 @@ import ImageCropper from '../components/ImageCropper'
 import FilePicker from '../components/FilePicker'
 import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
 import { CAT_EMOJI } from './assets/vocab'
-import { fmtINR as fmt, registerSummary } from './assets/assetFacts'
+import { fmtINR as fmt, registerSummary, humanise } from './assets/assetFacts'
 import AssetCard  from './assets/AssetCard'
 import AssetSheet from './assets/AssetSheet'
 
@@ -286,24 +288,14 @@ function RegisterTab({ items, kind, onOpen, onAdd, onIssueDiesel }) {
   const field = kind === 'machinery' ? 'type' : 'category'
   const kinds = [...new Set(items.map(i => i[field]))].filter(Boolean).sort()
   const list  = filter === 'all' ? items : items.filter(i => i[field] === filter)
-  const label = k => (CAT_EMOJI[k] || (kind === 'machinery' ? '🔧' : '📦')) + ' ' + k.replace(/_/g, ' ')
+  const label = k => (CAT_EMOJI[k] || (kind === 'machinery' ? '🔧' : '📦')) + ' ' + humanise(k)
+  const noun  = kind === 'machinery' ? 'machinery' : 'assets'
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-2 px-4 py-2 shrink-0 bg-[var(--c-nav)] border-b border-[var(--c-border)]">
-        <div className="flex gap-2 flex-1 overflow-x-auto no-scrollbar">
-          {['all', ...kinds].map(k => (
-            <button key={k} onClick={() => setFilter(k)}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-semibold border transition-colors capitalize ${filter===k ? 'text-white border-transparent' : 'border-[var(--c-border)] text-[var(--c-muted)]'}`}
-              style={{ background: filter===k ? '#8A9A5B' : 'var(--c-ghost)' }}>
-              {k === 'all' ? 'All' : label(k)}
-            </button>
-          ))}
-        </div>
-        <button onClick={onAdd} className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold text-white" style={{ background: '#8A9A5B' }}>
-          <Plus size={11} /> Add
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <AddButton onClick={onAdd}>{kind === 'machinery' ? 'Add Machinery' : 'Add Farm Asset'}</AddButton>
+        <FilterSelect value={filter} onChange={setFilter}
+          options={[['all', `All ${noun}`], ...kinds.map(k => [k, label(k)])]} />
         {list.map(item => (
           <AssetCard key={item.id} item={item} kind={kind} onOpen={onOpen} onIssueDiesel={onIssueDiesel} />
         ))}

@@ -67,6 +67,20 @@ the row) closes it. Earlier same day: register codes (m1/a1) off cards + Edit ti
 "VERIFY: …" import notes **cleared to NULL on the live DB** (Raja Hall, Batt Palao, Carah,
 Saravan, Harrow, Rajor — names never confirmed; Rajor may be a rotavator). **186 tests green.**
 Any future register (livestock list, buyers, vendors) should render through RegisterCard too.
+**Then, his two app-wide rules (25 Aug, latest):** (1) *"filter should be a dropdown instead of
+tabs across all app screens except ledger … with the symbol of a filter"* → one
+[`components/FilterSelect.jsx`](frontend/src/components/FilterSelect.jsx) (funnel icon + native
+select + chevron; goes sage while narrowed) replaced EVERY chip-strip filter: Assets (both tabs),
+Inventory stock categories, Media's four (plot · activity / year · month, now a 2×2 grid),
+Trees (species fruit/timber, sales leases/timber), Admin → Buyers, Livestock Health's animal
+select. Ledger untouched by his exception; Admin's Manpower strip, Today's count pills and
+Field's forecast strip are tabs/indicators, not filters — left alone. (2) *"add is a tab here
+while tree and livestock have a different-looking add … this is better"* → one
+[`components/AddButton.jsx`](frontend/src/components/AddButton.jsx) (the Herd tab's dashed
+"+ Add Animal" row) now opens every register list: Assets ("Add Machinery"/"Add Farm Asset"),
+Inventory ("New Purchase" — stock only arrives on a bill, so that IS the add; the solid button
+left the value strip), Trees ("Add a tree", "Record a sale"), Herd, Health ("Log a Vet Visit"),
+Admin Buyers. The per-page `Chip`/`FilterChips` helpers are deleted.
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

@@ -1,6 +1,7 @@
 ﻿import React, { useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Camera, Video, X, Play, ChevronLeft, ChevronRight, Filter, ImageOff, Trash2 } from 'lucide-react'
+import FilterSelect from '../components/FilterSelect'
 import imageCompression from 'browser-image-compression'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
@@ -286,56 +287,21 @@ export default function Media() {
         </div>
       </div>
 
-      {/* ── Plot filter ── */}
-      <div className="shrink-0 px-4 pb-2 overflow-x-auto no-scrollbar">
-        <div className="flex gap-2 w-max">
-          <Chip active={plotFilter === 'all'} onClick={() => setPlotFilter('all')}>All Plots</Chip>
-          {allPlots.map(p => (
-            <Chip key={p.id} active={plotFilter === p.id} onClick={() => setPlotFilter(p.id)}>{p.label}</Chip>
-          ))}
-        </div>
+      {/* ── Filters: plot · activity, then year · month (month only inside a year) ── */}
+      <div className="shrink-0 px-4 pb-3 grid grid-cols-2 gap-2">
+        <FilterSelect value={plotFilter} onChange={setPlotFilter}
+          options={[['all', 'All plots'], ...allPlots.map(p => [p.id, p.label])]} />
+        <FilterSelect value={actFilter} onChange={setActFilter}
+          options={[['all', 'All activity'], ...ACTIVITIES.map(a => [a, a.charAt(0).toUpperCase() + a.slice(1)])]} />
+        {availableYears.length > 0 && (
+          <FilterSelect value={yearFilter} onChange={v => { setYearFilter(v); setMonthFilter('all') }}
+            options={[['all', 'All years'], ...availableYears.map(y => [y, y])]} />
+        )}
+        {availableMonths.length > 0 && (
+          <FilterSelect value={monthFilter} onChange={setMonthFilter}
+            options={[['all', 'All months'], ...availableMonths.map(mm => [mm, MONTH_LABEL[parseInt(mm, 10) - 1]])]} />
+        )}
       </div>
-
-      {/* ── Activity filter ── */}
-      <div className="shrink-0 px-4 pb-3 overflow-x-auto no-scrollbar">
-        <div className="flex gap-2 w-max">
-          <Chip active={actFilter === 'all'} onClick={() => setActFilter('all')} color="#8A9A5B">All</Chip>
-          {ACTIVITIES.map(a => {
-            const c = actColor(a)
-            return (
-              <Chip key={a} active={actFilter === a} onClick={() => setActFilter(a)} color={c.dot}>
-                {a.charAt(0).toUpperCase() + a.slice(1)}
-              </Chip>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ── Year filter ── */}
-      {availableYears.length > 0 && (
-        <div className="shrink-0 px-4 pb-2 overflow-x-auto no-scrollbar">
-          <div className="flex gap-2 w-max">
-            <Chip active={yearFilter === 'all'} onClick={() => { setYearFilter('all'); setMonthFilter('all') }}>All Years</Chip>
-            {availableYears.map(y => (
-              <Chip key={y} active={yearFilter === y} onClick={() => { setYearFilter(y); setMonthFilter('all') }}>{y}</Chip>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Month filter ── */}
-      {availableMonths.length > 0 && (
-        <div className="shrink-0 px-4 pb-3 overflow-x-auto no-scrollbar">
-          <div className="flex gap-2 w-max">
-            <Chip active={monthFilter === 'all'} onClick={() => setMonthFilter('all')}>All Months</Chip>
-            {availableMonths.map(mm => (
-              <Chip key={mm} active={monthFilter === mm} onClick={() => setMonthFilter(mm)}>
-                {MONTH_LABEL[parseInt(mm, 10) - 1]}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Media grid ── */}
       <div className="flex-1 overflow-y-auto px-3 pb-28">
@@ -598,14 +564,4 @@ export default function Media() {
   )
 }
 
-function Chip({ active, onClick, children, color }) {
-  return (
-    <button onClick={onClick}
-      className="shrink-0 px-3 py-1.5 rounded-full text-[11px] font-semibold border transition-all"
-      style={active
-        ? { background: (color || '#8A9A5B') + '22', borderColor: (color || '#8A9A5B') + '60', color: color || '#8A9A5B' }
-        : { background: 'transparent', borderColor: 'var(--c-border-md)', color: 'var(--c-muted)' }}>
-      {children}
-    </button>
-  )
-}
+// (the chip-strip filter helper that lived here was replaced by components/FilterSelect)

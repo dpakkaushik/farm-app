@@ -5,6 +5,8 @@ import { Plus, X, CheckCircle2, AlertTriangle, Package, Receipt, FileText,
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import RegisterCard from '../components/RegisterCard'
+import FilterSelect from '../components/FilterSelect'
+import AddButton from '../components/AddButton'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
@@ -196,26 +198,17 @@ export default function Inventory() {
       {tab === 'items' && (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
-            <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-4 py-2.5 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[var(--c-sub)]">Total stock value ({inventoryMaster.length} items)</p>
-                <p className="text-lg font-bold text-[#8A9A5B]">
-                  ₹{(inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0) / 1000).toFixed(1)}K
-                </p>
-              </div>
-              <button onClick={openBillModal}
-                className="flex items-center gap-2 px-4 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl shadow-md">
-                <ShoppingBag size={14} /> New Purchase
-              </button>
+            <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-4 py-2.5">
+              <p className="text-xs text-[var(--c-sub)]">Total stock value ({inventoryMaster.length} items)</p>
+              <p className="text-lg font-bold text-[#8A9A5B]">
+                ₹{(inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0) / 1000).toFixed(1)}K
+              </p>
             </div>
-          </div>
-          <div className="flex gap-2 px-4 py-2 overflow-x-auto no-scrollbar shrink-0 bg-[var(--c-nav)]">
-            <Chip active={catFilter === 'all'} onClick={() => setCat('all')}>All</Chip>
-            {CATS.map(c => (
-              <Chip key={c} active={catFilter === c} onClick={() => setCat(c)}>
-                {CAT_EMOJI[c]} {CAT_LABEL[c]}
-              </Chip>
-            ))}
+            {/* Stock only ever arrives on a bill, so "add" here is a purchase —
+                the same dashed row every other register opens with. */}
+            <AddButton onClick={openBillModal}>New Purchase</AddButton>
+            <FilterSelect value={catFilter} onChange={setCat}
+              options={[['all', 'All categories'], ...CATS.map(c => [c, `${CAT_EMOJI[c]} ${CAT_LABEL[c]}`])]} />
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-4">
             {items.map(item => {
@@ -879,16 +872,6 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
 }
 
 // ── Shared ────────────────────────────────────────────────────────────────────
-function Chip({ active, onClick, children }) {
-  return (
-    <button onClick={onClick}
-      className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors
-        ${active ? 'bg-[#8A9A5B]/20 border-[#8A9A5B]/50 text-[#8A9A5B]' : 'border-[var(--c-border-md)] text-[var(--c-muted)]'}`}>
-      {children}
-    </button>
-  )
-}
-
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>

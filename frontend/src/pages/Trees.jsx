@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { TreePine, Plus, Pencil, Trash2, ChevronDown, ChevronRight, MapPin, CalendarOff } from 'lucide-react'
+import FilterSelect from '../components/FilterSelect'
+import AddButton from '../components/AddButton'
 import { useTreeStore } from '../store/trees'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
@@ -940,8 +942,8 @@ function SalesTab({ canEdit }) {
       )}
 
       {revenue.length > 0 && (
-        <FilterChips value={filter} onChange={setFilter}
-          options={[['all', 'All'], ['fruit_lease', '🍎🍇 Leases'], ['timber_sale', '🪵 Timber']]} />
+        <FilterSelect value={filter} onChange={setFilter}
+          options={[['all', 'All sales'], ['fruit_lease', '🍎🍇 Leases'], ['timber_sale', '🪵 Timber']]} />
       )}
 
       {shown.length === 0 && (
@@ -953,39 +955,11 @@ function SalesTab({ canEdit }) {
       {shown.map(r => <SaleRow key={r.id} sale={r} canEdit={canEdit} />)}
 
       {canEdit && (
-        <button onClick={() => setNew(true)}
-          className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-          style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
-          <Plus size={15} /> Record a sale
-        </button>
+        <AddButton onClick={() => setNew(true)}>Record a sale</AddButton>
       )}
 
       {newSale && <SaleModal onClose={() => setNew(false)} />}
     </>
-  )
-}
-
-// ── Filter chips ──────────────────────────────────────────────────────────────
-// A filter, not a tab: it narrows one list rather than switching between screens.
-// Small and inline, so the tab bar above stays free for Trees / Sales.
-function FilterChips({ options, value, onChange }) {
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {options.map(([k, label]) => {
-        const on = value === k
-        return (
-          <button key={k} onClick={() => onChange(k)}
-            className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors"
-            style={{
-              background: on ? '#8A9A5B' : 'var(--c-ghost)',
-              color:      on ? '#fff'    : 'var(--c-muted)',
-              border:    `1px solid ${on ? '#8A9A5B' : 'var(--c-border)'}`,
-            }}>
-            {label}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 
@@ -1092,16 +1066,12 @@ export default function Trees() {
             {/* Add sits above the list at the owner's ask — with many species
                 it had sunk below a screenful of cards. */}
             {canEdit && (
-              <button onClick={() => setNew(true)}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border"
-                style={{ borderColor: '#8A9A5B', color: '#8A9A5B' }}>
-                <Plus size={15} /> Add a tree
-              </button>
+              <AddButton onClick={() => setNew(true)}>Add a tree</AddButton>
             )}
 
             {species.length > 0 && (
-              <FilterChips value={filter} onChange={setFilter}
-                options={[['all', 'All'], ['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]} />
+              <FilterSelect value={filter} onChange={setFilter}
+                options={[['all', 'All trees'], ['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]} />
             )}
 
             {shown.length === 0 && (
