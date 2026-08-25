@@ -4,6 +4,7 @@ import { Plus, X, CheckCircle2, AlertTriangle, Package, Receipt, FileText,
          Download, Filter, Trash2, ShoppingBag } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
+import RegisterCard from '../components/RegisterCard'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
@@ -220,31 +221,20 @@ export default function Inventory() {
             {items.map(item => {
               const isOut = item.currentStock === 0
               const isLow = item.minThreshold > 0 && item.currentStock > 0 && item.currentStock < item.minThreshold
+              // Same card as Machinery / Farm Assets — see components/RegisterCard.
               return (
-                <div key={item.id}
-                  className={`bg-[var(--c-nav)] rounded-2xl border p-4 ${isOut ? 'border-[#E24B4A]/40' : isLow ? 'border-[#BA7517]/35' : 'border-[var(--c-border)]'}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--c-text)]">{item.name}</p>
-                      <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
-                        {CAT_LABEL[item.category]} · WAC ₹{item.costPerUnit}/{item.unit}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-2xl font-bold ${isOut ? 'text-[#E24B4A]' : isLow ? 'text-[#BA7517]' : 'text-[var(--c-text)]'}`}>
-                        {item.currentStock}
-                      </p>
-                      <p className="text-[10px] text-[var(--c-faint)]">{item.unit}</p>
-                      {isLow && <p className="text-[10px] text-[#BA7517]">⚠ Low (min {item.minThreshold})</p>}
-                      {isOut && <p className="text-[10px] text-[#E24B4A] font-semibold">✗ Out of stock</p>}
-                    </div>
-                  </div>
-                  <button onClick={() => openIssue(item)} disabled={isOut}
-                    className="w-full py-2 text-xs font-semibold rounded-xl border flex items-center justify-center gap-1 disabled:opacity-30"
-                    style={{ background: '#8A9A5B18', borderColor: '#8A9A5B40', color: '#8A9A5B' }}>
-                    → Issue to Plot
-                  </button>
-                </div>
+                <RegisterCard key={item.id}
+                  title={item.name}
+                  subline={`${CAT_LABEL[item.category]} · WAC ₹${item.costPerUnit}/${item.unit}`}
+                  figure={item.currentStock}
+                  figureColor={isOut ? '#E24B4A' : isLow ? '#BA7517' : undefined}
+                  figureLabel={item.unit}
+                  status={isOut ? { text: '✗ Out of stock', color: '#E24B4A' }
+                        : isLow ? { text: `⚠ Low (min ${item.minThreshold})`, color: '#BA7517' }
+                        : null}
+                  borderColor={isOut ? '#E24B4A66' : isLow ? '#BA751759' : undefined}
+                  action={{ label: '→ Issue to Plot', onClick: () => openIssue(item), disabled: isOut }}
+                />
               )
             })}
           </div>

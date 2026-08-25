@@ -2,7 +2,7 @@ import { Pencil, Camera, Trash2, X } from 'lucide-react'
 import Attachment from '../../components/Attachment'
 import { BUCKETS } from '../../lib/attachments'
 import { CAT_EMOJI, StatusPill } from './vocab'
-import { cardSubline, assetFacts, disposalFacts, isRetired } from './assetFacts'
+import { sheetSubline, assetFacts, disposalFacts, isRetired } from './assetFacts'
 
 // The record behind a register card. Opens as a bottom sheet over the list and
 // carries everything the card deliberately does not: price, dates, the bill, the
@@ -49,7 +49,7 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
               <h2 className="text-lg font-bold leading-tight" style={{ color: 'var(--c-text)' }}>{item.name}</h2>
               <StatusPill status={item.status} />
             </div>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{cardSubline(item, kind)}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{sheetSubline(item, kind)}</p>
           </div>
 
           {item.requiresDiesel && !retired && (

@@ -20,18 +20,13 @@ export const humanise = s => {
   return t ? t.charAt(0).toUpperCase() + t.slice(1) : ''
 }
 
-/** Quantity reads as a multiplier, and only when it says something: 1 → '' */
-export const qtyLabel = q => {
-  const n = Number(q) || 1
-  return n > 1 ? `×${n}` : ''
-}
-
-/** The card's one grey line: kind · make · ×qty (empty parts dropped). */
-export function cardSubline(item, kind) {
+/** The sheet's grey line under the name: kind · make (or · where it is kept).
+ *  The card shows only the make — the owner's call (25 Aug): the kind repeats
+ *  the filter chip and, mostly, the name ("Trolly" under "Trailer"). */
+export function sheetSubline(item, kind) {
   const parts = [
     humanise(kind === 'machinery' ? item.type : item.category),
     kind === 'machinery' ? item.make : item.location,
-    qtyLabel(item.quantity),
   ]
   return parts.filter(Boolean).join(' · ')
 }
@@ -53,6 +48,7 @@ export function assetFacts(item, kind, vendorName) {
   rows.push(item.purchaseDate
     ? { label: 'Bought on', value: fmtBillDate(item.purchaseDate) }
     : { label: 'Bought on', value: 'Not set', missing: true })
+  rows.push({ label: 'Quantity', value: String(Number(item.quantity) || 1) })
   if (vendorName)       rows.push({ label: 'Bought from', value: vendorName })
   if (kind === 'machinery') {
     if (item.model)     rows.push({ label: 'Model', value: item.model })

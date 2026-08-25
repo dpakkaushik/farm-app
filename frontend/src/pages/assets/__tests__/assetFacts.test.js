@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  fmtINR, humanise, qtyLabel, cardSubline, isRetired,
+  fmtINR, humanise, sheetSubline, isRetired,
   assetFacts, disposalFacts, registerSummary,
 } from '../assetFacts'
 
@@ -19,22 +19,20 @@ describe('fmtINR', () => {
   })
 })
 
-describe('humanise / qtyLabel', () => {
+describe('humanise', () => {
   it('turns snake_case into a sentence word', () => expect(humanise('water_motor')).toBe('Water motor'))
-  it('hides a quantity of one', () => expect(qtyLabel(1)).toBe(''))
-  it('shows a real quantity as a multiplier', () => expect(qtyLabel(3)).toBe('×3'))
-  it('treats a missing quantity as one', () => expect(qtyLabel(undefined)).toBe(''))
+  it('returns empty for nothing', () => expect(humanise(null)).toBe(''))
 })
 
-describe('cardSubline', () => {
-  it('reads kind · make for a single machine', () => {
-    expect(cardSubline(tractor, 'machinery')).toBe('Tractor · John Deere')
+describe('sheetSubline', () => {
+  it('reads kind · make for a machine', () => {
+    expect(sheetSubline(tractor, 'machinery')).toBe('Tractor · John Deere')
   })
-  it('adds the multiplier and drops an empty make', () => {
-    expect(cardSubline({ type: 'implement', make: '', quantity: 2 }, 'machinery')).toBe('Implement · ×2')
+  it('drops an empty make and never carries the quantity', () => {
+    expect(sheetSubline({ type: 'implement', make: '', quantity: 2 }, 'machinery')).toBe('Implement')
   })
   it('uses category and location for a farm asset', () => {
-    expect(cardSubline({ category: 'appliance', location: 'Store room', quantity: 1 }, 'asset'))
+    expect(sheetSubline({ category: 'appliance', location: 'Store room', quantity: 1 }, 'asset'))
       .toBe('Appliance · Store room')
   })
 })
@@ -51,7 +49,7 @@ describe('isRetired', () => {
 describe('assetFacts', () => {
   it('lists price, date, model, registration and life for a full machine record', () => {
     const labels = assetFacts(tractor, 'machinery').map(r => r.label)
-    expect(labels).toEqual(['Purchase price', 'Bought on', 'Model', 'Registration', 'Useful life'])
+    expect(labels).toEqual(['Purchase price', 'Bought on', 'Quantity', 'Model', 'Registration', 'Useful life'])
     expect(assetFacts(tractor, 'machinery')[0].value).toBe('₹9,00,000')
   })
   it('marks an unset price and date as missing rather than dropping them', () => {
@@ -59,7 +57,11 @@ describe('assetFacts', () => {
     expect(rows).toEqual([
       { label: 'Purchase price', value: 'Not set', missing: true },
       { label: 'Bought on',      value: 'Not set', missing: true },
+      { label: 'Quantity',       value: '1' },
     ])
+  })
+  it('always states the quantity, since the card only shows it above one', () => {
+    expect(assetFacts({ type: 'trailer', quantity: 3 }, 'machinery').find(r => r.label === 'Quantity').value).toBe('3')
   })
   it('names the vendor when one is known', () => {
     const rows = assetFacts(tractor, 'machinery', 'Ankur Traders')
@@ -67,7 +69,7 @@ describe('assetFacts', () => {
   })
   it('shows where a farm asset is kept, not a registration', () => {
     const rows = assetFacts({ category: 'appliance', location: 'Kitchen', purchasePrice: 5000 }, 'asset')
-    expect(rows.map(r => r.label)).toEqual(['Purchase price', 'Bought on', 'Kept at'])
+    expect(rows.map(r => r.label)).toEqual(['Purchase price', 'Bought on', 'Quantity', 'Kept at'])
   })
 })
 

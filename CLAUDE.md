@@ -41,9 +41,15 @@ the cane card keeps its mill row, parchi table and Log Supply/Close Harvest bene
 non-cane branch lost its inline copies of the same markup.
 **Assets register rebuilt (25 Aug, latest), on his question *"does it even make sense to show
 value so prominently … put details inside the card which opens on tap?"* → my assessment, his
-"yeah do make it how a SaaS farm app should":** the card is now a GLANCE ROW — photo · name ·
-status pill · one grey line (`cardSubline`: "Tractor · John Deere · ×2"; Qty 1 prints
-nothing) · chevron; the WHOLE card opens a bottom **`AssetSheet`** (z-50; hero photo tap →
+"yeah do make it how a SaaS farm app should"; then his Inventory screenshot — *"this is a better
+example … should look same across all pages"* and *"do we need separate code for structuring?"*
+(no):** ONE shared **[`components/RegisterCard.jsx`](frontend/src/components/RegisterCard.jsx)**
+now draws every register card — Inventory stock AND both Assets tabs render through it (title ·
+subline · big figure right · label · coloured status line · one full-width bottom action). For an
+asset the figure is the QUANTITY, the status line "● In Use / Spare / Repair", the subline just
+the make (the kind line was dropped at his word — "Trailer" under "Trolly" said nothing), and
+the action is "⛽ Issue Diesel →" for a diesel machine else "→ Details"; the card body also
+opens the bottom **`AssetSheet`** (z-50; hero photo tap →
 viewer/add, fact grid from pure `assetFacts` — price, bought on, vendor, model/reg or
 "kept at", life, bill chip, notes; a "Sold/Scrapped" block from `disposalFacts`; actions
 Edit / Photo, and a small red "Dispose or sell" only while in service). Unset price/date show
@@ -53,12 +59,14 @@ ResourcesPage/Inventory read from the URL). The two-figure value strip became on
 (`registerSummary`: "25 items · Book value ₹23,00,000" + "All assets ₹26,11,000") — nothing in
 the app reads an asset's price except this screen, and green-bold cost read as money IN. New
 folder [`pages/assets/`](frontend/src/pages/assets/): `vocab.jsx` (STATUS_STYLE/CAT_EMOJI/
-StatusPill), `assetFacts.js` (**20 tests**), `AssetCard.jsx`, `AssetSheet.jsx`; `MachineryTab`
+StatusPill), `assetFacts.js` (**18 tests**), `AssetCard.jsx` (thin: maps an item onto
+RegisterCard's slots), `AssetSheet.jsx`; `MachineryTab`
 + `FarmAssetsTab` collapsed into one `RegisterTab`; `ActionBar`/`BillChip` deleted. The sheet
 reads the live store row by id, so Edit/photo changes show instantly and Dispose (which drops
 the row) closes it. Earlier same day: register codes (m1/a1) off cards + Edit titles; six
 "VERIFY: …" import notes **cleared to NULL on the live DB** (Raja Hall, Batt Palao, Carah,
-Saravan, Harrow, Rajor — names never confirmed; Rajor may be a rotavator). **187 tests green.**
+Saravan, Harrow, Rajor — names never confirmed; Rajor may be a rotavator). **186 tests green.**
+Any future register (livestock list, buyers, vendors) should render through RegisterCard too.
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a
