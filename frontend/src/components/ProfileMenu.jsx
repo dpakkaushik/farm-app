@@ -3,7 +3,6 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { X, Database, Settings, Shield, Package, Users, PawPrint, Dog, Bird, Beef, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useAppStore } from '../store'
-import { useTreeStore } from '../store/trees'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
 import AboutModal from './AboutModal'
@@ -31,11 +30,11 @@ const NAV_ITEMS = [
 // NAV_ITEMS is a manager-only workflow.
 const VIEWER_PATHS = new Set(['/harvest', '/reports'])
 
-// The right-hand side of a row is not dead space (owner, 26 Aug: "so much empty
-// space on the right"): `meta` is a live figure for where the row leads ("25
-// stock · 25 assets", "7 head"), and every row that takes you somewhere ends in
-// a chevron. Pass `chevron={false}` for a toggle or a sign-out.
-function Row({ icon: Icon, label, sub, meta, onClick, active, danger, trailing, indent, chevron = true }) {
+// Every row that takes you somewhere ends in a chevron; pass `chevron={false}`
+// for a toggle or a sign-out. The drawer itself is kept narrow (owner, 26 Aug:
+// "so much empty space on the right") — do not fill a row's right side with
+// figures; he read that as noise.
+function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent, chevron = true }) {
   return (
     <button onClick={onClick}
       className="w-full flex items-center gap-3 py-3 text-left transition-colors"
@@ -51,13 +50,10 @@ function Row({ icon: Icon, label, sub, meta, onClick, active, danger, trailing, 
           style={{ color: danger ? '#E24B4A' : active ? '#8A9A5B' : 'var(--c-text)' }}>{label}</p>
         {sub && <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       </div>
-      {meta && <span className="text-[11px] tabular-nums shrink-0" style={{ color: 'var(--c-faint)' }}>{meta}</span>}
-      {trailing ?? (chevron && <ChevronRight size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />)}
+      {trailing ??(chevron && <ChevronRight size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />)}
     </button>
   )
 }
-
-const count = (n, one, many = one + 's') => n > 0 ? `${n} ${n === 1 ? one : many}` : null
 
 function SectionLabel({ children }) {
   return (
@@ -97,22 +93,6 @@ export default function ProfileMenu() {
   const go = (path) => { navigate(path); setOpen(false) }
   const initial = (profile?.full_name || profile?.email || '?')[0].toUpperCase()
 
-  // Live figures for the Navigate rows — a glance at the drawer says what the
-  // farm holds before a single page is opened. Missing data (a store not yet
-  // loaded) simply shows no figure; nothing here fetches.
-  const { inventoryMaster, machineryMaster, farmAssets, permanentStaff, regularLabourers, livestockMaster, cropCycles } = useAppStore()
-  const treeSpecies = useTreeStore(s => s.species)
-  const workers = [...permanentStaff, ...regularLabourers].filter(w => w.status !== 'inactive' && w.isActive !== false).length
-  const head    = livestockMaster.filter(l => l.status === 'active')
-    .reduce((s, l) => s + (l.trackingMode === 'count' ? (l.currentCount || 0) : 1), 0)
-  const meta = {
-    '/resources': [count(inventoryMaster.length, 'stock', 'stock'), count(machineryMaster.length + farmAssets.length, 'asset')].filter(Boolean).join(' · ') || null,
-    '/labour':    count(workers, 'worker'),
-    '/livestock': count(head, 'head', 'head'),
-    '/trees':     count(treeSpecies.length, 'species', 'species'),
-    '/harvest':   count(cropCycles.filter(c => c.status === 'active').length, 'standing', 'standing'),
-  }
-
   // An expandable row starts revealed when you're already on its page, and
   // toggles from there. '' is "explicitly closed", distinct from the null default.
   const [navOpen, setNavOpen] = useState(null)
@@ -144,7 +124,7 @@ export default function ProfileMenu() {
       {/* Sliding drawer */}
       <div
         className={`fixed top-0 bottom-0 left-0 z-[61] flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{ width: '85%', maxWidth: '340px', background: 'var(--c-nav)',
+        style={{ width: '72%', maxWidth: '280px', background: 'var(--c-nav)',
                  paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
         {/* Header */}
@@ -195,12 +175,12 @@ export default function ProfileMenu() {
           {NAV_ITEMS.filter(item => VIEWER_PATHS.has(item.to) || manager).map(item => {
             const { to, label, Icon, children } = item
             if (!children)
-              return <Row key={to} icon={Icon} label={label} meta={meta[to]} onClick={() => go(to)} active={location.pathname === to} />
+              return <Row key={to} icon={Icon} label={label} onClick={() => go(to)} active={location.pathname === to} />
             const expanded = isNavOpen(to)
             const Chevron  = expanded ? ChevronUp : ChevronDown
             return (
               <div key={to}>
-                <Row icon={Icon} label={label} meta={meta[to]} onClick={() => toggleNav(to)}
+                <Row icon={Icon} label={label} onClick={() => toggleNav(to)}
                   active={onPath(to)}
                   trailing={<Chevron size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />} />
                 {expanded && children.map(child => (

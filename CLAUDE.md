@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-26 (profile drawer rows carry live counts + chevrons; filters/add unified app-wide) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-26 (profile drawer narrowed, its count figures reverted; filters/add unified app-wide) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
 **Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
 "Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
@@ -81,13 +81,13 @@ while tree and livestock have a different-looking add … this is better"* → o
 Inventory ("New Purchase" — stock only arrives on a bill, so that IS the add; the solid button
 left the value strip), Trees ("Add a tree", "Record a sale"), Herd, Health ("Log a Vet Visit"),
 Admin Buyers. The per-page `Chip`/`FilterChips` helpers are deleted.
-**26 Aug — "so much empty space on the right side of the profile navigation":** every
-[`ProfileMenu`](frontend/src/components/ProfileMenu.jsx) row that leads somewhere now ends in a
-chevron, and the Navigate rows carry a live `meta` figure read from the stores already in memory
-(Resources "25 stock · 25 assets", People "N workers", Livestock "N head" — count-tracked groups
-add their `currentCount`, individuals add 1 — Trees "N species" (tree store; blank until Trees has
-loaded once), Harvest "N standing" = active cycles). Toggles (Dark Mode) and Log out have no
-chevron. Nothing fetches; a missing figure just prints nothing.
+**26 Aug — "so much empty space on the right side of the profile navigation" — a lesson, not
+just a fix.** First cut FILLED the space: live count figures on every Navigate row ("25 stock ·
+25 assets", "N head"…). He rejected it flat — *"i wanted lesser space, you filled the left put
+space with unnecessary data"*. Reverted the same day. The shipped answer is the drawer itself
+narrowed, `85%/340px` → `72%/280px` in [`ProfileMenu`](frontend/src/components/ProfileMenu.jsx);
+rows keep a chevron when they lead somewhere (none on Dark Mode / Log out). **Rule from this:
+when he says "empty space", take the space away; never invent content to occupy it.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a
