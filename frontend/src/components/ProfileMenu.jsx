@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { X, Database, Settings, Shield, Package, Users, PawPrint, Dog, Bird, Beef, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Database, Settings, Shield, Package, Users, PawPrint, Dog, Bird, Beef, TreePine, Wheat, BarChart3, Sun, Moon, LogOut, Pencil, Check, Info, LifeBuoy, ClipboardList, ChevronDown, ChevronUp, ChevronRight } from 'lucide-react'
 import { useAuthStore, isAdmin, isManager } from '../store/auth'
 import { useAppStore } from '../store'
+import { useTreeStore } from '../store/trees'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
 import AboutModal from './AboutModal'
@@ -30,13 +31,17 @@ const NAV_ITEMS = [
 // NAV_ITEMS is a manager-only workflow.
 const VIEWER_PATHS = new Set(['/harvest', '/reports'])
 
-function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent }) {
+// The right-hand side of a row is not dead space (owner, 26 Aug: "so much empty
+// space on the right"): `meta` is a live figure for where the row leads ("25
+// stock · 25 assets", "7 head"), and every row that takes you somewhere ends in
+// a chevron. Pass `chevron={false}` for a toggle or a sign-out.
+function Row({ icon: Icon, label, sub, meta, onClick, active, danger, trailing, indent, chevron = true }) {
   return (
     <button onClick={onClick}
       className="w-full flex items-center gap-3 py-3 text-left transition-colors"
       style={{
         paddingLeft: indent ? '2.75rem' : '1.25rem',
-        paddingRight: '1.25rem',
+        paddingRight: '1rem',
         background: active ? 'var(--c-ghost)' : 'transparent',
         borderLeft: active ? '3px solid #8A9A5B' : '3px solid transparent',
       }}>
@@ -46,10 +51,13 @@ function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent
           style={{ color: danger ? '#E24B4A' : active ? '#8A9A5B' : 'var(--c-text)' }}>{label}</p>
         {sub && <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       </div>
-      {trailing}
+      {meta && <span className="text-[11px] tabular-nums shrink-0" style={{ color: 'var(--c-faint)' }}>{meta}</span>}
+      {trailing ?? (chevron && <ChevronRight size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />)}
     </button>
   )
 }
+
+const count = (n, one, many = one + 's') => n > 0 ? `${n} ${n === 1 ? one : many}` : null
 
 function SectionLabel({ children }) {
   return (
@@ -88,6 +96,22 @@ export default function ProfileMenu() {
 
   const go = (path) => { navigate(path); setOpen(false) }
   const initial = (profile?.full_name || profile?.email || '?')[0].toUpperCase()
+
+  // Live figures for the Navigate rows — a glance at the drawer says what the
+  // farm holds before a single page is opened. Missing data (a store not yet
+  // loaded) simply shows no figure; nothing here fetches.
+  const { inventoryMaster, machineryMaster, farmAssets, permanentStaff, regularLabourers, livestockMaster, cropCycles } = useAppStore()
+  const treeSpecies = useTreeStore(s => s.species)
+  const workers = [...permanentStaff, ...regularLabourers].filter(w => w.status !== 'inactive' && w.isActive !== false).length
+  const head    = livestockMaster.filter(l => l.status === 'active')
+    .reduce((s, l) => s + (l.trackingMode === 'count' ? (l.currentCount || 0) : 1), 0)
+  const meta = {
+    '/resources': [count(inventoryMaster.length, 'stock', 'stock'), count(machineryMaster.length + farmAssets.length, 'asset')].filter(Boolean).join(' · ') || null,
+    '/labour':    count(workers, 'worker'),
+    '/livestock': count(head, 'head', 'head'),
+    '/trees':     count(treeSpecies.length, 'species', 'species'),
+    '/harvest':   count(cropCycles.filter(c => c.status === 'active').length, 'standing', 'standing'),
+  }
 
   // An expandable row starts revealed when you're already on its page, and
   // toggles from there. '' is "explicitly closed", distinct from the null default.
@@ -171,14 +195,14 @@ export default function ProfileMenu() {
           {NAV_ITEMS.filter(item => VIEWER_PATHS.has(item.to) || manager).map(item => {
             const { to, label, Icon, children } = item
             if (!children)
-              return <Row key={to} icon={Icon} label={label} onClick={() => go(to)} active={location.pathname === to} />
+              return <Row key={to} icon={Icon} label={label} meta={meta[to]} onClick={() => go(to)} active={location.pathname === to} />
             const expanded = isNavOpen(to)
             const Chevron  = expanded ? ChevronUp : ChevronDown
             return (
               <div key={to}>
-                <Row icon={Icon} label={label} onClick={() => toggleNav(to)}
+                <Row icon={Icon} label={label} meta={meta[to]} onClick={() => toggleNav(to)}
                   active={onPath(to)}
-                  trailing={<Chevron size={15} style={{ color: 'var(--c-faint)' }} />} />
+                  trailing={<Chevron size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />} />
                 {expanded && children.map(child => (
                   <Row key={child.group} indent icon={child.Icon} label={child.label}
                     onClick={() => go(`${to}/${child.group}`)}
@@ -215,7 +239,7 @@ export default function ProfileMenu() {
           <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
 
           <SectionLabel>Preferences</SectionLabel>
-          <Row icon={isDark ? Sun : Moon} label={isDark ? 'Light Mode' : 'Dark Mode'} onClick={toggle} />
+          <Row icon={isDark ? Sun : Moon} label={isDark ? 'Light Mode' : 'Dark Mode'} onClick={toggle} chevron={false} />
 
           <div className="my-2 border-t" style={{ borderColor: 'var(--c-border-md)' }} />
 
@@ -227,7 +251,7 @@ export default function ProfileMenu() {
 
         {/* Logout — pinned to bottom */}
         <div className="shrink-0 border-t" style={{ borderColor: 'var(--c-border-md)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          <Row icon={LogOut} label="Log out" onClick={() => { logout(); setOpen(false) }} danger />
+          <Row icon={LogOut} label="Log out" onClick={() => { logout(); setOpen(false) }} danger chevron={false} />
         </div>
       </div>
 
