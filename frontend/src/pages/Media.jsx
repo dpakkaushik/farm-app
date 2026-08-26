@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Camera, Video, X, Play, ChevronLeft, ChevronRight, Filter, ImageOff, Trash2 } from 'lucide-react'
-import FilterSelect from '../components/FilterSelect'
+import { Camera, Video, X, Play, ChevronLeft, ChevronRight, ImageOff, Trash2 } from 'lucide-react'
+import FilterSheet, { AppliedChips } from '../components/FilterSheet'
 import imageCompression from 'browser-image-compression'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
@@ -34,6 +34,23 @@ const ACT_COLOR = {
 }
 const actColor = (a) => ACT_COLOR[a] || ACT_COLOR.other
 const ACTIVITIES = ['irrigation','weeding','fertilizer','pesticide','harvesting','ploughing','sowing','events','other']
+const MONTH_LABEL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+
+// ── The filter set ──────────────────────────────────────────────────────────
+// Plot, activity, year and month used to be four dropdowns stacked above the
+// photos. They are one funnel button now (owner, 26 Aug) — so the test for
+// "does this photo survive the filter" has to be pure, because the sheet counts
+// what a DRAFT would show before he applies it.
+const matchesFilters = (m, f) =>
+  (f.plot     === 'all' || m.plotId   === f.plot) &&
+  (f.activity === 'all' || m.activity === f.activity) &&
+  (f.year     === 'all' || m.date?.startsWith(f.year)) &&
+  (f.month    === 'all' || m.date?.slice(5, 7) === f.month)
+
+const byDate = (sort) => (a, b) => sort === 'newest'
+  ? new Date(b.date) - new Date(a.date)
+  : new Date(a.date) - new Date(b.date)
 
 // ── Capture a thumbnail frame from a video file using the Canvas API ────────
 // No library needed — this is built into every browser.
@@ -100,12 +117,10 @@ export default function Media() {
   }
   const [searchParams] = useSearchParams()
 
-  const [plotFilter, setPlotFilter] = useState(searchParams.get('plot') || 'all')
-  const [actFilter,   setActFilter]   = useState('all')
-  const [yearFilter,  setYearFilter]  = useState('all')
-  const [monthFilter, setMonthFilter] = useState('all')
-  const [sort,        setSort]        = useState('newest')
-  const [viewerIdx,   setViewerIdx]   = useState(null)
+  const [filters,   setFilters]   = useState({
+    plot: searchParams.get('plot') || 'all', activity: 'all', year: 'all', month: 'all', sort: 'newest',
+  })
+  const [viewerIdx, setViewerIdx] = useState(null)
 
   // Capture state
   const [capturing,      setCapturing]      = useState(false)
@@ -121,28 +136,43 @@ export default function Media() {
 
   const allPlots = plots.map(p => ({ id: p.id, label: p.name }))
 
-  // Derive years and months from actual data so empty options never appear
-  const availableYears = [...new Set(
-    mediaItems.map(m => m.date?.slice(0, 4)).filter(Boolean)
-  )].sort().reverse()
+  // The sub-filters behind the funnel. Years and months are derived from the
+  // media that exists, so an empty option never appears — and months are the
+  // months INSIDE the chosen year, which is why this is a function of the
+  // working draft rather than a fixed list.
+  const filterGroups = (f) => {
+    const years = [...new Set(
+      mediaItems.map(m => m.date?.slice(0, 4)).filter(Boolean)
+    )].sort().reverse()
 
-  const availableMonths = [...new Set(
-    mediaItems
-      .filter(m => yearFilter === 'all' || m.date?.startsWith(yearFilter))
-      .map(m => m.date?.slice(5, 7))
-      .filter(Boolean)
-  )].sort()
+    const months = [...new Set(
+      mediaItems
+        .filter(m => f.year === 'all' || m.date?.startsWith(f.year))
+        .map(m => m.date?.slice(5, 7))
+        .filter(Boolean)
+    )].sort()
 
-  const MONTH_LABEL = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    return [
+      { key: 'plot', label: 'Plot',
+        options: [['all', 'All plots'], ...allPlots.map(p => [p.id, p.label])] },
+      { key: 'activity', label: 'Activity',
+        options: [['all', 'All activity'], ...ACTIVITIES.map(a => [a, cap(a)])] },
+      ...(years.length ? [{ key: 'year', label: 'Year',
+        options: [['all', 'All years'], ...years.map(y => [y, y])] }] : []),
+      ...(months.length ? [{ key: 'month', label: 'Month',
+        options: [['all', 'All months'], ...months.map(mm => [mm, MONTH_LABEL[parseInt(mm, 10) - 1]])] }] : []),
+      { key: 'sort', label: 'Sort', allValue: 'newest',
+        options: [['newest', 'Newest first'], ['oldest', 'Oldest first']] },
+    ]
+  }
 
-  const filtered = mediaItems
-    .filter(m => plotFilter  === 'all' || m.plotId === plotFilter)
-    .filter(m => actFilter   === 'all' || m.activity === actFilter)
-    .filter(m => yearFilter  === 'all' || m.date?.startsWith(yearFilter))
-    .filter(m => monthFilter === 'all' || m.date?.slice(5, 7) === monthFilter)
-    .sort((a, b) => sort === 'newest'
-      ? new Date(b.date) - new Date(a.date)
-      : new Date(a.date) - new Date(b.date))
+  // What Apply will do, said before it is pressed.
+  const applyLabel = (draft) => {
+    const n = mediaItems.filter(m => matchesFilters(m, draft)).length
+    return n === 0 ? 'No media matches' : `Show ${n} ${n === 1 ? 'item' : 'items'}`
+  }
+
+  const filtered = mediaItems.filter(m => matchesFilters(m, filters)).sort(byDate(filters.sort))
 
   // ── Capture handlers ──────────────────────────────────────────────────────
 
@@ -280,28 +310,16 @@ export default function Media() {
             <h2 className="text-lg font-bold text-[var(--c-text)] tracking-tight">Farm Media</h2>
             <p className="text-xs text-[var(--c-muted)] mt-0.5">{photoCount} photos · {videoCount} videos</p>
           </div>
-          <button onClick={() => setSort(s => s === 'newest' ? 'oldest' : 'newest')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[var(--c-card)] border border-[var(--c-border-md)] rounded-xl text-[10px] text-[var(--c-sub)] hover:text-[var(--c-text)] transition-colors">
-            <Filter size={12}/>{sort === 'newest' ? 'Newest' : 'Oldest'}
-          </button>
+          {/* One funnel for plot · activity · year · month · sort — the sheet
+              holds the sub-filters, so nothing but the photos sits below. */}
+          <FilterSheet value={filters} onChange={setFilters}
+            groups={filterGroups} applyLabel={applyLabel} />
         </div>
       </div>
 
-      {/* ── Filters: plot · activity, then year · month (month only inside a year) ── */}
-      <div className="shrink-0 px-4 pb-3 grid grid-cols-2 gap-2">
-        <FilterSelect value={plotFilter} onChange={setPlotFilter}
-          options={[['all', 'All plots'], ...allPlots.map(p => [p.id, p.label])]} />
-        <FilterSelect value={actFilter} onChange={setActFilter}
-          options={[['all', 'All activity'], ...ACTIVITIES.map(a => [a, a.charAt(0).toUpperCase() + a.slice(1)])]} />
-        {availableYears.length > 0 && (
-          <FilterSelect value={yearFilter} onChange={v => { setYearFilter(v); setMonthFilter('all') }}
-            options={[['all', 'All years'], ...availableYears.map(y => [y, y])]} />
-        )}
-        {availableMonths.length > 0 && (
-          <FilterSelect value={monthFilter} onChange={setMonthFilter}
-            options={[['all', 'All months'], ...availableMonths.map(mm => [mm, MONTH_LABEL[parseInt(mm, 10) - 1]])]} />
-        )}
-      </div>
+      {/* Only drawn while something is applied — an unfiltered screen has no strip */}
+      <AppliedChips value={filters} groups={filterGroups} onChange={setFilters}
+        className="shrink-0 px-4 pb-3" />
 
       {/* ── Media grid ── */}
       <div className="flex-1 overflow-y-auto px-3 pb-28">
@@ -564,4 +582,5 @@ export default function Media() {
   )
 }
 
-// (the chip-strip filter helper that lived here was replaced by components/FilterSelect)
+// (the chip-strip filter helper that lived here became components/FilterSelect,
+//  and on this page one step further — components/FilterSheet)

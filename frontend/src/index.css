@@ -137,5 +137,12 @@ select:-webkit-autofill {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ── Bottom sheets ───────────────────────────────────────────────────────────
+   Every sheet in the app (AssetSheet, FilterSheet, the plot panel) asks for
+   .animate-slide-up. It used to be declared only inside Field.jsx's own <style>
+   tag, so a sheet opened on any other page simply appeared. Global now. */
+@keyframes slide-up { from { transform: translateY(100%) } to { transform: translateY(0) } }
+.animate-slide-up { animation: slide-up 0.25s ease-out; }
+
 /* ── Map ─────────────────────────────────────────────────────────────────── */
 .mapboxgl-ctrl-logo { display: none !important; }

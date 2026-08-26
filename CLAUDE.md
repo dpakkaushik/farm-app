@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-26 (profile drawer narrowed, its count figures reverted; filters/add unified app-wide) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-26 (Media's 4 filters → one combined filter sheet; profile drawer narrowed, its count figures reverted) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
 **Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
 "Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
@@ -88,6 +88,27 @@ space with unnecessary data"*. Reverted the same day. The shipped answer is the 
 narrowed, `85%/340px` → `72%/280px` in [`ProfileMenu`](frontend/src/components/ProfileMenu.jsx);
 rows keep a chevron when they lead somewhere (none on Dark Mode / Log out). **Rule from this:
 when he says "empty space", take the space away; never invent content to occupy it.**
+**Same day — Media's four filters became ONE Zomato-style combined filter.** His ask: *"filter
+on the images tab should be a zomato type of combined filter when clicked sub filter will be
+seen … right now it has 4 filters"*. The 2×2 FilterSelect grid (plot · activity / year · month)
+and the header's Newest/Oldest button — which wore a funnel icon it had no right to — are gone.
+In their place a single funnel button in the header, badged with how many sub-filters are on;
+tapping it opens a bottom sheet with the categories down the left (Plot · Activity · Year ·
+Month · **Sort**, each showing its current pick beneath its name) and that category's options on
+the right. Choices are a DRAFT — the grid does not reshuffle until Apply, whose label counts the
+result first ("Show 34 items" / "No media matches") — then applied filters come back as removable
+chips under the header, and **only then**: an unfiltered screen carries no strip at all, so the
+photos start ~90px higher than they did. New shared pair, meant for any future multi-filter
+screen: [`components/FilterSheet.jsx`](frontend/src/components/FilterSheet.jsx) (+ its
+`AppliedChips`) over pure [`lib/filterSheet.js`](frontend/src/lib/filterSheet.js) (**13 tests**).
+Two non-obvious bits: a group's `allValue` may not be `'all'` (Sort defaults to `'newest'`, so it
+only counts as a filter once moved), and `groups` can be a **function of the draft** because
+Media's month list is the months inside the chosen year — `sanitizeDraft` then drops a value the
+new options no longer offer instead of filtering everything away. **FilterSelect stays the
+answer for a screen with one thing to narrow by** (Assets, Inventory, Trees, Buyers, Health);
+this is its big brother, not its replacement. Fixed en route: `.animate-slide-up` was declared
+only inside Field.jsx's own `<style>`, so every sheet opened on another page (AssetSheet
+included) simply appeared — the keyframes are in `index.css` now. **199 tests green.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a
