@@ -182,7 +182,15 @@ export default function Inventory() {
     setSaving(false)
   }
 
-  const items = catFilter === 'all' ? inventoryMaster : inventoryMaster.filter(i => i.category === catFilter)
+  // What is on the shelf comes first; an empty shelf sinks to the bottom
+  // (owner, 26 Aug). Twelve of the items read zero after the July cleanup, and
+  // alphabetical order scattered them through the list, so the shelf you
+  // actually have was buried among things you don't. The sort is STABLE, so
+  // within each group the store's own order — alphabetical — is untouched, and
+  // it copies first: `inventoryMaster` is store state, never sorted in place.
+  const items = (catFilter === 'all' ? inventoryMaster : inventoryMaster.filter(i => i.category === catFilter))
+    .slice()
+    .sort((a, b) => (Number(a.currentStock) > 0 ? 0 : 1) - (Number(b.currentStock) > 0 ? 0 : 1))
 
   const stockValue = inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0)
   const lowCount   = inventoryMaster.filter(i =>

@@ -117,7 +117,10 @@ Purchases/Issues became **buttons on Current Stock** that open the existing log 
 page (back-arrow header), and `Assets` now takes a **`kind` prop** from the head instead of owning
 a tab bar (`RegisterTab` is keyed on it — its category filter would otherwise survive the switch
 and hide everything). Inventory's loud sage value card became the same quiet one-line strip
-Assets carries (`registerSummary(…, 'Stock value')`). (3) **Today's header leads with the weather**
+Assets carries (`registerSummary(…, 'Stock value')`), and **stock on the shelf now sorts to the
+top** — a stable sort sinking `currentStock === 0` to the bottom (his ask; twelve items read zero
+after the July cleanup and alphabetical order scattered them through the real shelf). It copies
+before sorting: `inventoryMaster` is store state. (3) **Today's header leads with the weather**
 (`hooks/useWeather.js` + `lib/weather.js`, shared with the Field map's pill, which lost its private
 copy) — no 👋, and no date line (every day card prints its own). **History moved from a collapsed
 panel at the page BOTTOM to a filter beside the bell**: quick picks (Last 30 days / This month /
