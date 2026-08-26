@@ -73,8 +73,10 @@ export function disposalFacts(item) {
 }
 
 /** The strip above the list: '25 items · Book value ₹23,00,000' */
-export function registerSummary(count, tabValue) {
+// `valueWord` names what the money is — "Book value" for a register of things
+// owned, "Stock value" for the shelf. Same quiet one-liner on every register.
+export function registerSummary(count, tabValue, valueWord = 'Book value') {
   const items = `${count} ${count === 1 ? 'item' : 'items'}`
   const value = fmtINR(tabValue)
-  return tabValue > 0 && value ? `${items} · Book value ${value}` : items
+  return tabValue > 0 && value ? `${items} · ${valueWord} ${value}` : items
 }

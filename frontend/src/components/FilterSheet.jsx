@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Filter, Check, X } from 'lucide-react'
+import BottomSheet from './BottomSheet'
 import { activeCount, appliedChips, clearedValue, sanitizeDraft, valueLabel } from '../lib/filterSheet'
 
 const SAGE = '#8A9A5B'
@@ -60,80 +61,67 @@ export default function FilterSheet({ value, onChange, groups, applyLabel, label
         )}
       </button>
 
+      {/* A fixed frame, so switching category doesn't resize the sheet under
+          your thumb — but only as tall as the category rail needs. */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setOpen(false)}>
-          <div onClick={e => e.stopPropagation()}
-            className="w-full max-w-lg rounded-t-3xl flex flex-col animate-slide-up shadow-2xl overflow-hidden"
-            style={{ background: 'var(--c-nav)', height: '72vh', maxHeight: '88vh', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
+        <BottomSheet title="Filters" onClose={() => setOpen(false)} height="62vh"
+          footer={<>
+            <button onClick={() => setDraft(d => clearedValue(d, resolve(d)))}
+              disabled={activeCount(draft, draftGroups) === 0}
+              className="px-4 py-3 rounded-xl text-sm font-semibold disabled:opacity-40"
+              style={{ color: 'var(--c-text)', background: 'var(--c-ghost)' }}>
+              Clear all
+            </button>
+            <button onClick={apply} className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: SAGE }}>
+              {applyLabel ? applyLabel(draft) : 'Apply'}
+            </button>
+          </>}>
 
-            <div className="shrink-0 relative pt-2.5 pb-2">
-              <div className="mx-auto w-10 h-1 rounded-full" style={{ background: 'var(--c-border)' }} />
-              <p className="text-center text-sm font-bold mt-2" style={{ color: 'var(--c-text)' }}>Filters</p>
-              <button onClick={() => setOpen(false)} aria-label="Close"
-                className="absolute right-3 top-3 p-1.5 rounded-full" style={{ color: 'var(--c-muted)' }}>
-                <X size={18} />
-              </button>
+          {/* Left: what you can narrow by, with the current pick under it.
+              Right: the options for whichever one is open. */}
+          <div className="flex-1 flex min-h-0">
+            <div className="w-[38%] max-w-[160px] shrink-0 overflow-y-auto no-scrollbar border-r"
+              style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
+              {draftGroups.map(g => {
+                const on  = active?.key === g.key
+                const v   = draft[g.key] ?? (g.allValue ?? 'all')
+                const set = v !== (g.allValue ?? 'all')
+                return (
+                  <button key={g.key} onClick={() => setTabKey(g.key)}
+                    className="w-full text-left px-3 py-3 border-l-[3px]"
+                    style={{
+                      background:  on ? 'var(--c-nav)' : 'transparent',
+                      borderColor: on ? SAGE : 'transparent',
+                    }}>
+                    <span className="text-xs font-bold" style={{ color: on ? 'var(--c-text)' : 'var(--c-muted)' }}>
+                      {g.label}
+                    </span>
+                    {set && (
+                      <p className="text-[10px] font-semibold mt-0.5 truncate" style={{ color: SAGE }}>
+                        {valueLabel(g, v)}
+                      </p>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
-            {/* Left: what you can narrow by, with the current pick under it.
-                Right: the options for whichever one is open. */}
-            <div className="flex-1 flex min-h-0 border-t" style={{ borderColor: 'var(--c-border)' }}>
-              <div className="w-[38%] max-w-[160px] shrink-0 overflow-y-auto no-scrollbar border-r"
-                style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
-                {draftGroups.map(g => {
-                  const on   = active?.key === g.key
-                  const v    = draft[g.key] ?? (g.allValue ?? 'all')
-                  const set  = v !== (g.allValue ?? 'all')
-                  return (
-                    <button key={g.key} onClick={() => setTabKey(g.key)}
-                      className="w-full text-left px-3 py-3 border-l-[3px]"
-                      style={{
-                        background:  on ? 'var(--c-nav)' : 'transparent',
-                        borderColor: on ? SAGE : 'transparent',
-                      }}>
-                      <span className="text-xs font-bold" style={{ color: on ? 'var(--c-text)' : 'var(--c-muted)' }}>
-                        {g.label}
-                      </span>
-                      {set && (
-                        <p className="text-[10px] font-semibold mt-0.5 truncate" style={{ color: SAGE }}>
-                          {valueLabel(g, v)}
-                        </p>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {(active?.options || []).map(([v, optLabel]) => {
-                  const on = (draft[active.key] ?? (active.allValue ?? 'all')) === v
-                  return (
-                    <button key={v} onClick={() => pick(active.key, v)}
-                      className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left border-b"
-                      style={{ borderColor: 'var(--c-border)', background: on ? `${SAGE}0f` : 'transparent' }}>
-                      <span className="text-[13px] font-semibold truncate"
-                        style={{ color: on ? SAGE : 'var(--c-text)' }}>{optLabel}</span>
-                      {on && <Check size={15} className="shrink-0" style={{ color: SAGE }} />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="shrink-0 flex gap-2 px-4 pt-3 border-t" style={{ borderColor: 'var(--c-border)' }}>
-              <button onClick={() => setDraft(d => clearedValue(d, resolve(d)))}
-                disabled={activeCount(draft, draftGroups) === 0}
-                className="px-4 py-3 rounded-xl text-sm font-semibold disabled:opacity-40"
-                style={{ color: 'var(--c-text)', background: 'var(--c-ghost)' }}>
-                Clear all
-              </button>
-              <button onClick={apply} className="flex-1 py-3 rounded-xl text-sm font-bold text-white" style={{ background: SAGE }}>
-                {applyLabel ? applyLabel(draft) : 'Apply'}
-              </button>
+            <div className="flex-1 overflow-y-auto">
+              {(active?.options || []).map(([v, optLabel]) => {
+                const on = (draft[active.key] ?? (active.allValue ?? 'all')) === v
+                return (
+                  <button key={v} onClick={() => pick(active.key, v)}
+                    className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left border-b"
+                    style={{ borderColor: 'var(--c-border)', background: on ? `${SAGE}0f` : 'transparent' }}>
+                    <span className="text-[13px] font-semibold truncate"
+                      style={{ color: on ? SAGE : 'var(--c-text)' }}>{optLabel}</span>
+                    {on && <Check size={15} className="shrink-0" style={{ color: SAGE }} />}
+                  </button>
+                )
+              })}
             </div>
           </div>
-        </div>
+        </BottomSheet>
       )}
     </>
   )

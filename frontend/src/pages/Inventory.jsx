@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Plus, X, CheckCircle2, AlertTriangle, Package, Receipt, FileText,
+import { Plus, X, CheckCircle2, AlertTriangle, Receipt, FileText, ChevronLeft,
          Download, Filter, Trash2, ShoppingBag } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
@@ -10,6 +10,7 @@ import AddButton from '../components/AddButton'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
+import { registerSummary } from './assets/assetFacts'
 import { MACHINE_TYPES, ASSET_CATS } from './Assets'
 
 const TODAY_STR = localToday()
@@ -27,11 +28,14 @@ const CATS      = ['seed', 'fertilizer', 'chemical', 'fuel', 'other']
 const CAT_LABEL = { seed: 'Seeds', fertilizer: 'Fertilizers', chemical: 'Chemicals', fuel: 'Fuel', other: 'Other' }
 const CAT_EMOJI = { seed: '🌾', fertilizer: '🧪', chemical: '🧴', fuel: '⛽', other: '📦' }
 
-const TABS = [
-  { key: 'items',    label: 'Current Stock', Icon: Package  },
-  { key: 'purchase', label: 'Purchases',     Icon: Receipt  },
-  { key: 'issue',    label: 'Issues',        Icon: FileText },
-]
+// Current Stock IS this page now. Purchases and Issues are the two histories
+// behind it — reference reading, opened from a button and closed again, not a
+// tab you can get lost in (owner, 26 Aug). Resources' page head carries
+// Inventory · Machinery · Assets instead of a second strip of tabs here.
+const LOGS = {
+  purchase: { title: 'Purchase History', Icon: Receipt,  label: 'Purchases' },
+  issue:    { title: 'Issue History',    Icon: FileText, label: 'Issues'    },
+}
 
 export default function Inventory() {
   const {
@@ -41,7 +45,7 @@ export default function Inventory() {
 
   // ?cat=fuel lands on the diesel shelf directly (Assets → "Issue Diesel").
   const [params]                  = useSearchParams()
-  const [tab,       setTab]       = useState('items')
+  const [logView,   setLogView]   = useState(null)   // 'purchase' | 'issue' — the history overlay
   const [catFilter, setCat]       = useState(CATS.includes(params.get('cat')) ? params.get('cat') : 'all')
   const [modal,     setModal]     = useState(null)   // 'bill' | 'issue'
   const [selected,  setSelected]  = useState(null)   // for issue only
@@ -180,68 +184,84 @@ export default function Inventory() {
 
   const items = catFilter === 'all' ? inventoryMaster : inventoryMaster.filter(i => i.category === catFilter)
 
+  const stockValue = inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0)
+  const lowCount   = inventoryMaster.filter(i =>
+    i.currentStock === 0 || (i.minThreshold > 0 && i.currentStock < i.minThreshold)).length
+
   return (
     <div className="h-full flex flex-col bg-[var(--c-bg)]">
 
-      {/* Tab bar */}
-      <div className="flex border-b border-[var(--c-border)] bg-[var(--c-nav)] shrink-0">
-        {TABS.map(({ key, label, Icon }) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors
-              ${tab === key ? 'text-[#8A9A5B] border-b-2 border-[#8A9A5B]' : 'text-[var(--c-muted)]'}`}>
-            <Icon size={16} />{label}
-          </button>
-        ))}
+      {/* One quiet line, the same shape Machinery and Assets carry, then the two
+          histories, then the add row and the filter. */}
+      <div className="flex items-center justify-between shrink-0 px-4 py-1.5 border-b text-[11px]"
+        style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)', color: 'var(--c-muted)' }}>
+        <span>{registerSummary(inventoryMaster.length, stockValue, 'Stock value')}</span>
+        {lowCount > 0 && <span style={{ color: '#BA7517' }}>{lowCount} low or out</span>}
       </div>
 
-      {/* ── ITEMS ── */}
-      {tab === 'items' && (
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
-            <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-4 py-2.5">
-              <p className="text-xs text-[var(--c-sub)]">Total stock value ({inventoryMaster.length} items)</p>
-              <p className="text-lg font-bold text-[#8A9A5B]">
-                ₹{(inventoryMaster.reduce((s, i) => s + (i.currentStock || 0) * (i.costPerUnit || 0), 0) / 1000).toFixed(1)}K
-              </p>
-            </div>
-            {/* Stock only ever arrives on a bill, so "add" here is a purchase —
-                the same dashed row every other register opens with. */}
-            <AddButton onClick={openBillModal}>New Purchase</AddButton>
-            <FilterSelect value={catFilter} onChange={setCat}
-              options={[['all', 'All categories'], ...CATS.map(c => [c, `${CAT_EMOJI[c]} ${CAT_LABEL[c]}`])]} />
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
+          {/* The two histories: what came in, what went out. Reference reading,
+              so they open over the page and close again. */}
+          <div className="flex gap-2">
+            {Object.entries(LOGS).map(([key, { Icon, label }]) => (
+              <button key={key} onClick={() => setLogView(key)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-semibold"
+                style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)', color: 'var(--c-sub)' }}>
+                <Icon size={13} /> {label} <span style={{ color: 'var(--c-faint)' }}>→</span>
+              </button>
+            ))}
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-4">
-            {items.map(item => {
-              const isOut = item.currentStock === 0
-              const isLow = item.minThreshold > 0 && item.currentStock > 0 && item.currentStock < item.minThreshold
-              // Same card as Machinery / Farm Assets — see components/RegisterCard.
-              return (
-                <RegisterCard key={item.id}
-                  title={item.name}
-                  subline={`${CAT_LABEL[item.category]} · WAC ₹${item.costPerUnit}/${item.unit}`}
-                  figure={item.currentStock}
-                  figureColor={isOut ? '#E24B4A' : isLow ? '#BA7517' : undefined}
-                  figureLabel={item.unit}
-                  status={isOut ? { text: '✗ Out of stock', color: '#E24B4A' }
-                        : isLow ? { text: `⚠ Low (min ${item.minThreshold})`, color: '#BA7517' }
-                        : null}
-                  borderColor={isOut ? '#E24B4A66' : isLow ? '#BA751759' : undefined}
-                  action={{ label: '→ Issue to Plot', onClick: () => openIssue(item), disabled: isOut }}
-                />
-              )
-            })}
-          </div>
+          {/* Stock only ever arrives on a bill, so "add" here is a purchase —
+              the same dashed row every other register opens with. */}
+          <AddButton onClick={openBillModal}>New Purchase</AddButton>
+          <FilterSelect value={catFilter} onChange={setCat}
+            options={[['all', 'All categories'], ...CATS.map(c => [c, `${CAT_EMOJI[c]} ${CAT_LABEL[c]}`])]} />
         </div>
-      )}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-4">
+          {items.map(item => {
+            const isOut = item.currentStock === 0
+            const isLow = item.minThreshold > 0 && item.currentStock > 0 && item.currentStock < item.minThreshold
+            // Same card as Machinery / Farm Assets — see components/RegisterCard.
+            return (
+              <RegisterCard key={item.id}
+                title={item.name}
+                subline={`${CAT_LABEL[item.category]} · WAC ₹${item.costPerUnit}/${item.unit}`}
+                figure={item.currentStock}
+                figureColor={isOut ? '#E24B4A' : isLow ? '#BA7517' : undefined}
+                figureLabel={item.unit}
+                status={isOut ? { text: '✗ Out of stock', color: '#E24B4A' }
+                      : isLow ? { text: `⚠ Low (min ${item.minThreshold})`, color: '#BA7517' }
+                      : null}
+                borderColor={isOut ? '#E24B4A66' : isLow ? '#BA751759' : undefined}
+                action={{ label: '→ Issue to Plot', onClick: () => openIssue(item), disabled: isOut }}
+              />
+            )
+          })}
+          {items.length === 0 && (
+            <p className="text-center py-12 text-sm" style={{ color: 'var(--c-faint)' }}>Nothing in this category</p>
+          )}
+        </div>
+      </div>
 
-      {/* ── PURCHASE LOGS ── */}
-      {tab === 'purchase' && (
-        <PurchaseLogs purchases={purchases} inventoryMaster={inventoryMaster} onNewBill={openBillModal} />
-      )}
-
-      {/* ── ISSUE LOGS ── */}
-      {tab === 'issue' && (
-        <IssueLogs issues={issues} inventoryMaster={inventoryMaster} plots={plots} />
+      {/* ── The histories, over the page ── */}
+      {logView && (
+        <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--c-bg)' }}>
+          <div className="shrink-0 flex items-center gap-2 px-4 pb-3 border-b"
+            style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)', paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}>
+            {/* A back arrow, not a ✕: this is a drill-down into the register,
+                not a modal you dismiss. */}
+            <button onClick={() => setLogView(null)} aria-label="Back"
+              className="w-8 h-8 flex items-center justify-center rounded-full" style={{ color: 'var(--c-muted)' }}>
+              <ChevronLeft size={20} />
+            </button>
+            <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{LOGS[logView].title}</p>
+          </div>
+          {logView === 'purchase'
+            ? <PurchaseLogs purchases={purchases} inventoryMaster={inventoryMaster}
+                onNewBill={() => { setLogView(null); openBillModal() }} />
+            : <IssueLogs issues={issues} inventoryMaster={inventoryMaster} plots={plots} />}
+        </div>
       )}
 
       {/* ── BILL PURCHASE MODAL ── */}

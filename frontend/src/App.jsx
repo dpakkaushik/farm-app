@@ -10,6 +10,7 @@ import Labour        from './pages/Labour'
 import Admin         from './pages/Admin'
 import Media         from './pages/Media'
 import Login         from './pages/Login'
+import UiKit         from './pages/UiKit'
 import ResourcesPage from './pages/ResourcesPage'
 import Harvest       from './pages/Harvest'
 import Dashboard     from './pages/Dashboard'
@@ -110,6 +111,8 @@ export default function App() {
   if (location.pathname.startsWith('/reset-password')) {
     return <ResetPassword />
   }
+
+  if (import.meta.env.DEV && location.pathname.startsWith('/uikit')) return <UiKit />
 
   if (loading) return <LoadingScreen />
   if (!user || !profile) return <Login />

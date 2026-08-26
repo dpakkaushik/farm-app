@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Wrench, Boxes } from 'lucide-react'
 import FilterSelect from '../components/FilterSelect'
 import AddButton from '../components/AddButton'
 import { useAppStore } from '../store'
@@ -21,10 +20,6 @@ export const MACHINE_TYPES = ['tractor','implement','generator','engine','spraye
 export const ASSET_CATS    = ['equipment','appliance','furniture','other']
 const STATUSES_M    = ['in_use','spare','under_repair','disposed','sold']
 const STATUSES_A    = ['in_use','spare','under_repair','disposed','sold']
-const TABS = [
-  { key: 'machinery', label: 'Machinery',   Icon: Wrench },
-  { key: 'assets',    label: 'Farm Assets', Icon: Boxes  },
-]
 // Status colours, category emoji and the fact wording live in ./assets/ — shared
 // with the register card and the detail sheet.
 
@@ -310,7 +305,14 @@ function RegisterTab({ items, kind, onOpen, onAdd, onIssueDiesel }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function Assets() {
+// One register at a time, chosen by the PAGE head, not by a second tab bar of its
+// own: Resources shows Inventory · Machinery · Assets across the top and hands
+// this component the `kind` (owner, 26 Aug — "resources can be page head with
+// inventory, assets and machinery on one page"). Everything below the head — the
+// value line, the add row, the filter, the cards, the sheet, the add/edit modals
+// — is shared by both kinds and always was.
+export default function Assets({ kind = 'machinery' }) {
+  const isMachinery = kind === 'machinery'
   const {
     machineryMaster, farmAssets,
     disposeMachinery, disposeFarmAsset,
@@ -320,7 +322,6 @@ export default function Assets() {
   } = useAppStore()
 
   const navigate = useNavigate()
-  const [tab,          setTab]          = useState('machinery')
   // The open detail sheet, by reference not by copy: it re-reads the live row
   // from the store, so an Edit or a photo change shows the moment it saves, and
   // a Dispose (which drops the row from the list) closes it.
@@ -437,8 +438,8 @@ export default function Assets() {
   const totalMachinery = machineryMaster.reduce((s, m) => s + (m.purchasePrice || 0), 0)
   const totalAssets    = farmAssets.reduce((s, a) => s + (a.purchasePrice || 0), 0)
   const totalAll       = totalMachinery + totalAssets
-  const tabValue = tab === 'machinery' ? totalMachinery : totalAssets
-  const tabCount = tab === 'machinery' ? machineryMaster.length : farmAssets.length
+  const tabValue = isMachinery ? totalMachinery : totalAssets
+  const tabCount = isMachinery ? machineryMaster.length : farmAssets.length
 
   const selectedTable = selected?.kind === 'machinery' ? 'machinery_master' : 'farm_assets'
   const selectedItem  = selected
@@ -469,16 +470,6 @@ export default function Assets() {
           onRemove={() => removePhoto(photoView.table, photoView.item.id, photoView.item.photoUrl)} />
       )}
 
-      {/* Tab bar */}
-      <div className="flex border-b shrink-0" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-        {TABS.map(({ key, label, Icon }) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${tab===key ? 'text-[#8A9A5B] border-b-2 border-[#8A9A5B]' : 'text-[var(--c-muted)]'}`}>
-            <Icon size={16} />{label}
-          </button>
-        ))}
-      </div>
-
       {/* One quiet line. Book value is a bookkeeping fact, not the reason anyone
           opens this screen — it stays findable here and in each item's sheet,
           but no longer shouts from every card (owner, 25 Aug). */}
@@ -488,18 +479,12 @@ export default function Assets() {
         {totalAll > 0 && <span>All assets <b style={{ color: 'var(--c-text)' }}>{fmt(totalAll)}</b></span>}
       </div>
 
-      {tab === 'machinery' && (
-        <RegisterTab items={machineryMaster} kind="machinery"
-          onOpen={item => setSelected({ kind: 'machinery', id: item.id })}
-          onAdd={() => setAddModal('machinery')}
-          onIssueDiesel={issueDiesel} />
-      )}
-      {tab === 'assets' && (
-        <RegisterTab items={farmAssets} kind="asset"
-          onOpen={item => setSelected({ kind: 'asset', id: item.id })}
-          onAdd={() => setAddModal('asset')}
-          onIssueDiesel={issueDiesel} />
-      )}
+      {/* key on the kind: the tab keeps its own category filter, and a machinery
+          type would filter every farm asset away if it survived the switch. */}
+      <RegisterTab key={kind} items={isMachinery ? machineryMaster : farmAssets} kind={isMachinery ? 'machinery' : 'asset'}
+        onOpen={item => setSelected({ kind: isMachinery ? 'machinery' : 'asset', id: item.id })}
+        onAdd={() => setAddModal(isMachinery ? 'machinery' : 'asset')}
+        onIssueDiesel={issueDiesel} />
 
       {selectedItem && (
         <AssetSheet item={selectedItem} kind={selected.kind}

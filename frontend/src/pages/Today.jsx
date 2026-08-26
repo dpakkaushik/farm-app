@@ -1,27 +1,53 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { format } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, ChevronRight, ClipboardList, Users, HardHat, Tractor, Bell, Receipt } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
+import { Plus, X, ChevronUp, ChevronDown, Filter, Users, HardHat, Tractor, Bell, Receipt } from 'lucide-react'
 import { AddExpenseModal } from './Expenses'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
+import useWeather from '../hooks/useWeather'
+import { weatherLine } from '../lib/weather'
 import { buildDayBundle, datesInRange } from './today/dayBundle'
 import DayCard from './today/DayCard'
 import TaskCalendar from './today/TaskCalendar'
+import HistorySheet from './today/HistorySheet'
 
-const getTodayStr  = () => new Date().toISOString().slice(0, 10)
+// Local date parts, never toISOString() — in IST that shift lands on yesterday
+// for the first five and a half hours of every day (see lib/period.js, which
+// learned this the hard way).
+const dStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const getTodayStr  = () => dStr(new Date())
 const getTodayDate = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d }
 const TODAY_DATE   = getTodayDate()
 const TODAY_STR    = getTodayStr()
 
 // The week behind today, shown by default under the day card — yesterday back
-// to seven days ago. Anything older stays behind the explicit History fetch.
-const dateStrDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10) }
+// to seven days ago. Anything older is one History pick away.
+const dateStrDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return dStr(d) }
 const LAST7_START = dateStrDaysAgo(7)
 const LAST7_END   = dateStrDaysAgo(1)
 
 const HISTORY_WARN_DAYS = 90
+
+// How a picked range reads on the chip: one day is just that day.
+const rangeLabel = (start, end) => start === end
+  ? format(parseISO(start), 'd MMM yyyy')
+  : `${format(parseISO(start), 'd MMM')} – ${format(parseISO(end), 'd MMM yyyy')}`
+
+// The quick picks every app's date filter offers, so the common case is one tap
+// and the two date fields are for the uncommon one.
+const historyPresets = () => {
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const lastStart  = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const lastEnd    = new Date(now.getFullYear(), now.getMonth(), 0)
+  return [
+    { label: 'Last 30 days', start: dateStrDaysAgo(29), end: TODAY_STR },
+    { label: 'This month',   start: dStr(monthStart),   end: TODAY_STR },
+    { label: 'Last month',   start: dStr(lastStart),    end: dStr(lastEnd) },
+  ]
+}
 
 // How long a missed task keeps nagging. It used to be 3 days, which meant a task
 // ignored for four days vanished from the app entirely — no card, no count,
@@ -47,6 +73,9 @@ function TodayBoard() {
 
   const hour     = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  // Same fetch the Field map's pill uses — the owner asked for the weather up
+  // here beside his name, where the repeated date line used to be.
+  const { current: weather } = useWeather()
 
   const [showModal,        setShowModal]        = useState(false)
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -74,12 +103,17 @@ function TodayBoard() {
     }
   }, [params, setParams])
 
-  // ── History (collapsed, gated behind an explicit date-range + Fetch) ───────
+  // ── History — a filter on the day feed, opened from the header ─────────────
+  // It used to be a collapsed panel at the very bottom of the page, below every
+  // day card, which is the last place anyone looks for "show me last month".
+  // Now it is a control beside the bell: pick a range, the feed becomes that
+  // range, and a chip under the header says what is applied (owner, 26 Aug).
   const [showHistory,       setShowHistory]       = useState(false)
   const [historyStart,      setHistoryStart]      = useState('')
   const [historyEnd,        setHistoryEnd]        = useState('')
   const [historyLoading,    setHistoryLoading]    = useState(false)
   const [historyResults,    setHistoryResults]    = useState(null)  // [{date, bundle}] | null
+  const [appliedRange,      setAppliedRange]      = useState(null)  // { start, end } | null
   const [historyError,      setHistoryError]      = useState('')
   const [confirmLargeRange, setConfirmLargeRange] = useState(false)
 
@@ -233,17 +267,28 @@ function TodayBoard() {
       .filter(r => !r.bundle.isEmpty)
   }, [todaySlices, resolvers, recentAdvances])
 
+  // Which past dates have anything recorded at all — the calendar marks these,
+  // so the bell shows what HAPPENED as well as what is scheduled (owner's ask).
+  // Read straight off the store's slices: no fetch, and it covers every domain
+  // datesInRange knows about.
+  const historyDates = useMemo(
+    () => new Set(datesInRange(todaySlices, '2000-01-01', TODAY_STR)),
+    [todaySlices])
+
   const rangeDays = (historyStart && historyEnd && historyStart <= historyEnd)
     ? Math.round((new Date(historyEnd) - new Date(historyStart)) / 86400000) + 1
     : 0
 
-  const fetchHistory = async () => {
+  // One path for every way a range gets picked: the sheet's Show days button,
+  // its quick picks, and a tap on a calendar date that has records.
+  const loadRange = async (start, end, { force = false } = {}) => {
     setHistoryError('')
-    if (!historyStart || !historyEnd || historyStart > historyEnd) {
+    if (!start || !end || start > end) {
       setHistoryError('Pick a valid start and end date')
       return
     }
-    if (rangeDays > HISTORY_WARN_DAYS && !confirmLargeRange) {
+    const days = Math.round((new Date(end) - new Date(start)) / 86400000) + 1
+    if (days > HISTORY_WARN_DAYS && !force) {
       setConfirmLargeRange(true)
       return
     }
@@ -254,20 +299,29 @@ function TodayBoard() {
     // missing advances that have since been marked recovered.
     const { data } = await supabase.from('salary_advances').select('*')
       .eq('farm_id', activeFarmId)
-      .gte('advance_date', historyStart)
-      .lte('advance_date', historyEnd)
+      .gte('advance_date', start)
+      .lte('advance_date', end)
     const historyAdvances = (data || []).map(a => ({
       id: a.id, labourerId: a.labourer_id, date: a.advance_date,
       amount: Number(a.amount), reason: a.reason || '',
     }))
     const slices = { ...todaySlices, advances: historyAdvances }
-    const dates = datesInRange(slices, historyStart, historyEnd)
-    const results = dates
+    const results = datesInRange(slices, start, end)
       .map(d => ({ date: d, bundle: buildDayBundle(d, slices, resolvers) }))
       .filter(r => !r.bundle.isEmpty)
     setHistoryResults(results)
+    setAppliedRange({ start, end })
     setHistoryLoading(false)
+    setShowHistory(false)
   }
+
+  const clearRange = () => {
+    setAppliedRange(null); setHistoryResults(null)
+    setHistoryStart(''); setHistoryEnd(''); setHistoryError(''); setConfirmLargeRange(false)
+  }
+
+  // A calendar date that has records opens as a one-day range in the feed.
+  const openDay = (dateStr) => { setShowNotif(false); loadRange(dateStr, dateStr) }
 
   const markDone = async (task) => {
     setDoneTasks(prev => new Set([...prev, task.id]))
@@ -319,20 +373,36 @@ function TodayBoard() {
   return (
     <div className="h-full overflow-y-auto bg-[var(--c-bg)] pb-6">
 
-      {/* Header */}
-      <div className="px-4 pt-4 pb-2 flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[var(--c-text)]">
-            {greeting}, {profile?.full_name?.split(' ')[0] || 'there'} 👋
+      {/* Header — name, then the weather. The waving hand is gone and so is the
+          full date line: every day card below prints its own date, so the
+          header was saying "Wednesday, 26 August" twice (owner, 26 Aug). */}
+      <div className="px-4 pt-4 pb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-[var(--c-text)] truncate">
+            {greeting}, {profile?.full_name?.split(' ')[0] || 'there'}
           </h1>
-          <p className="text-sm text-[var(--c-muted)]">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
+          <p className="text-sm text-[var(--c-muted)] min-h-[20px] truncate">{weatherLine(weather) || ''}</p>
         </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* History, as a filter on the day feed */}
+          <button onClick={() => setShowHistory(true)} aria-label="Filter the feed by date"
+            className="flex items-center gap-1.5 h-10 px-3 rounded-xl border text-xs font-semibold"
+            style={{
+              background:  appliedRange ? '#8A9A5B12' : 'var(--c-card)',
+              borderColor: appliedRange ? '#8A9A5B80' : 'var(--c-border-md)',
+              color:       appliedRange ? '#8A9A5B'   : 'var(--c-sub)',
+            }}>
+            <Filter size={13} style={{ color: appliedRange ? '#8A9A5B' : 'var(--c-muted)' }} />
+            History
+          </button>
+
         {/* The bell — a month calendar of scheduled tasks, dotted in crop
-            colours, red where a date was missed. The badge still counts what
-            was missed and what is coming. It replaced a flat list that only
-            repeated the day card's Tasks Due; the card keeps that block for
-            overdue + today because the calendar cannot nag and Done must stay
-            one tap. */}
+            colours, red where a date was missed, and now marked on every date
+            that has something recorded. The badge still counts what was missed
+            and what is coming. It replaced a flat list that only repeated the
+            day card's Tasks Due; the card keeps that block for overdue + today
+            because the calendar cannot nag and Done must stay one tap. */}
         <div className="relative">
           <button
             onClick={() => setShowNotif(o => !o)}
@@ -356,8 +426,9 @@ function TodayBoard() {
                 className="absolute right-0 mt-2 z-50 w-[min(92vw,22rem)] rounded-2xl border p-3.5 shadow-2xl"
                 style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border-md)', maxHeight: '70vh', overflowY: 'auto' }}>
                 <div className="flex items-center justify-between mb-3">
+                  {/* Not "Task Calendar" any more — it marks recorded days too */}
                   <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
-                    Task Calendar
+                    Farm Calendar
                   </p>
                   <button onClick={() => setShowNotif(false)}
                     className="w-6 h-6 flex items-center justify-center rounded-full text-[var(--c-muted)] hover:text-[var(--c-text)] hover:bg-[var(--c-ghost)]">
@@ -365,12 +436,29 @@ function TodayBoard() {
                   </button>
                 </div>
                 <TaskCalendar tasks={allPending} todayStr={TODAY_STR}
+                  historyDates={historyDates} onOpenDay={openDay}
                   onMarkDone={isManager(activeFarmRole) ? markDone : undefined} />
               </div>
             </>
           )}
         </div>
+        </div>
       </div>
+
+      {/* What the feed is showing, when it is not the default week */}
+      {appliedRange && (
+        <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button onClick={clearRange}
+            aria-label="Clear the date filter"
+            className="shrink-0 flex items-center gap-1 h-7 pl-2.5 pr-1.5 rounded-full border text-[11px] font-semibold"
+            style={{ background: '#8A9A5B12', borderColor: '#8A9A5B55', color: '#8A9A5B' }}>
+            {rangeLabel(appliedRange.start, appliedRange.end)}<X size={11} />
+          </button>
+          <span className="shrink-0 text-[11px] text-[var(--c-faint)]">
+            {historyResults ? `${historyResults.length} day${historyResults.length === 1 ? '' : 's'} with records` : ''}
+          </span>
+        </div>
+      )}
 
       {/* Summary rows — Farm Activity + Manpower */}
       {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0
@@ -420,27 +508,38 @@ function TodayBoard() {
           tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
           onMarkDone={markDone}
           action={isManager(activeFarmRole) ? (
-            /* Twins, on the owner's word — same green, Log Activity first. The
-               first cut styled Log Expense as a red outline and he read it as
-               the odd one out. */
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                style={{ background: '#8A9A5B', color: '#fff' }}>
+            /* Twins, on the owner's word — identical weight, Log Activity
+               first (the first cut styled Log Expense as a red outline and he
+               read it as the odd one out). Both now wear the same button the
+               register cards use, on their own full-width row. */
+            <div className="flex gap-2">
+              <button onClick={() => setShowModal(true)}
+                className="flex-1 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5"
+                style={{ background: '#8A9A5B18', borderColor: '#8A9A5B40', color: '#8A9A5B' }}>
                 <Plus size={13} strokeWidth={2.5} /> Log Activity
               </button>
-              <button
-                onClick={() => setShowExpenseModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold"
-                style={{ background: '#8A9A5B', color: '#fff' }}>
+              <button onClick={() => setShowExpenseModal(true)}
+                className="flex-1 py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5"
+                style={{ background: '#8A9A5B18', borderColor: '#8A9A5B40', color: '#8A9A5B' }}>
                 <Receipt size={13} strokeWidth={2.5} /> Log Expense
               </button>
             </div>
           ) : null} />
 
-        {/* Last 7 days — always visible; older days live behind History below */}
-        {last7Days.length > 0 && (
+        {/* The feed: the last week by default, the picked range when there is
+            one. Never both — the same day card twice reads as a bug. */}
+        {appliedRange ? (
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
+              {rangeLabel(appliedRange.start, appliedRange.end)}
+            </p>
+            {historyLoading && <p className="text-xs text-[var(--c-faint)] text-center py-4">Loading…</p>}
+            {!historyLoading && historyResults?.length === 0 && (
+              <p className="text-xs text-[var(--c-faint)] text-center py-4 italic">Nothing was recorded in this range</p>
+            )}
+            {!historyLoading && (historyResults || []).map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)}
+          </div>
+        ) : last7Days.length > 0 && (
           <div className="space-y-3">
             <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
               Last 7 Days
@@ -448,60 +547,6 @@ function TodayBoard() {
             {last7Days.map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)}
           </div>
         )}
-
-        {/* History — gated behind an explicit date range + Fetch */}
-        <div className="rounded-2xl border overflow-hidden" style={{ borderColor: 'var(--c-border)' }}>
-          <button
-            onClick={() => setShowHistory(h => !h)}
-            className="w-full flex items-center justify-between px-4 py-3.5"
-            style={{ background: 'var(--c-card)' }}>
-            <div className="flex items-center gap-2">
-              <ClipboardList size={15} className="text-[var(--c-muted)]" />
-              <span className="text-xs font-bold text-[var(--c-sub)] uppercase tracking-wide">History</span>
-            </div>
-            <ChevronRight size={14} className="text-[var(--c-faint)] transition-transform"
-              style={{ transform: showHistory ? 'rotate(90deg)' : 'rotate(0deg)' }} />
-          </button>
-
-          {showHistory && (
-            <div className="px-4 py-4 space-y-3" style={{ background: 'var(--c-card)' }}>
-              <div className="flex items-center gap-2">
-                <input type="date" value={historyStart}
-                  onChange={e => { setHistoryStart(e.target.value); setConfirmLargeRange(false); setHistoryResults(null) }}
-                  className="flex-1 rounded-xl px-3 py-2 text-xs border outline-none"
-                  style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)', colorScheme: 'dark' }} />
-                <span className="text-xs text-[var(--c-faint)]">to</span>
-                <input type="date" value={historyEnd}
-                  onChange={e => { setHistoryEnd(e.target.value); setConfirmLargeRange(false); setHistoryResults(null) }}
-                  className="flex-1 rounded-xl px-3 py-2 text-xs border outline-none"
-                  style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)', colorScheme: 'dark' }} />
-              </div>
-
-              {historyError && <p className="text-xs text-[#E24B4A]">{historyError}</p>}
-              {confirmLargeRange && (
-                <p className="text-xs text-[#BA7517]">
-                  That's a {rangeDays}-day range — it may take a moment to render. Tap Fetch again to continue.
-                </p>
-              )}
-
-              <button onClick={fetchHistory} disabled={historyLoading}
-                className="w-full py-2.5 rounded-xl text-xs font-bold disabled:opacity-50"
-                style={{ background: '#8A9A5B', color: '#fff' }}>
-                {historyLoading ? 'Fetching…' : confirmLargeRange ? 'Fetch Anyway' : 'Fetch'}
-              </button>
-
-              {historyResults && (
-                <div className="space-y-3 pt-1">
-                  {historyResults.length === 0 ? (
-                    <p className="text-xs text-[var(--c-faint)] text-center py-4 italic">No activity in this range</p>
-                  ) : (
-                    historyResults.map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {cropCycles.filter(c => c.status === 'active').length === 0 && (
           <div className="text-center py-16 text-[var(--c-faint)]">
@@ -763,6 +808,22 @@ function TodayBoard() {
         </div>
       )}
 
+      {/* ── History — the date filter on the feed ── */}
+      {showHistory && (
+        <HistorySheet
+          start={historyStart} end={historyEnd}
+          setStart={v => { setHistoryStart(v); setConfirmLargeRange(false) }}
+          setEnd={v => { setHistoryEnd(v); setConfirmLargeRange(false) }}
+          presets={historyPresets()} today={TODAY_STR}
+          onPreset={p => { setHistoryStart(p.start); setHistoryEnd(p.end); loadRange(p.start, p.end) }}
+          onApply={() => loadRange(historyStart, historyEnd, { force: confirmLargeRange })}
+          onClear={() => { clearRange(); setShowHistory(false) }}
+          onClose={() => setShowHistory(false)}
+          loading={historyLoading} error={historyError}
+          warnDays={confirmLargeRange ? rangeDays : 0}
+          applied={!!appliedRange} />
+      )}
+
       {/* ── Log Expense Modal — the whole former Expenses tab, as a form ── */}
       {showExpenseModal && (
         <AddExpenseModal animals={livestockMaster} onClose={() => setShowExpenseModal(false)} />
@@ -775,13 +836,16 @@ function TodayBoard() {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+// The same chip the filters wear elsewhere in the app (see FilterSheet's applied
+// chips) — h-7, tinted, 11px. It used to be a taller pill with a 14px figure,
+// which shouted louder than the day card it was summarising.
 function Pill({ count, label, color, dim, icon }) {
   return (
-    <div className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${dim ? 'opacity-40' : ''}`}
-      style={{ background: color + '18', borderColor: color + '40' }}>
+    <div className={`shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-full border ${dim ? 'opacity-40' : ''}`}
+      style={{ background: color + '12', borderColor: color + '55' }}>
       {icon && <span style={{ color }}>{icon}</span>}
-      <span className="text-sm font-bold" style={{ color }}>{count}</span>
-      <span className="text-xs font-medium" style={{ color }}>{label}</span>
+      <span className="text-[11px] font-bold tabular-nums" style={{ color }}>{count}</span>
+      <span className="text-[11px] font-semibold" style={{ color }}>{label}</span>
     </div>
   )
 }

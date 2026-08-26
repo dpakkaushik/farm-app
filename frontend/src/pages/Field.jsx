@@ -6,6 +6,8 @@ import { useTreeStore } from '../store/trees'
 import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import { farmApi } from '../api/client'
 import SetupChecklist from '../components/SetupChecklist'
+import useWeather from '../hooks/useWeather'
+import { weatherEmoji, weatherCondition } from '../lib/weather'
 import { isActive, speciesEmoji, animalLabel } from './livestock/ui'
 import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
@@ -109,29 +111,6 @@ function getCentroid(feature) {
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-function getWeatherEmoji(code) {
-  if (code === 0)  return '☀️'
-  if (code <= 2)   return '🌤️'
-  if (code <= 3)   return '☁️'
-  if (code <= 48)  return '🌫️'
-  if (code <= 57)  return '🌦️'
-  if (code <= 65)  return '🌧️'
-  if (code <= 77)  return '🌨️'
-  if (code <= 82)  return '🌦️'
-  return '⛈️'
-}
-
-function getWeatherCondition(code) {
-  if (code === 0)  return 'Clear Sky'
-  if (code <= 2)   return 'Partly Cloudy'
-  if (code === 3)  return 'Overcast'
-  if (code <= 48)  return 'Foggy'
-  if (code <= 57)  return 'Drizzle'
-  if (code <= 65)  return 'Rainy'
-  if (code <= 82)  return 'Showers'
-  return 'Thunderstorm'
-}
-
 // ── Compute today's date once per render ──────────────────────────────────────
 const todayDate = () => { const d = new Date(); d.setHours(0,0,0,0); return d }
 
@@ -166,8 +145,8 @@ export default function Field() {
   const [overlayVisible, setOverlayVisible]     = useState(true)
   const [uploading, setUploading]               = useState(false)
   const [currentZoom, setCurrentZoom]           = useState(zoom)
-  const [weather,         setWeather]         = useState(null)
-  const [forecast,        setForecast]        = useState(null)
+  // Shared with the Today header — one fetch, one set of code→emoji maps.
+  const { current: weather, daily: forecast } = useWeather()
   const [weatherExpanded, setWeatherExpanded] = useState(false)
   const [cropPanelOpen,   setCropPanelOpen]   = useState(false)
 
@@ -184,11 +163,6 @@ export default function Field() {
     })
     return { totalWorkers: namedIds.size + outside, fieldCount: plotIds.size }
   }, [activities, todayStr])
-
-  useEffect(() => {
-    fetch('https://api.open-meteo.com/v1/forecast?latitude=28.5073&longitude=80.4863&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia/Kolkata&forecast_days=7')
-      .then(r => r.json()).then(d => { setWeather(d.current); setForecast(d.daily) }).catch(() => {})
-  }, [])
 
   // ── Compute live plot data — only plots with all 4 GPS points set in DB ────────
   const livePlots = useMemo(() => {
@@ -632,9 +606,9 @@ export default function Field() {
           <div className="pointer-events-auto">
             <button onClick={() => setWeatherExpanded(v => !v)}
               className="bg-black/70 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 flex items-center gap-2 hover:bg-black/80 transition-colors">
-              <span className="text-lg leading-none">{getWeatherEmoji(weather.weather_code)}</span>
+              <span className="text-lg leading-none">{weatherEmoji(weather.weather_code)}</span>
               <span className="text-white font-bold text-sm">{Math.round(weather.temperature_2m)}°C</span>
-              <span className="text-white/45 text-[10px]">{getWeatherCondition(weather.weather_code)}</span>
+              <span className="text-white/45 text-[10px]">{weatherCondition(weather.weather_code)}</span>
               <ChevronDown size={11} className={`text-white/40 shrink-0 transition-transform duration-200 ${weatherExpanded ? 'rotate-180' : ''}`} />
             </button>
 
@@ -650,7 +624,7 @@ export default function Field() {
                     {forecast.time?.map((date, i) => (
                       <div key={date} className="flex flex-col items-center gap-0.5 min-w-[30px]">
                         <span className="text-[9px] text-white/40 font-medium">{i === 0 ? 'Now' : DAYS[new Date(date + 'T00:00:00').getDay()]}</span>
-                        <span className="text-base leading-snug">{getWeatherEmoji(forecast.weather_code?.[i] ?? 0)}</span>
+                        <span className="text-base leading-snug">{weatherEmoji(forecast.weather_code?.[i] ?? 0)}</span>
                         <span className="text-[10px] font-bold text-white">{Math.round(forecast.temperature_2m_max?.[i] ?? 0)}°</span>
                         <span className="text-[9px] text-white/30">{Math.round(forecast.temperature_2m_min?.[i] ?? 0)}°</span>
                         {(forecast.precipitation_probability_max?.[i] ?? 0) > 20 && (

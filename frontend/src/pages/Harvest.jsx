@@ -6,6 +6,7 @@ import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import OpeningCostBreakup from '../components/OpeningCostBreakup'
+import FilterSheet, { AppliedChips } from '../components/FilterSheet'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -79,6 +80,7 @@ export default function Harvest() {
   const canMarkPayment = isManager(getActiveFarmRole())
 
   // ── Shared state ─────────────────────────────────────────────────────────────
+  const [filters,         setFilters]         = useState({ plot: 'all', crop: 'all', status: 'all' })
   const [modal,           setModal]           = useState(null)
   const [selected,        setSelected]        = useState(null)
   const [form,            setForm]            = useState({})
@@ -133,6 +135,43 @@ export default function Harvest() {
     const sale = getSale(sess?.id)
     return sale?.paymentStatus === 'paid'
   }).slice(0, 20)
+
+  // ── The one funnel: plot · crop · stage ───────────────────────────────────────
+  // Fifteen cycles is already more than a screen, and the three stages run one
+  // after another down the page. Same combined filter as Media's, so the two
+  // screens narrow the same way (components/FilterSheet).
+  const filterGroups = () => {
+    const cycles   = [...active, ...openSales, ...pastHarvests]
+    const plotOpts = [...new Map(cycles.map(c => [c.plotId, c.plotLabel || '—'])).entries()]
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+    const cropOpts = [...new Map(cycles.map(c => [c.cropId, cropMaster.find(m => m.id === c.cropId)?.name || 'Crop'])).entries()]
+      .sort((a, b) => String(a[1]).localeCompare(String(b[1])))
+    return [
+      { key: 'plot',   label: 'Plot',   options: [['all', 'All plots'], ...plotOpts] },
+      { key: 'crop',   label: 'Crop',   options: [['all', 'All crops'], ...cropOpts] },
+      { key: 'status', label: 'Stage',  options: [
+        ['all', 'Every stage'], ['active', 'Standing'], ['open', 'Open sales'], ['past', 'Past harvests'],
+      ] },
+    ]
+  }
+
+  const matchCycle = (c, f) =>
+    (f.plot === 'all' || c.plotId === f.plot) &&
+    (f.crop === 'all' || c.cropId === f.crop)
+
+  const stageList = (f) => ({
+    active: (f.status === 'all' || f.status === 'active') ? active.filter(c => matchCycle(c, f)) : [],
+    open:   (f.status === 'all' || f.status === 'open')   ? openSales.filter(c => matchCycle(c, f)) : [],
+    past:   (f.status === 'all' || f.status === 'past')   ? pastHarvests.filter(c => matchCycle(c, f)) : [],
+  })
+
+  const shown       = stageList(filters)
+  const shownCount  = shown.active.length + shown.open.length + shown.past.length
+  const applyLabel  = (draft) => {
+    const s = stageList(draft)
+    const n = s.active.length + s.open.length + s.past.length
+    return n === 0 ? 'No cycles match' : `Show ${n} ${n === 1 ? 'cycle' : 'cycles'}`
+  }
 
   // Cane helpers
   const cycleSupplies     = (cycleId)   => [...harvestSessions].filter(s => s.cycleId === cycleId).sort((a, b) => a.date.localeCompare(b.date))
@@ -433,18 +472,28 @@ export default function Harvest() {
             {active.length} active{openSales.length > 0 ? ` · ${openSales.length} open sale${openSales.length !== 1 ? 's' : ''}` : ''}
           </p>
         </div>
-        <button onClick={openNewCycle} className="flex items-center gap-1.5 px-3 py-2 bg-[#8A9A5B]/20 border border-[#8A9A5B]/40 rounded-xl text-xs text-[#8A9A5B] font-semibold">
-          <Plus size={13}/> New Cycle
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <FilterSheet value={filters} onChange={setFilters}
+            groups={filterGroups} applyLabel={applyLabel} />
+          <button onClick={openNewCycle} className="flex items-center gap-1.5 h-9 px-3 bg-[#8A9A5B]/20 border border-[#8A9A5B]/40 rounded-xl text-xs text-[#8A9A5B] font-semibold">
+            <Plus size={13}/> New Cycle
+          </button>
+        </div>
       </div>
+
+      <AppliedChips value={filters} groups={filterGroups} onChange={setFilters}
+        className="shrink-0 px-4 pb-2" />
 
       <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3">
         {active.length === 0 && openSales.length === 0 && pastHarvests.length === 0 && (
           <p className="text-center text-[var(--c-faint)] text-sm py-8">No crop cycles yet.</p>
         )}
+        {shownCount === 0 && (active.length > 0 || openSales.length > 0 || pastHarvests.length > 0) && (
+          <p className="text-center text-[var(--c-faint)] text-sm py-8">No cycles match this filter.</p>
+        )}
 
         {/* ── Active crop cycles ─────────────────────────────────────────────── */}
-        {active.map(cycle => {
+        {shown.active.map(cycle => {
           const crop          = cropMaster.find(c => c.id === cycle.cropId)
           const daysSown      = daysAgo(cycle.sowDate)
           const totalDays     = crop?.duration_days || 120
@@ -575,16 +624,16 @@ export default function Harvest() {
         })}
 
         {/* ── Open Sales (harvested, payment not received) ───────────────────── */}
-        {openSales.length > 0 && (
+        {shown.open.length > 0 && (
           <>
             <div className="pt-3 pb-1 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#BA7517]"/>
               <p className="text-xs font-semibold text-[#BA7517] uppercase tracking-wide">
-                Open Sales — {openSales.length} pending
+                Open Sales — {shown.open.length} pending
               </p>
             </div>
 
-            {openSales.map(cycle => {
+            {shown.open.map(cycle => {
               const crop      = cropMaster.find(c => c.id === cycle.cropId)
               const session   = getSession(cycle.id)
               const sale      = getSale(session?.id)
@@ -680,12 +729,12 @@ export default function Harvest() {
         )}
 
         {/* ── Past Harvests (crop sale paid) ─────────────────────────────────── */}
-        {pastHarvests.length > 0 && (
+        {shown.past.length > 0 && (
           <>
             <div className="pt-2 pb-1">
               <p className="text-xs font-semibold text-[var(--c-muted)] uppercase tracking-wide">Past Harvests</p>
             </div>
-            {pastHarvests.map(h => {
+            {shown.past.map(h => {
               const crop      = cropMaster.find(c => c.id === h.cropId)
               const session   = getSession(h.id)
               const sale      = getSale(session?.id)

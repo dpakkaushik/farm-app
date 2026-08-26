@@ -25,7 +25,10 @@ const ACT_COLOR = {
   irrigation: { bg:'#1e3a5f', text:'#60a5fa', dot:'#3b82f6' },
   weeding:    { bg:'#3d1f0a', text:'#fb923c', dot:'#f97316' },
   fertilizer: { bg:'#2d1b5e', text:'#a78bfa', dot:'#8b5cf6' },
-  pesticide:  { bg:'var(--c-card-danger)', text:'#f87171', dot:'#ef4444' },
+  // Fixed hex, not a theme var: every one of these sits on a dark photo
+  // gradient in BOTH themes, so a token that flips with the theme turns
+  // unreadable (this one did — light mode gave red-on-pink).
+  pesticide:  { bg:'#3b1113', text:'#f87171', dot:'#ef4444' },
   harvesting: { bg:'#0f2e1e', text:'#34d399', dot:'#10b981' },
   ploughing:  { bg:'#2e2000', text:'#fbbf24', dot:'#f59e0b' },
   sowing:     { bg:'#0f2820', text:'#6ee7b7', dot:'#34d399' },
@@ -92,6 +95,15 @@ const captureVideoThumbnail = (file) =>
   })
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+// "2026-08-26" on a photo tells the owner nothing he can read at a glance.
+// This year's photos drop the year — most of them are this year's.
+const fmtDate = (iso) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  const thisYear = String(new Date().getFullYear())
+  return `${Number(d)} ${MONTH_LABEL[Number(m) - 1] || ''}${y === thisYear ? '' : ` ${y.slice(2)}`}`
+}
+
 const fmtDuration = (secs) => {
   const m = Math.floor(secs / 60)
   const s = secs % 60
@@ -308,7 +320,9 @@ export default function Media() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-[var(--c-text)] tracking-tight">Farm Media</h2>
-            <p className="text-xs text-[var(--c-muted)] mt-0.5">{photoCount} photos · {videoCount} videos</p>
+            <p className="text-xs text-[var(--c-muted)] mt-0.5">
+              {photoCount} photo{photoCount === 1 ? '' : 's'} · {videoCount} video{videoCount === 1 ? '' : 's'}
+            </p>
           </div>
           {/* One funnel for plot · activity · year · month · sort — the sheet
               holds the sub-filters, so nothing but the photos sits below. */}
@@ -353,10 +367,10 @@ export default function Media() {
                   {item.type === 'video' && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="w-10 h-10 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center border border-white/20">
-                        <Play size={16} fill="white" className="text-[var(--c-text)] ml-0.5"/>
+                        <Play size={16} fill="white" className="text-white ml-0.5"/>
                       </div>
                       {item.duration && (
-                        <span className="absolute top-2 right-2 text-[10px] bg-black/70 text-[var(--c-text)] px-1.5 py-0.5 rounded-md font-mono">
+                        <span className="absolute top-2 right-2 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded-md font-mono">
                           {item.duration}
                         </span>
                       )}
@@ -366,8 +380,10 @@ export default function Media() {
                   {/* Gradient + tags */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"/>
                   <div className="absolute bottom-0 left-0 right-0 p-2 space-y-1 pointer-events-none">
+                    {/* White, not a theme token: this sits on a dark gradient
+                        in both themes. */}
                     <div className="flex flex-wrap gap-1">
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md text-[var(--c-text-80)] bg-white/15 backdrop-blur-sm">
+                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md text-white bg-white/20 backdrop-blur-sm">
                         {item.plotLabel}
                       </span>
                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-sm"
@@ -375,13 +391,13 @@ export default function Media() {
                         {item.activity}
                       </span>
                     </div>
-                    <p className="text-[9px] text-[var(--c-sub)]">{item.date}</p>
+                    <p className="text-[9px] text-white/70">{fmtDate(item.date)}</p>
                   </div>
                   {adminUser && (
                     <button
                       onClick={e => deleteMedia(item, e)}
                       className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-[#E24B4A]/80 transition-all border border-white/20">
-                      <Trash2 size={12} className="text-[var(--c-text)]"/>
+                      <Trash2 size={12} className="text-white"/>
                     </button>
                   )}
                 </div>
@@ -396,12 +412,12 @@ export default function Media() {
         <button onClick={() => openCapture('video')}
           className="w-12 h-12 rounded-full flex items-center justify-center shadow-xl transition-transform active:scale-95"
           style={{ background: 'linear-gradient(135deg,#1a56db,#1141a3)', boxShadow: '0 4px 20px rgba(26,86,219,0.5)' }}>
-          <Video size={18} className="text-[var(--c-text)]"/>
+          <Video size={18} className="text-white"/>
         </button>
         <button onClick={() => openCapture('photo')}
           className="w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-transform active:scale-95"
           style={{ background: 'linear-gradient(135deg,#8A9A5B,#15805e)', boxShadow: '0 4px 24px rgba(138,154,91,0.5)' }}>
-          <Camera size={22} className="text-[var(--c-text)]"/>
+          <Camera size={22} className="text-white"/>
         </button>
       </div>
 
@@ -425,7 +441,7 @@ export default function Media() {
             <button onClick={resetCapture} disabled={isBusy}
               className="absolute right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center disabled:opacity-40"
               style={{ top: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
-              <X size={18} className="text-[var(--c-text)]"/>
+              <X size={18} className="text-white"/>
             </button>
           </div>
 
@@ -488,7 +504,7 @@ export default function Media() {
             )}
 
             <button onClick={submitMedia} disabled={(form.activity !== 'events' && !form.plotId) || isBusy}
-              className="w-full py-3 rounded-xl text-sm font-bold text-[var(--c-text)] disabled:opacity-50 transition-opacity"
+              className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-opacity"
               style={{ background: '#8A9A5B' }}>
               {uploadPhase === 'compressing'
                 ? (captureType === 'video' ? 'Generating thumbnail…' : `Compressing… ${uploadProgress}%`)
@@ -510,10 +526,10 @@ export default function Media() {
             style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }}
             onClick={e => e.stopPropagation()}>
             <button onClick={() => setViewerIdx(null)}
-              className="w-9 h-9 rounded-full bg-[var(--c-ghost)] flex items-center justify-center">
-              <X size={18} className="text-[var(--c-text)]"/>
+              className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
+              <X size={18} className="text-white"/>
             </button>
-            <span className="text-xs text-[var(--c-sub)]">{viewerIdx + 1} / {filtered.length}</span>
+            <span className="text-xs text-white/70">{viewerIdx + 1} / {filtered.length}</span>
             <div className="w-9"/>
           </div>
 
@@ -541,11 +557,11 @@ export default function Media() {
               <>
                 <button onClick={e => { e.stopPropagation(); prevItem() }}
                   className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-                  <ChevronLeft size={20} className="text-[var(--c-text)]"/>
+                  <ChevronLeft size={20} className="text-white"/>
                 </button>
                 <button onClick={e => { e.stopPropagation(); nextItem() }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-                  <ChevronRight size={20} className="text-[var(--c-text)]"/>
+                  <ChevronRight size={20} className="text-white"/>
                 </button>
               </>
             )}
@@ -554,8 +570,9 @@ export default function Media() {
           {/* Info panel */}
           <div className="shrink-0 px-5 pt-4 pb-8 bg-gradient-to-t from-black to-transparent"
             onClick={e => e.stopPropagation()}>
+            {/* The viewer is black in both themes — white text, fixed. */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-[var(--c-ghost)] text-[var(--c-text-80)]">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white/15 text-white">
                 {filtered[viewerIdx].plotLabel}
               </span>
               <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
@@ -563,16 +580,16 @@ export default function Media() {
                 {filtered[viewerIdx].activity}
               </span>
               {filtered[viewerIdx].duration && (
-                <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-[var(--c-ghost)] text-[var(--c-sub)]">
+                <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-white/15 text-white/80">
                   {filtered[viewerIdx].duration}
                 </span>
               )}
-              <span className="text-xs text-[var(--c-faint)] ml-auto">{filtered[viewerIdx].date}</span>
+              <span className="text-xs text-white/60 ml-auto">{fmtDate(filtered[viewerIdx].date)}</span>
             </div>
             {filtered[viewerIdx].caption && (
-              <p className="text-sm text-[var(--c-sub)] leading-relaxed">{filtered[viewerIdx].caption}</p>
+              <p className="text-sm text-white/85 leading-relaxed">{filtered[viewerIdx].caption}</p>
             )}
-            <p className="text-[10px] text-[var(--c-faint)] mt-1">By {filtered[viewerIdx].uploadedBy}</p>
+            <p className="text-[10px] text-white/50 mt-1">By {filtered[viewerIdx].uploadedBy}</p>
           </div>
         </div>
       )}

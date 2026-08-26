@@ -252,23 +252,25 @@ function TasksDueSection({ tasksDue, onMarkDone }) {
 }
 
 // ── The shared day card — renders identically for "today" and every History day ─
-// `action` is an optional control rendered on the date row — today's card passes
-// Log Expense + Log Activity; History cards pass nothing, so it stays off past
-// days. The row wraps: two buttons don't fit beside a long weekday name on a
-// phone, and wrapping drops them to their own right-aligned line instead of
-// overflowing the card.
+// `action` is an optional control rendered on its OWN full-width row under the
+// date — today's card passes Log Activity + Log Expense; History cards pass
+// nothing, so past days carry no buttons. The two used to sit squeezed on the
+// date row, wrapping awkwardly beside a long weekday name; full width is how
+// every other card in the app carries its action (components/RegisterCard).
 export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone, action }) {
   const tasksDueCount = tasksDue ? (tasksDue.overdue?.length || 0) + (tasksDue.today?.length || 0) + (tasksDue.done?.length || 0) : 0
   return (
     <div className="rounded-2xl border p-3.5 space-y-3.5" style={{ background: 'var(--c-card)', borderColor: 'var(--c-border)' }}>
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-bold text-[var(--c-text)]">{format(parseISO(date), 'EEEE, d MMMM')}</p>
-        {isToday && (
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
-            Today
-          </span>
-        )}
-        {action && <div className="ml-auto shrink-0">{action}</div>}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-bold text-[var(--c-text)]">{format(parseISO(date), 'EEEE, d MMMM')}</p>
+          {isToday && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
+              Today
+            </span>
+          )}
+        </div>
+        {action}
       </div>
 
       <TasksDueSection tasksDue={tasksDue} onMarkDone={onMarkDone} />
