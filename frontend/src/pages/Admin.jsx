@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/workerRecovery'
+import useBackClose from '../hooks/useBackClose'
 
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
@@ -1896,6 +1897,8 @@ const FRow = ({ label, children }) => (
 )
 
 function ConfirmDialog({ title, message, confirmLabel = 'Delete', onConfirm, onCancel }) {
+  useBackClose(onCancel)   // back gesture = Cancel, never Confirm
+
   return (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/70 px-4 pb-6 sm:pb-0">
       <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border-md)] p-5 w-full max-w-sm space-y-4 shadow-2xl">

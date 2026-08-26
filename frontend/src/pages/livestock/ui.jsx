@@ -3,6 +3,7 @@
 import React from 'react'
 import { Beef, Bird, Dog } from 'lucide-react'
 import { BUCKETS } from '../../lib/attachments'
+import useBackClose from '../../hooks/useBackClose'
 
 export const DOCS  = BUCKETS.docs
 export const TODAY = new Date().toISOString().slice(0, 10)
@@ -198,6 +199,8 @@ export const daysFromToday = iso => {
 export const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
 
 export function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // one hook here covers every modal on all three livestock pages
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4"

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { X, Pencil, Trash2, Plus, AlertTriangle, ChevronLeft } from 'lucide-react'
 import { useAuthStore, isAdmin } from '../store/auth'
 import CreateFarmModal from './CreateFarmModal'
+import useBackClose from '../hooks/useBackClose'
 
 // Manage Farms — list every farm the user belongs to, with edit + delete for the
 // ones they admin, and an Add entry. Deletion is deliberately heavy: it spells
@@ -13,6 +14,9 @@ export default function ManageFarmsModal({ onClose }) {
   const [adding, setAdding] = useState(false)
 
   const active = view.farm
+
+  // Back gesture: out of edit/delete first, then out of the modal
+  useBackClose(() => { if (view.mode === 'list') onClose(); else setView({ mode: 'list' }) })
 
   return (
     <div style={overlay}>

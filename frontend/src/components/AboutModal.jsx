@@ -1,4 +1,5 @@
 import { X, Mail } from 'lucide-react'
+import useBackClose from '../hooks/useBackClose'
 
 const SUPPORT_EMAIL = 'deepakkaushik@pallitrans.com'
 const APP_VERSION   = '0.1.0'
@@ -6,6 +7,8 @@ const APP_VERSION   = '0.1.0'
 // About — app identity, version, and a direct line to the team. Kept intentionally
 // small; the contact button opens the user's mail client pre-addressed.
 export default function AboutModal({ onClose }) {
+  useBackClose(onClose)   // back gesture = ✕
+
   const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Farm Manager — support request')}`
 
   return (

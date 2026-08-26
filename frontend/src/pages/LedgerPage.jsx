@@ -12,6 +12,7 @@ import {
   monthLabel, periodLabel, periodSlug,
 } from '../lib/period'
 import { summarizeCropPnl } from '../lib/farmOverview'
+import useBackClose from '../hooks/useBackClose'
 import { groupLabourRows, shortDate } from '../lib/labourGroups'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -102,6 +103,8 @@ function MetricCard({ label, value, color, sub }) {
 
 // ── Modal wrapper ─────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // one hook here covers every modal on this page
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>
@@ -861,6 +864,9 @@ function IncomeTab({ incomeLedger, cropResiduals = [], onRecordSale }) {
   const [saleForm, setSaleForm] = useState(null) // { id, productName, quantity, unit, expectedRate }
   const [saving, setSaving]     = useState(false)
   const [saleData, setSaleData] = useState({ actualRate: '', buyerName: '', saleDate: new Date().toISOString().slice(0, 10), paymentStatus: 'pending', notes: '' })
+
+  // This one is drawn inline rather than through the Modal shell above
+  useBackClose(() => { if (!saving) setSaleForm(null) }, !!saleForm)
 
   const totalIncome    = incomeLedger.reduce((s, r) => s + Number(r.amount || 0), 0)
   const livestockTotal = incomeLedger.filter(r => r.source_type === 'livestock').reduce((s, r) => s + Number(r.amount || 0), 0)

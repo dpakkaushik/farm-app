@@ -3,6 +3,7 @@ import Attachment from '../../components/Attachment'
 import { BUCKETS } from '../../lib/attachments'
 import { CAT_EMOJI, StatusPill } from './vocab'
 import { sheetSubline, assetFacts, disposalFacts, isRetired } from './assetFacts'
+import useBackClose from '../../hooks/useBackClose'
 
 // The record behind a register card. Opens as a bottom sheet over the list and
 // carries everything the card deliberately does not: price, dates, the bill, the
@@ -14,6 +15,8 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
   const facts   = assetFacts(item, kind, vendorName)
   const gone    = disposalFacts(item)
   const retired = isRetired(item)
+
+  useBackClose(onClose)   // back gesture = ✕
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose}>

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { X, Download, ExternalLink, Pencil, Trash2 } from 'lucide-react'
 import ImageCropper from './ImageCropper'
 import { resolveUrl, isPdf, BUCKETS } from '../lib/attachments'
+import useBackClose from '../hooks/useBackClose'
 
 /**
  * Full-screen attachment viewer.
@@ -20,6 +21,8 @@ export default function ImageViewer({
   const [busy, setBusy] = useState(false)
   const drag     = useRef(null)
   const inputRef = useRef()
+
+  useBackClose(onClose)   // back gesture = ✕ (the cropper above traps its own)
 
   const pick = (e) => {
     const f = e.target.files?.[0]

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { X, ChevronLeft, Package, Sprout, Check, Wallet, Store, Truck, Users } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore, isAdmin, getActiveFarmRole } from '../store/auth'
+import useBackClose from '../hooks/useBackClose'
 
 // Mid-year onboarding (docs/PLAN-mid-year-onboarding.md). A farm that signs up
 // mid-season already has stock in the store and crops in the ground — some near
@@ -162,6 +163,8 @@ function CardButton({ done, label, onClick }) {
 // sheet would lay itself out inside that zero-height box and never be seen.
 
 function Sheet({ onClose, children }) {
+  useBackClose(onClose)   // back gesture closes the checklist, not the screen
+
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center">
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={onClose} />

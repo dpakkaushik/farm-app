@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../store'
 import FilePicker from '../components/FilePicker'
 import { uploadAttachment, BUCKETS } from '../lib/attachments'
+import useBackClose from '../hooks/useBackClose'
 
 // This file used to be a full page — the Expenses tab on Today, with a summary
 // header, category filter chips and a delete-able list. The owner asked for the
@@ -66,6 +67,8 @@ const PAY_MODES = ['cash', 'upi', 'bank', 'credit']
 const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
 
 function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // the phone's back gesture dismisses the form, not the screen
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4"

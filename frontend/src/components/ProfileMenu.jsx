@@ -6,6 +6,7 @@ import { useAppStore } from '../store'
 import { useThemeStore } from '../store/theme'
 import ManageFarmsModal from './ManageFarmsModal'
 import AboutModal from './AboutModal'
+import useBackClose from '../hooks/useBackClose'
 
 const SUPPORT_EMAIL = 'deepakkaushik@pallitrans.com'
 
@@ -78,6 +79,9 @@ export default function ProfileMenu() {
   const admin   = isAdmin(activeFarmRole)
   const manager = isManager(activeFarmRole)
   const isDark  = theme === 'dark'
+
+  // Stays mounted behind the avatar, so the drawer's own flag says when it counts
+  useBackClose(() => setOpen(false), open)
 
   useEffect(() => {
     const onMouseDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }

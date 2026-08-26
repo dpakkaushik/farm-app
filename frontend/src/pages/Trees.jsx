@@ -6,6 +6,7 @@ import { useTreeStore } from '../store/trees'
 import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import ImageViewer from '../components/ImageViewer'
+import useBackClose from '../hooks/useBackClose'
 import ImageCropper from '../components/ImageCropper'
 import { uploadAttachment, deleteAttachment } from '../lib/attachments'
 
@@ -45,6 +46,8 @@ const money = n => `₹${Math.round(n || 0).toLocaleString('en-IN')}`
 const inp = 'w-full px-3 py-2.5 rounded-xl text-sm border outline-none bg-[var(--c-ghost)] border-[var(--c-border)] text-[var(--c-text)]'
 
 function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // one hook here covers every modal on this page
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4"

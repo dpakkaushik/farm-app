@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import Cropper from 'react-easy-crop'
 import { RotateCw, Check, X } from 'lucide-react'
 import imageCompression from 'browser-image-compression'
+import useBackClose from '../hooks/useBackClose'
 
 const ASPECTS = [
   { key: 'free',   label: 'Free',   value: undefined },
@@ -52,6 +53,8 @@ export default function ImageCropper({ file, onDone, onCancel }) {
   const [aspect,   setAspect]   = useState('free')
   const [area,     setArea]     = useState(null)
   const [busy,     setBusy]     = useState(false)
+
+  useBackClose(() => { if (!busy) onCancel() })   // back gesture = ✕
 
   const [src] = useState(() => URL.createObjectURL(file))
   const onCropComplete = useCallback((_, px) => setArea(px), [])

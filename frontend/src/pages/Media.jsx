@@ -6,6 +6,7 @@ import imageCompression from 'browser-image-compression'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { useAuthStore, isAdmin } from '../store/auth'
+import useBackClose from '../hooks/useBackClose'
 
 // ── Compression profiles ────────────────────────────────────────────────────
 const FULL_OPTIONS = {
@@ -118,14 +119,24 @@ export default function Media() {
   const activeFarmRole = farms.find(f => f.farm_id === activeFarmId)?.role || null
   const adminUser = isAdmin(activeFarmRole)
 
-  const deleteMedia = async (item, e) => {
-    e.stopPropagation()
-    if (!window.confirm('Delete this media permanently?')) return
+  const [deleting, setDeleting] = useState(false)
+
+  const deleteMedia = async (item) => {
     const bucket = item.type === 'video' ? 'farm-videos' : 'farm-photos'
-    if (item.storagePath)  await supabase.storage.from(bucket).remove([item.storagePath])
-    if (item.thumbnailPath) await supabase.storage.from(bucket).remove([item.thumbnailPath])
-    await supabase.from('media_files').delete().eq('id', item.id)
+    setDeleting(true)
+    try {
+      if (item.storagePath)   await supabase.storage.from(bucket).remove([item.storagePath])
+      if (item.thumbnailPath) await supabase.storage.from(bucket).remove([item.thumbnailPath])
+      const { error } = await supabase.from('media_files').delete().eq('id', item.id)
+      if (error) throw error
+    } catch (err) {
+      window.alert(`Could not delete this ${item.type === 'video' ? 'video' : 'photo'}: ${err.message || 'please try again'}`)
+      return false
+    } finally {
+      setDeleting(false)
+    }
     useAppStore.setState(s => ({ mediaItems: s.mediaItems.filter(m => m.id !== item.id) }))
+    return true
   }
   const [searchParams] = useSearchParams()
 
@@ -307,9 +318,25 @@ export default function Media() {
   const prevItem = () => setViewerIdx(i => (i - 1 + filtered.length) % filtered.length)
   const nextItem = () => setViewerIdx(i => (i + 1) % filtered.length)
 
+  // Deleting lives in the viewer, not on the grid tile: a tile bin can only show
+  // itself on hover, and a phone never hovers.
+  const deleteCurrent = async () => {
+    const item = filtered[viewerIdx]
+    if (!item || deleting) return
+    if (!window.confirm(`Delete this ${item.type === 'video' ? 'video' : 'photo'} permanently?`)) return
+    if (!await deleteMedia(item)) return
+    // One fewer to look at: close on the last one, else step back off the end.
+    if (filtered.length <= 1)                setViewerIdx(null)
+    else if (viewerIdx >= filtered.length - 1) setViewerIdx(filtered.length - 2)
+  }
+
   const photoCount = mediaItems.filter(m => m.type === 'photo').length
   const videoCount = mediaItems.filter(m => m.type === 'video').length
   const isBusy     = uploadPhase !== 'idle'
+
+  // Back gesture: out of the viewer, or out of the capture screen (never mid-upload)
+  useBackClose(() => setViewerIdx(null), viewerIdx !== null)
+  useBackClose(() => { if (!isBusy) resetCapture() }, capturing)
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -346,7 +373,7 @@ export default function Media() {
           <div style={{ columns: '2', columnGap: '8px' }}>
             {filtered.map((item, idx) => (
               <div key={item.id}
-                className="mb-2 break-inside-avoid cursor-pointer rounded-2xl overflow-hidden bg-[var(--c-nav)] group"
+                className="mb-2 break-inside-avoid cursor-pointer rounded-2xl overflow-hidden bg-[var(--c-nav)]"
                 style={{ breakInside: 'avoid' }}
                 onClick={() => setViewerIdx(idx)}>
 
@@ -393,13 +420,6 @@ export default function Media() {
                     </div>
                     <p className="text-[9px] text-white/70">{fmtDate(item.date)}</p>
                   </div>
-                  {adminUser && (
-                    <button
-                      onClick={e => deleteMedia(item, e)}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-[#E24B4A]/80 transition-all border border-white/20">
-                      <Trash2 size={12} className="text-white"/>
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
@@ -530,7 +550,13 @@ export default function Media() {
               <X size={18} className="text-white"/>
             </button>
             <span className="text-xs text-white/70">{viewerIdx + 1} / {filtered.length}</span>
-            <div className="w-9"/>
+            {/* Fixed white, never a theme token: this bar sits on black. */}
+            {adminUser ? (
+              <button onClick={deleteCurrent} disabled={deleting} aria-label="Delete"
+                className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center disabled:opacity-40">
+                <Trash2 size={17} className="text-white"/>
+              </button>
+            ) : <div className="w-9"/>}
           </div>
 
           {/* Media — full quality for viewer */}

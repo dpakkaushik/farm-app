@@ -1,4 +1,5 @@
 import { X } from 'lucide-react'
+import useBackClose from '../hooks/useBackClose'
 
 // The one bottom-sheet shell: dim backdrop, handle, centred title, ✕, a
 // scrolling body and an optional pinned footer. z-50 so it covers the floating
@@ -9,6 +10,8 @@ import { X } from 'lucide-react'
 // option list changes); leave it out and the sheet takes the height of what is
 // inside it, up to maxHeight.
 export default function BottomSheet({ title, onClose, children, footer, height, maxHeight = '88vh' }) {
+  useBackClose(onClose)   // the phone's back gesture dismisses the sheet, not the screen
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}>

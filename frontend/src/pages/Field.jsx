@@ -7,6 +7,7 @@ import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
 import { farmApi } from '../api/client'
 import SetupChecklist from '../components/SetupChecklist'
 import useWeather from '../hooks/useWeather'
+import useBackClose from '../hooks/useBackClose'
 import { weatherEmoji, weatherCondition } from '../lib/weather'
 import { isActive, speciesEmoji, animalLabel } from './livestock/ui'
 import {
@@ -869,6 +870,8 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
   const isReady = cycles.some(c => c.isReady)
   const stage   = STAGE[plot.stage] || STAGE.growing
   const canLog  = isManager(getActiveFarmRole())
+
+  useBackClose(onClose)   // back gesture closes the plot sheet, not the app
 
   return (
     <>

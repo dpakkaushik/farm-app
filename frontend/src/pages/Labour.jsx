@@ -9,6 +9,7 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSummary } from '../lib/labourMonth'
 import { contractUnit } from '../lib/labourGroups'
+import useBackClose from '../hooks/useBackClose'
 import {
   owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
   khataEvents, buildWorkerKhata, recoveryOutcome,
@@ -621,6 +622,11 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
   const [saving,  setSaving]  = useState(false)
   const [ledger,  setLedger]  = useState(null)   // { worker, entries, loading }
+
+  // The phone's back gesture dismisses whichever of these is open, rather than
+  // walking off the screen with a half-filled payment form.
+  useBackClose(() => setLedger(null), !!ledger)
+  useBackClose(() => { if (!saving) setModal(null) }, !!modal)
 
   // v_salary_dues is the authoritative khata balance, and — unlike this screen's
   // worker lists — it has no status filter, so it is the only place a worker who

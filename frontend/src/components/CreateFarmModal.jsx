@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
 import { useMapStore } from '../store'
+import useBackClose from '../hooks/useBackClose'
 
 export default function CreateFarmModal({ onClose }) {
   const navigate = useNavigate()
@@ -10,6 +11,13 @@ export default function CreateFarmModal({ onClose }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [pickMode, setPickMode] = useState(false)
+
+  // Back gesture: out of map-picking first (the typed form survives), then out
+  useBackClose(() => {
+    if (loading) return
+    if (pickMode) setPickMode(false)
+    else onClose()
+  })
 
   const handleSubmit = async (e) => {
     e.preventDefault()

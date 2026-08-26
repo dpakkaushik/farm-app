@@ -7,6 +7,7 @@ import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '
 import { useAuthStore, isManager } from '../store/auth'
 import { supabase } from '../lib/supabase'
 import useWeather from '../hooks/useWeather'
+import useBackClose from '../hooks/useBackClose'
 import { weatherLine } from '../lib/weather'
 import { buildDayBundle, datesInRange } from './today/dayBundle'
 import DayCard from './today/DayCard'
@@ -89,6 +90,12 @@ function TodayBoard() {
   const [actNotes,      setActNotes]      = useState('')
   const [doneTasks,     setDoneTasks]     = useState(new Set())
   const [saving,        setSaving]        = useState(false)
+
+  // The back gesture dismisses whatever is open over the board — a half-filled
+  // Log Activity form is exactly what it must not walk off with. (The expense
+  // form and the History sheet bring their own from their shells.)
+  useBackClose(() => { if (!saving) setShowModal(false) }, showModal)
+  useBackClose(() => setShowNotif(false), showNotif)
 
   // Deep link: /today?log=expense opens the expense form straight away — the
   // door Livestock's Add Expense and the /expenses route walk through. The old

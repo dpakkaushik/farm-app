@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabase'
 import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
 import { registerSummary } from './assets/assetFacts'
 import { MACHINE_TYPES, ASSET_CATS } from './Assets'
+import useBackClose from '../hooks/useBackClose'
 
 const TODAY_STR = localToday()
 // A bill line lands in one of three registers. Stock is consumed; machinery and
@@ -53,6 +54,10 @@ export default function Inventory() {
   const [toast,     setToast]     = useState(null)
   const [toastType, setToastType] = useState('success')
   const [saving,    setSaving]    = useState(false)
+
+  // The history overlay is a drill-down, so the back gesture backs out of it —
+  // the page's modals get theirs from the Modal shell below.
+  useBackClose(() => setLogView(null), !!logView)
 
   // Bill purchase state. `date` is the bill's own date and starts EMPTY on
   // purpose — see lib/billdates.js for the ₹1.12 lakh of July data that a
@@ -901,6 +906,8 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // one hook here covers every modal on this page
+
   return (
     <div className="fixed inset-0 z-50 flex items-end" style={{ background: 'rgba(0,0,0,0.7)' }} onClick={onClose}>
       <div className="w-full bg-[var(--c-nav)] rounded-t-3xl p-5 max-h-[92vh] overflow-y-auto border-t border-[var(--c-border-md)]"

@@ -11,137 +11,68 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-26 (combined filter on Media + Harvest; Resources = one page head; Today leads with weather, History is a filter; /uikit visual harness) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-26 (Media's delete moved where a phone can reach it; the Android back gesture now closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
-"Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
-×8). Two fixes in [`dayBundle.js`](frontend/src/pages/today/dayBundle.js), both pure + tested
-(new `__tests__/dayBundle.test.js`, 9 specs — vitest picks up tests anywhere under `src/`):
-(1) `shortPlotLabel` strips a leading "Plot " from each label in the merged list, so the
-title reads "Spray / Pesticide — Plots: E1, E2, P" (singular "Plot:" for one; custom names
-like "Back field" pass through whole); (2) notes dedupe per merged row, trim/case-insensitive,
-first form kept — genuinely different notes still all show, in entry order. Display-only;
-the per-plot `activity_logs` rows are untouched. **Then his "why is Irrigation written
-twice" → a de-noise pass, on his word ("remove it if not good … check wherever there is
-additional text like this"):** (1) `dayBundle` drops a note that merely echoes the row's
-label/type — Done on a scheduled task writes the task's name as the note, so "Irrigation"
-sat under Irrigation; "First weeding" under Weeding survives (2 more specs); (2)
-`ScheduledCard` printed `task.label` in BOTH its pill and its text line — the pill now names
-the kind ("Weeding", humanised from `task.type`), the line the task, and the line is dropped
-when they're the same word; (3) the Trees species card lost its Hindi subline — nearly always
-the same word in another script (Safeda / सफेदा); the field stays in the data and edit form;
-(4) the 🍎🍇 pair no longer stacks vertically in the 44px photo slot (`text-base
-whitespace-nowrap`). **167 tests green.**
-**Harvest cards, his ask ("both ratoon and cane should have similar cards"):** the cane card
-had no clock/progress bar at all — `Harvest.jsx` branched on `isCane()` and the cane branch
-was built around mill/parchi only. Now the timing maths (`daysSown`, `daysToWindow`, `pct`,
-READY/Soon, border colour) is computed once per cycle ABOVE the branch, and three shared
-components — `CycleClock`, `CycleProgress`, `EstYield` — render identically on both shapes;
-the cane card keeps its mill row, parchi table and Log Supply/Close Harvest beneath. The
-non-cane branch lost its inline copies of the same markup.
-**Assets register rebuilt (25 Aug, latest), on his question *"does it even make sense to show
-value so prominently … put details inside the card which opens on tap?"* → my assessment, his
-"yeah do make it how a SaaS farm app should"; then his Inventory screenshot — *"this is a better
-example … should look same across all pages"* and *"do we need separate code for structuring?"*
-(no):** ONE shared **[`components/RegisterCard.jsx`](frontend/src/components/RegisterCard.jsx)**
-now draws every register card — Inventory stock AND both Assets tabs render through it (title ·
-subline · big figure right · label · coloured status line · one full-width bottom action). For an
-asset the figure is the QUANTITY, the status line "● In Use / Spare / Repair", the subline just
-the make (the kind line was dropped at his word — "Trailer" under "Trolly" said nothing), and
-the action is "⛽ Issue Diesel →" for a diesel machine else "→ Details"; the card body also
-opens the bottom **`AssetSheet`** (z-50; hero photo tap →
-viewer/add, fact grid from pure `assetFacts` — price, bought on, vendor, model/reg or
-"kept at", life, bill chip, notes; a "Sold/Scrapped" block from `disposalFacts`; actions
-Edit / Photo, and a small red "Dispose or sell" only while in service). Unset price/date show
-as "Not set" (dotted, taps to Edit) — a thin record is visible, not hidden. Only inline card
-action: **⛽ Issue Diesel** (the one weekly act; → `/resources?tab=inventory&cat=fuel`, which
-ResourcesPage/Inventory read from the URL). The two-figure value strip became one muted line
-(`registerSummary`: "25 items · Book value ₹23,00,000" + "All assets ₹26,11,000") — nothing in
-the app reads an asset's price except this screen, and green-bold cost read as money IN. New
-folder [`pages/assets/`](frontend/src/pages/assets/): `vocab.jsx` (STATUS_STYLE/CAT_EMOJI/
-StatusPill), `assetFacts.js` (**18 tests**), `AssetCard.jsx` (thin: maps an item onto
-RegisterCard's slots), `AssetSheet.jsx`; `MachineryTab`
-+ `FarmAssetsTab` collapsed into one `RegisterTab`; `ActionBar`/`BillChip` deleted. The sheet
-reads the live store row by id, so Edit/photo changes show instantly and Dispose (which drops
-the row) closes it. Earlier same day: register codes (m1/a1) off cards + Edit titles; six
-"VERIFY: …" import notes **cleared to NULL on the live DB** (Raja Hall, Batt Palao, Carah,
-Saravan, Harrow, Rajor — names never confirmed; Rajor may be a rotavator). **186 tests green.**
-Any future register (livestock list, buyers, vendors) should render through RegisterCard too.
-**Then, his two app-wide rules (25 Aug, latest):** (1) *"filter should be a dropdown instead of
-tabs across all app screens except ledger … with the symbol of a filter"* → one
-[`components/FilterSelect.jsx`](frontend/src/components/FilterSelect.jsx) (funnel icon + native
-select + chevron; goes sage while narrowed) replaced EVERY chip-strip filter: Assets (both tabs),
-Inventory stock categories, Media's four (plot · activity / year · month, now a 2×2 grid),
-Trees (species fruit/timber, sales leases/timber), Admin → Buyers, Livestock Health's animal
-select. Ledger untouched by his exception; Admin's Manpower strip, Today's count pills and
-Field's forecast strip are tabs/indicators, not filters — left alone. (2) *"add is a tab here
-while tree and livestock have a different-looking add … this is better"* → one
-[`components/AddButton.jsx`](frontend/src/components/AddButton.jsx) (the Herd tab's dashed
-"+ Add Animal" row) now opens every register list: Assets ("Add Machinery"/"Add Farm Asset"),
-Inventory ("New Purchase" — stock only arrives on a bill, so that IS the add; the solid button
-left the value strip), Trees ("Add a tree", "Record a sale"), Herd, Health ("Log a Vet Visit"),
-Admin Buyers. The per-page `Chip`/`FilterChips` helpers are deleted.
-**26 Aug — "so much empty space on the right side of the profile navigation" — a lesson, not
-just a fix.** First cut FILLED the space: live count figures on every Navigate row ("25 stock ·
-25 assets", "N head"…). He rejected it flat — *"i wanted lesser space, you filled the left put
-space with unnecessary data"*. Reverted the same day. The shipped answer is the drawer itself
-narrowed, `85%/340px` → `72%/280px` in [`ProfileMenu`](frontend/src/components/ProfileMenu.jsx);
-rows keep a chevron when they lead somewhere (none on Dark Mode / Log out). **Rule from this:
-when he says "empty space", take the space away; never invent content to occupy it.**
-**Same day — Media's four filters became ONE Zomato-style combined filter.** His ask: *"filter
-on the images tab should be a zomato type of combined filter when clicked sub filter will be
-seen … right now it has 4 filters"*. The 2×2 FilterSelect grid (plot · activity / year · month)
-and the header's Newest/Oldest button — which wore a funnel icon it had no right to — are gone.
-In their place a single funnel button in the header, badged with how many sub-filters are on;
-tapping it opens a bottom sheet with the categories down the left (Plot · Activity · Year ·
-Month · **Sort**, each showing its current pick beneath its name) and that category's options on
-the right. Choices are a DRAFT — the grid does not reshuffle until Apply, whose label counts the
-result first ("Show 34 items" / "No media matches") — then applied filters come back as removable
-chips under the header, and **only then**: an unfiltered screen carries no strip at all, so the
-photos start ~90px higher than they did. New shared pair, meant for any future multi-filter
-screen: [`components/FilterSheet.jsx`](frontend/src/components/FilterSheet.jsx) (+ its
-`AppliedChips`) over pure [`lib/filterSheet.js`](frontend/src/lib/filterSheet.js) (**13 tests**).
-Two non-obvious bits: a group's `allValue` may not be `'all'` (Sort defaults to `'newest'`, so it
-only counts as a filter once moved), and `groups` can be a **function of the draft** because
-Media's month list is the months inside the chosen year — `sanitizeDraft` then drops a value the
-new options no longer offer instead of filtering everything away. **FilterSelect stays the
-answer for a screen with one thing to narrow by** (Assets, Inventory, Trees, Buyers, Health);
-this is its big brother, not its replacement. Fixed en route: `.animate-slide-up` was declared
-only inside Field.jsx's own `<style>`, so every sheet opened on another page (AssetSheet
-included) simply appeared — the keyframes are in `index.css` now. **199 tests green.**
-**Then his next three (26 Aug, all shipped in `5f9c4c6`).** (1) **Harvest reuses the same
-combined filter** — plot · crop · **stage** (Standing / Open sales / Past harvests) behind one
-funnel beside New Cycle, chips beneath. (2) **Resources is ONE page head: Inventory · Machinery
-· Assets.** Every screen there used to open under TWO stacked tab strips; Inventory's
-Purchases/Issues became **buttons on Current Stock** that open the existing log views over the
-page (back-arrow header), and `Assets` now takes a **`kind` prop** from the head instead of owning
-a tab bar (`RegisterTab` is keyed on it — its category filter would otherwise survive the switch
-and hide everything). Inventory's loud sage value card became the same quiet one-line strip
-Assets carries (`registerSummary(…, 'Stock value')`), and **stock on the shelf now sorts to the
-top** — a stable sort sinking `currentStock === 0` to the bottom (his ask; twelve items read zero
-after the July cleanup and alphabetical order scattered them through the real shelf). It copies
-before sorting: `inventoryMaster` is store state. (3) **Today's header leads with the weather**
-(`hooks/useWeather.js` + `lib/weather.js`, shared with the Field map's pill, which lost its private
-copy) — no 👋, and no date line (every day card prints its own). **History moved from a collapsed
-panel at the page BOTTOM to a filter beside the bell**: quick picks (Last 30 days / This month /
-Last month) + a date range in [`today/HistorySheet.jsx`](frontend/src/pages/today/HistorySheet.jsx),
-applied as a chip, and the feed becomes that range instead of Last 7 Days (never both). **The bell's
-calendar looks BACK too**: a blue corner dot on every date with records (from `datesInRange` over the
-store, no fetch) and a "See what happened →" button that loads that one day into the feed — so it is
-"Farm Calendar" now, not "Task Calendar". Count chips and the two log buttons match the register
-cards. [`components/BottomSheet.jsx`](frontend/src/components/BottomSheet.jsx) is now the one sheet
-shell (FilterSheet + HistorySheet sit on it).
-**How this was checked, and it is worth reusing: a dev-only `/uikit` route**
-([`pages/UiKit.jsx`](frontend/src/pages/UiKit.jsx), gated on `import.meta.env.DEV`) renders the REAL
-pages over a fake in-memory store — no login, no live data — and Playwright screenshots them in both
-themes (driver installed in the scratchpad, not the repo, so Vercel builds are untouched; the
-`@playwright/mcp --extension` server can't work here without a Chrome bridge extension). Note the
-harness must re-apply its fixture on a store subscription: the app's own `loadAll()` runs for the
-seeded farm, fails, and empties every slice. **That pass immediately found a real bug: Media's photo
-overlays used theme tokens over an always-dark gradient**, so in LIGHT mode the date, the plot chip,
-the `pesticide` tag (its `bg` was `var(--c-card-danger)`) and both FAB icons were invisible. All fixed
-white; dates read "26 Aug"; "1 videos" is singular. **Rule: anything drawn on a photo, a black viewer
-or a coloured FAB takes a fixed white, never `--c-text`/`--c-sub`.**
+**Just shipped (26 Aug, latest) — two things a hand holding a phone could not do.**
+(1) **Media's delete was unusable on a phone.** The bin on each grid tile was `opacity-0
+group-hover:opacity-100`, and a phone never hovers — so the only door to deleting a photo was
+invisible. It now sits in the **viewer's** top bar beside the ✕ and the "3 / 34" count (admin
+only), where every photo app puts it: tap photo → bin → confirm. Deleting the last item closes
+the viewer, deleting the one on the end steps back, and `deleteMedia` finally has a try/catch
+(a Storage failure used to delete the DB row and say nothing). Tiles now carry no buttons at all.
+(2) **The Android back gesture no longer walks off the screen** — full record and the
+convention for new overlays in [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md).
+The swipe reaches a web app as a plain history back, so it used to leave the whole page, taking
+any half-filled sheet with it (a manager three fields into Log Activity loses the entry — and
+nobody reports that, they just stop logging). An open overlay now **parks one history entry** and
+closes itself when that entry is popped: [`lib/backTrap.js`](frontend/src/lib/backTrap.js)
+(**7 tests**, browser plumbing injected so it runs under vitest's node env) +
+[`hooks/useBackClose.js`](frontend/src/hooks/useBackClose.js). Wired once per shell —
+`BottomSheet`, each page's local `Modal`, ImageViewer/Cropper, ProfileMenu, SetupChecklist,
+AssetSheet, the farm modals, Admin's ConfirmDialog — plus one call per state for the bespoke
+ones (Harvest ×8, Media's capture + viewer, Inventory's drill-down, Labour's khata + payment,
+Today's Log Activity + bell, the Ledger's inline sale form, Field's plot sheet). **New overlay?
+`useBackClose(onClose)` in its shell** — mounting is opening; pass a flag as the 2nd argument
+if it stays mounted; guard with `if (!saving)` where the backdrop already does. Four traps
+worth knowing, all test-pinned: the parked entry **copies** `history.state` (react-router
+keeps its `idx` there); only the **top** overlay may act on a popstate; a navigation made from
+inside an overlay is **never** undone; and a back still in flight from a remount can't close a
+fresh overlay. **Deliberately NOT built: back-to-minimise and predictive-back** — they need
+`@capacitor/app`, a native dep, so every phone would need a rebuilt APK reinstalled; this half
+is pure JS and rides a normal Vercel deploy. **206 tests green.** Verified in a real Chromium
+over `/uikit` (below), not just by the build.
+**The 25–26 Aug UI pass, as rules rather than a log** (details in git; commits `0150174`…`47718cb`):
+**one [`RegisterCard`](frontend/src/components/RegisterCard.jsx) draws every register card** —
+Inventory stock and both Assets tabs — and any future register (livestock list, buyers, vendors)
+should too; **one filter per screen wears a funnel**: [`FilterSelect`](frontend/src/components/FilterSelect.jsx)
+(dropdown) when there is one thing to narrow by, [`FilterSheet`](frontend/src/components/FilterSheet.jsx)
++ `AppliedChips` over pure [`lib/filterSheet.js`](frontend/src/lib/filterSheet.js) (Zomato-style
+combined sheet, draft until Apply, chips beneath, **no strip at all when unfiltered**) when there
+are several — Media and Harvest use it; the Ledger's own View control is his stated exception.
+Every register list opens with [`AddButton`](frontend/src/components/AddButton.jsx), and
+[`BottomSheet`](frontend/src/components/BottomSheet.jsx) is the one sheet shell.
+**Resources is ONE page head** (Inventory · Machinery · Assets — `Assets` takes a `kind` prop,
+`RegisterTab` keyed on it), Inventory's Purchases/Issues are buttons that open log views over
+the page, and **stock on the shelf sorts above empty shelves** (stable sort, copies first —
+`inventoryMaster` is store state). **Today leads with the weather** (`hooks/useWeather.js` +
+`lib/weather.js`, shared with the Field pill), no 👋 and no date line; **History is a filter
+beside the bell** ([`HistorySheet`](frontend/src/pages/today/HistorySheet.jsx), the feed becomes
+that range instead of Last 7 Days, never both); the bell is a **Farm Calendar** — blue dot on
+days with records, "See what happened →" loads that day. Day cards de-noise merged rows
+(`shortPlotLabel`, notes deduped, a note that merely echoes its label dropped) and Harvest's
+cane and non-cane cards share `CycleClock`/`CycleProgress`/`EstYield`.
+**Two rules from his corrections, both cheap to violate again:** when he says "empty space",
+**take the space away** — never invent content to fill it (the ProfileMenu drawer narrowed to
+`72%/280px`; a first cut that added live counts to every row was rejected outright); and
+**anything drawn on a photo, a black viewer or a coloured FAB takes a fixed white**, never
+`--c-text`/`--c-sub` (Media's overlays were invisible in light mode).
+**The check that found that, and it is worth reusing: a dev-only `/uikit` route**
+([`pages/UiKit.jsx`](frontend/src/pages/UiKit.jsx), gated on `import.meta.env.DEV`) renders the
+REAL pages over a fake in-memory store — no login, no live data — driven by Playwright from the
+scratchpad, never the repo, so Vercel builds are untouched (the `@playwright/mcp --extension`
+MCP server cannot work here: no Chrome bridge extension). The harness must re-apply its fixture
+on a store subscription — the app's own `loadAll()` runs for the seeded farm, fails, and empties
+every slice. It covers Today, Harvest, Resources, Media; adding a screen means adding fixture data.
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a

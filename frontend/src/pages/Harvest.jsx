@@ -7,6 +7,7 @@ import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import OpeningCostBreakup from '../components/OpeningCostBreakup'
 import FilterSheet, { AppliedChips } from '../components/FilterSheet'
+import useBackClose from '../hooks/useBackClose'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -108,6 +109,18 @@ export default function Harvest() {
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3500) }
+
+  // The phone's back gesture dismisses whichever modal is open instead of
+  // leaving the screen with a half-filled form. Same guard as each backdrop:
+  // never while a save is in flight. (The filter sheet brings its own.)
+  useBackClose(() => { if (!saving) setModal(null) },         !!modal)
+  useBackClose(() => { if (!saving) setSaleModal(null) },     !!saleModal)
+  useBackClose(() => { if (!saving) setCropPayModal(null) },  !!cropPayModal)
+  useBackClose(() => { if (!saving) setResidualModal(null) }, !!residualModal)
+  useBackClose(() => { if (!saving) setSupplyModal(null) },   !!supplyModal)
+  useBackClose(() => { if (!saving) setPayModal(null) },      !!payModal)
+  useBackClose(() => { if (!saving) setMillModal(null) },     !!millModal)
+  useBackClose(() => { if (!saving) setCloseModal(null) },    !!closeModal)
 
   // ── Derived data ──────────────────────────────────────────────────────────────
   const isCane = (cycle) => {

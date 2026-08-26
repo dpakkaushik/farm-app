@@ -12,6 +12,7 @@ import { CAT_EMOJI } from './assets/vocab'
 import { fmtINR as fmt, registerSummary, humanise } from './assets/assetFacts'
 import AssetCard  from './assets/AssetCard'
 import AssetSheet from './assets/AssetSheet'
+import useBackClose from '../hooks/useBackClose'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 // Exported: the purchase-bill screen offers the same vocabularies when a bill
@@ -69,6 +70,8 @@ function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
 }
 
 function Modal({ title, onClose, children }) {
+  useBackClose(onClose)   // one hook here covers every modal on this page
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-lg rounded-t-2xl p-5 pb-8 space-y-4" style={{ background: 'var(--c-nav)', maxHeight: '92vh', overflowY: 'auto' }}>
