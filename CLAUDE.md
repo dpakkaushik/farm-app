@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-26 (Media's 4 filters → one combined filter sheet; profile drawer narrowed, its count figures reverted) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-26 (combined filter on Media + Harvest; Resources = one page head; Today leads with weather, History is a filter; /uikit visual harness) · **detail:** [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
 **Just shipped (25 Aug) — the day card's merged Farm Activity row de-noised, his screenshot.**
 "Spray — Plots Plot F, Plot G, …" + the same note printed once per plot ("Pesticides sprey"
@@ -109,6 +109,36 @@ answer for a screen with one thing to narrow by** (Assets, Inventory, Trees, Buy
 this is its big brother, not its replacement. Fixed en route: `.animate-slide-up` was declared
 only inside Field.jsx's own `<style>`, so every sheet opened on another page (AssetSheet
 included) simply appeared — the keyframes are in `index.css` now. **199 tests green.**
+**Then his next three (26 Aug, all shipped in `5f9c4c6`).** (1) **Harvest reuses the same
+combined filter** — plot · crop · **stage** (Standing / Open sales / Past harvests) behind one
+funnel beside New Cycle, chips beneath. (2) **Resources is ONE page head: Inventory · Machinery
+· Assets.** Every screen there used to open under TWO stacked tab strips; Inventory's
+Purchases/Issues became **buttons on Current Stock** that open the existing log views over the
+page (back-arrow header), and `Assets` now takes a **`kind` prop** from the head instead of owning
+a tab bar (`RegisterTab` is keyed on it — its category filter would otherwise survive the switch
+and hide everything). Inventory's loud sage value card became the same quiet one-line strip
+Assets carries (`registerSummary(…, 'Stock value')`). (3) **Today's header leads with the weather**
+(`hooks/useWeather.js` + `lib/weather.js`, shared with the Field map's pill, which lost its private
+copy) — no 👋, and no date line (every day card prints its own). **History moved from a collapsed
+panel at the page BOTTOM to a filter beside the bell**: quick picks (Last 30 days / This month /
+Last month) + a date range in [`today/HistorySheet.jsx`](frontend/src/pages/today/HistorySheet.jsx),
+applied as a chip, and the feed becomes that range instead of Last 7 Days (never both). **The bell's
+calendar looks BACK too**: a blue corner dot on every date with records (from `datesInRange` over the
+store, no fetch) and a "See what happened →" button that loads that one day into the feed — so it is
+"Farm Calendar" now, not "Task Calendar". Count chips and the two log buttons match the register
+cards. [`components/BottomSheet.jsx`](frontend/src/components/BottomSheet.jsx) is now the one sheet
+shell (FilterSheet + HistorySheet sit on it).
+**How this was checked, and it is worth reusing: a dev-only `/uikit` route**
+([`pages/UiKit.jsx`](frontend/src/pages/UiKit.jsx), gated on `import.meta.env.DEV`) renders the REAL
+pages over a fake in-memory store — no login, no live data — and Playwright screenshots them in both
+themes (driver installed in the scratchpad, not the repo, so Vercel builds are untouched; the
+`@playwright/mcp --extension` server can't work here without a Chrome bridge extension). Note the
+harness must re-apply its fixture on a store subscription: the app's own `loadAll()` runs for the
+seeded farm, fails, and empties every slice. **That pass immediately found a real bug: Media's photo
+overlays used theme tokens over an always-dark gradient**, so in LIGHT mode the date, the plot chip,
+the `pesticide` tag (its `bg` was `var(--c-card-danger)`) and both FAB icons were invisible. All fixed
+white; dates read "26 Aug"; "1 videos" is singular. **Rule: anything drawn on a photo, a black viewer
+or a coloured FAB takes a fixed white, never `--c-text`/`--c-sub`.**
 
 **Just shipped (21 Aug, latest) — Today lost its Expenses tab.** His ask, with a screenshot
 of the two-tab strip: *"i rather want expense to be log expense like log activity not a
