@@ -90,6 +90,43 @@ export function groupTasksByDate(tasks) {
   return byDate
 }
 
+// The crop filter over the calendar (owner, 27 Aug). 'all' hands back the same
+// array so memoised consumers don't re-render for nothing.
+export function filterByCrop(tasks, crop) {
+  return crop === 'all' ? tasks : tasks.filter(t => t.cropName === crop)
+}
+
+// One month ahead, local parts only, day clamped — 31 Jan + 1 month is the last
+// day of February, not the 2nd/3rd of March that naive Date arithmetic rolls to.
+export function plusOneMonth(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const ny = m === 12 ? y + 1 : y
+  const nm = m === 12 ? 1 : m + 1
+  const lastDay = new Date(ny, nm, 0).getDate()   // day 0 of the month after = last of nm
+  return toStr(ny, nm, Math.min(d, lastDay))
+}
+
+// The four tabs' contents (owner, 27 Aug: "Overdue, Recorded, Scheduled and
+// Upcoming should be tabs"). Recorded is not here — records are activity, not
+// tasks, and come from the day bundle.
+//   due       — overdue first (most-late leading), then today's. Due-today rides
+//               in the Overdue tab because the day card's Tasks Due block is
+//               gone: this tab IS the nag list now, and one-tap Done lives here.
+//   scheduled — what is on the tapped date, whichever date that is.
+//   upcoming  — tomorrow through one month out, soonest first.
+export function partitionTasks(tasks, todayStr, selectedStr) {
+  const horizon = plusOneMonth(todayStr)
+  const overdue = tasks.filter(t => t.dateStr < todayStr)
+    .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+  const today = tasks.filter(t => t.dateStr === todayStr)
+  return {
+    due:       [...overdue, ...today],
+    scheduled: tasks.filter(t => t.dateStr === selectedStr),
+    upcoming:  tasks.filter(t => t.dateStr > todayStr && t.dateStr <= horizon)
+      .sort((a, b) => a.dateStr.localeCompare(b.dateStr)),
+  }
+}
+
 const MAX_DOTS = 3
 
 // The dots under a date number. A past date collapses to one red dot — "you

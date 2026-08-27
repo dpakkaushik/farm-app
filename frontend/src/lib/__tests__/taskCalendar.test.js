@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest'
 import {
   buildMonthGrid, monthOf, monthLabel, prevMonth, nextMonth,
   cropColorMap, groupTasksByDate, dateDots, OVERDUE_RED, CROP_PALETTE,
+  filterByCrop, plusOneMonth, partitionTasks,
 } from '../taskCalendar'
 
 // August 2026: the 1st is a Saturday, the 31st a Monday. A Sunday-first grid
@@ -141,5 +142,62 @@ describe('dateDots', () => {
   test('no tasks means no dots', () => {
     expect(dateDots([], '2026-08-25', TODAY, colorMap)).toEqual([])
     expect(dateDots(undefined, '2026-08-25', TODAY, colorMap)).toEqual([])
+  })
+})
+
+describe('filterByCrop', () => {
+  const tasks = [{ cropName: 'Paddy' }, { cropName: 'Sugarcane' }, { cropName: 'Paddy' }]
+
+  test("'all' returns the same array, not a copy", () => {
+    expect(filterByCrop(tasks, 'all')).toBe(tasks)
+  })
+  test('a crop narrows to that crop only', () => {
+    expect(filterByCrop(tasks, 'Paddy')).toEqual([{ cropName: 'Paddy' }, { cropName: 'Paddy' }])
+  })
+  test('an unknown crop matches nothing', () => {
+    expect(filterByCrop(tasks, 'Wheat')).toEqual([])
+  })
+})
+
+describe('plusOneMonth', () => {
+  test('mid-month just bumps the month', () => {
+    expect(plusOneMonth('2026-08-27')).toBe('2026-09-27')
+  })
+  test('day overflow clamps to the last day, never rolls over', () => {
+    expect(plusOneMonth('2026-01-31')).toBe('2026-02-28')   // not 2/3 March
+    expect(plusOneMonth('2024-01-31')).toBe('2024-02-29')   // leap year
+    expect(plusOneMonth('2026-08-31')).toBe('2026-09-30')
+  })
+  test('December crosses the year', () => {
+    expect(plusOneMonth('2026-12-15')).toBe('2027-01-15')
+  })
+})
+
+describe('partitionTasks', () => {
+  const TODAY = '2026-08-27'
+  const t = (dateStr, label) => ({ dateStr, label })
+  const tasks = [
+    t('2026-08-10', 'old-b'), t('2026-08-04', 'old-a'),          // overdue, out of order
+    t('2026-08-27', 'today'),
+    t('2026-09-05', 'soon'), t('2026-08-30', 'sooner'),          // upcoming, out of order
+    t('2026-09-27', 'edge'),                                     // exactly one month out
+    t('2026-09-28', 'beyond'),                                   // past the horizon
+  ]
+
+  test('due = overdue (most-late first) then today', () => {
+    const { due } = partitionTasks(tasks, TODAY, TODAY)
+    expect(due.map(x => x.label)).toEqual(['old-a', 'old-b', 'today'])
+  })
+  test('scheduled is exactly the tapped date, past dates included', () => {
+    const { scheduled } = partitionTasks(tasks, TODAY, '2026-08-10')
+    expect(scheduled.map(x => x.label)).toEqual(['old-b'])
+  })
+  test('upcoming runs tomorrow through one month out, soonest first', () => {
+    const { upcoming } = partitionTasks(tasks, TODAY, TODAY)
+    expect(upcoming.map(x => x.label)).toEqual(['sooner', 'soon', 'edge'])
+  })
+  test("today's tasks sit in due, not in upcoming", () => {
+    const { upcoming } = partitionTasks(tasks, TODAY, TODAY)
+    expect(upcoming.some(x => x.label === 'today')).toBe(false)
   })
 })

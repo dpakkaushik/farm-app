@@ -208,9 +208,10 @@ function TodayBoard() {
   const completedToday = todayTasks.filter(t =>  doneTasks.has(t.id))
   const pendingOverdue = overdue.filter(t => !doneTasks.has(t.id))
 
-  // The bell counts what was missed and what is coming. Today's own scheduled
-  // tasks are not counted — they are already on the day card, in front of you.
-  const notifCount = pendingOverdue.length + tomorrow.length + upcoming.length
+  // The badge counts what was missed and what is coming — INCLUDING today's
+  // pending tasks, now that the day card no longer carries a Tasks Due block
+  // (the calendar's Overdue tab replaced it, owner's 27-Aug restructure).
+  const notifCount = pendingOverdue.length + pendingToday.length + tomorrow.length + upcoming.length
 
   // Today's labour summary across all logged activities
   const todayRegularCount = useMemo(() => {
@@ -446,6 +447,7 @@ function TodayBoard() {
                 </div>
                 <TaskCalendar tasks={allPending} todayStr={TODAY_STR}
                   historyDates={historyDates} onOpenDay={openDay}
+                  bundleFor={d => buildDayBundle(d, todaySlices, resolvers)}
                   onMarkDone={isManager(activeFarmRole) ? markDone : undefined} />
               </div>
             </>
@@ -513,9 +515,9 @@ function TodayBoard() {
 
       <div className="px-4 space-y-4">
 
+        {/* Tasks Due left this card for the calendar's Overdue tab (owner,
+            27 Aug) — the badge above counts it, and Done lives there now. */}
         <DayCard date={TODAY_STR} isToday bundle={todayBundle}
-          tasksDue={{ overdue: pendingOverdue, today: pendingToday, done: completedToday }}
-          onMarkDone={markDone}
           action={isManager(activeFarmRole) ? (
             /* Twins, on the owner's word — identical weight, Log Activity
                first (the first cut styled Log Expense as a red outline and he

@@ -11,9 +11,28 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-27 (the bottom nav names the active tab and shrank; the plot sheet lost two buttons; one SummaryBox heads every register and log; the Android back gesture closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-27 (the Farm Calendar is four tabs — Overdue default — with a crop filter on top; the bottom nav names the active tab; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (27 Aug, latest) — three small fixes from one screenshot round.**
+**Just shipped (27 Aug, latest) — the Farm Calendar became FOUR TABS with a crop filter on
+top.** His refinement, after seeing the first cut live (*"crop filter should go up what you did
+is stupid. Overdue, Recorded, Scheduled and Upcoming should be tabs, by default Overdue should
+be Opened"*): the calendar panel now leads with a **crop `FilterSelect`** (drawn only when >1
+crop has tasks; colours assigned from ALL tasks so a crop keeps its colour while filtered), the
+grid beneath, the legend now purely explanatory, then **Overdue · Recorded · Scheduled ·
+Upcoming** as tabs. **Overdue opens by default and includes DUE TODAY** — it replaced the day
+card's Tasks Due block outright (his instruction reversed the old "the card keeps it" rule), so
+one-tap Done lives here and the badge now counts today's pending too. **Tapping any date jumps
+to Scheduled** for that date (his words); **Recorded** renders the tapped day's records IN the
+panel via the new exported `BundleSections` from [`DayCard.jsx`](frontend/src/pages/today/DayCard.jsx)
+(the day card renders the same piece inside its frame) plus an "Open this day in the feed →"
+link — note Recorded reads live store slices, so recovered advances on old dates only appear via
+that link's full fetch; **Upcoming** runs tomorrow → one month out (`plusOneMonth` clamps 31 Jan
+→ end-Feb). Pure logic — `filterByCrop` / `plusOneMonth` / `partitionTasks` — in
+[`lib/taskCalendar.js`](frontend/src/lib/taskCalendar.js), **10 new specs (216 green)**.
+`DayCard` lost its `tasksDue`/`onMarkDone` props; the Scheduled/Done count pills above the feed
+survive. Verified over `/uikit` in a real Chromium: default-Overdue, date-tap→Scheduled, and the
+Recorded tab showing 25 Aug's "Issued 8 Urea" + the feed link, no page errors.
+**Same day, earlier — three small fixes from one screenshot round.**
 (1) **The bottom nav names the tab you are on.** Icon-only was his 21-Aug ask and he changed his
 mind — *"earlier had names i guess … i want you to show the name of tab which is selected also
 make the floating bottom navigation card smaller"*. The active tab is now an icon + label inside
@@ -412,25 +431,7 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT — the Today calendar restructure. His words, 27 Aug, and the only part of that message
-not yet built:** *"if a user clicks over a past date it should show the activity on that … even
-task due which is in todays main tab should be below calneder which is expandable when clicked,
-when click over a date lets say past date should show tab see what happened other tab scheduled
-task a third tab upcoming task. calender should have a filter as well for crop."* So, inside the
-calendar panel ([`today/TaskCalendar.jsx`](frontend/src/pages/today/TaskCalendar.jsx)): a **crop
-filter** over the grid; the tapped date opens **three tabs — See what happened · Scheduled ·
-Upcoming**, with the day's records rendered IN the first tab instead of behind today's "See what
-happened →" button (keep a small link that still loads the day into the feed — that is the
-History filter with a one-day range); and the day card's **Tasks Due block MOVES here, below the
-calendar, expandable**. Two calls to make and state: whether "Upcoming" counts from today or from
-the tapped date (recommend **from today** — it is the badge's own scope, and "upcoming" from a
-past date is meaningless), and that moving Tasks Due **reverses the earlier "the day card keeps
-it" note** — his explicit instruction, so it goes, but **one-tap Done must survive the move**
-(design rule #5). Put the date-partitioning and crop filtering in
-[`lib/taskCalendar.js`](frontend/src/lib/taskCalendar.js) as pure functions with tests, like the
-17 already there. Worth a fresh session: the work is contained but the file reading is not.
-
-**Then, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
+**NEXT, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
 `go_live_convert` the bill-date standard — then the Books Health check (cash book vs account
 balances, bill header vs lines). Trial Balance stays rejected; do not relitigate.
 

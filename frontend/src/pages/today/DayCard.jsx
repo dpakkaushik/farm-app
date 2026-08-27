@@ -238,16 +238,20 @@ function MediaSection({ media }) {
   )
 }
 
-function TasksDueSection({ tasksDue, onMarkDone }) {
-  if (!tasksDue) return null
-  const { overdue = [], today = [], done = [] } = tasksDue
-  if (overdue.length === 0 && today.length === 0 && done.length === 0) return null
+// Every category of what a day RECORDED, in one exported piece — the day card
+// renders it inside its frame, and the calendar's Recorded tab renders it bare.
+// (Tasks Due is gone from the card: the calendar's Overdue tab is the nag list
+// now, at the owner's 27-Aug restructure.)
+export function BundleSections({ bundle }) {
   return (
-    <CategoryBlock label="Tasks Due" color="#BA7517" count={overdue.length + today.length}>
-      {overdue.map(t => <ScheduledCard key={t.id} task={t} status="overdue" onDone={() => onMarkDone(t)} />)}
-      {today.map(t   => <ScheduledCard key={t.id} task={t} status="today"   onDone={() => onMarkDone(t)} />)}
-      {done.map(t    => <ScheduledCard key={t.id} task={t} status="done" />)}
-    </CategoryBlock>
+    <>
+      <FarmActivitySection rows={bundle.farmActivity} />
+      <HarvestSalesSection rows={bundle.harvestSales} />
+      <InventorySection inventory={bundle.inventory} />
+      <LivestockSection rows={bundle.livestock} />
+      <ExpensePayrollSection rows={bundle.expensesPayroll} />
+      <MediaSection media={bundle.media} />
+    </>
   )
 }
 
@@ -257,8 +261,7 @@ function TasksDueSection({ tasksDue, onMarkDone }) {
 // nothing, so past days carry no buttons. The two used to sit squeezed on the
 // date row, wrapping awkwardly beside a long weekday name; full width is how
 // every other card in the app carries its action (components/RegisterCard).
-export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone, action }) {
-  const tasksDueCount = tasksDue ? (tasksDue.overdue?.length || 0) + (tasksDue.today?.length || 0) + (tasksDue.done?.length || 0) : 0
+export default function DayCard({ date, isToday, bundle, action }) {
   return (
     <div className="rounded-2xl border p-3.5 space-y-3.5" style={{ background: 'var(--c-card)', borderColor: 'var(--c-border)' }}>
       <div className="space-y-2.5">
@@ -273,15 +276,9 @@ export default function DayCard({ date, isToday, bundle, tasksDue, onMarkDone, a
         {action}
       </div>
 
-      <TasksDueSection tasksDue={tasksDue} onMarkDone={onMarkDone} />
-      <FarmActivitySection rows={bundle.farmActivity} />
-      <HarvestSalesSection rows={bundle.harvestSales} />
-      <InventorySection inventory={bundle.inventory} />
-      <LivestockSection rows={bundle.livestock} />
-      <ExpensePayrollSection rows={bundle.expensesPayroll} />
-      <MediaSection media={bundle.media} />
+      <BundleSections bundle={bundle} />
 
-      {bundle.isEmpty && tasksDueCount === 0 && (
+      {bundle.isEmpty && (
         <p className="text-xs text-[var(--c-faint)] italic text-center py-2">No activity recorded</p>
       )}
     </div>

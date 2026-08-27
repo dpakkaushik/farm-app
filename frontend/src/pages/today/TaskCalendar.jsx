@@ -1,53 +1,84 @@
 import React, { useState, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react'
-import { ScheduledCard } from './DayCard'
+import FilterSelect from '../../components/FilterSelect'
+import { ScheduledCard, BundleSections } from './DayCard'
 import {
   buildMonthGrid, monthOf, monthLabel, prevMonth, nextMonth,
-  cropColorMap, groupTasksByDate, dateDots, OVERDUE_RED,
+  cropColorMap, groupTasksByDate, dateDots, filterByCrop, partitionTasks,
+  OVERDUE_RED,
 } from '../../lib/taskCalendar'
 
 // The blue the Today board already uses for "Logged" — history, not schedule.
 const RECORD_BLUE = '#3b82f6'
 
-// The bell's panel: a month of scheduled crop-template tasks as coloured dots —
-// one colour per crop, red for a missed date — with the tapped date's tasks
-// listed underneath as the same cards the day card uses, Done button included.
-// This replaced a flat Overdue/Tomorrow/Upcoming list at the owner's ask; the
-// day card's Tasks Due block deliberately survives as the nag for overdue and
-// today, because a calendar looks forward and one-tap Done must stay one tap.
+// The calendar behind the header's calendar button. Restructured to the owner's
+// 27-Aug spec: a CROP FILTER on top of the grid, and beneath it four TABS —
+//   Overdue   (default) — the nag list: everything missed plus due today, with
+//               one-tap Done. This replaced the day card's Tasks Due block, so
+//               losing Done here would lose it everywhere (design rule #5).
+//   Recorded  — what actually happened on the tapped date, rendered from the
+//               same day bundle the feed uses, with a link to open the full day.
+//   Scheduled — what the crop templates put on the tapped date.
+//   Upcoming  — tomorrow through one month out.
+// Tapping a date selects it and jumps to Scheduled — his words: "clicking on a
+// date if past date the Scheduled on that date … should open in that tab".
 //
-// It looks BACK as well now (owner, 26 Aug: "calendar should show history as
-// well"): a date with anything recorded on it carries a blue bar under the
-// number — the same blue the Logged chip uses — and the panel offers to open
-// that day in the feed, which is the History filter with a one-day range.
 //   historyDates: Set of 'YYYY-MM-DD' that have records
-//   onOpenDay:    (dateStr) => void
-export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates, onOpenDay }) {
+//   bundleFor:    (dateStr) => day bundle, for the Recorded tab. Reads the live
+//                 store slices, so recovered advances on old dates may be
+//                 missing — the "Open in feed" link does the full fetch.
+//   onOpenDay:    (dateStr) => void — the History filter with a one-day range
+export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates, bundleFor, onOpenDay }) {
   const [ym, setYm]             = useState(monthOf(todayStr))
   const [selected, setSelected] = useState(todayStr)
+  const [crop, setCrop]         = useState('all')
+  const [tab, setTab]           = useState('due')
 
+  // Colours come from ALL tasks so a crop keeps its colour while filtered out.
   const colorMap = useMemo(() => cropColorMap(tasks.map(t => t.cropName)), [tasks])
-  const byDate   = useMemo(() => groupTasksByDate(tasks), [tasks])
-  const grid     = useMemo(() => buildMonthGrid(ym), [ym])
+  const cropNames = useMemo(() => [...new Set(tasks.map(t => t.cropName))].sort(), [tasks])
 
-  const hasOverdue    = tasks.some(t => t.dateStr < todayStr)
-  const cropsInMonth  = useMemo(() => {
-    const names = new Set()
-    grid.flat().forEach(c => (byDate[c.dateStr] || []).forEach(t => names.add(t.cropName)))
-    return [...names].sort()
-  }, [grid, byDate])
+  const shown  = useMemo(() => filterByCrop(tasks, crop), [tasks, crop])
+  const byDate = useMemo(() => groupTasksByDate(shown), [shown])
+  const grid   = useMemo(() => buildMonthGrid(ym), [ym])
+  const parts  = useMemo(() => partitionTasks(shown, todayStr, selected), [shown, todayStr, selected])
 
-  const selectedTasks     = byDate[selected] || []
-  const selectedHasRecord = !!historyDates?.has(selected)
-  const monthHasRecords   = useMemo(
+  const monthHasRecords = useMemo(
     () => grid.flat().some(c => c.inMonth && historyDates?.has(c.dateStr)),
     [grid, historyDates])
+  const hasOverdue = shown.some(t => t.dateStr < todayStr)
+
+  const selectedHasRecord = !!historyDates?.has(selected)
+  const selectedBundle    = useMemo(
+    () => (tab === 'recorded' && bundleFor ? bundleFor(selected) : null),
+    [tab, bundleFor, selected])
+
   const statusFor = dateStr =>
     dateStr < todayStr ? 'overdue' : dateStr === todayStr ? 'today' : 'future'
 
+  const pickDate = (dateStr) => {
+    setSelected(dateStr)
+    setTab('scheduled')
+  }
+
+  const TABS = [
+    ['due',       `Overdue${parts.due.length ? ` (${parts.due.length})` : ''}`],
+    ['recorded',  'Recorded'],
+    ['scheduled', 'Scheduled'],
+    ['upcoming',  'Upcoming'],
+  ]
+  // Recorded and Scheduled describe the tapped date; the other two ignore it.
+  const dateLine = format(parseISO(selected), 'EEEE, d MMMM')
+
   return (
     <div className="space-y-3">
+
+      {/* Crop filter — on top of the grid, not a legend row at the bottom */}
+      {cropNames.length > 1 && (
+        <FilterSelect value={crop} onChange={setCrop}
+          options={[['all', 'All crops'], ...cropNames.map(n => [n, n])]} />
+      )}
 
       {/* Month header */}
       <div className="flex items-center justify-between">
@@ -85,7 +116,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
               const isSelected = cell.dateStr === selected
               const hasRecord  = !!historyDates?.has(cell.dateStr)
               return (
-                <button key={cell.dateStr} onClick={() => setSelected(cell.dateStr)}
+                <button key={cell.dateStr} onClick={() => pickDate(cell.dateStr)}
                   className="relative h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-colors"
                   style={{
                     background:  boxColor ? boxColor + (isSelected ? '30' : '14')
@@ -119,8 +150,9 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
         ))}
       </div>
 
-      {/* Legend — only what this month actually shows */}
-      {(cropsInMonth.length > 0 || hasOverdue || monthHasRecords) && (
+      {/* Legend — what the dot colours MEAN. The crop filter above is the
+          control; this only explains the grid, and only for what it shows. */}
+      {(monthHasRecords || hasOverdue) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5">
           {monthHasRecords && (
             <span className="flex items-center gap-1.5 text-[9px] font-semibold" style={{ color: RECORD_BLUE }}>
@@ -128,7 +160,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
               Recorded
             </span>
           )}
-          {cropsInMonth.map(name => (
+          {cropNames.map(name => (crop === 'all' || crop === name) && (
             <span key={name} className="flex items-center gap-1.5 text-[9px] font-semibold text-[var(--c-muted)]">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: colorMap[name] }} />
               {name}
@@ -143,25 +175,65 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
         </div>
       )}
 
-      {/* The tapped date: what was recorded on it, then what was scheduled */}
-      <div className="pt-2 space-y-2" style={{ borderTop: '0.5px solid var(--c-border)' }}>
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
-          {format(parseISO(selected), 'EEEE, d MMMM')}
-        </p>
-        {selectedHasRecord && onOpenDay && (
-          <button onClick={() => onOpenDay(selected)}
-            className="w-full py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5"
-            style={{ background: `${RECORD_BLUE}14`, borderColor: `${RECORD_BLUE}55`, color: RECORD_BLUE }}>
-            <ClipboardList size={13} /> See what happened <span aria-hidden>→</span>
+      {/* The four tabs */}
+      <div className="flex gap-1 pt-2" style={{ borderTop: '0.5px solid var(--c-border)' }}>
+        {TABS.map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+            style={tab === key
+              ? { background: '#8A9A5B', color: '#fff' }
+              : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+            {label}
           </button>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {(tab === 'recorded' || tab === 'scheduled') && (
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">{dateLine}</p>
         )}
-        {selectedTasks.length === 0 ? (
-          <p className="text-xs text-[var(--c-faint)] italic text-center py-3">Nothing scheduled</p>
-        ) : (
-          selectedTasks.map(t => (
-            <ScheduledCard key={t.id} task={t} status={statusFor(t.dateStr)}
-              onDone={onMarkDone ? () => onMarkDone(t) : undefined} />
-          ))
+
+        {tab === 'due' && (
+          parts.due.length === 0
+            ? <p className="text-xs text-[var(--c-faint)] italic text-center py-3">Nothing overdue — all caught up</p>
+            : parts.due.map(t => (
+                <ScheduledCard key={t.id} task={t} status={statusFor(t.dateStr)}
+                  onDone={onMarkDone ? () => onMarkDone(t) : undefined} />
+              ))
+        )}
+
+        {tab === 'recorded' && (
+          selectedHasRecord && selectedBundle && !selectedBundle.isEmpty ? (
+            <>
+              <BundleSections bundle={selectedBundle} />
+              {onOpenDay && (
+                <button onClick={() => onOpenDay(selected)}
+                  className="w-full py-2 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5"
+                  style={{ background: `${RECORD_BLUE}14`, borderColor: `${RECORD_BLUE}55`, color: RECORD_BLUE }}>
+                  <ClipboardList size={13} /> Open this day in the feed <span aria-hidden>→</span>
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-[var(--c-faint)] italic text-center py-3">Nothing recorded on this date</p>
+          )
+        )}
+
+        {tab === 'scheduled' && (
+          parts.scheduled.length === 0
+            ? <p className="text-xs text-[var(--c-faint)] italic text-center py-3">Nothing scheduled on this date</p>
+            : parts.scheduled.map(t => (
+                <ScheduledCard key={t.id} task={t} status={statusFor(t.dateStr)}
+                  onDone={onMarkDone ? () => onMarkDone(t) : undefined} />
+              ))
+        )}
+
+        {tab === 'upcoming' && (
+          parts.upcoming.length === 0
+            ? <p className="text-xs text-[var(--c-faint)] italic text-center py-3">Nothing scheduled in the next month</p>
+            : parts.upcoming.map(t => (
+                <ScheduledCard key={t.id} task={t} status="future" />
+              ))
         )}
       </div>
     </div>
