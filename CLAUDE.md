@@ -59,8 +59,13 @@ its figure, a bare count stays quiet), and the list's **icon actions INSIDE the 
 funnel + download, the funnel going solid sage while a filter is on. Now on five surfaces:
 Purchase History (sage), Issue History (blue `#4169E1`), and — replacing the thin muted
 `registerSummary` line — Inventory stock value, Machinery and Assets book value; **plus Trees**
-(his next screenshot, same day: the 🍎🍇/🪵 counts were unreadable 10px chips beside the page
-title — now a box in the trees tab, total big, Fruiting/Timber split beneath, chips gone). **New Bill is
+(his next screenshots, same day: the fruit/🪵 counts were unreadable 10px chips beside the page
+title — now a box in the trees tab, total big, the Fruiting/Timber split in SummaryBox's new
+`side` slot BESIDE the figure, names only, no emoji — his correction: *"move to side … only name
+is enough"*). Same round: **the fruit emoji pair is 🍍🍉 now**, everywhere the old 🍎🍇 pair sat
+(Trees options + card placeholder, Ledger's Fruit lease row) — he sent a pineapple-watermelon
+fruit sticker as the reference; still a PAIR, because the 21-Aug lesson stands (a single fruit
+emoji reads as the wrong fruit on his phone). **New Bill is
 GONE from the purchase log** at his word; the add door is "New Purchase" on Current Stock (stock
 only arrives on a bill), and `PurchaseLogs` no longer takes `onNewBill`. `registerSummary`
 became **`itemsLabel(count)`** (money left that line for the box; tests updated, still 206).
