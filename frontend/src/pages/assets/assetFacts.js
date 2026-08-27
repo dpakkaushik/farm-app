@@ -72,11 +72,10 @@ export function disposalFacts(item) {
   return rows
 }
 
-/** The strip above the list: '25 items · Book value ₹23,00,000' */
-// `valueWord` names what the money is — "Book value" for a register of things
-// owned, "Stock value" for the shelf. Same quiet one-liner on every register.
-export function registerSummary(count, tabValue, valueWord = 'Book value') {
-  const items = `${count} ${count === 1 ? 'item' : 'items'}`
-  const value = fmtINR(tabValue)
-  return tabValue > 0 && value ? `${items} · ${valueWord} ${value}` : items
+/** How many things are in the register: '25 items', '1 item' */
+// The money that used to share this line now leads the SummaryBox above the
+// list (owner, 26 Aug — the figure was too small as a muted one-liner), so this
+// is only the count that sits beneath it.
+export function itemsLabel(count) {
+  return `${count} ${count === 1 ? 'item' : 'items'}`
 }

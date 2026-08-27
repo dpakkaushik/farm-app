@@ -11,9 +11,33 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-26 (Media's delete moved where a phone can reach it; the Android back gesture now closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-27 (one SummaryBox heads every register and log; Media's delete moved where a phone can reach it; the Android back gesture closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (26 Aug, latest) — two things a hand holding a phone could not do.**
+**Just shipped (27 Aug, latest) — ONE box heads every register and every log.**
+His screenshot of Purchase History, with the total, New Bill, a funnel and a download strung
+across one row: *"i need this kind of box, remove new bill create a box and Amount Download and
+filter inside that box … same thing is there in issue replicate"*, then the Machinery/Assets
+summary circled — *"current value/amount is small same in assets"* — and *"check where you can
+replicate in other screens"*. New shared
+**[`components/SummaryBox.jsx`](frontend/src/components/SummaryBox.jsx)**: small caps label,
+the figure big in the screen's accent (`tone`), `meta` facts beneath (a labelled one emphasises
+its figure, a bare count stays quiet), and the list's **icon actions INSIDE the box** —
+funnel + download, the funnel going solid sage while a filter is on. Now on five surfaces:
+Purchase History (sage), Issue History (blue `#4169E1`), and — replacing the thin muted
+`registerSummary` line — Inventory stock value, Machinery and Assets book value. **New Bill is
+GONE from the purchase log** at his word; the add door is "New Purchase" on Current Stock (stock
+only arrives on a bill), and `PurchaseLogs` no longer takes `onNewBill`. `registerSummary`
+became **`itemsLabel(count)`** (money left that line for the box; tests updated, still 206).
+**This does NOT reverse his 25-Aug "one quiet line"** — that was about book value shouting from
+every CARD, and cards still lead with quantity; it is the page total that reads clearly now.
+**Deliberately not converted, and this is the rule:** SummaryBox is for ONE headline figure, so a
+three-peer breakdown stays a grid — Labour's Monthly Summary (staff · regular · contractual) and
+Trees → Sales (agreed · received · outstanding) keep theirs, and Media's header counts photos,
+not money. Say the word and either becomes a box. The Machinery/Assets category dropdown stays
+below the box, per his own 25-Aug rule that one filter is a `FilterSelect`.
+Checked over `/uikit` in a real Chromium (all three Resources tabs + both logs, no page errors).
+
+**Also shipped (26 Aug) — two things a hand holding a phone could not do.**
 (1) **Media's delete was unusable on a phone.** The bin on each grid tile was `opacity-0
 group-hover:opacity-100`, and a phone never hovers — so the only door to deleting a photo was
 invisible. It now sits in the **viewer's** top bar beside the ✕ and the "3 / 34" count (admin

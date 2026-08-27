@@ -9,7 +9,8 @@ import ImageCropper from '../components/ImageCropper'
 import FilePicker from '../components/FilePicker'
 import { uploadAttachment, deleteAttachment, resolveUrl } from '../lib/attachments'
 import { CAT_EMOJI } from './assets/vocab'
-import { fmtINR as fmt, registerSummary, humanise } from './assets/assetFacts'
+import { fmtINR as fmt, itemsLabel, humanise } from './assets/assetFacts'
+import SummaryBox from '../components/SummaryBox'
 import AssetCard  from './assets/AssetCard'
 import AssetSheet from './assets/AssetSheet'
 import useBackClose from '../hooks/useBackClose'
@@ -473,13 +474,16 @@ export default function Assets({ kind = 'machinery' }) {
           onRemove={() => removePhoto(photoView.table, photoView.item.id, photoView.item.photoUrl)} />
       )}
 
-      {/* One quiet line. Book value is a bookkeeping fact, not the reason anyone
-          opens this screen — it stays findable here and in each item's sheet,
-          but no longer shouts from every card (owner, 25 Aug). */}
-      <div className="flex items-center justify-between shrink-0 px-4 py-1.5 border-b text-[11px]"
-        style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)', color: 'var(--c-muted)' }}>
-        <span>{registerSummary(tabCount, tabValue)}</span>
-        {totalAll > 0 && <span>All assets <b style={{ color: 'var(--c-text)' }}>{fmt(totalAll)}</b></span>}
+      {/* The register's own box, the same one the Inventory histories carry. Book
+          value still does not shout from every CARD — a card leads with quantity
+          (his 25-Aug call); it is the page total that now reads clearly, which is
+          what he asked for on 26 Aug. */}
+      <div className="shrink-0 px-4 pt-3">
+        <SummaryBox label="Book value" value={fmt(tabValue)}
+          meta={[
+            { value: itemsLabel(tabCount) },
+            totalAll > 0 && { label: 'All assets', value: fmt(totalAll) },
+          ]} />
       </div>
 
       {/* key on the kind: the tab keeps its own category filter, and a machinery

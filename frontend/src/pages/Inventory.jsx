@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, X, CheckCircle2, AlertTriangle, Receipt, FileText, ChevronLeft,
-         Download, Filter, Trash2, ShoppingBag } from 'lucide-react'
+         Download, Filter, Trash2 } from 'lucide-react'
 import FilePicker from '../components/FilePicker'
 import Attachment from '../components/Attachment'
 import RegisterCard from '../components/RegisterCard'
@@ -10,7 +10,8 @@ import AddButton from '../components/AddButton'
 import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { billRef, entryDiffers, fmtBillDate, localToday } from '../lib/billdates'
-import { registerSummary } from './assets/assetFacts'
+import { itemsLabel, fmtINR as fmt } from './assets/assetFacts'
+import SummaryBox from '../components/SummaryBox'
 import { MACHINE_TYPES, ASSET_CATS } from './Assets'
 import useBackClose from '../hooks/useBackClose'
 
@@ -204,12 +205,15 @@ export default function Inventory() {
   return (
     <div className="h-full flex flex-col bg-[var(--c-bg)]">
 
-      {/* One quiet line, the same shape Machinery and Assets carry, then the two
-          histories, then the add row and the filter. */}
-      <div className="flex items-center justify-between shrink-0 px-4 py-1.5 border-b text-[11px]"
-        style={{ borderColor: 'var(--c-border)', background: 'var(--c-nav)', color: 'var(--c-muted)' }}>
-        <span>{registerSummary(inventoryMaster.length, stockValue, 'Stock value')}</span>
-        {lowCount > 0 && <span style={{ color: '#BA7517' }}>{lowCount} low or out</span>}
+      {/* The same box the two histories carry, then the histories, then the add
+          row and the filter. It was a thin muted line until 26 Aug — the owner
+          asked for the figure to read like Purchase History's. */}
+      <div className="shrink-0 px-4 pt-3">
+        <SummaryBox label="Stock value" value={fmt(stockValue)}
+          meta={[
+            { value: itemsLabel(inventoryMaster.length) },
+            lowCount > 0 && { value: `${lowCount} low or out`, color: '#BA7517' },
+          ]} />
       </div>
 
       <div className="flex-1 flex flex-col min-h-0">
@@ -271,8 +275,7 @@ export default function Inventory() {
             <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{LOGS[logView].title}</p>
           </div>
           {logView === 'purchase'
-            ? <PurchaseLogs purchases={purchases} inventoryMaster={inventoryMaster}
-                onNewBill={() => { setLogView(null); openBillModal() }} />
+            ? <PurchaseLogs purchases={purchases} inventoryMaster={inventoryMaster} />
             : <IssueLogs issues={issues} inventoryMaster={inventoryMaster} plots={plots} />}
         </div>
       )}
@@ -593,7 +596,7 @@ export default function Inventory() {
 }
 
 // ── Purchase Logs ─────────────────────────────────────────────────────────────
-function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
+function PurchaseLogs({ purchases, inventoryMaster }) {
   const [vendorFilter, setVendorFilter] = useState('')
   const [from,         setFrom]         = useState('')
   const [to,           setTo]           = useState('')
@@ -652,24 +655,17 @@ function PurchaseLogs({ purchases, inventoryMaster, onNewBill }) {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl px-3 py-2">
-            <p className="text-[10px] text-[var(--c-muted)]">Total ({filtered.length} rows)</p>
-            <p className="text-lg font-bold text-[#8A9A5B]">₹{total.toLocaleString()}</p>
-          </div>
-          <button onClick={onNewBill}
-            className="flex items-center gap-1.5 px-3 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl">
-            <ShoppingBag size={13} /> New Bill
-          </button>
-          <button onClick={() => setShowFilter(f => !f)}
-            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors">
-            <Filter size={16} />
-          </button>
-          <button onClick={downloadCSV}
-            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#8A9A5B] transition-colors">
-            <Download size={16} />
-          </button>
-        </div>
+        {/* One box: the total, with the filter and the download inside it. New
+            Bill is gone from here — stock only arrives on a bill, so the add
+            door is the "New Purchase" button on Current Stock. */}
+        <SummaryBox
+          label={`Total (${filtered.length} ${filtered.length === 1 ? 'row' : 'rows'})`}
+          value={`₹${total.toLocaleString()}`}
+          actions={[
+            { icon: Filter,   label: 'Filter',        onClick: () => setShowFilter(f => !f),
+              active: showFilter || !!(vendorFilter || from || to) },
+            { icon: Download, label: 'Download CSV',  onClick: downloadCSV },
+          ]} />
         {showFilter && (
           <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2">
             <FRow label="Vendor">
@@ -817,20 +813,15 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="px-4 pt-3 pb-2 shrink-0 space-y-2">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-[#4169E1]/10 border border-[#4169E1]/20 rounded-xl px-3 py-2">
-            <p className="text-[10px] text-[var(--c-muted)]">Total issued ({filtered.length} records)</p>
-            <p className="text-lg font-bold text-[#4169E1]">₹{total.toLocaleString()}</p>
-          </div>
-          <button onClick={() => setShowFilter(f => !f)}
-            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[var(--c-text)] transition-colors">
-            <Filter size={16} />
-          </button>
-          <button onClick={downloadCSV}
-            className="p-3 rounded-xl border border-[var(--c-border-md)] text-[var(--c-muted)] hover:text-[#4169E1] transition-colors">
-            <Download size={16} />
-          </button>
-        </div>
+        {/* Same box as Purchase History, in the issues' blue */}
+        <SummaryBox tone="#4169E1"
+          label={`Total issued (${filtered.length} ${filtered.length === 1 ? 'record' : 'records'})`}
+          value={`₹${total.toLocaleString()}`}
+          actions={[
+            { icon: Filter,   label: 'Filter',       onClick: () => setShowFilter(f => !f),
+              active: showFilter || !!(itemFilter || plotFilter || stageFilter || from || to) },
+            { icon: Download, label: 'Download CSV', onClick: downloadCSV },
+          ]} />
         {showFilter && (
           <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">

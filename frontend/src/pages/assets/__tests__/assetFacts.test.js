@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   fmtINR, humanise, sheetSubline, isRetired,
-  assetFacts, disposalFacts, registerSummary,
+  assetFacts, disposalFacts, itemsLabel,
 } from '../assetFacts'
 
 const tractor = {
@@ -86,12 +86,8 @@ describe('disposalFacts', () => {
   })
 })
 
-describe('registerSummary', () => {
-  it('joins the count and the value', () => {
-    expect(registerSummary(25, 2300000)).toBe('25 items · Book value ₹23,00,000')
-  })
-  it('leaves the value out when nothing is priced', () => {
-    expect(registerSummary(3, 0)).toBe('3 items')
-  })
-  it('uses the singular for one', () => expect(registerSummary(1, 0)).toBe('1 item'))
+describe('itemsLabel', () => {
+  it('counts the register', () => expect(itemsLabel(25)).toBe('25 items'))
+  it('uses the singular for one', () => expect(itemsLabel(1)).toBe('1 item'))
+  it('handles an empty register', () => expect(itemsLabel(0)).toBe('0 items'))
 })
