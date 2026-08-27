@@ -17,12 +17,16 @@ import React from 'react'
 //   value   — the figure itself, already formatted
 //   tone    — accent hex; tints the background, border and figure
 //   meta    — extra facts under the figure: { label?, value, color? }, falsy skipped
+//   side    — the same facts, but as a right-aligned column beside the figure
+//             (owner, 27 Aug on Trees: the split reads better beside the total
+//             than stacked under it)
 //   actions — icon buttons inside the box: { icon, label, onClick, active }
 export default function SummaryBox({
-  label, value, tone = '#8A9A5B', meta = [], actions = [], className = '',
+  label, value, tone = '#8A9A5B', meta = [], side = [], actions = [], className = '',
 }) {
-  const facts = meta.filter(Boolean)
-  const acts  = actions.filter(Boolean)
+  const facts     = meta.filter(Boolean)
+  const sideFacts = side.filter(Boolean)
+  const acts      = actions.filter(Boolean)
 
   return (
     <div className={`rounded-2xl border px-4 py-3 flex items-center gap-3 ${className}`}
@@ -45,6 +49,17 @@ export default function SummaryBox({
           </p>
         ))}
       </div>
+
+      {sideFacts.length > 0 && (
+        <div className="shrink-0 text-right space-y-1">
+          {sideFacts.map((m, i) => (
+            <p key={i} className="text-xs" style={{ color: m.color || 'var(--c-muted)' }}>
+              {m.label ? `${m.label} ` : ''}
+              <b className="text-sm tabular-nums" style={{ color: m.color || 'var(--c-text)' }}>{m.value}</b>
+            </p>
+          ))}
+        </div>
+      )}
 
       {acts.length > 0 && (
         <div className="shrink-0 flex items-center gap-2">

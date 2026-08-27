@@ -2378,7 +2378,7 @@ export default function LedgerPage() {
       const sp = p && treeSpecies.find(x => x.id === p.speciesId)
       return sp ? (sp.nameEn?.trim() || sp.nameLocal) : null
     }).filter(Boolean))]
-    const kind = r.revenueType === 'timber_sale' ? '🪵 Timber sale' : '🍎🍇 Fruit lease'
+    const kind = r.revenueType === 'timber_sale' ? '🪵 Timber sale' : '🍍🍉 Fruit lease'
     return {
       id:             r.id,
       date:           r.agreementDate || r.startDate || null,

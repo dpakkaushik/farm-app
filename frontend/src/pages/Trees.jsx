@@ -24,7 +24,7 @@ const CHANGE_TYPES = [
 ]
 
 const PURPOSE = {
-  fruit:  { emoji: '🍎🍇', label: 'Fruit',  color: '#8A9A5B' },
+  fruit:  { emoji: '🍍🍉', label: 'Fruit',  color: '#8A9A5B' },
   timber: { emoji: '🪵', label: 'Timber', color: '#BA7517' },
 }
 
@@ -32,7 +32,7 @@ const PURPOSE = {
 // one lump sum — so they are the same row, and each maps to the kind of tree it can
 // possibly cover.
 const REVENUE = {
-  fruit_lease: { emoji: '🍎🍇', label: 'Fruit lease', color: '#8A9A5B', purpose: 'fruit'  },
+  fruit_lease: { emoji: '🍍🍉', label: 'Fruit lease', color: '#8A9A5B', purpose: 'fruit'  },
   timber_sale: { emoji: '🪵', label: 'Timber sale', color: '#BA7517', purpose: 'timber' },
 }
 
@@ -143,7 +143,7 @@ function SpeciesModal({ species, onClose, onCreated }) {
       </FRow>
       <FRow label="Type">
         <Choice
-          options={[['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]}
+          options={[['fruit', '🍍🍉 Fruiting'], ['timber', '🪵 Timber']]}
           value={form.purpose} onChange={v => set('purpose', v)} />
       </FRow>
       <FRow label="Notes (optional)">
@@ -585,7 +585,7 @@ function SaleModal({ onClose }) {
     <Modal title="Record a sale" onClose={onClose}>
       <FRow label="What kind">
         <Choice
-          options={[['fruit_lease', '🍎🍇 Fruit lease'], ['timber_sale', '🪵 Timber sale']]}
+          options={[['fruit_lease', '🍍🍉 Fruit lease'], ['timber_sale', '🪵 Timber sale']]}
           value={form.revenueType} onChange={setType} />
       </FRow>
 
@@ -947,7 +947,7 @@ function SalesTab({ canEdit }) {
 
       {revenue.length > 0 && (
         <FilterSelect value={filter} onChange={setFilter}
-          options={[['all', 'All sales'], ['fruit_lease', '🍎🍇 Leases'], ['timber_sale', '🪵 Timber']]} />
+          options={[['all', 'All sales'], ['fruit_lease', '🍍🍉 Leases'], ['timber_sale', '🪵 Timber']]} />
       )}
 
       {shown.length === 0 && (
@@ -1060,14 +1060,15 @@ export default function Trees() {
         {!error && loaded && tab === 'trees' && (
           <>
             {/* The register's head box, same as Machinery — the two counts were
-                tiny chips beside the page title and unreadable (owner, 27 Aug:
-                "create a box and make the numbers bigger"). */}
+                tiny chips beside the page title and unreadable (owner, 27 Aug).
+                The split sits BESIDE the total, names only, at his correction:
+                "move to side … no need to show icon and name both". */}
             {species.length > 0 && (
               <SummaryBox label="Trees on the farm"
                 value={(fruit + timber).toLocaleString('en-IN')}
-                meta={[
-                  fruit  > 0 && { label: '🍎🍇 Fruiting', value: fruit.toLocaleString('en-IN') },
-                  timber > 0 && { label: '🪵 Timber',     value: timber.toLocaleString('en-IN') },
+                side={[
+                  fruit  > 0 && { label: 'Fruiting', value: fruit.toLocaleString('en-IN') },
+                  timber > 0 && { label: 'Timber',   value: timber.toLocaleString('en-IN') },
                 ]} />
             )}
 
@@ -1079,7 +1080,7 @@ export default function Trees() {
 
             {species.length > 0 && (
               <FilterSelect value={filter} onChange={setFilter}
-                options={[['all', 'All trees'], ['fruit', '🍎🍇 Fruiting'], ['timber', '🪵 Timber']]} />
+                options={[['all', 'All trees'], ['fruit', '🍍🍉 Fruiting'], ['timber', '🪵 Timber']]} />
             )}
 
             {shown.length === 0 && (
