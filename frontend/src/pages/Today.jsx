@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
-import { Plus, X, ChevronUp, ChevronDown, Filter, Users, HardHat, Tractor, Bell, Receipt } from 'lucide-react'
+import { Plus, X, ChevronUp, ChevronDown, Filter, Users, HardHat, Tractor, CalendarDays, Receipt } from 'lucide-react'
 import { AddExpenseModal } from './Expenses'
 import { useAppStore, selectFieldWorkers, selectDrivers, selectTractors } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
@@ -416,7 +416,9 @@ function TodayBoard() {
             aria-label={`${notifCount} task${notifCount === 1 ? '' : 's'} overdue or upcoming`}
             className="relative w-10 h-10 flex items-center justify-center rounded-xl border transition-colors hover:border-white/30"
             style={{ background: 'var(--c-card)', borderColor: 'var(--c-border-md)' }}>
-            <Bell size={17} className="text-[var(--c-sub)]" />
+            {/* A calendar, not a bell (owner, 27 Aug) — the panel behind it is a
+                calendar, and the bell promised notifications it never sent. */}
+            <CalendarDays size={17} className="text-[var(--c-sub)]" />
             {notifCount > 0 && (
               <span
                 className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold"

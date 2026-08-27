@@ -11,9 +11,24 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-27 (one SummaryBox heads every register and log; Media's delete moved where a phone can reach it; the Android back gesture closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-27 (the bottom nav names the active tab and shrank; the plot sheet lost two buttons; one SummaryBox heads every register and log; the Android back gesture closes overlays) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (27 Aug, latest) — ONE box heads every register and every log.**
+**Just shipped (27 Aug, latest) — three small fixes from one screenshot round.**
+(1) **The bottom nav names the tab you are on.** Icon-only was his 21-Aug ask and he changed his
+mind — *"earlier had names i guess … i want you to show the name of tab which is selected also
+make the floating bottom navigation card smaller"*. The active tab is now an icon + label inside
+the filled sage pill, the other three stay bare icons, and the white dot beneath is gone (the
+label marks the tab instead). Bar height 52px → **44px** (`h-9`, `py-1`). All four labels are ≤6
+chars, so the row fits a 320px phone with room to spare — check that if a fifth tab is ever added.
+(2) **The plot sheet's Log Work / Issue Inputs buttons are DELETED** at his ask. Both merely
+jumped to another screen; the sheet is for reading the plot. 🎯 Harvest stays (the one act the
+plot says is due), and the whole button row now renders only when it does — no empty gap. Do not
+resurrect the two in-place modals they replaced: one ignored the picked date, the other bypassed
+contract labour. (3) **The bell is a calendar icon** — the panel behind it is a calendar, and a
+bell promised notifications the app never sends. **The rest of his calendar ask is NEXT, spec'd
+below.**
+
+**Also shipped (27 Aug) — ONE box heads every register and every log.**
 His screenshot of Purchase History, with the total, New Bill, a funnel and a download strung
 across one row: *"i need this kind of box, remove new bill create a box and Amount Download and
 filter inside that box … same thing is there in issue replicate"*, then the Machinery/Assets
@@ -397,7 +412,25 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
+**NEXT — the Today calendar restructure. His words, 27 Aug, and the only part of that message
+not yet built:** *"if a user clicks over a past date it should show the activity on that … even
+task due which is in todays main tab should be below calneder which is expandable when clicked,
+when click over a date lets say past date should show tab see what happened other tab scheduled
+task a third tab upcoming task. calender should have a filter as well for crop."* So, inside the
+calendar panel ([`today/TaskCalendar.jsx`](frontend/src/pages/today/TaskCalendar.jsx)): a **crop
+filter** over the grid; the tapped date opens **three tabs — See what happened · Scheduled ·
+Upcoming**, with the day's records rendered IN the first tab instead of behind today's "See what
+happened →" button (keep a small link that still loads the day into the feed — that is the
+History filter with a one-day range); and the day card's **Tasks Due block MOVES here, below the
+calendar, expandable**. Two calls to make and state: whether "Upcoming" counts from today or from
+the tapped date (recommend **from today** — it is the badge's own scope, and "upcoming" from a
+past date is meaningless), and that moving Tasks Due **reverses the earlier "the day card keeps
+it" note** — his explicit instruction, so it goes, but **one-tap Done must survive the move**
+(design rule #5). Put the date-partitioning and crop filtering in
+[`lib/taskCalendar.js`](frontend/src/lib/taskCalendar.js) as pure functions with tests, like the
+17 already there. Worth a fresh session: the work is contained but the file reading is not.
+
+**Then, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
 `go_live_convert` the bill-date standard — then the Books Health check (cash book vs account
 balances, bill header vs lines). Trial Balance stays rejected; do not relitigate.
 

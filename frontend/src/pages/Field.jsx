@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
-import { useAuthStore, isManager, getActiveFarmRole } from '../store/auth'
+import { useAuthStore } from '../store/auth'
 import { farmApi } from '../api/client'
 import SetupChecklist from '../components/SetupChecklist'
 import useWeather from '../hooks/useWeather'
@@ -869,7 +869,6 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
   const cycles  = plot.mixedCycles || []
   const isReady = cycles.some(c => c.isReady)
   const stage   = STAGE[plot.stage] || STAGE.growing
-  const canLog  = isManager(getActiveFarmRole())
 
   useBackClose(onClose)   // back gesture closes the plot sheet, not the app
 
@@ -939,29 +938,20 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
             </div>
           )}
 
-          {/* These used to open two in-place modals with their own cut-down
-              forms — a Log Activity that silently ignored the picked date, and
-              an issue form whose labour path bypassed the contract-based Log
-              Work entirely. The owner's call: take him to the real screens
-              instead. Both modals are deleted. */}
-          <div className="flex gap-2 pt-1">
-            {canLog && <>
-              <button onClick={() => navigate('/labour?go=log-work')}
-                className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
-                Log Work
-              </button>
-              <button onClick={() => navigate('/resources')}
-                className="flex-1 py-2.5 text-xs font-medium rounded-xl bg-white/8 hover:bg-white/15 text-white border border-white/10 transition-colors">
-                Issue Inputs
-              </button>
-            </>}
-            {isReady && (
+          {/* Log Work and Issue Inputs are GONE at his ask (27 Aug). Both only
+              jumped to another screen, and this sheet is for reading the plot.
+              (They had already replaced two in-place modals that wrote bad data
+              — a Log Activity that ignored the picked date and an issue form
+              that bypassed contract labour. Do not resurrect either.) Harvest
+              stays: it is the one act the plot itself says is due. */}
+          {isReady && (
+            <div className="flex pt-1">
               <button onClick={() => navigate('/harvest')}
                 className="flex-1 py-2.5 text-xs font-bold rounded-xl text-[#8A9A5B] border border-[#8A9A5B]/30 bg-[#8A9A5B]/12 hover:bg-[#8A9A5B]/20 transition-colors">
                 🎯 Harvest
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </>

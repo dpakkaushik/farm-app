@@ -179,33 +179,39 @@ export default function App() {
       </main>
 
       {/* Bottom nav — same 4 tabs for every role; everything else lives in the
-          profile drawer. A floating icon-only pill at the owner's ask (his
-          reference: dark rounded bar, active item in a filled circle with a
-          dot beneath). It genuinely floats: absolutely positioned over the
+          profile drawer. A floating pill at the owner's ask: icons only, except
+          the tab you are on, which names itself inside a filled sage pill. It
+          genuinely floats: absolutely positioned over the
           page, so the map runs underneath it instead of stopping at a white
           band. Every page root keeps its tail clear via the main > * rule in
           index.css; page-level bottom sheets and modals sit above it (z-50). */}
       <nav className="absolute inset-x-0 bottom-0 z-40 px-5 pointer-events-none"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
-        <div className="pointer-events-auto flex items-center justify-around rounded-full px-2 py-1.5 shadow-2xl backdrop-blur-md"
+        <div className="pointer-events-auto flex items-center justify-around rounded-full px-1.5 py-1 shadow-2xl backdrop-blur-md"
           style={{ background: 'rgba(32,37,19,0.92)', border: '1px solid rgba(255,255,255,0.10)',
                    boxShadow: '0 8px 28px rgba(0,0,0,0.4)' }}>
           {NAV.map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} aria-label={label} className="flex-1 flex justify-center">
+            <NavLink key={to} to={to} aria-label={label} className="min-w-0">
               {({ isActive }) => (
-                <div className="flex flex-col items-center">
-                  <div className="relative w-10 h-10 rounded-full flex items-center justify-center transition-all"
-                    style={{ background: isActive ? '#8A9A5B' : 'transparent' }}>
-                    <Icon size={19} strokeWidth={isActive ? 2.3 : 1.8}
+                // The tab you are on NAMES itself, in a filled pill; the others
+                // stay icon-only (owner, 27 Aug — he missed the labels, and the
+                // bar had to get smaller, so only one label is ever drawn). The
+                // label replaces the dot that used to mark the active tab.
+                <div className="flex items-center gap-1.5 h-9 rounded-full transition-all"
+                  style={{ background: isActive ? '#8A9A5B' : 'transparent',
+                           padding: isActive ? '0 12px' : '0 14px' }}>
+                  <span className="relative flex items-center justify-center">
+                    <Icon size={18} strokeWidth={isActive ? 2.3 : 1.8}
                       style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }} />
                     {to === '/media' && mediaUnread > 0 && (
-                      <span className="absolute top-0.5 right-0.5 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
                         {mediaUnread > 9 ? '9+' : mediaUnread}
                       </span>
                     )}
-                  </div>
-                  <span className="w-1 h-1 rounded-full -mt-0.5"
-                    style={{ background: isActive ? '#fff' : 'transparent' }} />
+                  </span>
+                  {isActive && (
+                    <span className="text-[11px] font-bold text-white whitespace-nowrap">{label}</span>
+                  )}
                 </div>
               )}
             </NavLink>
