@@ -58,7 +58,9 @@ the figure big in the screen's accent (`tone`), `meta` facts beneath (a labelled
 its figure, a bare count stays quiet), and the list's **icon actions INSIDE the box** —
 funnel + download, the funnel going solid sage while a filter is on. Now on five surfaces:
 Purchase History (sage), Issue History (blue `#4169E1`), and — replacing the thin muted
-`registerSummary` line — Inventory stock value, Machinery and Assets book value. **New Bill is
+`registerSummary` line — Inventory stock value, Machinery and Assets book value; **plus Trees**
+(his next screenshot, same day: the 🍎🍇/🪵 counts were unreadable 10px chips beside the page
+title — now a box in the trees tab, total big, Fruiting/Timber split beneath, chips gone). **New Bill is
 GONE from the purchase log** at his word; the add door is "New Purchase" on Current Stock (stock
 only arrives on a bill), and `PurchaseLogs` no longer takes `onNewBill`. `registerSummary`
 became **`itemsLabel(count)`** (money left that line for the box; tests updated, still 206).
@@ -515,7 +517,7 @@ and the party row names "Party Ledger" while the toggle says "Party Khata".
 the farm, what counts as owner capital).
 
 **Flagged, not to be touched unprompted:** the two *add* forms in
-[`Assets.jsx`](frontend/src/pages/Assets.jsx#L250) (machinery, asset) still default
+[`Assets.jsx`](frontend/src/pages/Assets.jsx#L250) (machinery, asset) still defaultat many places there are tiles instead of dropdown filter i want to replace those also place filter icon so that it is easily understandable
 `purchaseDate` to today — the **same pattern** the bill form just lost, and `TODAY` there is
 still the UTC one. Not changed: the owner asked for the bill form, and an asset is usually
 added when acquired. Fix it the same way when he wants it. Payment-mode pickers still disagree

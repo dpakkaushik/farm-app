@@ -7,6 +7,7 @@ import { useAppStore } from '../store'
 import { useAuthStore, isManager } from '../store/auth'
 import ImageViewer from '../components/ImageViewer'
 import useBackClose from '../hooks/useBackClose'
+import SummaryBox from '../components/SummaryBox'
 import ImageCropper from '../components/ImageCropper'
 import { uploadAttachment, deleteAttachment } from '../lib/attachments'
 
@@ -1032,14 +1033,6 @@ export default function Trees() {
         <div className="flex items-center gap-2 mb-3">
           <TreePine size={20} style={{ color: '#8A9A5B' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>Trees</p>
-          <div className="flex gap-1.5 ml-auto text-[10px]">
-            <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-              🍎🍇 {fruit.toLocaleString('en-IN')}
-            </span>
-            <span className="px-2 py-0.5 rounded-full" style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-              🪵 {timber.toLocaleString('en-IN')}
-            </span>
-          </div>
         </div>
 
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
@@ -1066,6 +1059,18 @@ export default function Trees() {
 
         {!error && loaded && tab === 'trees' && (
           <>
+            {/* The register's head box, same as Machinery — the two counts were
+                tiny chips beside the page title and unreadable (owner, 27 Aug:
+                "create a box and make the numbers bigger"). */}
+            {species.length > 0 && (
+              <SummaryBox label="Trees on the farm"
+                value={(fruit + timber).toLocaleString('en-IN')}
+                meta={[
+                  fruit  > 0 && { label: '🍎🍇 Fruiting', value: fruit.toLocaleString('en-IN') },
+                  timber > 0 && { label: '🪵 Timber',     value: timber.toLocaleString('en-IN') },
+                ]} />
+            )}
+
             {/* Add sits above the list at the owner's ask — with many species
                 it had sunk below a screenful of cards. */}
             {canEdit && (
