@@ -11,9 +11,26 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-27 (the Farm Calendar is four tabs — Overdue default — with a crop filter on top; the bottom nav names the active tab; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-08-31 (Manpower → Salary can extract the owner's paper STAFF BALANCE register as a month CSV; earlier: the Farm Calendar is four tabs with a crop filter on top; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (27 Aug, latest) — the Farm Calendar became FOUR TABS with a crop filter on
+**Just shipped (31 Aug, latest) — the paper STAFF BALANCE register, extractable from Manpower.**
+His photo: a hand-ruled month sheet ("STAFF BALANCE UPTO 01.05.26 TO 31.05.26") — per worker:
+OP. BALANCE · WAGES · TOTAL · CASH ADVANCE · CR BALANCE · DR BALANCE, with a TOTAL row. Now a
+**⤓ button beside the month picker on Manpower → Salary** downloads exactly that for the picked
+month as `staff_balance_YYYY-MM.csv` (columns: S.No, Name, Type, Opening, Wages Earned, Total,
+Cash Advance, Salary Paid, Recovered, CR (farm owes), DR (worker owes), TOTAL row). The maths is
+pure and tested in [`lib/staffBalance.js`](frontend/src/lib/staffBalance.js) (**7 specs, 223
+green**): it folds the SAME khata events as the per-worker statement (`khataEvents` /
+`buildWorkerKhata`), so opening-at-month = app opening + everything before the month and the
+closing agrees with `v_salary_dues` **by construction**; data comes fresh off `v_salary_accrual`
++ `salary_advances` + `salary_payments`, farm-filtered, roster from `v_salary_dues` (so a worker
+who has LEFT still gets his row while anything is outstanding; all-zero rows drop; staff sort
+before labour). `monthEnd` is now exported from `workerRecovery.js`. **Not in the CSV,
+deliberately, and worth saying if he asks:** his sheet's "2 BHOOSA AMT" column (in-kind straw —
+the app has no in-kind concept; today that is booked as an advance or not at all) and the
+"OUTSIDE LABOUR" row (outside labour is a headcount on activity logs, not a khata).
+
+**Also shipped (27 Aug) — the Farm Calendar became FOUR TABS with a crop filter on
 top.** His refinement, after seeing the first cut live (*"crop filter should go up what you did
 is stupid. Overdue, Recorded, Scheduled and Upcoming should be tabs, by default Overdue should
 be Opened"*): the calendar panel now leads with a **crop `FilterSelect`** (drawn only when >1

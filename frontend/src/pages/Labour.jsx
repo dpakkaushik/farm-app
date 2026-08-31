@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Plus, X, CheckCircle2, AlertTriangle, Download } from 'lucide-react'
 import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 import { supabase } from '../lib/supabase'
@@ -10,6 +10,7 @@ import Attachment from '../components/Attachment'
 import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSummary } from '../lib/labourMonth'
 import { contractUnit } from '../lib/labourGroups'
 import useBackClose from '../hooks/useBackClose'
+import { buildStaffBalance } from '../lib/staffBalance'
 import {
   owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
   khataEvents, buildWorkerKhata, recoveryOutcome,
@@ -660,6 +661,45 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     setLedger({ worker, entries: khata.rows, khata, loading: false })
   }
 
+  // The owner's paper "STAFF BALANCE" register, extractable: one CSV row per
+  // worker for the selected month — opening, wages, advances, paid, CR/DR.
+  // Folded through the same khata events as the per-worker statement
+  // (lib/staffBalance.js), so it closes on v_salary_dues by construction.
+  const [downloading, setDownloading] = useState(false)
+  const downloadStatement = async () => {
+    setDownloading(true)
+    try {
+      const farmId = useAuthStore.getState().activeFarmId
+      const [{ data: accr }, { data: advs }, { data: pays }, duesRes] = await Promise.all([
+        supabase.from('v_salary_accrual').select('labourer_id, month, earned').eq('farm_id', farmId),
+        supabase.from('salary_advances').select('labourer_id, advance_date, amount').eq('farm_id', farmId),
+        supabase.from('salary_payments').select('labourer_id, payment_date, amount_paid').eq('farm_id', farmId),
+        dues.length ? Promise.resolve({ data: dues }) : supabase.from('v_salary_dues').select('*'),
+      ])
+      const { rows, totals } = buildStaffBalance({
+        duesRows: (duesRes.data || []).filter(d => d.farm_id === farmId),
+        accruals: accr || [], advances: advs || [], payments: pays || [],
+        month, today: format(new Date(), 'yyyy-MM-dd'),
+      })
+      if (rows.length === 0) { showToast('Nothing to report for this month', 'warn'); return }
+      const fm = n => n.toFixed(2)
+      const csvRows = [
+        ['S.No', 'Name', 'Type', 'Opening Balance', `Wages Earned (${monthLabel(month)})`, 'Total',
+         'Cash Advance', 'Salary Paid', 'Recovered', 'CR Balance (farm owes)', 'DR Balance (worker owes)'],
+        ...rows.map((r, i) => [i + 1, r.name, r.subType === 'permanent' ? 'Staff' : 'Labour',
+          fm(r.opening), fm(r.earned), fm(r.total), fm(r.advances), fm(r.paid), fm(r.recovered), fm(r.cr), fm(r.dr)]),
+        ['', 'TOTAL', '', fm(totals.opening), fm(totals.earned), fm(totals.total),
+         fm(totals.advances), fm(totals.paid), fm(totals.recovered), fm(totals.cr), fm(totals.dr)],
+      ]
+      const csv = csvRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      a.download = `staff_balance_${month}.csv`
+      a.click()
+    } catch (e) { showToast('Could not build the report: ' + e.message, 'warn') }
+    finally { setDownloading(false) }
+  }
+
   const dayCount    = daysInMonth(month)
   const monthPayments = salaryPayments.filter(p => p.month === month)
   const monthAdvances = advances.filter(a => a.date?.startsWith(month))
@@ -742,9 +782,18 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             </p>
           )}
         </div>
-        <input type="month" value={month} onChange={e => setMonth(e.target.value)}
-          className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
-          style={{ colorScheme: 'dark' }} />
+        <div className="flex items-center gap-2">
+          <input type="month" value={month} onChange={e => setMonth(e.target.value)}
+            className="bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-1.5 text-xs text-[var(--c-text)] outline-none"
+            style={{ colorScheme: 'dark' }} />
+          {/* The month's staff-balance register as a CSV — his paper sheet's shape */}
+          <button onClick={downloadStatement} disabled={downloading}
+            aria-label="Download this month's staff balance" title="Download staff balance (CSV)"
+            className="w-8 h-8 shrink-0 rounded-xl border flex items-center justify-center disabled:opacity-40 text-[var(--c-muted)] hover:text-[#8A9A5B] transition-colors"
+            style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border-md)' }}>
+            <Download size={15} />
+          </button>
+        </div>
       </div>
 
       {allWorkers.length === 0 && (

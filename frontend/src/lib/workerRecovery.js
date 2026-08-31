@@ -123,7 +123,7 @@ export function totalOwedToFarm(duesRows = []) {
 // Built from local date parts on purpose. toISOString() would shift IST back
 // past midnight and hand back the 27th of February — the same off-by-one
 // period.js was bitten by. Date strings are never routed through UTC here.
-const monthEnd = (month) => {
+export const monthEnd = (month) => {
   const ym = String(month).slice(0, 7)
   const [y, m] = ym.split('-').map(Number)
   const lastDay = new Date(y, m, 0).getDate()
