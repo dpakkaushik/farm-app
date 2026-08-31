@@ -36,8 +36,9 @@ describe('monthStatementRow', () => {
   test('salary wages and contractual work are separate columns, both in the closing', () => {
     const row = monthStatementRow({
       name: 'Vikram', openingBalance: 0, month: MONTH,
-      accruals: [{ month: '2026-08-01', attendance_pay: 3300, contract_pay: 1200 }],
+      accruals: [{ month: '2026-08-01', attendance_pay: 3300, contract_pay: 1200, days: 26.5 }],
     })
+    expect(row.days).toBe(26.5)                    // half days count as 0.5
     expect(row.salaryWages).toBe(3300)
     expect(row.contract).toBe(1200)
     expect(row.total).toBe(3300)                   // TOTAL is op + salary wages only

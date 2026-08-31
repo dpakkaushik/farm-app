@@ -42,18 +42,19 @@ export function monthStatementRow({ name, subType = '', openingBalance = 0, even
     if (e.type === 'payment')  paid      += e.debit  || 0
   }
 
-  let salaryWages = 0, contract = 0
+  let salaryWages = 0, contract = 0, days = 0
   for (const a of accruals) {
     if (String(a.month).slice(0, 7) !== ym) continue
     const contractPay = Number(a.contract_pay ?? 0)
     // A row without the split (older shape) counts wholly as attendance pay.
     salaryWages += Number(a.attendance_pay ?? (Number(a.earned ?? 0) - contractPay))
     contract    += contractPay
+    days        += Number(a.days ?? 0)   // half days count 0.5, same as the view
   }
 
   const closing = opening + salaryWages + contract + recovered - advances - paid
   return {
-    name, subType,
+    name, subType, days,
     opening, salaryWages,
     total: opening + salaryWages,   // the register's TOTAL column: OP + SALARY WAGES
     advances, contract, paid, recovered,
@@ -108,6 +109,7 @@ export function buildStaffBalance({ duesRows = [], accruals = [], advances = [],
         : a.subType === 'permanent' ? -1 : 1)
 
   const totals = rows.reduce((t, r) => ({
+    days:        t.days        + r.days,
     opening:     t.opening     + r.opening,
     salaryWages: t.salaryWages + r.salaryWages,
     total:       t.total       + r.total,
@@ -118,7 +120,7 @@ export function buildStaffBalance({ duesRows = [], accruals = [], advances = [],
     closing:     t.closing     + r.closing,
     cr:          t.cr          + r.cr,
     dr:          t.dr          + r.dr,
-  }), { opening: 0, salaryWages: 0, total: 0, advances: 0, contract: 0, paid: 0, recovered: 0, closing: 0, cr: 0, dr: 0 })
+  }), { days: 0, opening: 0, salaryWages: 0, total: 0, advances: 0, contract: 0, paid: 0, recovered: 0, closing: 0, cr: 0, dr: 0 })
 
   return { rows, totals }
 }
