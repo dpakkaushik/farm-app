@@ -18,7 +18,11 @@ His photo: a hand-ruled month sheet ("STAFF BALANCE UPTO 01.05.26 TO 31.05.26") 
 OP. BALANCE · WAGES · TOTAL · CASH ADVANCE · CR BALANCE · DR BALANCE, with a TOTAL row. Now a
 **⤓ button beside the month picker on Manpower → Salary** downloads exactly that for the picked
 month as `staff_balance_YYYY-MM.csv` (columns: S.No, Name, Type, Opening, Wages Earned, Total,
-Cash Advance, Salary Paid, Recovered, CR (farm owes), DR (worker owes), TOTAL row). The maths is
+Cash Advance, Salary Paid, Recovered, CR (farm owes), DR (worker owes), TOTAL row; his refinement
+after the first extract: **Salary Wages (attendance) and Contractual Work are SEPARATE columns**,
+straight from `v_salary_accrual`'s attendance_pay/contract_pay — Total stays OP + salary wages
+like the paper sheet, so a recovery shows in its own column and only moves CR/DR, which is why
+Deepak reads Total −13,933 but DR 8,933 and both are right). The maths is
 pure and tested in [`lib/staffBalance.js`](frontend/src/lib/staffBalance.js) (**7 specs, 223
 green**): it folds the SAME khata events as the per-worker statement (`khataEvents` /
 `buildWorkerKhata`), so opening-at-month = app opening + everything before the month and the

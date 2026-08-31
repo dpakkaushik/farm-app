@@ -671,7 +671,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     try {
       const farmId = useAuthStore.getState().activeFarmId
       const [{ data: accr }, { data: advs }, { data: pays }, duesRes] = await Promise.all([
-        supabase.from('v_salary_accrual').select('labourer_id, month, earned').eq('farm_id', farmId),
+        supabase.from('v_salary_accrual').select('labourer_id, month, earned, attendance_pay, contract_pay').eq('farm_id', farmId),
         supabase.from('salary_advances').select('labourer_id, advance_date, amount').eq('farm_id', farmId),
         supabase.from('salary_payments').select('labourer_id, payment_date, amount_paid').eq('farm_id', farmId),
         dues.length ? Promise.resolve({ data: dues }) : supabase.from('v_salary_dues').select('*'),
@@ -682,14 +682,20 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
         month, today: format(new Date(), 'yyyy-MM-dd'),
       })
       if (rows.length === 0) { showToast('Nothing to report for this month', 'warn'); return }
+      // His column order (31 Aug): salary wages from attendance and contractual
+      // work are SEPARATE columns; Total stays OP + salary wages, like the paper
+      // sheet. Paid and Recovered stay in, or the CR/DR could not be traced.
       const fm = n => n.toFixed(2)
       const csvRows = [
-        ['S.No', 'Name', 'Type', 'Opening Balance', `Wages Earned (${monthLabel(month)})`, 'Total',
-         'Cash Advance', 'Salary Paid', 'Recovered', 'CR Balance (farm owes)', 'DR Balance (worker owes)'],
+        ['S.No', 'Name', 'Type', 'Opening Balance', `Salary Wages (${monthLabel(month)})`, 'Total',
+         'Cash Advance', 'Contractual Work', 'Salary Paid', 'Recovered',
+         'CR Balance (farm owes)', 'DR Balance (worker owes)'],
         ...rows.map((r, i) => [i + 1, r.name, r.subType === 'permanent' ? 'Staff' : 'Labour',
-          fm(r.opening), fm(r.earned), fm(r.total), fm(r.advances), fm(r.paid), fm(r.recovered), fm(r.cr), fm(r.dr)]),
-        ['', 'TOTAL', '', fm(totals.opening), fm(totals.earned), fm(totals.total),
-         fm(totals.advances), fm(totals.paid), fm(totals.recovered), fm(totals.cr), fm(totals.dr)],
+          fm(r.opening), fm(r.salaryWages), fm(r.total), fm(r.advances), fm(r.contract),
+          fm(r.paid), fm(r.recovered), fm(r.cr), fm(r.dr)]),
+        ['', 'TOTAL', '', fm(totals.opening), fm(totals.salaryWages), fm(totals.total),
+         fm(totals.advances), fm(totals.contract), fm(totals.paid), fm(totals.recovered),
+         fm(totals.cr), fm(totals.dr)],
       ]
       const csv = csvRows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
       const a = document.createElement('a')

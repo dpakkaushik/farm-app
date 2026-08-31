@@ -19,28 +19,44 @@ export function monthWindow(month) {
   return { start: `${ym}-01`, end: monthEnd(ym) }
 }
 
-/** One worker's row for the month, from his full khata event list. */
-export function monthStatementRow({ name, subType = '', openingBalance = 0, events = [], month }) {
+/**
+ * One worker's row for the month. Wages split in two at the owner's ask
+ * (31 Aug): SALARY WAGES from attendance, CONTRACTUAL WORK on top — the same
+ * split v_salary_accrual already carries (attendance_pay / contract_pay).
+ * The in-month wage columns come from the raw accrual rows matched by month;
+ * the events feed only the opening fold and the cash movements, and in-window
+ * 'earned' events are skipped so nothing counts twice.
+ */
+export function monthStatementRow({ name, subType = '', openingBalance = 0, events = [], accruals = [], month }) {
   const { start, end } = monthWindow(month)
+  const ym = String(month).slice(0, 7)
   let opening = Number(openingBalance || 0)
-  let earned = 0, advances = 0, paid = 0, recovered = 0
+  let advances = 0, paid = 0, recovered = 0
 
   for (const e of events) {
     const d = String(e.date || '')
     if (d < start) { opening += (e.credit || 0) - (e.debit || 0); continue }
     if (d > end) continue
-    if (e.type === 'earned')   earned    += e.credit || 0
     if (e.type === 'recovery') recovered += e.credit || 0
     if (e.type === 'advance')  advances  += e.debit  || 0
     if (e.type === 'payment')  paid      += e.debit  || 0
   }
 
-  const closing = opening + earned + recovered - advances - paid
+  let salaryWages = 0, contract = 0
+  for (const a of accruals) {
+    if (String(a.month).slice(0, 7) !== ym) continue
+    const contractPay = Number(a.contract_pay ?? 0)
+    // A row without the split (older shape) counts wholly as attendance pay.
+    salaryWages += Number(a.attendance_pay ?? (Number(a.earned ?? 0) - contractPay))
+    contract    += contractPay
+  }
+
+  const closing = opening + salaryWages + contract + recovered - advances - paid
   return {
     name, subType,
-    opening, earned,
-    total: opening + earned,       // the register's TOTAL column: OP + WAGES
-    advances, paid, recovered,
+    opening, salaryWages,
+    total: opening + salaryWages,   // the register's TOTAL column: OP + SALARY WAGES
+    advances, contract, paid, recovered,
     closing,
     cr: closing > 0 ?  closing : 0,
     dr: closing < 0 ? -closing : 0,
@@ -48,7 +64,7 @@ export function monthStatementRow({ name, subType = '', openingBalance = 0, even
 }
 
 const isBlank = (r) =>
-  !r.opening && !r.earned && !r.advances && !r.paid && !r.recovered && !r.closing
+  !r.opening && !r.salaryWages && !r.contract && !r.advances && !r.paid && !r.recovered && !r.closing
 
 /**
  * The whole report. Raw rows come straight off the tables/views; grouping,
@@ -82,6 +98,7 @@ export function buildStaffBalance({ duesRows = [], accruals = [], advances = [],
         payments: payBy[d.labourer_id] || [],
         today,
       }),
+      accruals: accBy[d.labourer_id] || [],
       month,
     }))
     .filter(r => !isBlank(r))
@@ -91,16 +108,17 @@ export function buildStaffBalance({ duesRows = [], accruals = [], advances = [],
         : a.subType === 'permanent' ? -1 : 1)
 
   const totals = rows.reduce((t, r) => ({
-    opening:   t.opening   + r.opening,
-    earned:    t.earned    + r.earned,
-    total:     t.total     + r.total,
-    advances:  t.advances  + r.advances,
-    paid:      t.paid      + r.paid,
-    recovered: t.recovered + r.recovered,
-    closing:   t.closing   + r.closing,
-    cr:        t.cr        + r.cr,
-    dr:        t.dr        + r.dr,
-  }), { opening: 0, earned: 0, total: 0, advances: 0, paid: 0, recovered: 0, closing: 0, cr: 0, dr: 0 })
+    opening:     t.opening     + r.opening,
+    salaryWages: t.salaryWages + r.salaryWages,
+    total:       t.total       + r.total,
+    advances:    t.advances    + r.advances,
+    contract:    t.contract    + r.contract,
+    paid:        t.paid        + r.paid,
+    recovered:   t.recovered   + r.recovered,
+    closing:     t.closing     + r.closing,
+    cr:          t.cr          + r.cr,
+    dr:          t.dr          + r.dr,
+  }), { opening: 0, salaryWages: 0, total: 0, advances: 0, contract: 0, paid: 0, recovered: 0, closing: 0, cr: 0, dr: 0 })
 
   return { rows, totals }
 }
