@@ -618,6 +618,11 @@ function MonthWorkLogs({ logs, month }) {
 }
 
 // ── Labour Salary tab ─────────────────────────────────────────────────────────
+// The register's notation, beside every balance (owner, 1 Sep — colour alone
+// did not say which way the money runs): Cr. = the farm owes the worker,
+// Dr. = the worker owes the farm. Same convention as the STAFF BALANCE CSV.
+const crdr = (n) => (n > 0 ? 'Cr.' : n < 0 ? 'Dr.' : '')
+
 function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, showToast, month, setMonth, att }) {
   const [modal,   setModal]   = useState(null)
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
@@ -841,6 +846,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 </p>
                 <p className={`text-base font-bold ${balance > 0 ? 'text-[#E24B4A]' : balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
                   ₹{Math.abs(balance).toLocaleString('en-IN')}
+                  {balance !== 0 && <span className="text-[9px] font-semibold ml-0.5">{crdr(balance)}</span>}
                 </p>
               </div>
             </div>
@@ -991,6 +997,7 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                     <p className="text-[9px] text-[var(--c-muted)]">{owes > 0 ? 'Worker owes' : 'Farm owes'}</p>
                     <p className="text-base font-bold" style={{ color: owes > 0 ? '#BA7517' : '#E24B4A' }}>
                       ₹{Math.abs(w.balance).toLocaleString('en-IN')}
+                      {w.balance !== 0 && <span className="text-[9px] font-semibold ml-0.5">{crdr(w.balance)}</span>}
                     </p>
                   </div>
                 </div>
@@ -1044,14 +1051,15 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                   ['Earned + recovered', ledger.khata.totalCredit, '#8A9A5B'],
                   ['Paid + advances',     ledger.khata.totalDebit,  '#BA7517'],
                   [ledger.khata.closing > 0 ? 'Farm owes' : ledger.khata.closing < 0 ? 'Worker owes' : 'Settled',
-                   ledger.khata.closing, null],
-                ].map(([label, val, color]) => (
+                   ledger.khata.closing, null, crdr(ledger.khata.closing)],
+                ].map(([label, val, color, suffix]) => (
                   <div key={label} className="bg-[var(--c-input)] rounded-xl py-2 text-center">
                     <p className="text-[9px] text-[var(--c-faint)] mb-0.5">{label}</p>
                     {/* The label already says which way the money runs, so a
                         minus sign here would only muddle it. */}
                     <p className="text-xs font-bold" style={{ color: color || (val > 0 ? '#E24B4A' : val < 0 ? '#BA7517' : 'var(--c-muted)') }}>
                       ₹{Math.abs(val).toLocaleString('en-IN')}
+                      {suffix && <span className="text-[9px] font-semibold ml-0.5">{suffix}</span>}
                     </p>
                   </div>
                 ))}
@@ -1080,8 +1088,11 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                   </div>
                   <p className="text-[10px] font-semibold text-[#E24B4A] text-right">{e.debit ? `₹${e.debit.toLocaleString('en-IN')}` : '—'}</p>
                   <p className="text-[10px] font-semibold text-[#8A9A5B] text-right">{e.credit ? `₹${e.credit.toLocaleString('en-IN')}` : '—'}</p>
+                  {/* The register's notation instead of a minus sign — a bank
+                      statement's Cr./Dr., which is how the owner reads it. */}
                   <p className={`text-[10px] font-bold text-right ${e.balance > 0 ? 'text-[#E24B4A]' : e.balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
-                    {e.balance >= 0 ? '₹' : '-₹'}{Math.abs(e.balance).toLocaleString('en-IN')}
+                    ₹{Math.abs(e.balance).toLocaleString('en-IN')}
+                    {e.balance !== 0 && <span className="text-[8px] font-semibold ml-0.5">{crdr(e.balance)}</span>}
                   </p>
                 </div>
               ))}
