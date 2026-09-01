@@ -1764,6 +1764,11 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 
           {showHistory && (
             <Card className="overflow-x-auto p-0">
+              {/* The months come from the settled rows themselves, so a khata
+                  with nothing settled has none to offer — and a range picker
+                  holding only "Earliest" and "Latest" reads as broken rather
+                  than empty. It appears with the first settled entry. */}
+              {historyMonths.length > 0 && (
               <div className="flex items-center gap-2 px-3 py-2 flex-wrap"
                 style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                 <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>From</span>
@@ -1788,6 +1793,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                   </button>
                 )}
               </div>
+              )}
               {historyInRange.length === 0 ? (
                 <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
                   {historyRows.length === 0
