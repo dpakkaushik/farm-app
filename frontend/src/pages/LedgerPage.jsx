@@ -17,7 +17,7 @@ import { groupLabourRows, shortDate } from '../lib/labourGroups'
 import {
   openItemsFor, unsettled, settled, vendorBillsFrom, allocationsForVendor,
   planAllocation, settlementNarration, toAllocationRows,
-  khataMonths, inMonthRange, STATUS_LABEL,
+  monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,
 } from '../lib/billSettlement'
 import { buildVendorWorkbook } from '../lib/vendorWorkbook'
 import {
@@ -1330,6 +1330,24 @@ const STATUS_TONE = {
   paid:   { bg: 'rgba(138,154,91,0.14)', fg: '#8A9A5B' },
 }
 
+// One end of the History range. The months arrive grouped by year, so a khata
+// running for years stays two dropdowns instead of one list of sixty: the
+// browser draws each year as a heading of its own.
+function MonthSelect({ years, value, onChange, openLabel }) {
+  return (
+    <select className="text-[12px] px-2 py-1 rounded-lg"
+      style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
+      value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">{openLabel}</option>
+      {years.map(({ year, months }) => (
+        <optgroup key={year} label={year}>
+          {months.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
+        </optgroup>
+      ))}
+    </select>
+  )
+}
+
 function StatusPill({ status }) {
   const tone = STATUS_TONE[status] || STATUS_TONE.unpaid
   return (
@@ -1476,7 +1494,12 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     })),
   ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))) : []
 
-  const historyMonths = khataMonths(historyRows.map(r => r.date))
+  // The range offers every month this party's khata touches — bills included,
+  // not only what is settled — so a vendor with nothing paid yet still gets a
+  // working picker. Grouped by year, because a khata can run for years.
+  const historyYears = monthsByYear(monthRangeOptions({
+    dates: [...historyRows.map(r => r.date), ...khataItems.map(i => i.date)],
+  }))
   const historyInRange = historyRows.filter(r => inMonthRange(r.date, histRange.from, histRange.to))
 
   // ── The register, downloaded ───────────────────────────────────────────────
@@ -1764,27 +1787,17 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 
           {showHistory && (
             <Card className="overflow-x-auto p-0">
-              {/* The months come from the settled rows themselves, so a khata
-                  with nothing settled has none to offer — and a range picker
-                  holding only "Earliest" and "Latest" reads as broken rather
-                  than empty. It appears with the first settled entry. */}
-              {historyMonths.length > 0 && (
+              {/* Always drawn, and always with real months in it — the options
+                  come from every date on the khata, not just the settled rows,
+                  so a party with nothing paid yet still gets a working range. */}
               <div className="flex items-center gap-2 px-3 py-2 flex-wrap"
                 style={{ borderBottom: '0.5px solid var(--c-border)' }}>
                 <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>From</span>
-                <select className="text-[12px] px-2 py-1 rounded-lg"
-                  style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
-                  value={histRange.from} onChange={e => setHistRange(r => ({ ...r, from: e.target.value }))}>
-                  <option value="">Earliest</option>
-                  {historyMonths.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
-                </select>
+                <MonthSelect years={historyYears} openLabel="Earliest" value={histRange.from}
+                  onChange={v => setHistRange(r => ({ ...r, from: v }))} />
                 <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>to</span>
-                <select className="text-[12px] px-2 py-1 rounded-lg"
-                  style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
-                  value={histRange.to} onChange={e => setHistRange(r => ({ ...r, to: e.target.value }))}>
-                  <option value="">Latest</option>
-                  {historyMonths.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
-                </select>
+                <MonthSelect years={historyYears} openLabel="Latest" value={histRange.to}
+                  onChange={v => setHistRange(r => ({ ...r, to: v }))} />
                 {(histRange.from || histRange.to) && (
                   <button onClick={() => setHistRange({ from: '', to: '' })}
                     className="text-[12px] px-2 py-1 rounded-full"
@@ -1793,7 +1806,6 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
                   </button>
                 )}
               </div>
-              )}
               {historyInRange.length === 0 ? (
                 <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
                   {historyRows.length === 0

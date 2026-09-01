@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   billStatus, openItemsFor, unsettled, settled, planAllocation, allocationsForVendor,
-  khataMonths, inMonthRange,
+  khataMonths, monthRangeOptions, monthsByYear, inMonthRange,
   settlementNarration, toAllocationRows, vendorBillsFrom, PAID_TOLERANCE,
 } from '../billSettlement'
 
@@ -318,6 +318,39 @@ describe('settled / khataMonths / inMonthRange', () => {
   it('offers every month the rows touch, newest first', () => {
     expect(khataMonths(['2026-06-02', '2026-08-23', '2026-06-30', null, '']))
       .toEqual(['2026-08', '2026-06'])
+  })
+
+  // Ankur has three unpaid bills and nothing settled. The picker must still
+  // offer August, or it reads as a filter that does not work.
+  it('offers months from the whole khata, not only what is settled', () => {
+    expect(monthRangeOptions({ dates: ['2026-08-01', '2026-08-08', '2026-08-23'] }))
+      .toEqual(['2026-08'])
+  })
+
+  it('never comes back empty — a brand-new party gets the last twelve months', () => {
+    const opts = monthRangeOptions({ dates: [], today: new Date(2026, 8, 1), fallback: 12 })
+    expect(opts).toHaveLength(12)
+    expect(opts[0]).toBe('2026-09')
+    expect(opts[11]).toBe('2025-10')
+  })
+
+  // A UTC-based fallback would offer August on 1 September in IST.
+  it('reads today from local parts, not toISOString', () => {
+    expect(monthRangeOptions({ dates: [], today: new Date(2026, 0, 1), fallback: 2 }))
+      .toEqual(['2026-01', '2025-12'])
+  })
+
+  // Years of trading would otherwise be sixty entries in one flat dropdown.
+  it('gathers the months under their years, newest first', () => {
+    expect(monthsByYear(['2026-08', '2026-02', '2025-12', '2024-01'])).toEqual([
+      { year: '2026', months: ['2026-08', '2026-02'] },
+      { year: '2025', months: ['2025-12'] },
+      { year: '2024', months: ['2024-01'] },
+    ])
+  })
+
+  it('groups nothing into nothing', () => {
+    expect(monthsByYear([])).toEqual([])
   })
 
   it('includes both ends of the picked range', () => {

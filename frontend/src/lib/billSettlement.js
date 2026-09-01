@@ -245,6 +245,49 @@ export function khataMonths(dates = []) {
   return [...months].sort().reverse()
 }
 
+/**
+ * The months the range picker offers, newest first — and never an empty list.
+ *
+ * Built from every date on the khata, not just the settled rows: a party with
+ * nothing paid yet still has bills, and a picker holding no months at all reads
+ * as a filter that does not work. Where even that is empty (a brand-new party)
+ * it falls back to the last `fallback` months up to today, so the control is
+ * always usable and always says what it will do.
+ */
+export function monthRangeOptions({ dates = [], today = new Date(), fallback = 12 } = {}) {
+  const found = khataMonths(dates)
+  if (found.length) return found
+
+  // Local parts, not toISOString() — that returns the previous day in IST and
+  // would offer the wrong month at the turn of one.
+  const y = today.getFullYear()
+  const m = today.getMonth()
+  return Array.from({ length: Math.max(1, fallback) }, (_, i) => {
+    const d = new Date(y, m - i, 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+}
+
+/**
+ * Those months, gathered under their years — newest year first, newest month
+ * first inside it.
+ *
+ * A khata that runs for years would otherwise put sixty entries in one flat
+ * dropdown. Grouped, the same two controls stay scannable however long the
+ * party has been trading: the browser draws each year as a heading.
+ */
+export function monthsByYear(months = []) {
+  const years = new Map()
+  for (const m of months) {
+    const y = String(m).slice(0, 4)
+    if (!years.has(y)) years.set(y, [])
+    years.get(y).push(m)
+  }
+  return [...years.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([year, ms]) => ({ year, months: [...ms].sort().reverse() }))
+}
+
 /** Is this date inside the picked months? Bounds included, either may be open. */
 export function inMonthRange(date, from, to) {
   const m = String(date || '').slice(0, 7)

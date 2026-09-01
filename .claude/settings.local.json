@@ -57,7 +57,9 @@
       "Bash(npx eslint *)",
       "Bash(cp -r \"C:/Users/Admin/Desktop/github_clone/farm-app/frontend/src\" lintsrc)",
       "Bash(rm -rf lintsrc)",
-      "Bash(grep -v \"URLSearchParams\\\\|Admin.jsx\\\\|Field.jsx\\\\|^$\")"
+      "Bash(grep -v \"URLSearchParams\\\\|Admin.jsx\\\\|Field.jsx\\\\|^$\")",
+      "Bash(sed -i 's/  khataMonths, inMonthRange, STATUS_LABEL,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,/' src/pages/LedgerPage.jsx)",
+      "Bash(sed -i 's/  khataMonths, inMonthRange,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange,/' src/lib/__tests__/billSettlement.test.js)"
     ],
     "additionalDirectories": [
       "\\",
