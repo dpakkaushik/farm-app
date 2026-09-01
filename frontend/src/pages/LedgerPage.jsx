@@ -1738,22 +1738,28 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
 
       {/* ── History ───────────────────────────────────────────────────────────
           Everything squared away: bills that closed, and the payments that
-          closed them. Tucked behind a tap, and narrowed by a month range. */}
-      {historyRows.length > 0 && (
-        <div className="flex flex-col gap-2">
+          closed them. Tucked behind a tap, and narrowed by a month range.
+          Drawn even when the count is nil — a party with nothing settled yet
+          (Ankur, today) still has to show WHERE its history will appear, or
+          the khata reads as if the feature is missing. */}
+      <div className="flex flex-col gap-2">
           <button onClick={() => setShowHistory(v => !v)}
             className="flex items-center justify-between px-3 py-2.5 rounded-xl"
             style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
-            <span className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>
-              History
-              <span className="ml-1.5 font-normal text-[12px]" style={{ color: 'var(--c-faint)' }}>
-                {historyRows.length} settled {historyRows.length === 1 ? 'entry' : 'entries'}
+            <span className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>History</span>
+            <span className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                style={{
+                  background: historyRows.length ? 'rgba(138,154,91,0.14)' : 'var(--c-bg)',
+                  color:      historyRows.length ? '#8A9A5B' : 'var(--c-faint)',
+                }}>
+                {historyRows.length} settled
               </span>
+              <ChevronDown size={13} style={{
+                color: 'var(--c-faint)',
+                transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
+              }} />
             </span>
-            <ChevronDown size={13} style={{
-              color: 'var(--c-faint)',
-              transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
-            }} />
           </button>
 
           {showHistory && (
@@ -1784,7 +1790,9 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
               </div>
               {historyInRange.length === 0 ? (
                 <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
-                  Nothing settled in these months.
+                  {historyRows.length === 0
+                    ? 'Nothing settled on this khata yet. Paid bills and payments will appear here.'
+                    : 'Nothing settled in these months.'}
                 </div>
               ) : (
                 <table className="w-full text-xs">
@@ -1829,8 +1837,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
               )}
             </Card>
           )}
-        </div>
-      )}
+      </div>
     </div>
   )
 }

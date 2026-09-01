@@ -56,7 +56,8 @@
       "Bash(cp \"C:/Users/Admin/Desktop/github_clone/farm-app/frontend/src/pages/LedgerPage.jsx\" lintsrc/)",
       "Bash(npx eslint *)",
       "Bash(cp -r \"C:/Users/Admin/Desktop/github_clone/farm-app/frontend/src\" lintsrc)",
-      "Bash(rm -rf lintsrc)"
+      "Bash(rm -rf lintsrc)",
+      "Bash(grep -v \"URLSearchParams\\\\|Admin.jsx\\\\|Field.jsx\\\\|^$\")"
     ],
     "additionalDirectories": [
       "\\",
