@@ -46,10 +46,21 @@
       "Bash(git commit -m '@ *)",
       "Bash(git push *)",
       "Bash(git commit -m 'docs: hand off the labour payment grouping - one job, one payment' -m 'A single 6,520 spraying job shows as seven cash-book payments because its *)",
-      "Bash(awk 'NR>621 && /deleteSalaryPayment\\\\\\(/ {print NR\": \"$0}' pages/Labour.jsx)"
+      "Bash(awk 'NR>621 && /deleteSalaryPayment\\\\\\(/ {print NR\": \"$0}' pages/Labour.jsx)",
+      "Bash(cd \"c:/Users/Admin/Desktop/github_clone/farm-app\" && grep -rn \"create policy\" supabase/migrations/0024_crop_opening_cost_breakup.sql | head -8 && echo \"---\" && sed -n '/vendor_payments/,+12p' supabase/migrations/0000b_baseline_policies.sql | head -20)",
+      "Bash(node -e ' *)",
+      "Bash(SCRATCH=C:/Users/Admin/AppData/Local/Temp/claude/c--Users-Admin-Desktop-github-clone-farm-app/da6b1d27-1706-46b9-b056-11285f3cfd0e/scratchpad node -e ' *)",
+      "Bash(awk 'NR>=1220 && NR<=1780' frontend/src/pages/LedgerPage.jsx)",
+      "Bash(npm init *)",
+      "Bash(npm i *)",
+      "Bash(cp \"C:/Users/Admin/Desktop/github_clone/farm-app/frontend/src/pages/LedgerPage.jsx\" lintsrc/)",
+      "Bash(npx eslint *)",
+      "Bash(cp -r \"C:/Users/Admin/Desktop/github_clone/farm-app/frontend/src\" lintsrc)",
+      "Bash(rm -rf lintsrc)"
     ],
     "additionalDirectories": [
-      "\\"
+      "\\",
+      "C:\\Users\\Admin\\Desktop\\github_clone\\farm-app\\supabase\\migrations"
     ]
   }
 }

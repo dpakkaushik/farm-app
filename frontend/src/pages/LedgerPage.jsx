@@ -15,6 +15,12 @@ import { summarizeCropPnl } from '../lib/farmOverview'
 import useBackClose from '../hooks/useBackClose'
 import { groupLabourRows, shortDate } from '../lib/labourGroups'
 import {
+  openItemsFor, unsettled, settled, vendorBillsFrom, allocationsForVendor,
+  planAllocation, settlementNarration, toAllocationRows,
+  khataMonths, inMonthRange, STATUS_LABEL,
+} from '../lib/billSettlement'
+import { buildVendorWorkbook } from '../lib/vendorWorkbook'
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
@@ -280,37 +286,147 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
 }
 
 // ── Pay Vendor Modal ──────────────────────────────────────────────────────────
+//
+// The owner, 1 Sep 2026: "lets say we settle 50000 and there was one 50000 bill
+// and two 20k bills and one 10k bill — how app will know which bill to clear?"
+//
+// It cannot know, so it stops guessing: the bills are listed, he ticks the ones
+// the money is for, and the ticks are stored beside the payment. Ticking nothing
+// still works and means exactly what every payment before today meant — money
+// off the balance with no bill named.
+//
+// The amount field is prefilled from the ticks and stays editable, on purpose.
+// A short payment fills the oldest bills first and leaves the rest on the last
+// one; a long one goes on account. Both are said in words before the money
+// moves — the same thing recoveryOutcome does for a part recovery in Labour.
 function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
   const today = new Date().toISOString().slice(0, 10)
+  const { bills, purchases, capitalPurchases, vendorAllocations, vendorPayments, inventoryMaster } = useAppStore()
   const [form, setForm] = useState({
     vendor_id: selectedVendor?.vendor_id || vendors[0]?.id || '',
     payment_date: today, amount: '', payment_mode: 'cash', notes: '',
   })
+  const [ticked, setTicked] = useState({})   // item key → picked
+  const [touchedAmount, setTouchedAmount] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
 
-  const vendorName = vendors.find(v => v.id === form.vendor_id)?.name || ''
+  const vendor = vendors.find(v => v.id === form.vendor_id)
+  const vendorName = vendor?.name || ''
+
+  const itemName = (id) => inventoryMaster.find(i => i.id === id)?.name || ''
+  const openItems = useMemo(() => {
+    if (!vendor) return []
+    return unsettled(openItemsFor({
+      bills: vendorBillsFrom({ vendorId: vendor.id, bills, purchases, capitalPurchases, itemName }),
+      allocations: allocationsForVendor({ vendorId: vendor.id, vendorPayments, allocations: vendorAllocations }),
+      opening: Number(vendor.opening_balance || 0),
+      openingDate: vendor.opening_balance_date || null,
+    }))
+    // itemName closes over inventoryMaster, which is in the list — the linter
+    // this project does not yet run would want it named, so it is said here.
+  }, [vendor, bills, purchases, capitalPurchases, vendorAllocations, vendorPayments, inventoryMaster])
+
+  // Ticks belong to the vendor they were made for. Switching party has to clear
+  // them, or a bill of Ankur's would be settled by a payment to Dhaliwal — the
+  // database refuses that, but the modal should never offer it.
+  const pickVendor = (id) => { setTicked({}); setTouchedAmount(false); setForm(f => ({ ...f, vendor_id: id, amount: '' })) }
+
+  const picked = openItems.filter(i => ticked[i.key])
+  const pickedTotal = picked.reduce((s, i) => s + i.outstanding, 0)
+
+  const toggle = (item) => {
+    const next = { ...ticked, [item.key]: !ticked[item.key] }
+    setTicked(next)
+    // The amount follows the ticks until he types his own figure, then it is his.
+    if (!touchedAmount) {
+      const total = openItems.filter(i => next[i.key]).reduce((s, i) => s + i.outstanding, 0)
+      setForm(f => ({ ...f, amount: total > 0 ? String(Math.round(total * 100) / 100) : '' }))
+    }
+  }
+
+  const plan = planAllocation(picked, form.amount)
+  const narration = settlementNarration(plan)
 
   const save = async () => {
-    if (!form.amount || !form.vendor_id) return
-    setSaving(true)
-    try { await onSave({ ...form, vendorName }); onClose() } finally { setSaving(false) }
+    if (!plan.valid || !form.vendor_id) return
+    setSaving(true); setErr('')
+    try {
+      await onSave({ ...form, vendorName, allocations: toAllocationRows(plan) })
+      onClose()
+    } catch (e) {
+      setErr(e.message || 'Payment failed')
+      setSaving(false)
+    }
   }
 
   return (
     <Modal title="Pay Vendor" onClose={onClose}>
       <Field label="Vendor">
         <select className={inputCls} style={inputStyle} value={form.vendor_id}
-          onChange={e => setForm(f => ({ ...f, vendor_id: e.target.value }))}>
+          onChange={e => pickVendor(e.target.value)}>
           {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
         </select>
       </Field>
+
+      {/* What the money can be put against. Outstanding, not the bill's face
+          value — a bill already part-paid must not offer its whole amount. */}
+      {openItems.length > 0 && (
+        <Field label="What is this payment for?">
+          <div className="rounded-xl overflow-hidden" style={{ border: '0.5px solid var(--c-border)' }}>
+            {openItems.map((it, i) => (
+              <button key={it.key} onClick={() => toggle(it)}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 text-left"
+                style={{
+                  background: ticked[it.key] ? 'rgba(138,154,91,0.10)' : 'transparent',
+                  borderTop: i ? '0.5px solid var(--c-border)' : 'none',
+                }}>
+                <span className="shrink-0 w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold"
+                  style={{
+                    background: ticked[it.key] ? '#8A9A5B' : 'transparent',
+                    border: `1px solid ${ticked[it.key] ? '#8A9A5B' : 'var(--c-border)'}`,
+                    color: '#fff',
+                  }}>{ticked[it.key] ? '✓' : ''}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[12px] font-medium truncate" style={{ color: 'var(--c-text)' }}>
+                    {it.label}
+                  </span>
+                  <span className="block text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>
+                    {[it.date ? fmtDate(it.date) : null,
+                      it.particulars || null,
+                      it.paid > 0 ? `paid ${fmt(it.paid)} of ${fmt(it.amount)}` : null,
+                    ].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[12px] font-semibold" style={{ color: '#E24B4A' }}>
+                  {fmt(it.outstanding)}
+                </span>
+              </button>
+            ))}
+          </div>
+          {picked.length > 0 && (
+            <div className="flex items-center justify-between px-2.5 py-1.5 mt-1 rounded-lg"
+              style={{ background: 'var(--c-ghost)' }}>
+              <span className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
+                {picked.length} selected
+              </span>
+              <span className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>{fmt(pickedTotal)}</span>
+            </div>
+          )}
+        </Field>
+      )}
+
       <Field label="Date">
         <input type="date" className={inputCls} style={inputStyle} value={form.payment_date}
           onChange={e => setForm(f => ({ ...f, payment_date: e.target.value }))} />
       </Field>
       <Field label="Amount (₹)">
         <input type="number" placeholder="0" className={inputCls} style={inputStyle}
-          value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+          value={form.amount}
+          onChange={e => { setTouchedAmount(true); setForm(f => ({ ...f, amount: e.target.value })) }} />
+        {narration && (
+          <span className="text-[12px] mt-1 block" style={{ color: 'var(--c-muted)' }}>{narration}</span>
+        )}
       </Field>
       <Field label="Payment Mode">
         {/* Two pockets, two options — the same toggle the sale forms use.
@@ -333,11 +449,18 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
         <input type="text" className={inputCls} style={inputStyle}
           value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
       </Field>
-      <button disabled={saving || !form.amount}
+      {/* The database refuses a breakup that does not add up to the payment.
+          That can only happen through a bug, but it must be visible if it does —
+          silently swallowing it would leave him thinking the money was paid. */}
+      {err && (
+        <div className="text-[12px] mb-2 px-2 py-1.5 rounded-lg"
+          style={{ background: 'rgba(226,75,74,0.1)', color: '#E24B4A' }}>{err}</div>
+      )}
+      <button disabled={saving || !plan.valid}
         onClick={save}
         className="w-full py-2.5 rounded-xl text-sm font-semibold text-white mt-1 disabled:opacity-50"
         style={{ background: '#8A9A5B' }}>
-        {saving ? 'Saving…' : 'Record Payment'}
+        {saving ? 'Saving…' : plan.valid ? `Record Payment ${fmt(plan.amount)}` : 'Record Payment'}
       </button>
     </Modal>
   )
@@ -1199,13 +1322,32 @@ function Particulars({ row, isOpen, onToggle }) {
   )
 }
 
+// Unpaid / Part-paid / Paid, as a pill. Amber for part — it is the state that
+// needs an eye, and neither red nor green says "some of it".
+const STATUS_TONE = {
+  unpaid: { bg: 'rgba(226,75,74,0.12)',  fg: '#E24B4A' },
+  part:   { bg: 'rgba(186,117,23,0.14)', fg: '#BA7517' },
+  paid:   { bg: 'rgba(138,154,91,0.14)', fg: '#8A9A5B' },
+}
+
+function StatusPill({ status }) {
+  const tone = STATUS_TONE[status] || STATUS_TONE.unpaid
+  return (
+    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap"
+      style={{ background: tone.bg, color: tone.fg }}>
+      {STATUS_LABEL[status] || status}
+    </span>
+  )
+}
+
 // ── Tab: Party Ledger (Vendor Khatas) ─────────────────────────────────────────
 function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVendor, onEditVendor, canPay, fy }) {
   const [activeId, setActiveId] = useState(null) // null = overview list
-  const [monthView, setMonthView] = useState(false)
-  const [openRows, setOpenRows] = useState({})   // ledger row key → showing line items
-  const { vendorPayments, purchases, inventoryMaster, capitalPurchases } = useAppStore()
-  const toggleRow = (key) => setOpenRows(o => ({ ...o, [key]: !o[key] }))
+  const [showHistory, setShowHistory] = useState(false)
+  const [histRange, setHistRange] = useState({ from: '', to: '' })  // '' = no bound
+  const {
+    vendorPayments, vendorAllocations, purchases, inventoryMaster, capitalPurchases, bills,
+  } = useAppStore()
 
   // A bill's machinery and asset lines are debits on the same document as its
   // stock lines — bill #4237 is ₹13,060 to the vendor, not the ₹8,060 that
@@ -1283,52 +1425,125 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
     })),
   ].sort((a, b) => new Date(a.date) - new Date(b.date)) : []
 
+  // The period cards. Balance Due stays all-time — it is a fact about today,
+  // not activity in a window — and it counts every debit, including a purchase
+  // entered without a bill, which is why it can exceed the Outstanding list.
   const range = periodRange(fy)
-  // A party's opening balance IS the khata's opening line — it precedes every
-  // document by definition, whatever date it happens to be stamped with. Dating
-  // it as an ordinary row sorted Ankur's ₹55,580 in among June's bills, below
-  // the bill it was supposed to open above. So it is folded in here instead.
-  const openingBal = vendorOpening + (range
-    ? ledgerRowsAll.filter(r => r.date < range.start).reduce((s, r) => s + r.debit - r.credit, 0)
-    : 0)
   const ledgerRowsFY = range ? ledgerRowsAll.filter(r => r.date >= range.start && r.date <= range.end) : ledgerRowsAll
 
-  let running = openingBal
-  const ledgerWithBal = ledgerRowsFY.map(r => {
-    running += r.debit - r.credit
-    return { ...r, balance: running }
-  })
-
-  const purchasedFY = ledgerWithBal.reduce((s, r) => s + r.debit, 0)
-  const paidFY      = ledgerWithBal.reduce((s, r) => s + r.credit, 0)
+  const purchasedFY = ledgerRowsFY.reduce((s, r) => s + r.debit, 0)
+  const paidFY      = ledgerRowsFY.reduce((s, r) => s + r.credit, 0)
   const balanceDueAllTime = vendorOpening + ledgerRowsAll.reduce((s, r) => s + r.debit - r.credit, 0)
 
-  // Month-wise grouping with opening / closing balance (within the FY-scoped rows)
-  const byMonth = {}
-  ledgerWithBal.forEach(row => {
-    const mo = row.date ? row.date.slice(0, 7) : '0000-00'
-    if (!byMonth[mo]) byMonth[mo] = { rows: [] }
-    byMonth[mo].rows.push(row)
-  })
-  const months = Object.keys(byMonth).sort()
-  let prevClosing = openingBal
-  months.forEach(mo => {
-    byMonth[mo].openingBal = prevClosing
-    const last = byMonth[mo].rows[byMonth[mo].rows.length - 1]
-    prevClosing = last ? last.balance : prevClosing
-    byMonth[mo].closingBal = prevClosing
-  })
+  // ── The khata, bill by bill ────────────────────────────────────────────────
+  //
+  // His instruction, 1 Sep 2026: "in khata tab only unpaid will be shown and
+  // paid will go in history below the unpaid entries … when click over the
+  // history will give monthly range all paid entries in past within range will
+  // be shown." So the screen opens on what is still owed, and everything
+  // squared away sits behind a month range beneath it.
+  //
+  // Same rows, same amounts, same rule as the Pay modal — both read
+  // openItemsFor, so what he ticks there is exactly what he sees here.
+  const itemNameOf = (id) => inventoryMaster.find(i => i.id === id)?.name || ''
+  const khataItems = activeVendor ? openItemsFor({
+    bills: vendorBillsFrom({
+      vendorId: activeVendor.id, bills, purchases, capitalPurchases, itemName: itemNameOf,
+    }),
+    allocations: allocationsForVendor({
+      vendorId: activeVendor.id, vendorPayments, allocations: vendorAllocations,
+    }),
+    opening:     vendorOpening,
+    openingDate: openingDateOf(activeVendor),
+  }) : []
+
+  const outstandingItems = unsettled(khataItems)
+  const outstandingTotal = outstandingItems.reduce((s, i) => s + i.outstanding, 0)
+
+  // History is both halves of "done": bills that closed, and the money that
+  // closed them. Dropping the payments would lose the only record of ₹50,000
+  // leaving the farm on a day no single bill was cleared.
+  const historyRows = activeVendor ? [
+    ...settled(khataItems).map(i => ({
+      key: `done:${i.key}`, date: i.date, kind: 'bill',
+      particulars: i.label + (i.particulars ? ` — ${i.particulars}` : ''),
+      debit: i.amount, credit: 0,
+    })),
+    ...paymentsFor(activeVendor).map(p => ({
+      key: `pay:${p.id}`, date: p.payment_date, kind: 'payment',
+      particulars: p.notes || (!p.payment_mode || p.payment_mode === 'cash' ? 'Cash Payment' : 'Bank Payment'),
+      debit: 0, credit: Number(p.amount || 0),
+    })),
+  ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))) : []
+
+  const historyMonths = khataMonths(historyRows.map(r => r.date))
+  const historyInRange = historyRows.filter(r => inMonthRange(r.date, histRange.from, histRange.to))
+
+  // ── The register, downloaded ───────────────────────────────────────────────
+  //
+  // His ask, holding up the paper: "download excel … it should get a report
+  // like this for all vendors" — one line per bill, a total at the foot. So the
+  // workbook opens on who is owed what, then gives each party its own sheet.
+  //
+  // Shaped in lib/vendorWorkbook.js and only rendered here: the one thing that
+  // must not be wrong — each sheet's foot agreeing with that party's Balance
+  // Due — is a test there, not a hope. Where a sheet cannot tie, it says so in
+  // its own margin.
+  const workbookVendor = (v) => {
+    const rowsAll = [
+      ...purchasesAsBillRows(purchasesFor(v), v.name),
+      ...paymentsFor(v).map(p => ({ debit: 0, credit: Number(p.amount || 0) })),
+    ]
+    const allocs = allocationsForVendor({ vendorId: v.id, vendorPayments, allocations: vendorAllocations })
+    return {
+      name: v.name,
+      items: openItemsFor({
+        bills: vendorBillsFrom({ vendorId: v.id, bills, purchases, capitalPurchases, itemName: itemNameOf }),
+        allocations: allocs,
+        opening: openingOf(v),
+        openingDate: openingDateOf(v),
+      }),
+      onAccount:  allocs.filter(a => a.target === 'on_account').reduce((s, a) => s + a.amount, 0),
+      purchased:  rowsAll.reduce((s, r) => s + r.debit, 0),
+      paid:       rowsAll.reduce((s, r) => s + r.credit, 0),
+      balanceDue: openingOf(v) + rowsAll.reduce((s, r) => s + r.debit - r.credit, 0),
+    }
+  }
+
+  const downloadKhata = async (list, filename) => {
+    const XLSX = await import('xlsx')
+    const { sheets } = buildVendorWorkbook(list.map(workbookVendor))
+    const wb = XLSX.utils.book_new()
+    for (const s of sheets) {
+      const ws = XLSX.utils.aoa_to_sheet(s.rows)
+      if (s.widths) ws['!cols'] = s.widths.map(wch => ({ wch }))
+      XLSX.utils.book_append_sheet(wb, ws, s.name)
+    }
+    XLSX.writeFile(wb, filename)
+  }
+
+  const dlSuffix = new Date().toISOString().slice(0, 10)
 
   const header = (
     <div className="flex items-center justify-between">
       <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
         Sundry Creditors (Vendor Khatas)
       </div>
-      <button onClick={onAddVendor}
-        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium"
-        style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-        <Plus size={11} /> Add Vendor
-      </button>
+      <div className="flex items-center gap-1.5">
+        {vendors.length > 0 && (
+          <button title="Download every vendor's khata"
+            onClick={() => downloadKhata(vendors, `Vendor-Khatas-${dlSuffix}.xlsx`)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium"
+            style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+            <Download size={11} /> Excel
+          </button>
+        )}
+        <button onClick={onAddVendor}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium"
+          style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+          <Plus size={11} /> Add Vendor
+        </button>
+      </div>
     </div>
   )
 
@@ -1403,6 +1618,13 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
           style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
           <Pencil size={10} /> {openingOf(activeVendor) !== 0 ? 'Edit' : 'Opening balance'}
         </button>
+        <button title={`Download ${activeVendor.name}'s khata`}
+          onClick={() => downloadKhata([activeVendor],
+            `Khata-${activeVendor.name.replace(/[^\w]+/g, '-')}-${dlSuffix}.xlsx`)}
+          className="flex items-center gap-1 px-2 py-1 rounded-lg text-[12px] font-medium ml-auto"
+          style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
+          <Download size={10} /> Excel
+        </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
@@ -1438,134 +1660,176 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
         )
       )}
 
-      {/* An opening balance dated before the selected period folds into
-          openingBal rather than becoming a row — without it in this test, a
-          party carrying nothing but an opening balance would read as empty. */}
-      {(ledgerWithBal.length > 0 || openingBal !== 0) ? (
-        <>
-          <div className="flex justify-end">
-            <button
-              onClick={() => setMonthView(v => !v)}
-              className="text-[12px] px-2.5 py-1 rounded-full"
-              style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
-              {monthView ? 'Flat View' : 'Month-wise View'}
-            </button>
+      {/* ── Outstanding ───────────────────────────────────────────────────────
+          Only what is still owed. A bill leaves this list the moment a payment
+          clears it, and turns up under History. The same rows the Pay modal
+          ticks — both read openItemsFor, so the two cannot disagree. */}
+      {outstandingItems.length > 0 ? (
+        <Card className="overflow-x-auto p-0">
+          <div className="px-3 py-2 text-[13px] font-semibold"
+            style={{ color: 'var(--c-text)', borderBottom: '0.5px solid var(--c-border)' }}>
+            Outstanding
           </div>
-
-          {monthView ? (
-            <div className="flex flex-col gap-2">
-              {months.map(mo => {
-                const { rows: mRows, openingBal: moOpen, closingBal } = byMonth[mo]
-                const moLabel = new Date(mo + '-02').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-                return (
-                  <Card key={mo} className="p-0 overflow-hidden">
-                    <div className="flex items-center justify-between px-3 py-2"
-                      style={{ background: 'var(--c-ghost)', borderBottom: '0.5px solid var(--c-border)' }}>
-                      <span className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>{moLabel}</span>
-                      <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
-                        Opening: {fmt(moOpen)}
-                      </span>
-                    </div>
-                    <table className="w-full text-xs">
-                      <tbody>
-                        {mRows.map((row, i) => (
-                          <React.Fragment key={row.key || i}>
-                            <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                              <td className="px-3 py-2 whitespace-nowrap w-[72px]" style={{ color: 'var(--c-faint)' }}>
-                                {fmtDate(row.date)}
-                              </td>
-                              <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
-                                <Particulars row={row} isOpen={!!openRows[row.key]}
-                                  onToggle={() => toggleRow(row.key)} />
-                              </td>
-                              <td className="px-3 py-2 text-right w-20 font-medium"
-                                style={{ color: row.debit > 0 ? '#E24B4A' : 'var(--c-faint)' }}>
-                                {row.debit > 0 ? fmt(row.debit) : '—'}
-                              </td>
-                              <td className="px-3 py-2 text-right w-20 font-medium"
-                                style={{ color: row.credit > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>
-                                {row.credit > 0 ? fmt(row.credit) : '—'}
-                              </td>
-                            </tr>
-                            {openRows[row.key] && row.items?.length > 0 && (
-                              <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                    <div className="flex items-center justify-between px-3 py-2"
-                      style={{ background: 'var(--c-ghost)', borderTop: '0.5px solid var(--c-border)' }}>
-                      <span className="text-[12px] font-semibold" style={{ color: 'var(--c-text)' }}>Closing Balance</span>
-                      <span className="text-[14px] font-bold"
-                        style={{ color: closingBal > 0 ? '#E24B4A' : '#8A9A5B' }}>
-                        {fmt(closingBal)}
-                      </span>
-                    </div>
-                  </Card>
-                )
-              })}
-            </div>
-          ) : (
-            <Card className="overflow-x-auto p-0">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                    {['Date','Particulars','Purchase (Dr)','Payment (Cr)','Balance'].map(h => (
-                      <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {(range || openingBal !== 0) && (
-                    <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      <td colSpan={4} className="px-3 py-2 italic" style={{ color: 'var(--c-faint)' }}>
-                        Opening Balance
-                        {vendorOpening !== 0 && (
-                          <span className="not-italic ml-1.5 text-[12px]" style={{ color: 'var(--c-faint)' }}>
-                            · includes {fmt(vendorOpening)} owed before the app
-                            {openingDateOf(activeVendor) ? ` (as on ${fmtDate(openingDateOf(activeVendor))})` : ''}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right font-bold" style={{ color: openingBal > 0 ? '#E24B4A' : '#8A9A5B' }}>{fmt(openingBal)}</td>
-                    </tr>
-                  )}
-                  {ledgerWithBal.map((row, i) => (
-                    <React.Fragment key={row.key || i}>
-                      <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
-                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
-                          <Particulars row={row} isOpen={!!openRows[row.key]}
-                            onToggle={() => toggleRow(row.key)} />
-                        </td>
-                        <td className="px-3 py-2 text-right" style={{ color: '#E24B4A' }}>
-                          {row.debit > 0 ? fmt(row.debit) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right" style={{ color: '#8A9A5B' }}>
-                          {row.credit > 0 ? fmt(row.credit) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-bold"
-                          style={{ color: row.balance > 0 ? '#E24B4A' : '#8A9A5B' }}>
-                          {fmt(row.balance)}
-                        </td>
-                      </tr>
-                      {openRows[row.key] && row.items?.length > 0 && (
-                        <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={5} />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </Card>
-          )}
-        </>
+          <table className="w-full text-xs">
+            <thead>
+              <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                {['Date', 'Particulars', 'Amount', 'Paid', 'Outstanding', ''].map(h => (
+                  <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {outstandingItems.map(it => (
+                <tr key={it.key} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                  <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>
+                    {it.date ? fmtDate(it.date) : '—'}
+                  </td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                    {it.label}
+                    {it.particulars && (
+                      <div className="text-[11px] truncate max-w-[180px]" style={{ color: 'var(--c-faint)' }}>
+                        {it.particulars}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-right" style={{ color: 'var(--c-text)' }}>{fmt(it.amount)}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: it.paid > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>
+                    {it.paid > 0 ? fmt(it.paid) : '—'}
+                  </td>
+                  <td className="px-3 py-2 text-right font-bold" style={{ color: '#E24B4A' }}>{fmt(it.outstanding)}</td>
+                  <td className="px-2 py-2"><StatusPill status={it.status} /></td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ background: 'var(--c-ghost)' }}>
+                <td colSpan={4} className="px-3 py-2 font-semibold" style={{ color: 'var(--c-text)' }}>
+                  Total outstanding
+                </td>
+                <td className="px-3 py-2 text-right font-bold" style={{ color: '#E24B4A' }}>{fmt(outstandingTotal)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </Card>
       ) : (
         <Card>
           <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
-            No purchases recorded for this vendor in this period.
+            {khataItems.length
+              ? 'Nothing outstanding — every bill on this khata is settled.'
+              : 'No bills recorded for this vendor yet.'}
           </div>
         </Card>
+      )}
+
+      {/* Balance Due is computed in the database from every debit, including
+          purchases entered without a bill and money paid on account — neither of
+          which can appear in a bill-wise list. Where the two differ, say by how
+          much rather than let a reader find the gap. */}
+      {Math.round(outstandingTotal) !== Math.round(balanceDueAllTime) && (
+        <p className="text-[12px] px-3 py-2 rounded-xl"
+          style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>
+          Balance Due is {fmt(balanceDueAllTime)} — {fmt(Math.abs(balanceDueAllTime - outstandingTotal))}{' '}
+          {balanceDueAllTime > outstandingTotal
+            ? 'of it sits against no bill (a purchase entered without one).'
+            : 'has been paid without naming a bill (on account).'}
+        </p>
+      )}
+
+      {/* ── History ───────────────────────────────────────────────────────────
+          Everything squared away: bills that closed, and the payments that
+          closed them. Tucked behind a tap, and narrowed by a month range. */}
+      {historyRows.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <button onClick={() => setShowHistory(v => !v)}
+            className="flex items-center justify-between px-3 py-2.5 rounded-xl"
+            style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
+            <span className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>
+              History
+              <span className="ml-1.5 font-normal text-[12px]" style={{ color: 'var(--c-faint)' }}>
+                {historyRows.length} settled {historyRows.length === 1 ? 'entry' : 'entries'}
+              </span>
+            </span>
+            <ChevronDown size={13} style={{
+              color: 'var(--c-faint)',
+              transform: showHistory ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
+            }} />
+          </button>
+
+          {showHistory && (
+            <Card className="overflow-x-auto p-0">
+              <div className="flex items-center gap-2 px-3 py-2 flex-wrap"
+                style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>From</span>
+                <select className="text-[12px] px-2 py-1 rounded-lg"
+                  style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
+                  value={histRange.from} onChange={e => setHistRange(r => ({ ...r, from: e.target.value }))}>
+                  <option value="">Earliest</option>
+                  {historyMonths.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
+                </select>
+                <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>to</span>
+                <select className="text-[12px] px-2 py-1 rounded-lg"
+                  style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
+                  value={histRange.to} onChange={e => setHistRange(r => ({ ...r, to: e.target.value }))}>
+                  <option value="">Latest</option>
+                  {historyMonths.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
+                </select>
+                {(histRange.from || histRange.to) && (
+                  <button onClick={() => setHistRange({ from: '', to: '' })}
+                    className="text-[12px] px-2 py-1 rounded-full"
+                    style={{ background: 'rgba(138,154,91,0.12)', color: '#8A9A5B' }}>
+                    Clear
+                  </button>
+                )}
+              </div>
+              {historyInRange.length === 0 ? (
+                <div className="text-center text-xs py-4" style={{ color: 'var(--c-faint)' }}>
+                  Nothing settled in these months.
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                      {['Date', 'Particulars', 'Bill (Dr)', 'Paid (Cr)'].map(h => (
+                        <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyInRange.map(row => (
+                      <tr key={row.key} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.date)}</td>
+                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
+                          {row.particulars}
+                          {row.kind === 'bill' && (
+                            <span className="ml-1.5"><StatusPill status="paid" /></span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right" style={{ color: row.debit > 0 ? 'var(--c-text)' : 'var(--c-faint)' }}>
+                          {row.debit > 0 ? fmt(row.debit) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right" style={{ color: row.credit > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>
+                          {row.credit > 0 ? fmt(row.credit) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: 'var(--c-ghost)' }}>
+                      <td colSpan={2} className="px-3 py-2 font-semibold" style={{ color: 'var(--c-text)' }}>Total</td>
+                      <td className="px-3 py-2 text-right font-bold" style={{ color: 'var(--c-text)' }}>
+                        {fmt(historyInRange.reduce((s, r) => s + r.debit, 0))}
+                      </td>
+                      <td className="px-3 py-2 text-right font-bold" style={{ color: '#8A9A5B' }}>
+                        {fmt(historyInRange.reduce((s, r) => s + r.credit, 0))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )

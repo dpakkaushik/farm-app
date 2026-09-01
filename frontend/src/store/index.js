@@ -525,6 +525,10 @@ const useAppStore = create((set, get) => ({
   workTypes:         [],   // work_types table — admin-managed labels, no rate
   activityTypes:     [],   // activity_types table — admin-managed (system + custom)
   purchases:         [],
+  // Bill headers, raw. The document is what a vendor is owed and what a payment
+  // settles, so the Ledger needs the header itself — not only the lines hanging
+  // off it, which is all `purchases` carries.
+  bills:             [],
   issues:            [],
   labourLogs:        [],
   activities:        [],
@@ -551,6 +555,9 @@ const useAppStore = create((set, get) => ({
   // ── Ledger (lazy-loaded on /ledger page) ──────────────────────────────────
   vendors:           [],
   vendorPayments:    [],
+  // What each payment settled — one row per bill it was put against. Explains a
+  // payment, never changes what is owed. See migration 0035.
+  vendorAllocations: [],
   ownerCashEntries:  [],
   expensePayments:   [],
   cashBook:          [],
@@ -660,7 +667,12 @@ const useAppStore = create((set, get) => ({
         // machinery/assets. An embed needs the foreign key to exist, which ties
         // the whole farm load to a migration having been applied; this does not,
         // so the app degrades to "no bill chip" instead of "no data".
-        supabase.from('inventory_bills').select('id, bill_file_url, invoice_number').eq('farm_id', farmId),
+        // bill_date / total_amount / vendor_id joined the select when bill-wise
+        // settlement landed: a payment ticks the document, so the document has
+        // to be readable on its own.
+        supabase.from('inventory_bills')
+          .select('id, bill_file_url, invoice_number, bill_date, total_amount, vendor_id, vendor_name')
+          .eq('farm_id', farmId),
         // Accounts used to arrive only with the Ledger's bundle, which meant
         // accountFor() silently returned null — and the DB trigger parked the
         // money in the DEFAULT (cash) account — for anyone who marked a cane
@@ -677,6 +689,7 @@ const useAppStore = create((set, get) => ({
         cropCycles:        (cyclesRaw || []).map(mapCycle),
         inventoryMaster:   (itemsRaw || []).map(mapItem),
         purchases:         (purchasesRaw || []).map(mapPurchase),
+        bills:             billsRaw || [],
         issues:            (issuesRaw || []).map(mapIssue),
         activities:        (activitiesRaw || []).map(mapActivity),
         permanentStaff: (labourRaw || [])
@@ -1551,6 +1564,9 @@ const useAppStore = create((set, get) => ({
 
     set(s => ({
       purchases: [...newPurchaseRows.map(mapPurchase), ...s.purchases],
+      // The header itself, so the bill can be ticked on the vendor's next
+      // payment without waiting for a full reload.
+      bills: [...s.bills, bill],
       machineryMaster: newMachinery.length ? [...s.machineryMaster, ...newMachinery] : s.machineryMaster,
       farmAssets:      newAssets.length    ? [...s.farmAssets,      ...newAssets]    : s.farmAssets,
       inventoryMaster: s.inventoryMaster.map(i => {
@@ -2640,6 +2656,7 @@ const useAppStore = create((set, get) => ({
     const [
       { data: vendorsRaw },
       { data: vendorPaymentsRaw },
+      { data: vendorAllocationsRaw },
       { data: ownerCashRaw },
       { data: expPaymentsRaw },
       { data: cashBookRaw },
@@ -2655,6 +2672,10 @@ const useAppStore = create((set, get) => ({
     ] = await Promise.all([
       supabase.from('vendors').select('*').eq('farm_id', farmId).order('name'),
       supabase.from('vendor_payments').select('*, vendors(name)').eq('farm_id', farmId).order('payment_date', { ascending: false }),
+      // The breakup of every payment. Read as its own small table rather than
+      // embedded, so a database where 0035 has not landed degrades to "no
+      // status pills" instead of "no ledger".
+      supabase.from('vendor_payment_allocations').select('*').eq('farm_id', farmId),
       supabase.from('owner_cash_entries').select('*').eq('farm_id', farmId).order('entry_date'),
       supabase.from('expense_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
       supabase.from('v_cash_book').select('*'),
@@ -2673,6 +2694,7 @@ const useAppStore = create((set, get) => ({
       accounts:         accountsRaw         || [],
       vendors:          vendorsRaw          || [],
       vendorPayments:   vendorPaymentsRaw   || [],
+      vendorAllocations: vendorAllocationsRaw || [],
       ownerCashEntries: ownerCashRaw        || [],
       expensePayments:  expPaymentsRaw      || [],
       cashBook:         cashBookRaw         || [],
@@ -2839,42 +2861,52 @@ const useAppStore = create((set, get) => ({
     return data
   },
 
+  // A payment, its cash-book line and its bill-wise breakup — one call.
+  //
+  // This used to be two inserts in a row, and on 1 Sep a salary save interrupted
+  // between exactly such a pair left ₹10,000 paid with no cash line: money gone
+  // from the farm and in no book. `record_vendor_payment` (migration 0035) does
+  // all three inside one transaction, so an interrupted save now leaves nothing
+  // rather than half.
+  //
+  // `allocations` is what the modal decided the money settles — [{ target,
+  // bill_id, amount }] adding up to the payment. Omitted, the whole amount is
+  // recorded on account, which is exactly what every payment before today was.
   addVendorPayment: async (payment) => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const farmId = getFarmId()
-    const { data: cashEntry, error: ce } = await supabase.from('owner_cash_entries').insert({
-      farm_id:    farmId,
-      entry_date: payment.payment_date,
-      amount:     parseFloat(payment.amount),
-      direction:  'out',
-      entry_type: 'vendor_payment',
-      notes:      payment.notes || `Paid to ${payment.vendorName || 'Vendor'}`,
-      account_id: get().accountFor(payment.payment_mode)?.id || null,
-      created_by: user?.id || null,
-    }).select().single()
-    if (ce) throw ce
-    const { data, error } = await supabase.from('vendor_payments').insert({
-      farm_id:       farmId,
-      vendor_id:     payment.vendor_id,
-      payment_date:  payment.payment_date,
-      amount:        parseFloat(payment.amount),
-      payment_mode:  payment.payment_mode || 'cash',
-      notes:         payment.notes || null,
-      cash_entry_id: cashEntry.id,
-      created_by:    user?.id || null,
-    }).select('*, vendors(name)').single()
+    const amount = parseFloat(payment.amount)
+    const allocations = payment.allocations?.length
+      ? payment.allocations
+      : [{ target: 'on_account', bill_id: null, amount }]
+
+    const { data: result, error } = await supabase.rpc('record_vendor_payment', {
+      p_vendor_id:    payment.vendor_id,
+      p_payment_date: payment.payment_date,
+      p_amount:       amount,
+      p_payment_mode: payment.payment_mode || 'cash',
+      p_notes:        payment.notes || null,
+      p_account_id:   get().accountFor(payment.payment_mode)?.id || null,
+      p_allocations:  allocations,
+    })
     if (error) throw error
+
+    const vendorName = get().vendors.find(v => v.id === payment.vendor_id)?.name
+      || payment.vendorName || null
+    // The function returns plain rows; the list wants the joined vendor name the
+    // page reads, so it is attached here rather than re-fetched.
+    const saved = { ...result.payment, vendors: vendorName ? { name: vendorName } : null }
+
     const [{ data: balances }, { data: cb }] = await Promise.all([
       supabase.from('v_vendor_balances').select('*'),
       supabase.from('v_cash_book').select('*'),
     ])
     set(s => ({
-      vendorPayments:   [data, ...s.vendorPayments],
-      ownerCashEntries: [...s.ownerCashEntries, cashEntry],
-      vendorBalances:   balances || [],
-      cashBook:         cb       || [],
+      vendorPayments:    [saved, ...s.vendorPayments],
+      vendorAllocations: [...s.vendorAllocations, ...(result.allocations || [])],
+      ownerCashEntries:  [...s.ownerCashEntries, result.cash_entry],
+      vendorBalances:    balances || [],
+      cashBook:          cb       || [],
     }))
-    return data
+    return saved
   },
 
   addExpensePayment: async (payment) => {

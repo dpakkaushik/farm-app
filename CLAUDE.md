@@ -11,9 +11,60 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-01 (two 31-Aug salary payments reverted on the live DB + Harinder's lost cash line written — see the data-fix note; the STAFF BALANCE month CSV extract now splits salary/contract and carries attendance days; every Salary-tab balance now wears the register's Cr./Dr. beside the figure; earlier: the Farm Calendar is four tabs with a crop filter on top; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-01 (bill-wise vendor settlement shipped — a payment now says which bills it cleared, the khata leads with Outstanding and folds the rest into History, and the register downloads as one workbook per vendor; earlier the same day: two 31-Aug salary payments reverted on the live DB + Harinder's lost cash line written) · **detail:** [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (1 Sep, latest) — a live-DB fix, and a defect it exposed.** His two screenshots:
+**Just done (1 Sep, latest) — a payment finally says WHICH BILLS it cleared.** His question:
+*"lets say we settle 50000 and there was one 50000 bill and two 20k bills and one 10k bill — how
+app will know which bill to clear?"* It could not: `vendor_payments` held a vendor and an amount
+and nothing else. Now **Pay Vendor lists that party's open items with a checkbox each** (bill no ·
+date · what was on it · already paid · outstanding), the ticks add up **beneath the list**, the
+amount prefills from them and stays editable, and the modal **says in words** what will happen
+before saving — "Clears bill 4703. ₹275 extra recorded on account." Pay less than ticked and it
+fills **oldest-first**, leaving the shortfall on the last bill; pay more and the surplus is **on
+account**; tick nothing and it behaves exactly as every payment before today did, so nothing that
+exists breaks. Migration [`0035`](supabase/migrations/0035_vendor_payment_allocations.sql)
+(**applied to the live DB**) adds `vendor_payment_allocations` — `target` is `bill` (bill_id names
+the document) · `opening` (the pre-app lump from 0025, settleable but not a bill) · `on_account` —
+plus **`record_vendor_payment()`, which writes the cash line, the payment and the breakup in ONE
+transaction**. That directly retires the atomicity defect logged below for vendors: adding a third
+write to the old two-insert pattern would have made the Harinder-shaped hole likelier, not rarer.
+**Nothing about what is owed changed** — a bill's paid is `sum(allocations)` and its status is
+derived, never stored; `v_vendor_balances` is untouched, so Balance Due is the same figure before
+and after, by construction. Verified on the live DB, both probes rolled back: 3 allocations
+written with the cash entry's `reference_id` set, and a breakup that does not add up is refused
+("Allocations (24625) must add up to the payment (50000)").
+**Same round, at his follow-up ask: the khata leads with what is owed.** *"in khata tab only
+unpaid will be shown and paid will go in history below the unpaid entries … when click over the
+history will give monthly range."* So a vendor's khata is now **Outstanding** (unpaid + part-paid
+bills, opening balance first, status pill and outstanding per row, total at the foot) and beneath
+it a **History** fold — settled bills *and* the payments that settled them, narrowed by a from/to
+month range. **The old flat and month-wise running-balance tables are DELETED**; History replaces
+both, and dropping them was required by his instruction, not incidental. Where the Outstanding
+total and Balance Due differ (a purchase entered with no bill, or money paid on account) the
+screen **says by how much** rather than printing two figures.
+**And the export he asked for:** **⤓ Excel** on the Vendor tab head (every party) and on a single
+khata (that party) — sheet 1 "All Vendors" (who is owed what, biggest first), then one sheet per
+party in his register's own columns (`S.No · Bill No · Date · Particulars · Amount · Paid ·
+Outstanding · Status`, dates as `02.06.26`), an opening-balance row where there is one, and a
+TOTAL that **ties to Balance Due** — a tested invariant, and a sheet that cannot tie prints why in
+its own margin. Logic is pure and tested in
+[`lib/billSettlement.js`](frontend/src/lib/billSettlement.js) (46 specs) and
+[`lib/vendorWorkbook.js`](frontend/src/lib/vendorWorkbook.js) (18) — **289 green**.
+**The decision worth knowing, and it is reversible:** 85% of Ankur's ₹3,45,580 is the opening
+lump with no bills behind it, so **the lump itself is tickable** (spec option B) rather than
+re-keying his 18 bills. Entering them later just replaces that one row with eighteen — but
+**reconcile first**: his register reads 4703 ₹9,600 · 4725 ₹24,625 · 4850 ₹5,100 plus an
+unlabelled ₹21,470, while the app holds 4703 ₹24,625 (08.08) · 4725 ₹5,100 (10.08) · 4850 ₹21,470
+(23.08). **Each app bill number is one line off his**, and ₹9,600 is inside the lump. Both sides
+total ₹3,45,580, so nothing is lost — but itemising before settling that would make the khata
+disagree with his register bill by bill. Full record:
+[`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md).
+**One check worth reusing:** `frontend/` still has no ESLint, and the blank-Salary-tab bug was an
+undefined identifier a green Vite build could not see. A throwaway ESLint 9 in the scratchpad with
+only `no-undef` on a *copy* of `src/` sweeps the whole app in seconds and leaves the repo
+untouched — it was clean here. Do that after any edit that rewrites a block of a page.
+
+**Also done (1 Sep, earlier) — a live-DB fix, and a defect it exposed.** His two screenshots:
 (1) *"revert these top two entries"* — the 31-Aug salary payments to Chhote lal wife (₹12,987,
 which had flipped HER khata to owing the farm) and Vijay Pardeep (₹13, a mis-key). Archived
 (`go_live_archive` batch `855d7c5c`, 6th) then deleted, payment + cash line both; earlier
@@ -22,9 +73,11 @@ balances untouched by construction (the cash book is a computed view), cash in h
 with **no cash line**: `addSalaryPayment` does TWO non-atomic writes and his save was interrupted
 between them. The missing line was written by hand exactly as the app would have (the only
 orphan; advances swept clean). Record: [`supabase/data-fixes/2026-09-01-revert-two-salary-payments-and-harinder-cash-line.md`](supabase/data-fixes/2026-09-01-revert-two-salary-payments-and-harinder-cash-line.md).
-**Known defect now on the list: payment + cash line should be ONE db function** (the way
-`record_transfer` already is), or an interrupted save keeps splitting the books. Same shape
-applies to advances and expense payments. Also: `deleteSalaryPayment` exists in the store and
+**Known defect, now half fixed: payment + cash line must be ONE db function** (the way
+`record_transfer` already is), or an interrupted save keeps splitting the books. **Vendor payments
+are done** — `record_vendor_payment` (0035, above). **Salary payments, advances and expense
+payments still write two rows in a row** and are the remaining exposure; copy 0035's shape.
+Also: `deleteSalaryPayment` exists in the store and
 cleans both rows, but NO screen calls it — deleting a mis-keyed payment is a fix the owner has
 now needed once.
 

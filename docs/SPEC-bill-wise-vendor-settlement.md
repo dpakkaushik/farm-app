@@ -1,7 +1,23 @@
 # Bill-wise vendor settlement + the vendor bill-list export
 
-**Asked 2026-09-01.** Two connected requests, spec'd here so they can be built in a fresh
-session (this one is expensive — scanned pages in context).
+**Asked 2026-09-01. BUILT 2026-09-01** — the spec below is what was asked; this box is what
+shipped and where it differs.
+
+- Migration [`0035`](../supabase/migrations/0035_vendor_payment_allocations.sql), **applied to
+  the live DB**: `vendor_payment_allocations` (RLS + the four policies) and
+  `record_vendor_payment()`, which writes the cash line, the payment and the breakup in **one
+  transaction**. Probed on Ankur's real bills and rolled back: 3 allocations, cash line's
+  `reference_id` set, and a breakup that does not add up is refused.
+- Arithmetic in [`lib/billSettlement.js`](../frontend/src/lib/billSettlement.js) (46 specs) and
+  [`lib/vendorWorkbook.js`](../frontend/src/lib/vendorWorkbook.js) (18) — **289 tests green**.
+- **Option B was taken**: the opening balance is a tickable pseudo-item, not 18 re-keyed bills.
+  It settles like a bill, it is labelled "Opening balance (before the app)", and it does not
+  preclude option A later — entering the bills simply replaces that one row with eighteen.
+  **The ₹9,600 / date-offset reconciliation in §3 is still open and still blocks option A.**
+- **Added after the spec, at his ask the same day:** the khata leads with **Outstanding** only,
+  and everything settled sits under a **History** fold with a from/to month range. The old
+  flat and month-wise running-balance tables are gone — History replaces both.
+- Export: **⤓ Excel** on the Vendor tab head (every party) and on one khata (that party).
 
 ---
 
