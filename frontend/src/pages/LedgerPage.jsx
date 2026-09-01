@@ -1219,7 +1219,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
       invoiceNo:   c.bill_invoice_number || '',
       date:        c.purchase_date,
       vendor:      v.name,
-      vendor_id:   c.vendor_id,
+      vendorId:    c.vendor_id,
       qty:         Number(c.quantity || 1),
       unitPrice:   Number(c.unit_price || 0),
       totalCost:   Number(c.amount || 0),
@@ -1229,6 +1229,10 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
       billFileUrl: c.bill_file_url || null,
     }))
 
+  // camelCase `vendorId`, because that is what mapPurchase produces. It read
+  // `p.vendor_id` until 1 Sep 26 — a key the mapper never set — so this filter
+  // matched nothing and every vendor's khata showed its opening balance with no
+  // bills under it, while Balance Due (computed in the database) stayed correct.
   // Only vendor_id counts. Falling back to a name match gave two different
   // answers to "what do I owe" — this screen counted name matches, while
   // v_vendor_balances counted only real ids — and the comparison was
@@ -1236,7 +1240,7 @@ function VendorTab({ vendors, selectedVendor, setSelectedVendor, onPay, onAddVen
   // whole of Dhaliwal's ₹42,306. Now that a party can state an opening balance,
   // a name match would also silently double it.
   const purchasesFor = (v) => [
-    ...purchases.filter(p => p.vendor_id && p.vendor_id === v.id),
+    ...purchases.filter(p => p.vendorId && p.vendorId === v.id),
     ...capitalAsLines(v),
   ]
   const paymentsFor = (v) => vendorPayments.filter(p => p.vendor_id === v.id)

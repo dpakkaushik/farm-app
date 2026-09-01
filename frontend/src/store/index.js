@@ -143,6 +143,12 @@ function mapPurchase(p) {
   return {
     id:            p.id,
     itemId:        p.item_id,
+    // The vendor this bill belongs to. Carried as an ID, not just the name:
+    // the Ledger's vendor khata matches on it, and while this line was missing
+    // that screen silently showed NO purchases for ANY vendor — the filter
+    // compared against undefined. The total came from the database and stayed
+    // right, so only the detail vanished. Never drop an id a screen filters on.
+    vendorId:      p.vendor_id || null,
     date:          p.purchase_date,
     invoiceDate:   p.invoice_date || null,
     entryDate:     p.entry_date || null,
