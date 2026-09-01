@@ -11,9 +11,24 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-08-31 (Manpower → Salary can extract the owner's paper STAFF BALANCE register as a month CSV; earlier: the Farm Calendar is four tabs with a crop filter on top; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-01 (two 31-Aug salary payments reverted on the live DB + Harinder's lost cash line written — see the data-fix note; the STAFF BALANCE month CSV extract now splits salary/contract and carries attendance days; earlier: the Farm Calendar is four tabs with a crop filter on top; one SummaryBox heads every register and log) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just shipped (31 Aug, latest) — the paper STAFF BALANCE register, extractable from Manpower.**
+**Just done (1 Sep, latest) — a live-DB fix, and a defect it exposed.** His two screenshots:
+(1) *"revert these top two entries"* — the 31-Aug salary payments to Chhote lal wife (₹12,987,
+which had flipped HER khata to owing the farm) and Vijay Pardeep (₹13, a mis-key). Archived
+(`go_live_archive` batch `855d7c5c`, 6th) then deleted, payment + cash line both; earlier
+balances untouched by construction (the cash book is a computed view), cash in hand +13,000.
+(2) *"paid Harinder yesterday but can't see it in cashbook"* — his ₹10,000 payment row existed
+with **no cash line**: `addSalaryPayment` does TWO non-atomic writes and his save was interrupted
+between them. The missing line was written by hand exactly as the app would have (the only
+orphan; advances swept clean). Record: [`supabase/data-fixes/2026-09-01-revert-two-salary-payments-and-harinder-cash-line.md`](supabase/data-fixes/2026-09-01-revert-two-salary-payments-and-harinder-cash-line.md).
+**Known defect now on the list: payment + cash line should be ONE db function** (the way
+`record_transfer` already is), or an interrupted save keeps splitting the books. Same shape
+applies to advances and expense payments. Also: `deleteSalaryPayment` exists in the store and
+cleans both rows, but NO screen calls it — deleting a mis-keyed payment is a fix the owner has
+now needed once.
+
+**Also shipped (31 Aug) — the paper STAFF BALANCE register, extractable from Manpower.**
 His photo: a hand-ruled month sheet ("STAFF BALANCE UPTO 01.05.26 TO 31.05.26") — per worker:
 OP. BALANCE · WAGES · TOTAL · CASH ADVANCE · CR BALANCE · DR BALANCE, with a TOTAL row. Now a
 **⤓ button beside the month picker on Manpower → Salary** downloads exactly that for the picked
