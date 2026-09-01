@@ -43,7 +43,7 @@ export default function Attachment({
       <div className={`relative inline-flex items-center gap-2 group ${className}`}>
         <button type="button" onClick={() => setViewing(true)}
           className={variant === 'chip'
-            ? 'flex items-center gap-1.5 text-[10px] text-[#8A9A5B] underline underline-offset-2'
+            ? 'flex items-center gap-1.5 text-[12px] text-[#8A9A5B] underline underline-offset-2'
             : `${size} rounded-lg overflow-hidden border shrink-0`}
           style={variant === 'chip' ? undefined : { borderColor: 'var(--c-border-md)' }}>
           {variant === 'chip' ? (

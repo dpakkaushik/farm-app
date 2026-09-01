@@ -82,7 +82,7 @@ export default function FilePicker({
           </div>
 
           {!pdf && (
-            <p className="text-[10px] mt-1 text-center" style={{ color: 'var(--c-faint)' }}>
+            <p className="text-[12px] mt-1 text-center" style={{ color: 'var(--c-faint)' }}>
               Tap image to expand
             </p>
           )}

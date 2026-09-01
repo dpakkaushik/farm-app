@@ -103,7 +103,7 @@ export default function SetupChecklist() {
               <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
                 Finish setting up {activeFarm?.name || 'your farm'}
               </p>
-              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>
+              <p className="text-[13px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>
                 Already farming? Record what's in your store and in the ground, so
                 costs and profit are honest from day one.
               </p>
@@ -147,7 +147,7 @@ export default function SetupChecklist() {
 function CardButton({ done, label, onClick }) {
   return (
     <button onClick={onClick}
-      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold"
+      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[14px] font-bold"
       style={done
         ? { background: '#8A9A5B18', color: '#8A9A5B', border: '1px solid #8A9A5B40' }
         : { background: '#8A9A5B', color: '#fff', border: '1px solid #8A9A5B' }}>
@@ -189,7 +189,7 @@ function SheetHeader({ title, sub, onBack, onClose }) {
       )}
       <div className="flex-1 min-w-0">
         <p className="text-[15px] font-bold" style={{ color: 'var(--c-text)' }}>{title}</p>
-        {sub && <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>{sub}</p>}
+        {sub && <p className="text-[13px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>{sub}</p>}
       </div>
       <button onClick={onClose} className="p-1 shrink-0" style={{ color: 'var(--c-faint)' }} aria-label="Close">
         <X size={16} />
@@ -201,7 +201,7 @@ function SheetHeader({ title, sub, onBack, onClose }) {
 // The rule that keeps the numbers honest — required copy on both forms.
 function DontDoubleCount() {
   return (
-    <div className="mx-4 mt-3 rounded-lg px-3 py-2.5 text-[11px] leading-snug"
+    <div className="mx-4 mt-3 rounded-lg px-3 py-2.5 text-[13px] leading-snug"
       style={{ background: '#BA751715', color: '#BA7517', border: '1px solid #BA751730' }}>
       <strong>Don't count the same rupee twice.</strong> Opening stock = what is
       <em> still in the store</em>. Spent-so-far = what a crop <em>already used or
@@ -225,7 +225,7 @@ function SaveBar({ onSave, saving, disabled, label = 'Save' }) {
 
 function ErrorBox({ children }) {
   return (
-    <div className="mx-4 mt-3 rounded-lg px-3 py-2 text-[12px]"
+    <div className="mx-4 mt-3 rounded-lg px-3 py-2 text-[14px]"
       style={{ background: '#E24B4A15', color: '#E24B4A', border: '1px solid #E24B4A40' }}>
       {children}
     </div>
@@ -279,7 +279,7 @@ function MenuView({ done, goLiveDate, onPick, onCycles, onLedger, onLabour, onCl
                 {title}
                 {done && <Check size={13} style={{ color: '#8A9A5B' }} />}
               </p>
-              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>{body}</p>
+              <p className="text-[13px] mt-0.5 leading-snug" style={{ color: 'var(--c-muted)' }}>{body}</p>
             </div>
           </button>
         ))}
@@ -333,7 +333,7 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
       <DontDoubleCount />
       {error && <ErrorBox>{error}</ErrorBox>}
       {items.length === 0 ? (
-        <p className="px-4 py-6 text-[12px]" style={{ color: 'var(--c-muted)' }}>
+        <p className="px-4 py-6 text-[14px]" style={{ color: 'var(--c-muted)' }}>
           No inventory items yet — add them in Admin → Farm Masters first.
         </p>
       ) : (
@@ -342,8 +342,8 @@ function StockForm({ items, purchases, onBack, onSave, onDone }) {
             <div key={item.id} className="flex items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{item.name}</p>
-                <p className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+                <p className="text-[14px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{item.name}</p>
+                <p className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
                   {existingOpening[item.id]
                     ? `opening: ${existingOpening[item.id].qty} ${item.unit} @ ₹${existingOpening[item.id].rate} — type to restate`
                     : item.currentStock > 0 ? `in app: ${item.currentStock} ${item.unit}` : item.unit}
@@ -412,18 +412,18 @@ function CashForm({ opening, accounts = [], onBack, onSave, onSaveAccount, onDon
       {error && <ErrorBox>{error}</ErrorBox>}
       <div className="px-4 pt-3 flex flex-col gap-3">
         <div>
-          <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>Counting from</label>
-          <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+          <label className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>Counting from</label>
+          <p className="text-[12px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
             Your go-live date. Before it, you state balances; after it, everything is entered as it happens.
           </p>
           <input type="date" style={inputStyle} value={date} onChange={e => setDate(e.target.value)} />
         </div>
         {accounts.map(a => (
           <div key={a.id}>
-            <label className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>
+            <label className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>
               {a.type === 'bank' ? '🏦' : '💵'} {a.name} (₹)
             </label>
-            <p className="text-[10px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+            <p className="text-[12px] mb-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
               {a.type === 'bank' ? 'Balance in this account on that day.' : 'Notes actually in the box on that day.'} Leave blank if nothing.
             </p>
             <input type="number" inputMode="decimal" placeholder="e.g. 50000" style={inputStyle}
@@ -432,7 +432,7 @@ function CashForm({ opening, accounts = [], onBack, onSave, onSaveAccount, onDon
           </div>
         ))}
         {accounts.length === 0 && (
-          <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--c-muted)' }}>
             No accounts found — the accounts migration has not been applied yet.
           </p>
         )}
@@ -476,7 +476,7 @@ function BuyersForm({ buyers, goLiveDate, onBack, onSave, onDone }) {
       <DontDoubleCount />
       {error && <ErrorBox>{error}</ErrorBox>}
       {active.length === 0 ? (
-        <p className="px-4 py-6 text-[12px]" style={{ color: 'var(--c-muted)' }}>
+        <p className="px-4 py-6 text-[14px]" style={{ color: 'var(--c-muted)' }}>
           No buyers yet — add them in Admin → Farm Masters first.
         </p>
       ) : (
@@ -485,9 +485,9 @@ function BuyersForm({ buyers, goLiveDate, onBack, onSave, onDone }) {
             <div key={b.id} className="flex items-center gap-2 rounded-lg border px-3 py-2"
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{b.name}</p>
+                <p className="text-[14px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{b.name}</p>
                 {Number(b.openingBalance || 0) !== 0 && (
-                  <p className="text-[10px]" style={{ color: '#8A9A5B' }}>
+                  <p className="text-[12px]" style={{ color: '#8A9A5B' }}>
                     already set: ₹{Number(b.openingBalance).toLocaleString('en-IN')}
                   </p>
                 )}

@@ -32,7 +32,7 @@ const revInfo = type => REVENUE_TYPES.find(([v]) => v === type) || ['other', '�
 
 function SharedChip() {
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
       style={{ background: '#BA751718', color: '#BA7517' }}>SHARED</span>
   )
 }
@@ -47,13 +47,13 @@ function Row({ emoji, title, sub, amount, color, date, chip, attachment, onDelet
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>
               {title}{chip ? <span className="ml-1">{chip}</span> : null}
             </p>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{sub}</p>
+            <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>{sub}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="text-right">
             <p className="text-sm font-bold" style={{ color }}>{fmt(amount)}</p>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{date}</p>
+            <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>{date}</p>
           </div>
           {onDelete && (
             <button onClick={onDelete} className="p-1" style={{ color: 'var(--c-muted)' }}>
@@ -125,9 +125,9 @@ export default function FinanceTab({ animals, face, mode }) {
       {/* Summary — one number for a pet, three for anything that earns */}
       {spendOnly ? (
         <div className="p-4 rounded-2xl border text-center" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-          <p className="text-[10px] uppercase tracking-widest font-bold" style={{ color: 'var(--c-muted)' }}>Total pet spend</p>
+          <p className="text-[12px] uppercase tracking-widest font-bold" style={{ color: 'var(--c-muted)' }}>Total pet spend</p>
           <p className="text-2xl font-bold mt-1" style={{ color: '#E24B4A' }}>{fmt(totalExpenses)}</p>
-          <p className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>
+          <p className="text-[12px] mt-1" style={{ color: 'var(--c-faint)' }}>
             Food, vet, medicine and accessories tagged to a pet
           </p>
         </div>
@@ -140,7 +140,7 @@ export default function FinanceTab({ animals, face, mode }) {
           ].map(({ label, value, color }) => (
             <div key={label} className="p-3 rounded-2xl border text-center"
               style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-              <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{label}</p>
+              <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>{label}</p>
               <p className="text-sm font-bold mt-0.5" style={{ color }}>{value}</p>
             </div>
           ))}
@@ -150,14 +150,14 @@ export default function FinanceTab({ animals, face, mode }) {
       {/* Per pet — the whole point of the Costs face: what each one is costing */}
       {spendOnly && animals.length > 0 && (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+          <p className="px-4 py-2 text-[12px] font-bold uppercase tracking-widest"
             style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>{face.perTitle}</p>
           <div className="divide-y divide-[var(--c-border)]">
             {animals.map(a => (
               <div key={a.id} className="flex items-center justify-between px-4 py-2.5 gap-2">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{animalLabel(a)}</p>
-                  <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+                  <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
                     {a.purchasePrice ? `Bought ${fmtK(a.purchasePrice)} · ` : ''}since joining the farm
                   </p>
                 </div>
@@ -167,7 +167,7 @@ export default function FinanceTab({ animals, face, mode }) {
               </div>
             ))}
           </div>
-          <p className="px-4 py-2 text-[9px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+          <p className="px-4 py-2 text-[11px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
             Spend only — a pet earns nothing, so there is no profit line to draw.
             Shared farm spend is not charged to a pet. If a pet was ever sold, that
             money is in the ledger under livestock income, not here.
@@ -186,7 +186,7 @@ export default function FinanceTab({ animals, face, mode }) {
             style={{ borderColor: '#E24B4A', color: '#E24B4A', background: 'transparent' }}>
             <Plus size={15} /> Add Expense
           </button>
-          <p className="text-[10px] text-center px-4" style={{ color: 'var(--c-muted)' }}>
+          <p className="text-[12px] text-center px-4" style={{ color: 'var(--c-muted)' }}>
             {spendOnly
               ? 'Opens the expense form. Tag the spend to the pet and it lands here.'
               : `Showing ${face.title.toLowerCase()} spend and shared livestock spend`}
@@ -213,7 +213,7 @@ export default function FinanceTab({ animals, face, mode }) {
               return (
                 <Row key={r.id} emoji={emoji}
                   title={<>{label}{r.isSale && (
-                    <span className="ml-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold"
+                    <span className="ml-1 text-[11px] px-1.5 py-0.5 rounded-full font-bold"
                       style={{ background: '#88888820', color: '#888' }}>SALE</span>
                   )}</>}
                   sub={`${animal || 'Shared / general'}${r.buyerName ? ` → ${r.buyerName}` : ''}${r.quantity && r.unit ? ` · ${r.quantity} ${r.unit}` : ''}${r.paymentMode ? ` · ${r.paymentMode}` : ''}`}
@@ -234,7 +234,7 @@ export default function FinanceTab({ animals, face, mode }) {
           with the earnings in it; the Expenses tab is a spend register. */}
       {mode === 'revenue' && earners.length > 0 && (
         <div className="rounded-2xl border overflow-hidden" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-          <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+          <p className="px-4 py-2 text-[12px] font-bold uppercase tracking-widest"
             style={{ color: 'var(--c-muted)', background: 'var(--c-ghost)' }}>{face.perTitle}</p>
           <div className="divide-y divide-[var(--c-border)]">
             {earners.map(a => {
@@ -246,7 +246,7 @@ export default function FinanceTab({ animals, face, mode }) {
                 <div key={a.id} className="flex items-center justify-between px-4 py-2.5 gap-2">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{animalLabel(a)}</p>
-                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+                    <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
                       Cost {fmtK(cost)} · Earned {fmtK(rev)}
                     </p>
                   </div>
@@ -257,7 +257,7 @@ export default function FinanceTab({ animals, face, mode }) {
               )
             })}
           </div>
-          <p className="px-4 py-2 text-[9px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+          <p className="px-4 py-2 text-[11px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
             Only money tagged to one {face.key === 'birds' ? 'flock' : 'animal'} counts here.
             Anything marked SHARED — feed for the whole shed, a vet call covering
             several — sits in the totals above and shows under both Herd and Birds,

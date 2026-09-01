@@ -66,7 +66,7 @@ function Modal({ title, onClose, children }) {
 function FRow({ label, children }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
       {children}
     </div>
   )
@@ -204,7 +204,7 @@ function PlantingModal({ speciesId, speciesName, planting, onClose }) {
         </FRow>
       )}
       {editing && (
-        <p className="text-[10px] px-1" style={{ color: 'var(--c-muted)' }}>
+        <p className="text-[12px] px-1" style={{ color: 'var(--c-muted)' }}>
           Count is {planting.count} — change it from the planting's <b>Update count</b> button, so the
           change carries a reason.
         </p>
@@ -368,11 +368,11 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
           <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>
             {planting.count}
             {planting.notes && (
-              <span className="ml-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+              <span className="ml-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                 style={{ background: '#BA751718', color: '#BA7517' }}>{planting.notes}</span>
             )}
           </p>
-          <div className="flex items-center gap-2 text-[10px] mt-0.5 flex-wrap" style={{ color: 'var(--c-muted)' }}>
+          <div className="flex items-center gap-2 text-[12px] mt-0.5 flex-wrap" style={{ color: 'var(--c-muted)' }}>
             <span className="flex items-center gap-0.5"><MapPin size={9} /> {where}</span>
             {vague && <span style={{ color: '#BA7517' }}>exact spot not set</span>}
             {planting.plantedOn
@@ -385,7 +385,7 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
 
         {canEdit && (
           <div className="flex items-center gap-1 shrink-0">
-            <button onClick={onCount} className="px-2 py-1 rounded-lg text-[10px] font-semibold"
+            <button onClick={onCount} className="px-2 py-1 rounded-lg text-[12px] font-semibold"
               style={{ background: '#8A9A5B18', color: '#8A9A5B' }}>Count</button>
             <button onClick={onEdit} className="p-1" style={{ color: 'var(--c-muted)' }}><Pencil size={13} /></button>
             <button onClick={remove} className="p-1" style={{ color: 'var(--c-muted)' }}><Trash2 size={13} /></button>
@@ -396,11 +396,11 @@ function PlantingRow({ planting, speciesName, canEdit, onEdit, onCount }) {
       {open && (
         <div className="px-3 pb-3 pt-1 space-y-1 border-t" style={{ borderColor: 'var(--c-border)' }}>
           {logs.length === 0
-            ? <p className="text-[10px] pt-2" style={{ color: 'var(--c-muted)' }}>No history</p>
+            ? <p className="text-[12px] pt-2" style={{ color: 'var(--c-muted)' }}>No history</p>
             : logs.map(l => {
                 const meta = CHANGE_TYPES.find(([v]) => v === l.changeType)
                 return (
-                  <div key={l.id} className="flex items-center gap-2 text-[10px] pt-1.5">
+                  <div key={l.id} className="flex items-center gap-2 text-[12px] pt-1.5">
                     <span>{meta ? meta[1] : '📄'}</span>
                     <span className="font-semibold" style={{ color: l.quantity < 0 ? '#E24B4A' : '#8A9A5B' }}>
                       {l.quantity > 0 ? '+' : ''}{l.quantity}
@@ -465,13 +465,13 @@ function SpeciesCard({ species, plantings, canEdit, onPhoto }) {
         <button onClick={() => setOpen(v => !v)} className="flex-1 min-w-0 flex items-center gap-3 text-left">
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>{name}</p>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+            <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
               {plantings.length} {plantings.length === 1 ? 'planting' : 'plantings'}
             </p>
           </div>
           <div className="text-right shrink-0">
             <p className="text-base font-bold" style={{ color: p.color }}>{total}</p>
-            <p className="text-[9px]" style={{ color: 'var(--c-muted)' }}>{p.label}</p>
+            <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>{p.label}</p>
           </div>
           {open ? <ChevronDown size={15} style={{ color: 'var(--c-muted)' }} />
                 : <ChevronRight size={15} style={{ color: 'var(--c-muted)' }} />}
@@ -631,7 +631,7 @@ function SaleModal({ onClose }) {
                       {sp ? displayName(sp) : 'Tree'}
                       {p.notes && <span className="ml-1 font-normal" style={{ color: 'var(--c-muted)' }}>({p.notes})</span>}
                     </p>
-                    <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{where}</p>
+                    <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>{where}</p>
                   </div>
                   <span className="text-xs font-bold shrink-0" style={{ color: meta.color }}>{p.count}</span>
                 </button>
@@ -642,7 +642,7 @@ function SaleModal({ onClose }) {
       </FRow>
 
       {treeCount > 0 && (
-        <p className="text-[10px] px-1 -mt-1" style={{ color: 'var(--c-muted)' }}>
+        <p className="text-[12px] px-1 -mt-1" style={{ color: 'var(--c-muted)' }}>
           Covers <b style={{ color: 'var(--c-text)' }}>{treeCount.toLocaleString('en-IN')}</b> trees
         </p>
       )}
@@ -715,7 +715,7 @@ function SaleModal({ onClose }) {
             <p className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
               🪓 Trees have already been cut
             </p>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+            <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
               {form.felled
                 ? `Removes ${treeCount.toLocaleString('en-IN')} trees from the count now`
                 : 'Leave off if the timber is sold but still standing'}
@@ -831,14 +831,14 @@ function SaleRow({ sale, canEdit }) {
           <p className="font-semibold text-sm truncate" style={{ color: 'var(--c-text)' }}>
             {sale.buyerName || 'Buyer not named'}
           </p>
-          <p className="text-[10px] truncate" style={{ color: 'var(--c-muted)' }}>
+          <p className="text-[12px] truncate" style={{ color: 'var(--c-muted)' }}>
             {meta.label}{sale.seasonYear ? ` · ${sale.seasonYear}` : ''}
             {names.length ? ` · ${names.slice(0, 3).join(', ')}${names.length > 3 ? ` +${names.length - 3}` : ''}` : ''}
           </p>
         </div>
         <div className="text-right shrink-0">
           <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{money(sale.amount)}</p>
-          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
             style={{ background: `${status.color}18`, color: status.color }}>
             {status.label}
           </span>
@@ -849,7 +849,7 @@ function SaleRow({ sale, canEdit }) {
 
       {open && (
         <div className="px-4 pb-4 space-y-2.5 border-t pt-3" style={{ borderColor: 'var(--c-border)' }}>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div className="grid grid-cols-2 gap-2 text-[13px]">
             {sale.agreementDate && (
               <div><span style={{ color: 'var(--c-muted)' }}>Agreed </span>
                 <span style={{ color: 'var(--c-text)' }}>{sale.agreementDate}</span></div>
@@ -874,13 +874,13 @@ function SaleRow({ sale, canEdit }) {
 
           {covered.length > 0 && (
             <div className="space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>
+              <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>
                 Trees covered
               </p>
               {covered.map(p => {
                 const sp = species.find(s => s.id === p.speciesId)
                 return (
-                  <div key={p.id} className="flex items-center gap-2 text-[11px]">
+                  <div key={p.id} className="flex items-center gap-2 text-[13px]">
                     <span style={{ color: 'var(--c-text)' }}>{sp ? displayName(sp) : 'Tree'}</span>
                     {p.notes && <span style={{ color: 'var(--c-muted)' }}>({p.notes})</span>}
                     <span className="ml-auto font-semibold" style={{ color: 'var(--c-muted)' }}>{p.count} standing</span>
@@ -891,7 +891,7 @@ function SaleRow({ sale, canEdit }) {
           )}
 
           {sale.notes && (
-            <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>{sale.notes}</p>
+            <p className="text-[13px]" style={{ color: 'var(--c-muted)' }}>{sale.notes}</p>
           )}
 
           {canEdit && (
@@ -938,7 +938,7 @@ function SalesTab({ canEdit }) {
           ].map(([label, val, color]) => (
             <div key={label} className="rounded-xl border p-3"
               style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
-              <p className="text-[9px] uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+              <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
               <p className="text-sm font-bold mt-0.5" style={{ color }}>{money(val)}</p>
             </div>
           ))}

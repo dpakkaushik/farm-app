@@ -83,7 +83,7 @@ export default function GoLive() {
             <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
               These books are live
             </p>
-            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+            <p className="text-[13px] mt-1 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
               Transactions have been recorded as they happen since{' '}
               <b>{farmOpening.goLiveDate}</b>. Positions from before that date are
               stated as opening balances. A go-live conversion runs once — there is
@@ -105,7 +105,7 @@ export default function GoLive() {
             <p className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
               Books start fresh from {result.cutover}
             </p>
-            <p className="text-[11px] mt-1 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+            <p className="text-[13px] mt-1 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
               Every balance was verified unchanged before the conversion was allowed to
               finish. Deleted rows are archived (batch {String(result.batch_id).slice(0, 8)}…),
               and every opening figure is logged with who set it and when.
@@ -113,7 +113,7 @@ export default function GoLive() {
           </div>
         </div>
         <SectionTitle>Rows folded into opening balances</SectionTitle>
-        <div className="rounded-xl border p-3 text-[11px]"
+        <div className="rounded-xl border p-3 text-[13px]"
           style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
           {Object.entries(result.deleted || {}).filter(([, n]) => n > 0).map(([t, n]) => (
             <div key={t} className="flex justify-between py-0.5">
@@ -131,7 +131,7 @@ export default function GoLive() {
 
   return (
     <Shell onBack={() => navigate(-1)}>
-      <p className="text-[12px] leading-relaxed mb-4" style={{ color: 'var(--c-muted)' }}>
+      <p className="text-[14px] leading-relaxed mb-4" style={{ color: 'var(--c-muted)' }}>
         Start the books fresh from a date. Everything before it becomes opening
         balances — cash in each account, what each party owes or is owed, stock on
         the shelf, what each standing crop has already cost. Settled old records are
@@ -150,12 +150,12 @@ export default function GoLive() {
           {busy && !preview ? 'Working…' : 'Preview'}
         </button>
       </div>
-      <p className="text-[10px] -mt-3 mb-4" style={{ color: 'var(--c-faint)' }}>
+      <p className="text-[12px] -mt-3 mb-4" style={{ color: 'var(--c-faint)' }}>
         Books always cut at the 1st of a month — the conversion runs from {cutover}.
       </p>
 
       {error && (
-        <div className="p-3 rounded-xl text-[11px] mb-4"
+        <div className="p-3 rounded-xl text-[13px] mb-4"
           style={{ background: 'rgba(226,75,74,0.1)', color: '#E24B4A' }}>{error}</div>
       )}
 
@@ -209,7 +209,7 @@ export default function GoLive() {
           )}
 
           <SectionTitle>Old records removed (archived first)</SectionTitle>
-          <div className="rounded-xl border p-3 text-[11px] mb-4"
+          <div className="rounded-xl border p-3 text-[13px] mb-4"
             style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
             {Object.entries(preview.deletes || {}).filter(([, n]) => n > 0).map(([t, n]) => (
               <div key={t} className="flex justify-between py-0.5">
@@ -222,7 +222,7 @@ export default function GoLive() {
             style={{ borderColor: 'rgba(226,75,74,0.4)', background: 'rgba(226,75,74,0.05)' }}>
             <div className="flex items-start gap-2 mb-2.5">
               <AlertTriangle size={15} style={{ color: '#E24B4A', flexShrink: 0, marginTop: 1 }} />
-              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--c-muted)' }}>
                 This runs once and cannot be re-run. Removed rows are archived, and the
                 conversion aborts itself if any balance would change — but the detailed
                 history above will no longer be visible anywhere in the app. Type{' '}
@@ -255,7 +255,7 @@ function Shell({ onBack, children }) {
           </button>
           <div>
             <h1 className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>Start fresh — go live</h1>
-            <p className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+            <p className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
               Opening balances in, old records out
             </p>
           </div>
@@ -268,7 +268,7 @@ function Shell({ onBack, children }) {
 
 function SectionTitle({ children }) {
   return (
-    <div className="text-[10px] font-bold uppercase tracking-wider mb-1.5"
+    <div className="text-[12px] font-bold uppercase tracking-wider mb-1.5"
       style={{ color: 'var(--c-faint)' }}>{children}</div>
   )
 }
@@ -279,14 +279,14 @@ function PreviewTable({ title, rows, empty }) {
       <SectionTitle>{title}</SectionTitle>
       <div className="rounded-xl border p-3" style={{ borderColor: 'var(--c-border)' }}>
         {rows.length === 0 ? (
-          <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>{empty || 'Nothing here.'}</p>
+          <p className="text-[13px]" style={{ color: 'var(--c-faint)' }}>{empty || 'Nothing here.'}</p>
         ) : rows.map((r, i) => (
           <div key={i} className="flex justify-between items-baseline py-1 gap-3">
             <div className="min-w-0">
-              <span className="text-[11px]" style={{ color: 'var(--c-muted)' }}>{r.label}</span>
-              {r.sub && <span className="text-[9px] ml-1.5" style={{ color: 'var(--c-faint)' }}>{r.sub}</span>}
+              <span className="text-[13px]" style={{ color: 'var(--c-muted)' }}>{r.label}</span>
+              {r.sub && <span className="text-[11px] ml-1.5" style={{ color: 'var(--c-faint)' }}>{r.sub}</span>}
             </div>
-            <b className="text-[11px] whitespace-nowrap" style={{ color: 'var(--c-text)' }}>{r.value}</b>
+            <b className="text-[13px] whitespace-nowrap" style={{ color: 'var(--c-text)' }}>{r.value}</b>
           </div>
         ))}
       </div>
@@ -298,7 +298,7 @@ function Warn({ children, tone = 'warn' }) {
   const color = tone === 'warn' ? '#BA7517' : 'var(--c-muted)'
   const bg    = tone === 'warn' ? 'rgba(186,117,23,0.1)' : 'var(--c-ghost)'
   return (
-    <div className="p-3 rounded-xl text-[11px] leading-relaxed mb-4" style={{ background: bg, color }}>
+    <div className="p-3 rounded-xl text-[13px] leading-relaxed mb-4" style={{ background: bg, color }}>
       {children}
     </div>
   )

@@ -20,7 +20,7 @@ export const CAT_EMOJI = {
 export function StatusPill({ status }) {
   const s = STATUS_STYLE[status] || STATUS_STYLE.in_use
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
       style={{ background: s.bg, color: s.color }}>
       {s.label}
     </span>

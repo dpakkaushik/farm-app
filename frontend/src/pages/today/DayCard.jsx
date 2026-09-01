@@ -31,15 +31,15 @@ export function ScheduledCard({ task, status, onDone }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold text-[var(--c-text-80)]">{task.plotLabel}</span>
-            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md"
+            <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
               style={{ background: color + '22', color }}>
               {typeLabel}
             </span>
             {isOverdue && (
-              <span className="text-[9px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
+              <span className="text-[11px] text-[#E24B4A] font-semibold">{task.daysOverdue}d overdue</span>
             )}
             {status === 'future' && (
-              <span className="text-[9px] text-[var(--c-faint)]">in {task.daysUntil}d</span>
+              <span className="text-[11px] text-[var(--c-faint)]">in {task.daysUntil}d</span>
             )}
           </div>
           {task.label && !labelIsType && (
@@ -47,7 +47,7 @@ export function ScheduledCard({ task, status, onDone }) {
               {task.label}
             </p>
           )}
-          <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{task.cropName} · Day {task.day}</p>
+          <p className="text-[12px] text-[var(--c-faint)] mt-0.5">{task.cropName} · Day {task.day}</p>
         </div>
         {(isToday || isOverdue) && onDone && (
           <button onClick={onDone}
@@ -67,8 +67,8 @@ function CategoryBlock({ label, color, children, count }) {
     <div>
       <div className="flex items-center gap-2 mb-1.5">
         <div className="w-1 h-3.5 rounded-full" style={{ background: color }} />
-        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>{label}</p>
-        {count > 0 && <span className="text-[9px] text-[var(--c-faint)]">({count})</span>}
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color }}>{label}</p>
+        {count > 0 && <span className="text-[11px] text-[var(--c-faint)]">({count})</span>}
       </div>
       <div className="space-y-1.5">{children}</div>
     </div>
@@ -82,11 +82,11 @@ function Row({ icon, iconBg, title, detail, right, rightColor }) {
         {icon}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-semibold text-[var(--c-text-80)] truncate">{title}</p>
-        {detail && <p className="text-[10px] text-[var(--c-muted)] truncate">{detail}</p>}
+        <p className="text-[14px] font-semibold text-[var(--c-text-80)] truncate">{title}</p>
+        {detail && <p className="text-[12px] text-[var(--c-muted)] truncate">{detail}</p>}
       </div>
       {right != null && (
-        <span className="text-[12px] font-bold shrink-0" style={{ color: rightColor || 'var(--c-text-80)' }}>{right}</span>
+        <span className="text-[14px] font-bold shrink-0" style={{ color: rightColor || 'var(--c-text-80)' }}>{right}</span>
       )}
     </div>
   )
@@ -103,7 +103,7 @@ function useCappedList(items) {
 function MoreToggle({ hidden, expanded, onToggle }) {
   if (hidden <= 0 && !expanded) return null
   return (
-    <button onClick={onToggle} className="text-[10px] font-semibold text-[var(--c-muted)] hover:text-[var(--c-text)] pt-0.5">
+    <button onClick={onToggle} className="text-[12px] font-semibold text-[var(--c-muted)] hover:text-[var(--c-text)] pt-0.5">
       {expanded ? 'Show less' : `+${hidden} more`}
     </button>
   )
@@ -268,7 +268,7 @@ export default function DayCard({ date, isToday, bundle, action }) {
         <div className="flex items-center gap-2">
           <p className="text-sm font-bold text-[var(--c-text)]">{format(parseISO(date), 'EEEE, d MMMM')}</p>
           {isToday && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
+            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: '#8A9A5B20', color: '#8A9A5B' }}>
               Today
             </span>
           )}

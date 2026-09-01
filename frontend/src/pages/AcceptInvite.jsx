@@ -143,7 +143,7 @@ export default function AcceptInvite() {
             {inviteEmail ? (
               <>
                 <div style={{ background: '#f9fafb', borderRadius: '10px', padding: '14px', marginBottom: '20px', textAlign: 'left' }}>
-                  <div style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>INVITE SENT TO</div>
+                  <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: 600, marginBottom: '4px' }}>INVITE SENT TO</div>
                   <div style={{ fontSize: '15px', fontWeight: 700, color: '#111827' }}>{inviteEmail}</div>
                 </div>
                 <button

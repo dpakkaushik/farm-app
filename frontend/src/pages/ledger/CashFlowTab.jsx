@@ -43,7 +43,7 @@ function Line({ line }) {
         <span className="flex items-center gap-1 min-w-0">
           <span className="text-xs truncate" style={{ color: 'var(--c-text)' }}>{line.label}</span>
           {hasEntries && (
-            <span className="text-[9px] shrink-0" style={{ color: 'var(--c-faint)' }}>
+            <span className="text-[11px] shrink-0" style={{ color: 'var(--c-faint)' }}>
               ({line.entries.length})
             </span>
           )}
@@ -62,14 +62,14 @@ function Line({ line }) {
             <div key={e.id} className="flex items-start justify-between gap-2 py-1 px-2 rounded-lg"
               style={{ background: 'var(--c-ghost)' }}>
               <span className="min-w-0">
-                <span className="block text-[10px] truncate" style={{ color: 'var(--c-text)' }}>
+                <span className="block text-[12px] truncate" style={{ color: 'var(--c-text)' }}>
                   {e.particulars || e.notes || e.entry_type}
                 </span>
-                <span className="block text-[9px]" style={{ color: 'var(--c-faint)' }}>
+                <span className="block text-[11px]" style={{ color: 'var(--c-faint)' }}>
                   {fmtDate(e.entry_date)}{e.account_name ? ` · ${e.account_name}` : ''}
                 </span>
               </span>
-              <span className="text-[10px] tabular-nums shrink-0"
+              <span className="text-[12px] tabular-nums shrink-0"
                 style={{ color: e.direction === 'in' ? '#8A9A5B' : '#E24B4A' }}>
                 {e.direction === 'in' ? fmt(e.amount) : `−${fmt(e.amount)}`}
               </span>
@@ -89,7 +89,7 @@ function Line({ line }) {
 function CapitalMemo({ memo }) {
   return (
     <div className="mt-2 flex flex-col gap-2">
-      <p className="text-[10px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
         No capital cash can be shown separately — a payment settles the vendor, not the
         individual bill.
       </p>
@@ -97,26 +97,26 @@ function CapitalMemo({ memo }) {
       {memo.capitalBilled > 0 && (
         <div className="rounded-xl p-2.5"
           style={{ background: 'var(--c-ghost)', border: '0.5px dashed var(--c-border-md)' }}>
-          <div className="text-[9px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-faint)' }}>
+          <div className="text-[11px] uppercase tracking-wider mb-1.5" style={{ color: 'var(--c-faint)' }}>
             memo — not cash
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11px]" style={{ color: 'var(--c-text)' }}>Capital items billed</span>
-            <span className="text-[11px] font-semibold tabular-nums" style={{ color: 'var(--c-text)' }}>
+            <span className="text-[13px]" style={{ color: 'var(--c-text)' }}>Capital items billed</span>
+            <span className="text-[13px] font-semibold tabular-nums" style={{ color: 'var(--c-text)' }}>
               {fmt(memo.capitalBilled)}
             </span>
           </div>
           {memo.items.slice(0, 6).map((it, i) => (
             <div key={i} className="flex items-center justify-between pt-1">
-              <span className="text-[9px] truncate" style={{ color: 'var(--c-faint)' }}>
+              <span className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>
                 {it.name || 'Capital item'}
               </span>
-              <span className="text-[9px] tabular-nums" style={{ color: 'var(--c-faint)' }}>
+              <span className="text-[11px] tabular-nums" style={{ color: 'var(--c-faint)' }}>
                 {fmt(it.amount)}
               </span>
             </div>
           ))}
-          <p className="text-[9px] leading-relaxed pt-1.5" style={{ color: 'var(--c-faint)' }}>
+          <p className="text-[11px] leading-relaxed pt-1.5" style={{ color: 'var(--c-faint)' }}>
             That cash sits inside “Paid to vendors” above.
           </p>
         </div>
@@ -131,10 +131,10 @@ function Section({ section, children }) {
     <div className="rounded-2xl p-3.5"
       style={{ background: 'var(--c-card)', border: '0.5px solid var(--c-border)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-text)' }}>
+        <span className="text-[13px] font-bold uppercase tracking-wider" style={{ color: 'var(--c-text)' }}>
           {section.heading}
         </span>
-        <span className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{section.plain}</span>
+        <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}>{section.plain}</span>
       </div>
 
       {section.lines.map(l => <Line key={l.key} line={l} />)}
@@ -142,7 +142,7 @@ function Section({ section, children }) {
       {children}
 
       <div className="flex items-center justify-between pt-2.5">
-        <span className="text-[11px] font-semibold" style={{ color: 'var(--c-muted)' }}>
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--c-muted)' }}>
           {section.subtotalLabel}
         </span>
         <Amount value={section.subtotal} bold />
@@ -157,10 +157,10 @@ function Band({ label, value, sub, children }) {
     <div className="rounded-2xl px-3.5 py-3"
       style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)' }}>
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold" style={{ color: 'var(--c-text)' }}>{label}</span>
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--c-text)' }}>{label}</span>
         <span className="text-sm font-bold tabular-nums" style={{ color: 'var(--c-text)' }}>{fmt(value)}</span>
       </div>
-      {sub && <p className="text-[9px] leading-relaxed pt-1" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
+      {sub && <p className="text-[11px] leading-relaxed pt-1" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       {children}
     </div>
   )
@@ -185,7 +185,7 @@ export default function CashFlowTab({
         <div className="text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
           Cash Flow{periodLabel ? ` — ${periodLabel}` : ''}
         </div>
-        <div className="text-[10px]" style={{ color: 'var(--c-faint)' }}>
+        <div className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
           Where the farm's cash came from, and where it went
         </div>
       </div>
@@ -202,7 +202,7 @@ export default function CashFlowTab({
         <Section key={s.key} section={s}>
           {s.key === 'investing' && <CapitalMemo memo={flow.memo} />}
           {s.key === 'unclassified' && (
-            <p className="text-[10px] leading-relaxed pt-2" style={{ color: '#BA7517' }}>
+            <p className="text-[12px] leading-relaxed pt-2" style={{ color: '#BA7517' }}>
               These entry types aren't in the classification table yet, so they are shown
               on their own rather than folded into a total that would then be wrong.
             </p>
@@ -213,18 +213,18 @@ export default function CashFlowTab({
       <Band label="Closing cash (all pockets)" value={flow.closingCash}>
         <div className="flex items-center gap-1 pt-1.5">
           {flow.reconciles ? (
-            <span className="text-[9px] font-semibold" style={{ color: '#8A9A5B' }}>
+            <span className="text-[11px] font-semibold" style={{ color: '#8A9A5B' }}>
               ✓ matches Cash Book
             </span>
           ) : (
-            <span className="text-[9px] font-semibold" style={{ color: '#E24B4A' }}>
+            <span className="text-[11px] font-semibold" style={{ color: '#E24B4A' }}>
               ✕ does not match Cash Book — out by {fmt(Math.abs(flow.discrepancy))}
             </span>
           )}
         </div>
       </Band>
 
-      <p className="text-[9px] leading-relaxed px-1 pb-2" style={{ color: 'var(--c-faint)' }}>
+      <p className="text-[11px] leading-relaxed px-1 pb-2" style={{ color: 'var(--c-faint)' }}>
         Money moved between your own accounts is left out — it changes no farm total.
         Amounts are cash actually received or paid, not what has been billed.
       </p>

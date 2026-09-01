@@ -133,7 +133,7 @@ export default function Login() {
             <div className="flex gap-2 mb-5">
               {['password', 'magic'].map(m => (
                 <button key={m} onClick={() => switchMode(m)}
-                  className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors"
+                  className="flex-1 py-1.5 text-[13px] font-semibold rounded-lg border transition-colors"
                   style={{
                     background:  mode === m ? '#8A9A5B18' : 'transparent',
                     borderColor: mode === m ? '#8A9A5B60' : 'var(--c-border-md)',
@@ -306,7 +306,7 @@ export default function Login() {
         {/* Was "Contact your admin if you don't have access" — true when the app was
             invite-only, misleading now that anyone can start a farm. The two ways in
             are still distinct, so name both. */}
-        <p className="text-center text-[11px] mt-6 leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+        <p className="text-center text-[13px] mt-6 leading-relaxed" style={{ color: 'var(--c-faint)' }}>
           Starting your own farm? Tap <span style={{ color: 'var(--c-muted)', fontWeight: 600 }}>Create Account</span>.<br />
           Joining an existing one? Ask its admin to invite you.
         </p>

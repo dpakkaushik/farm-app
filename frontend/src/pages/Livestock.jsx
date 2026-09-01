@@ -226,7 +226,7 @@ export default function Livestock() {
         <div className="flex items-center gap-2 mb-3">
           <face.Icon size={20} style={{ color: '#8A9A5B' }} />
           <p className="text-base font-bold" style={{ color: 'var(--c-text)' }}>{face.title}</p>
-          <div className="flex gap-1.5 ml-auto text-[10px] items-center">
+          <div className="flex gap-1.5 ml-auto text-[12px] items-center">
             {chips.map(({ text, color }) => (
               <span key={text} className="px-2 py-0.5 rounded-full font-semibold"
                 style={{ background: color ? color + '14' : 'var(--c-ghost)', color: color || 'var(--c-muted)' }}>
@@ -243,7 +243,7 @@ export default function Livestock() {
         <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
           {face.tabs.map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`flex-1 py-2 font-semibold whitespace-nowrap transition-colors ${face.tabs.length > 3 ? 'text-[10px]' : 'text-xs'}`}
+              className={`flex-1 py-2 font-semibold whitespace-nowrap transition-colors ${face.tabs.length > 3 ? 'text-[12px]' : 'text-xs'}`}
               style={{ background: tab === key ? '#8A9A5B' : 'var(--c-ghost)', color: tab === key ? '#fff' : 'var(--c-muted)' }}>
               {label}
             </button>

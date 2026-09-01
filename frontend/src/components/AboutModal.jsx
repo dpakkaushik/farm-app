@@ -22,7 +22,7 @@ export default function AboutModal({ onClose }) {
         <div className="px-5 py-5 flex flex-col items-center text-center gap-1">
           <div className="text-4xl mb-1">🌾</div>
           <p className="text-lg font-bold" style={{ color: 'var(--c-text)' }}>Farm Manager</p>
-          <p className="text-[12px]" style={{ color: 'var(--c-faint)' }}>Version {APP_VERSION}</p>
+          <p className="text-[14px]" style={{ color: 'var(--c-faint)' }}>Version {APP_VERSION}</p>
           <p className="text-[13px] mt-2 leading-relaxed" style={{ color: 'var(--c-muted)' }}>
             Real-time visibility into every farm operation — plots, crops, inventory,
             labour, livestock and the full financial ledger, from anywhere.
@@ -35,7 +35,7 @@ export default function AboutModal({ onClose }) {
             style={{ background: '#8A9A5B', color: '#fff', textDecoration: 'none' }}>
             <Mail size={16} /> Contact the team
           </a>
-          <p className="text-[11px] text-center mt-2" style={{ color: 'var(--c-faint)' }}>{SUPPORT_EMAIL}</p>
+          <p className="text-[13px] text-center mt-2" style={{ color: 'var(--c-faint)' }}>{SUPPORT_EMAIL}</p>
         </div>
       </div>
     </div>

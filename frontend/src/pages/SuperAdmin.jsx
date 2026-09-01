@@ -60,7 +60,7 @@ export default function SuperAdmin() {
                   <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
                     {f.location} · {f.total_acres} acres
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '13px', color: '#9ca3af', marginTop: '4px', fontFamily: 'monospace' }}>
                     {f.id}
                   </div>
                 </div>
@@ -68,7 +68,7 @@ export default function SuperAdmin() {
                   <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
                     {f.farm_memberships?.[0]?.count || 0} member{(f.farm_memberships?.[0]?.count || 0) !== 1 ? 's' : ''}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '2px' }}>
+                  <div style={{ fontSize: '13px', color: '#9ca3af', marginTop: '2px' }}>
                     {new Date(f.created_at).toLocaleDateString('en-IN')}
                   </div>
                 </div>

@@ -69,7 +69,7 @@ function FarmList({ farms, onEdit, onDelete, onAdd }) {
             <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base shrink-0" style={{ background: '#8A9A5B20' }}>🌾</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.farm_name}</p>
-              <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
+              <p className="text-[13px]" style={{ color: 'var(--c-faint)' }}>
                 {f.total_acres ? `${f.total_acres} acres · ` : ''}{f.role}
               </p>
             </div>
@@ -79,7 +79,7 @@ function FarmList({ farms, onEdit, onDelete, onAdd }) {
                 <button onClick={() => onDelete(f)} style={{ ...iconBtn, color: '#E24B4A' }} aria-label="Delete farm"><Trash2 size={16} /></button>
               </>
             ) : (
-              <span className="text-[10px] px-2 py-1 rounded" style={{ background: 'var(--c-ghost)', color: 'var(--c-faint)' }}>view only</span>
+              <span className="text-[12px] px-2 py-1 rounded" style={{ background: 'var(--c-ghost)', color: 'var(--c-faint)' }}>view only</span>
             )}
           </div>
         )

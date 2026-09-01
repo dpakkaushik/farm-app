@@ -422,7 +422,7 @@ function TodayBoard() {
             <CalendarDays size={17} className="text-[var(--c-sub)]" />
             {notifCount > 0 && (
               <span
-                className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold"
+                className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[12px] font-bold"
                 style={{ background: pendingOverdue.length > 0 ? '#E24B4A' : '#8A9A5B', color: '#fff' }}>
                 {notifCount}
               </span>
@@ -437,7 +437,7 @@ function TodayBoard() {
                 style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border-md)', maxHeight: '70vh', overflowY: 'auto' }}>
                 <div className="flex items-center justify-between mb-3">
                   {/* Not "Task Calendar" any more — it marks recorded days too */}
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
+                  <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--c-faint)]">
                     Farm Calendar
                   </p>
                   <button onClick={() => setShowNotif(false)}
@@ -461,11 +461,11 @@ function TodayBoard() {
         <div className="px-4 pb-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
           <button onClick={clearRange}
             aria-label="Clear the date filter"
-            className="shrink-0 flex items-center gap-1 h-7 pl-2.5 pr-1.5 rounded-full border text-[11px] font-semibold"
+            className="shrink-0 flex items-center gap-1 h-7 pl-2.5 pr-1.5 rounded-full border text-[13px] font-semibold"
             style={{ background: '#8A9A5B12', borderColor: '#8A9A5B55', color: '#8A9A5B' }}>
             {rangeLabel(appliedRange.start, appliedRange.end)}<X size={11} />
           </button>
-          <span className="shrink-0 text-[11px] text-[var(--c-faint)]">
+          <span className="shrink-0 text-[13px] text-[var(--c-faint)]">
             {historyResults ? `${historyResults.length} day${historyResults.length === 1 ? '' : 's'} with records` : ''}
           </span>
         </div>
@@ -479,7 +479,7 @@ function TodayBoard() {
           {/* Row 1 — Farm Activity */}
           {(pendingOverdue.length > 0 || pendingToday.length > 0 || loggedToday.length > 0 || completedToday.length > 0) && (
             <div>
-              <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
+              <p className="text-[12px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
                 Farm Activity
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -494,7 +494,7 @@ function TodayBoard() {
           {/* Row 2 — Manpower (only when workers are recorded) */}
           {(todayRegularCount > 0 || todayOutsideTotal > 0) && (
             <div>
-              <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
+              <p className="text-[12px] font-bold text-[var(--c-faint)] uppercase tracking-widest mb-1.5">
                 Manpower
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
@@ -541,7 +541,7 @@ function TodayBoard() {
             one. Never both — the same day card twice reads as a bug. */}
         {appliedRange ? (
           <div className="space-y-3">
-            <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
+            <p className="text-[12px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
               {rangeLabel(appliedRange.start, appliedRange.end)}
             </p>
             {historyLoading && <p className="text-xs text-[var(--c-faint)] text-center py-4">Loading…</p>}
@@ -552,7 +552,7 @@ function TodayBoard() {
           </div>
         ) : last7Days.length > 0 && (
           <div className="space-y-3">
-            <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
+            <p className="text-[12px] font-bold text-[var(--c-faint)] uppercase tracking-widest pt-1">
               Last 7 Days
             </p>
             {last7Days.map(r => <DayCard key={r.date} date={r.date} bundle={r.bundle} />)}
@@ -638,7 +638,7 @@ function TodayBoard() {
                             color:       sel ? '#8A9A5B'   : 'var(--c-sub)',
                           }}>
                           <span className="text-sm font-bold">{p.label}</span>
-                          <span className="text-[9px] font-normal mt-0.5 opacity-70">{p.crop}</span>
+                          <span className="text-[11px] font-normal mt-0.5 opacity-70">{p.crop}</span>
                         </button>
                       )
                     })}
@@ -742,7 +742,7 @@ function TodayBoard() {
                             borderColor: sel ? '#6366f1'   : 'var(--c-border-md)',
                             color:       sel ? '#6366f1'   : 'var(--c-sub)',
                           }}>
-                          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
                             style={{
                               background: sel ? '#6366f140' : 'var(--c-ghost)',
                               color: sel ? '#6366f1' : 'var(--c-muted)',
@@ -779,7 +779,7 @@ function TodayBoard() {
                   </button>
                 </div>
                 {totalWorkers > 0 && (
-                  <p className="text-[11px] text-[var(--c-muted)] mt-1.5">
+                  <p className="text-[13px] text-[var(--c-muted)] mt-1.5">
                     Total: {selWorkers.size} named + {outsideLabour} outside
                     {' '}= <span className="text-[var(--c-sub)] font-semibold">{totalWorkers} workers</span>
                   </p>
@@ -855,8 +855,8 @@ function Pill({ count, label, color, dim, icon }) {
     <div className={`shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-full border ${dim ? 'opacity-40' : ''}`}
       style={{ background: color + '12', borderColor: color + '55' }}>
       {icon && <span style={{ color }}>{icon}</span>}
-      <span className="text-[11px] font-bold tabular-nums" style={{ color }}>{count}</span>
-      <span className="text-[11px] font-semibold" style={{ color }}>{label}</span>
+      <span className="text-[13px] font-bold tabular-nums" style={{ color }}>{count}</span>
+      <span className="text-[13px] font-semibold" style={{ color }}>{label}</span>
     </div>
   )
 }

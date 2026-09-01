@@ -218,7 +218,7 @@ export function Modal({ title, onClose, children }) {
 export function FRow({ label, children }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
       {children}
     </div>
   )
@@ -227,7 +227,7 @@ export function FRow({ label, children }) {
 export function Pill({ status }) {
   const s = STATUS_STYLE[status] || STATUS_STYLE.active
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
       style={{ background: s.bg, color: s.color }}>{s.label}</span>
   )
 }
@@ -235,7 +235,7 @@ export function Pill({ status }) {
 export function HealthPill({ status }) {
   const h = HEALTH_STYLE[status] || HEALTH_STYLE.healthy
   return (
-    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
       style={{ background: h.color + '18', color: h.color }}>{h.label}</span>
   )
 }
@@ -259,7 +259,7 @@ export function ActionBar({ actions }) {
     <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
       {actions.map(({ label, icon, color, onClick }) => (
         <button key={label} onClick={onClick}
-          className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1"
+          className="flex-1 py-2.5 text-[12px] font-semibold flex items-center justify-center gap-1"
           style={{ color: color || 'var(--c-muted)' }}>
           {icon}{label}
         </button>

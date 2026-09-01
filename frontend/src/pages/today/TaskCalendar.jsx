@@ -96,7 +96,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
       {/* Weekday letters */}
       <div className="grid grid-cols-7 gap-1">
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-          <p key={i} className="text-center text-[9px] font-bold text-[var(--c-faint)]">{d}</p>
+          <p key={i} className="text-center text-[11px] font-bold text-[var(--c-faint)]">{d}</p>
         ))}
       </div>
 
@@ -134,7 +134,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
                     <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
                       style={{ background: RECORD_BLUE }} />
                   )}
-                  <span className="text-[11px] font-bold leading-none"
+                  <span className="text-[13px] font-bold leading-none"
                     style={{ color: isToday ? '#8A9A5B' : boxColor || 'var(--c-sub)' }}>
                     {Number(cell.dateStr.slice(8))}
                   </span>
@@ -155,19 +155,19 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
       {(monthHasRecords || hasOverdue) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-0.5">
           {monthHasRecords && (
-            <span className="flex items-center gap-1.5 text-[9px] font-semibold" style={{ color: RECORD_BLUE }}>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: RECORD_BLUE }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: RECORD_BLUE }} />
               Recorded
             </span>
           )}
           {cropNames.map(name => (crop === 'all' || crop === name) && (
-            <span key={name} className="flex items-center gap-1.5 text-[9px] font-semibold text-[var(--c-muted)]">
+            <span key={name} className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--c-muted)]">
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: colorMap[name] }} />
               {name}
             </span>
           ))}
           {hasOverdue && (
-            <span className="flex items-center gap-1.5 text-[9px] font-semibold" style={{ color: OVERDUE_RED }}>
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold" style={{ color: OVERDUE_RED }}>
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: OVERDUE_RED }} />
               Overdue
             </span>
@@ -179,7 +179,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
       <div className="flex gap-1 pt-2" style={{ borderTop: '0.5px solid var(--c-border)' }}>
         {TABS.map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)}
-            className="flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+            className="flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-colors"
             style={tab === key
               ? { background: '#8A9A5B', color: '#fff' }
               : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
@@ -190,7 +190,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
 
       <div className="space-y-2">
         {(tab === 'recorded' || tab === 'scheduled') && (
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)]">{dateLine}</p>
+          <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--c-faint)]">{dateLine}</p>
         )}
 
         {tab === 'due' && (

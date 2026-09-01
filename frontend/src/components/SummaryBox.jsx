@@ -33,7 +33,7 @@ export default function SummaryBox({
       style={{ background: `${tone}1A`, borderColor: `${tone}33` }}>
 
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>
+        <p className="text-[12px] font-bold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>
           {label}
         </p>
         <p className="text-xl font-bold leading-tight tabular-nums truncate" style={{ color: tone }}>
@@ -42,7 +42,7 @@ export default function SummaryBox({
         {facts.map((m, i) => (
           // A labelled fact emphasises its figure ("All assets **₹10,17,000**);
           // a bare one is just a count, and stays quiet.
-          <p key={i} className="text-[11px] mt-0.5 truncate" style={{ color: m.color || 'var(--c-muted)' }}>
+          <p key={i} className="text-[13px] mt-0.5 truncate" style={{ color: m.color || 'var(--c-muted)' }}>
             {m.label
               ? <>{m.label} <b style={{ color: m.color || 'var(--c-text)' }}>{m.value}</b></>
               : m.value}

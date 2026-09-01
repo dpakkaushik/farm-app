@@ -86,7 +86,7 @@ function Modal({ title, onClose, children }) {
 function FRow({ label, children }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
       {children}
     </div>
   )
@@ -252,7 +252,7 @@ export function AddExpenseModal({ animals, onClose }) {
             </button>
           ))}
         </div>
-        <p className="text-[10px] mt-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
+        <p className="text-[12px] mt-1.5 leading-snug" style={{ color: 'var(--c-faint)' }}>
           {form.paidNow
             ? 'Money leaves the Cash Book today.'
             : 'Recorded as a cost only — settle it later from Ledger → Expenses.'}

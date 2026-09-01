@@ -256,7 +256,7 @@ const searchBtn = {
 const hint = {
   position: 'absolute', left: '10px', bottom: '10px',
   background: 'rgba(17,24,39,0.82)', color: '#fff',
-  padding: '5px 10px', borderRadius: '99px', fontSize: '11px', fontWeight: 600,
+  padding: '5px 10px', borderRadius: '99px', fontSize: '13px', fontWeight: 600,
   pointerEvents: 'none', maxWidth: 'calc(100% - 20px)',
 }
 const footRow = {
@@ -265,6 +265,6 @@ const footRow = {
 }
 const miniBtn = {
   padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
-  background: '#fff', color: '#374151', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+  background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
 }
 const msg = { margin: '0 0 8px', fontSize: '12px', color: '#b45309' }

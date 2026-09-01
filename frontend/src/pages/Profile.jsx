@@ -126,13 +126,13 @@ export default function Profile({ mustComplete = false }) {
               onDone={f => { setCropFile(null); pickPhoto(f) }}
               onCancel={() => setCropFile(null)} />
           )}
-          <p className="text-[11px] mt-2" style={{ color: 'var(--c-faint)' }}>
+          <p className="text-[13px] mt-2" style={{ color: 'var(--c-faint)' }}>
             {uploading ? 'Uploading…' : 'Tap to add a photo (optional)'}
           </p>
         </div>
 
         {/* Email — fixed, this is their login */}
-        <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
+        <label className="text-[13px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
           EMAIL
         </label>
         <div
@@ -142,7 +142,7 @@ export default function Profile({ mustComplete = false }) {
         </div>
 
         {/* Name */}
-        <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
+        <label className="text-[13px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
           FULL NAME <span style={{ color: '#E24B4A' }}>*</span>
         </label>
         <input
@@ -153,7 +153,7 @@ export default function Profile({ mustComplete = false }) {
         />
 
         {/* Mobile */}
-        <label className="text-[11px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
+        <label className="text-[13px] font-semibold block mb-1" style={{ color: 'var(--c-muted)' }}>
           MOBILE <span style={{ color: '#E24B4A' }}>*</span>
         </label>
         <input
@@ -165,7 +165,7 @@ export default function Profile({ mustComplete = false }) {
           onChange={e => setPhone(e.target.value)}
         />
         {phone && !phoneOk && (
-          <p className="text-[11px] mt-1" style={{ color: '#BA7517' }}>
+          <p className="text-[13px] mt-1" style={{ color: '#BA7517' }}>
             Enter a 10-digit mobile number.
           </p>
         )}

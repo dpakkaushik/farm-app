@@ -41,7 +41,7 @@ export default function OpeningCostBreakup({ value = [], onChange, disabled }) {
           <div key={c.key} className="grid grid-cols-[1fr_104px] gap-2 items-center">
             <div className="min-w-0">
               <p className="text-xs" style={{ color: 'var(--c-text)' }}>{c.emoji} {c.label}</p>
-              <p className="text-[9px] truncate" style={{ color: 'var(--c-faint)' }}>{c.hint}</p>
+              <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{c.hint}</p>
             </div>
             <input type="number" min="0" inputMode="decimal" placeholder="₹0" disabled={disabled}
               className="finput text-xs py-2 px-2 text-right"
@@ -52,11 +52,11 @@ export default function OpeningCostBreakup({ value = [], onChange, disabled }) {
 
       <div className="flex items-center justify-between pt-2 mt-1"
         style={{ borderTop: '1px solid var(--c-border)' }}>
-        <p className="text-[11px]" style={{ color: 'var(--c-sub)' }}>Total spent before the app</p>
+        <p className="text-[13px]" style={{ color: 'var(--c-sub)' }}>Total spent before the app</p>
         <p className="text-sm font-bold" style={{ color: total > 0 ? '#8A9A5B' : 'var(--c-faint)' }}>{fmt(total)}</p>
       </div>
 
-      <p className="text-[10px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
+      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--c-faint)' }}>
         Leave a row blank if it does not apply. This is counted into the crop's cost
         so the margin stays honest, and split this way so crop reports can compare it
         against what the app has tracked since.

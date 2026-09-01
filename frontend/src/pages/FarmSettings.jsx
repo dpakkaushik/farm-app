@@ -154,7 +154,7 @@ export default function FarmSettings() {
             {farmForm.capex_threshold !== '' && (
               <div>
                 <input style={input} type="number" placeholder="Capital threshold (₹)" value={farmForm.capex_threshold} onChange={e => setFarmForm(f => ({ ...f, capex_threshold: e.target.value }))} />
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
+                <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px', lineHeight: 1.4 }}>
                   A machine or asset bought for less than this is an expense in the month
                   it was bought. At or above it, it is capital and stays out of the P&amp;L.
                 </div>
@@ -196,7 +196,7 @@ export default function FarmSettings() {
                   <div style={{ fontSize: '13px', fontWeight: 600, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {profile.full_name || profile.email} {isMe ? '(you)' : ''}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#6b7280' }}>{profile.email}</div>
+                  <div style={{ fontSize: '13px', color: '#6b7280' }}>{profile.email}</div>
                 </div>
                 {amAdmin && !isMe ? (
                   <>
@@ -249,7 +249,7 @@ export default function FarmSettings() {
               style={{ flex: 1, padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
             />
           </div>
-          <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '10px' }}>
+          <div style={{ fontSize: '13px', color: '#9ca3af', marginBottom: '10px' }}>
             🔒 Only someone with this email or mobile can accept the invite
           </div>
 
@@ -309,9 +309,9 @@ export default function FarmSettings() {
                 <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#f9fafb', borderRadius: '6px', marginBottom: '6px' }}>
                   <div>
                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{ROLE_LABELS[inv.role]}</span>
-                    {inv.email && <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '6px' }}>→ {inv.email}</span>}
-                    {inv.invitee_phone && <span style={{ fontSize: '11px', color: '#6b7280', marginLeft: '6px' }}>📱 {inv.invitee_phone}</span>}
-                    <span style={{ fontSize: '11px', color: '#9ca3af', marginLeft: '8px' }}>
+                    {inv.email && <span style={{ fontSize: '13px', color: '#6b7280', marginLeft: '6px' }}>→ {inv.email}</span>}
+                    {inv.invitee_phone && <span style={{ fontSize: '13px', color: '#6b7280', marginLeft: '6px' }}>📱 {inv.invitee_phone}</span>}
+                    <span style={{ fontSize: '13px', color: '#9ca3af', marginLeft: '8px' }}>
                       · Expires {new Date(inv.expires_at).toLocaleDateString('en-IN')}
                     </span>
                   </div>
@@ -323,14 +323,14 @@ export default function FarmSettings() {
                           navigator.clipboard.writeText(link)
                           setInviteLink(link)
                         }}
-                        style={{ padding: '3px 8px', border: '1px solid #bbf7d0', borderRadius: '6px', background: '#fff', color: '#166534', fontSize: '11px', cursor: 'pointer' }}
+                        style={{ padding: '3px 8px', border: '1px solid #bbf7d0', borderRadius: '6px', background: '#fff', color: '#166534', fontSize: '13px', cursor: 'pointer' }}
                       >
                         Copy Link
                       </button>
                     )}
                     <button
                       onClick={() => handleRevoke(inv.id)}
-                      style={{ padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fff', color: '#dc2626', fontSize: '11px', cursor: 'pointer' }}
+                      style={{ padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fff', color: '#dc2626', fontSize: '13px', cursor: 'pointer' }}
                     >
                       Revoke
                     </button>

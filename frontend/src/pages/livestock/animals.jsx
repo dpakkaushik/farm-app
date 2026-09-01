@@ -53,10 +53,10 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
     const due = dueBy.get(l.id)
     return (
       <>
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
           style={{ background: h.color + '18', color: h.color }}>{h.label}</span>
         {due && (
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full"
             style={{ background: (due.days < 0 ? '#E24B4A' : '#BA7517') + '18', color: due.days < 0 ? '#E24B4A' : '#BA7517' }}>
             {due.days < 0 ? `${Math.abs(due.days)}d overdue` : `checkup in ${due.days}d`}
           </span>
@@ -100,7 +100,7 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
                   {speciesEmoji(l)}
                 </div>
             }
-            <p className="text-[8px] mt-1" style={{ color: 'var(--c-faint)' }}>📷 Photo</p>
+            <p className="text-[10px] mt-1" style={{ color: 'var(--c-faint)' }}>📷 Photo</p>
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -108,23 +108,23 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
               {editPencil(l)}
               {healthChip(l, h)}
             </div>
-            <p className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+            <p className="text-[13px]" style={{ color: 'var(--c-muted)' }}>
               {(l.species||'Buffalo').charAt(0).toUpperCase()+(l.species||'Buffalo').slice(1)}
               {l.breed  ? ` · ${l.breed}`  : ''}
               {l.gender ? ` · ${l.gender.charAt(0).toUpperCase()+l.gender.slice(1)}` : ''}
             </p>
-            {l.dob && <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>Born: {l.dob}</p>}
+            {l.dob && <p className="text-[12px] mt-0.5" style={{ color: 'var(--c-faint)' }}>Born: {l.dob}</p>}
             {isPets ? (
               <>
-                <p className="text-[11px] mt-1 font-bold" style={{ color: cost ? '#E24B4A' : 'var(--c-faint)' }}>
+                <p className="text-[13px] mt-1 font-bold" style={{ color: cost ? '#E24B4A' : 'var(--c-faint)' }}>
                   {cost ? `Cost to date ${fmt(cost)}` : 'No spend logged yet'}
                 </p>
-                <p className="text-[9px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
                   Purchase + food, vet, medicine & accessories tagged here
                 </p>
               </>
             ) : (
-              <p className="text-[11px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
+              <p className="text-[13px] mt-1 font-bold" style={{ color: l.purchasePrice ? '#8A9A5B' : 'var(--c-faint)' }}>
                 {l.purchasePrice ? fmt(l.purchasePrice) : l.acquisitionType === 'born' ? '🐣 Born on farm' : 'Tap ✏ Edit to set price'}
               </p>
             )}
@@ -158,13 +158,13 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
               <p className="text-sm font-bold" style={{ color: 'var(--c-text)' }}>{l.name || 'Flock'}</p>
               {editPencil(l)}
             </div>
-            <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>{(l.species||'Poultry').charAt(0).toUpperCase()+(l.species||'Poultry').slice(1)}</p>
+            <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>{(l.species||'Poultry').charAt(0).toUpperCase()+(l.species||'Poultry').slice(1)}</p>
             {/* The flock showed no health at all while Health was a tab of its own. */}
             <div className="flex items-center gap-1 flex-wrap mt-1">{healthChip(l, h)}</div>
           </div>
           <button onClick={() => toggle(l.id, 'counts')} className="text-right shrink-0">
             <p className="text-2xl font-bold" style={{ color: '#4169E1' }}>{l.currentCount ?? 0}</p>
-            <p className="text-[9px] flex items-center gap-0.5 justify-end" style={{ color: 'var(--c-faint)' }}>
+            <p className="text-[11px] flex items-center gap-0.5 justify-end" style={{ color: 'var(--c-faint)' }}>
               birds {isOpen ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
             </p>
           </button>
@@ -178,11 +178,11 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
         {isOpen && (
           <div className="border-t border-[var(--c-border)] divide-y divide-[var(--c-border)]">
             {logs.length === 0 ? (
-              <p className="px-4 py-3 text-[10px]" style={{ color: 'var(--c-faint)' }}>No count changes logged yet</p>
+              <p className="px-4 py-3 text-[12px]" style={{ color: 'var(--c-faint)' }}>No count changes logged yet</p>
             ) : logs.slice(0, 10).map(log => (
               <div key={log.id} className="flex items-center justify-between px-4 py-2">
-                <p className="text-[10px]" style={{ color: 'var(--c-text)' }}>{log.changeType==='add' ? '+' : '-'}{log.quantity} · {log.reason}</p>
-                <p className="text-[9px]" style={{ color: 'var(--c-faint)' }}>{log.date}</p>
+                <p className="text-[12px]" style={{ color: 'var(--c-text)' }}>{log.changeType==='add' ? '+' : '-'}{log.quantity} · {log.reason}</p>
+                <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>{log.date}</p>
               </div>
             ))}
           </div>
@@ -202,14 +202,14 @@ export default function AnimalsTab({ animals, closed, countLogs, face, onEdit, o
             <span className="text-xl">{speciesEmoji(a)}</span>
             <div>
               <p className="font-semibold text-sm" style={{ color: 'var(--c-text)' }}>{a.name || a.tagId}</p>
-              <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>
                 {a.species}{a.breed ? ` · ${a.breed}` : ''}{a.gender ? ` · ${a.gender}` : ''}
               </p>
             </div>
           </div>
           <Pill status={a.status} />
         </div>
-        <div className="mt-2 flex gap-3 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
+        <div className="mt-2 flex gap-3 flex-wrap text-[12px]" style={{ color: 'var(--c-muted)' }}>
           {a.purchasePrice ? <span>Bought {fmt(a.purchasePrice)}</span> : null}
           {a.soldDate     ? <span>{s.dateLabel || 'Closed'} {a.soldDate}</span> : null}
         </div>

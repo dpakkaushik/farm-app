@@ -246,7 +246,7 @@ export function CloseModal({ animal, onClose, onConfirm, saving }) {
         <FRow label="Sale amount (₹) — optional">
           <input type="number" className={inp} placeholder="e.g. 60000"
             value={f.amount} onChange={e => u('amount', e.target.value)} />
-          <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
+          <p className="text-[12px] mt-1" style={{ color: 'var(--c-muted)' }}>
             {f.amount
               ? `${fmt(f.amount)} is recorded as livestock income and enters the cash book.`
               : 'Leave empty to close the account without recording any money.'}
@@ -259,7 +259,7 @@ export function CloseModal({ animal, onClose, onConfirm, saving }) {
           value={f.notes} onChange={e => u('notes', e.target.value)} />
       </FRow>
 
-      <p className="text-[10px] leading-relaxed" style={{ color: '#BA7517' }}>
+      <p className="text-[12px] leading-relaxed" style={{ color: '#BA7517' }}>
         ⚠ {animalLabel(animal)} drops out of the list into "No longer on the farm"
         and stops counting as working stock. Nothing is deleted — the record, and
         every cost and sale against it, is kept.
@@ -340,7 +340,7 @@ export function RevenueModal({ animals, group, onClose }) {
           ))}
         </div>
         {isSale && (
-          <p className="text-[10px] mt-1" style={{ color: '#BA7517' }}>
+          <p className="text-[12px] mt-1" style={{ color: '#BA7517' }}>
             ⚠ Sale will mark the selected {unit} as Sold and close its account.
           </p>
         )}

@@ -594,9 +594,9 @@ export default function Field() {
       <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none" style={{ maxWidth: '175px' }}>
         {/* Greeting pill */}
         <div className="bg-black/70 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 self-start">
-          <p className="text-white text-[11px] font-semibold">🌾 Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} · {activeFarm?.name || 'Farm'}</p>
+          <p className="text-white text-[13px] font-semibold">🌾 Hi {useAuthStore.getState().profile?.full_name?.split(' ')[0] || 'there'} · {activeFarm?.name || 'Farm'}</p>
           {todayWorkers > 0 && (
-            <p className="text-white/60 text-[10px] mt-0.5 leading-tight">
+            <p className="text-white/60 text-[12px] mt-0.5 leading-tight">
               👷 {todayWorkers} working · {todayFields} field{todayFields !== 1 ? 's' : ''}
             </p>
           )}
@@ -609,14 +609,14 @@ export default function Field() {
               className="bg-black/70 backdrop-blur-md rounded-xl px-3 py-1.5 border border-white/10 flex items-center gap-2 hover:bg-black/80 transition-colors">
               <span className="text-lg leading-none">{weatherEmoji(weather.weather_code)}</span>
               <span className="text-white font-bold text-sm">{Math.round(weather.temperature_2m)}°C</span>
-              <span className="text-white/45 text-[10px]">{weatherCondition(weather.weather_code)}</span>
+              <span className="text-white/45 text-[12px]">{weatherCondition(weather.weather_code)}</span>
               <ChevronDown size={11} className={`text-white/40 shrink-0 transition-transform duration-200 ${weatherExpanded ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Expanded: details + 7-day */}
             {weatherExpanded && (
               <div className="mt-1.5 bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10" style={{ width: '230px' }}>
-                <div className="flex gap-3 text-[10px] text-white/45 mb-2.5 pb-2 border-b border-white/8">
+                <div className="flex gap-3 text-[12px] text-white/45 mb-2.5 pb-2 border-b border-white/8">
                   <span>💧 {weather.relative_humidity_2m}%</span>
                   <span>💨 {Math.round(weather.wind_speed_10m)} km/h</span>
                 </div>
@@ -624,12 +624,12 @@ export default function Field() {
                   <div className="flex gap-2.5 overflow-x-auto no-scrollbar">
                     {forecast.time?.map((date, i) => (
                       <div key={date} className="flex flex-col items-center gap-0.5 min-w-[30px]">
-                        <span className="text-[9px] text-white/40 font-medium">{i === 0 ? 'Now' : DAYS[new Date(date + 'T00:00:00').getDay()]}</span>
+                        <span className="text-[11px] text-white/40 font-medium">{i === 0 ? 'Now' : DAYS[new Date(date + 'T00:00:00').getDay()]}</span>
                         <span className="text-base leading-snug">{weatherEmoji(forecast.weather_code?.[i] ?? 0)}</span>
-                        <span className="text-[10px] font-bold text-white">{Math.round(forecast.temperature_2m_max?.[i] ?? 0)}°</span>
-                        <span className="text-[9px] text-white/30">{Math.round(forecast.temperature_2m_min?.[i] ?? 0)}°</span>
+                        <span className="text-[12px] font-bold text-white">{Math.round(forecast.temperature_2m_max?.[i] ?? 0)}°</span>
+                        <span className="text-[11px] text-white/30">{Math.round(forecast.temperature_2m_min?.[i] ?? 0)}°</span>
                         {(forecast.precipitation_probability_max?.[i] ?? 0) > 20 && (
-                          <span className="text-[8px] text-blue-400">{forecast.precipitation_probability_max[i]}%</span>
+                          <span className="text-[10px] text-blue-400">{forecast.precipitation_probability_max[i]}%</span>
                         )}
                       </div>
                     ))}
@@ -657,16 +657,16 @@ export default function Field() {
         <div className={`absolute top-0 bottom-0 left-0 z-20 flex transition-transform duration-300 ease-out ${cropPanelOpen ? 'translate-x-0' : '-translate-x-full'}`}
           style={{ width: cropSummary.length > 4 ? '268px' : '180px' }}>
           <div className="flex-1 bg-black/80 backdrop-blur-md border-r border-white/10 p-3 overflow-y-auto">
-            <p className="text-[9px] text-white/35 uppercase tracking-widest mb-2.5 font-semibold">Active Crops</p>
+            <p className="text-[11px] text-white/35 uppercase tracking-widest mb-2.5 font-semibold">Active Crops</p>
             <div className={`grid gap-2 ${cropSummary.length > 4 ? 'grid-cols-2' : 'grid-cols-1'}`}>
               {cropSummary.map(g => (
                 <div key={g.crop} className="bg-white/8 rounded-xl p-2.5 border border-white/10">
                   <p className="text-xs font-bold text-white truncate">{g.crop}</p>
-                  <p className="text-[10px] text-white/45 mt-0.5">{g.acres.toFixed(1)} ac</p>
-                  <p className="text-[10px] text-[#8A9A5B] font-semibold">~{g.estYield} qtl</p>
-                  <p className="text-[10px] text-white/35">₹{(g.estRevenue/1000).toFixed(0)}k est.</p>
+                  <p className="text-[12px] text-white/45 mt-0.5">{g.acres.toFixed(1)} ac</p>
+                  <p className="text-[12px] text-[#8A9A5B] font-semibold">~{g.estYield} qtl</p>
+                  <p className="text-[12px] text-white/35">₹{(g.estRevenue/1000).toFixed(0)}k est.</p>
                   {g.daysToHarvest !== null && (
-                    <p className="text-[10px] text-[#BA7517] font-medium mt-0.5">
+                    <p className="text-[12px] text-[#BA7517] font-medium mt-0.5">
                       {g.daysToHarvest <= 0 ? '🎯 Ready' : `${g.daysToHarvest}d left`}
                     </p>
                   )}
@@ -728,7 +728,7 @@ export default function Field() {
             <div className="space-y-2">
               <button onClick={loadFarmLayout} className="w-full flex items-center gap-3 bg-[#8A9A5B]/15 border border-[#8A9A5B]/40 hover:border-[#8A9A5B] rounded-xl px-4 py-3 text-left transition-colors">
                 <Layers size={18} className="text-[#8A9A5B] shrink-0"/>
-                <div><p className="text-xs font-semibold text-[#8A9A5B]">Use Farm Layout</p><p className="text-[10px] text-white/40">Loads layout.png over your farm</p></div>
+                <div><p className="text-xs font-semibold text-[#8A9A5B]">Use Farm Layout</p><p className="text-[12px] text-white/40">Loads layout.png over your farm</p></div>
               </button>
               <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/20 rounded-xl p-4 cursor-pointer hover:border-white/40 transition-colors">
                 <Upload size={18} className="text-white/30"/>
@@ -763,7 +763,7 @@ export default function Field() {
       {/* Legend sits above the floating nav pill, which overlays the map. */}
       <div className="absolute left-3 bg-black/60 backdrop-blur-sm rounded-xl p-3 text-xs space-y-1.5"
         style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))' }}>
-        <p className="text-white/40 text-[10px] uppercase tracking-wide mb-1.5">Crop</p>
+        <p className="text-white/40 text-[12px] uppercase tracking-wide mb-1.5">Crop</p>
         {stageLegend.map(({ label, color, isMixed }) => (
           <div key={label} className="flex items-center gap-2">
             {isMixed ? (
@@ -778,7 +778,7 @@ export default function Field() {
 
         {treeTotals.total > 0 && (
           <div className="pt-2 mt-1 border-t border-white/10 space-y-1.5">
-            <p className="text-white/40 text-[10px] uppercase tracking-wide">
+            <p className="text-white/40 text-[12px] uppercase tracking-wide">
               Trees · {treeTotals.total.toLocaleString('en-IN')}
             </p>
             <div className="flex items-center gap-2">
@@ -887,7 +887,7 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-white truncate">{plot.label}</h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+              <span className="text-[12px] font-bold px-2 py-0.5 rounded-full border shrink-0"
                 style={{ color: stage.color, borderColor: `${stage.color}40`, background: `${stage.color}18` }}>
                 {stage.label}
               </span>
@@ -897,7 +897,7 @@ function PlotDetailPanel({ plot, trees, stock, onClose }) {
             </p>
           </div>
           <button onClick={() => navigate(`/media?plot=${plot.id}`)}
-            className="shrink-0 flex items-center gap-1 text-[11px] text-white/40 hover:text-[#8A9A5B] px-2 py-1 rounded-lg transition-colors">
+            className="shrink-0 flex items-center gap-1 text-[13px] text-white/40 hover:text-[#8A9A5B] px-2 py-1 rounded-lg transition-colors">
             <Camera size={13}/> Photos
           </button>
           <button onClick={onClose} className="shrink-0 text-white/40 hover:text-white p-1"><X size={18}/></button>
@@ -970,9 +970,9 @@ function CropRow({ c, showAcres }) {
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-base leading-none">{c.cropEmoji}</span>
           <p className="text-sm font-bold text-white truncate">{c.cropName}</p>
-          {showAcres && <span className="text-[10px] text-white/35 shrink-0">{c.acres} ac</span>}
+          {showAcres && <span className="text-[12px] text-white/35 shrink-0">{c.acres} ac</span>}
         </div>
-        <span className="text-[11px] font-bold shrink-0"
+        <span className="text-[13px] font-bold shrink-0"
           style={{ color: c.isReady ? '#8A9A5B' : c.cropColor }}>
           {c.isReady ? '🎯 Ready' : `${c.daysToWindow}d to harvest`}
         </span>
@@ -983,7 +983,7 @@ function CropRow({ c, showAcres }) {
           style={{ width: `${c.progressPct}%`, background: c.cropColor }}/>
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-white/40 mt-1.5">
+      <div className="flex items-center justify-between text-[12px] text-white/40 mt-1.5">
         <span>Day {c.daysSinceSow} of {c.totalDays}</span>
         {sownOn && <span>Sown {sownOn}{harvestOn ? ` → ${harvestOn}` : ''}</span>}
       </div>
@@ -1008,7 +1008,7 @@ function MoneyStrip({ cost, yieldQtl, revenue }) {
       {Number(revenue || 0) > 0 && (
         <div className="flex items-center justify-between mt-2 px-3 py-2 rounded-xl border"
           style={{ borderColor: `${tone}25`, background: `${tone}10` }}>
-          <span className="text-[11px] text-white/55">Expected margin</span>
+          <span className="text-[13px] text-white/55">Expected margin</span>
           <span className="text-xs font-bold" style={{ color: tone }}>
             {good ? '+' : '−'}{moneyK(Math.abs(margin))}
           </span>
@@ -1029,7 +1029,7 @@ function TreeBlock({ trees }) {
         {trees.timber > 0 && <Chip color="#E0B080">🪵 Timber {trees.timber.toLocaleString('en-IN')}</Chip>}
       </div>
       {trees.names?.length > 0 && (
-        <p className="text-[10px] text-white/35 leading-relaxed mt-2">{trees.names.join(' · ')}</p>
+        <p className="text-[12px] text-white/35 leading-relaxed mt-2">{trees.names.join(' · ')}</p>
       )}
     </Section>
   )
@@ -1052,7 +1052,7 @@ function StockBlock({ stock }) {
     <Section icon="🐄" title="Livestock kept here" right={counts}>
       <div className="space-y-1.5">
         {herd.map(g => (
-          <div key={g.label} className="flex items-center gap-2 text-[11px] min-w-0">
+          <div key={g.label} className="flex items-center gap-2 text-[13px] min-w-0">
             <span className="shrink-0">{g.emoji}</span>
             <span className="text-white/70 capitalize shrink-0">{g.label}</span>
             <span className="text-white/20 shrink-0">·</span>
@@ -1060,7 +1060,7 @@ function StockBlock({ stock }) {
           </div>
         ))}
         {flocks.map(f => (
-          <div key={f.id} className="flex items-center gap-2 text-[11px] min-w-0">
+          <div key={f.id} className="flex items-center gap-2 text-[13px] min-w-0">
             <span className="shrink-0">{f.emoji}</span>
             <span className="text-white/70 truncate">{f.name}</span>
             <span className="text-white/20 shrink-0">·</span>
@@ -1076,10 +1076,10 @@ function Section({ icon, title, right, children }) {
   return (
     <div className="rounded-xl bg-white/4 border border-white/8 p-3">
       <div className="flex items-center justify-between gap-2 mb-2">
-        <p className="text-[11px] font-semibold text-white/70 flex items-center gap-1.5">
+        <p className="text-[13px] font-semibold text-white/70 flex items-center gap-1.5">
           <span>{icon}</span>{title}
         </p>
-        {right && <span className="text-[10px] font-bold text-white/50 shrink-0">{right}</span>}
+        {right && <span className="text-[12px] font-bold text-white/50 shrink-0">{right}</span>}
       </div>
       {children}
     </div>
@@ -1088,7 +1088,7 @@ function Section({ icon, title, right, children }) {
 
 function Chip({ color, children }) {
   return (
-    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+    <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full"
       style={{ color, background: `${color}18`, border: `1px solid ${color}30` }}>
       {children}
     </span>
@@ -1100,7 +1100,7 @@ function TimelineRow({ icon, label, sub, done, highlight }) {
     <div className={`flex items-center gap-3 px-3 py-2 rounded-lg ${highlight ? 'bg-[#BA7517]/10 border border-[#BA7517]/20' : 'bg-white/4'}`}>
       <span className="shrink-0">{icon}</span>
       <span className={`flex-1 text-xs min-w-0 truncate ${done ? 'text-white/50' : highlight ? 'text-white' : 'text-white/70'}`}>{label}</span>
-      <span className={`text-[10px] shrink-0 ${highlight ? 'text-[#BA7517] font-semibold' : 'text-white/30'}`}>{sub}</span>
+      <span className={`text-[12px] shrink-0 ${highlight ? 'text-[#BA7517] font-semibold' : 'text-white/30'}`}>{sub}</span>
     </div>
   )
 }
@@ -1108,7 +1108,7 @@ function TimelineRow({ icon, label, sub, done, highlight }) {
 function Stat({ label, value, color }) {
   return (
     <div className="bg-white/5 rounded-xl p-3 border border-white/8">
-      <p className="text-[10px] text-white/40 mb-1">{label}</p>
+      <p className="text-[12px] text-white/40 mb-1">{label}</p>
       <p className="text-sm font-semibold" style={color ? { color } : { color:'#fff' }}>{value}</p>
     </div>
   )

@@ -42,7 +42,7 @@ function Card({ title, subtitle, children, noPad }) {
     <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] overflow-hidden">
       <div className="flex items-baseline justify-between px-4 pt-4 pb-3 border-b border-[var(--c-border)]">
         <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--c-sub)]">{title}</h3>
-        {subtitle && <span className="text-[10px] text-[var(--c-faint)]">{subtitle}</span>}
+        {subtitle && <span className="text-[12px] text-[var(--c-faint)]">{subtitle}</span>}
       </div>
       <div className={noPad ? '' : 'p-4'}>{children}</div>
     </div>
@@ -52,9 +52,9 @@ function Card({ title, subtitle, children, noPad }) {
 function KpiCard({ label, value, sub, color }) {
   return (
     <div className="bg-[var(--c-nav)] rounded-card border border-[var(--c-border)] p-3 flex flex-col gap-0.5">
-      <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--c-muted)]">{label}</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--c-muted)]">{label}</p>
       <p className="text-[18px] font-black leading-none mt-0.5" style={{ color }}>{value}</p>
-      {sub && <p className="text-[9px] text-[var(--c-faint)] leading-tight">{sub}</p>}
+      {sub && <p className="text-[11px] text-[var(--c-faint)] leading-tight">{sub}</p>}
     </div>
   )
 }
@@ -74,7 +74,7 @@ function StatusBadge({ status }) {
     partial: { label: 'Partial', cls: 'bg-[#8A9A5B]/15 text-[#8A9A5B]' },
   }
   const m = map[status] || map.pending
-  return <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${m.cls}`}>{m.label}</span>
+  return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.cls}`}>{m.label}</span>
 }
 
 // ── Mill Ledger ────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
       <div className="flex gap-2 mb-4 -mt-1">
         {activeBuyers.map(b => (
           <button key={b.id} onClick={() => setActiveTab(b.id)}
-            className={`text-[10px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
+            className={`text-[12px] font-bold px-3 py-1.5 rounded-full border transition-colors ${
               activeTab === b.id
                 ? 'bg-[#8A9A5B] border-[#8A9A5B] text-white'
                 : 'border-[var(--c-border)] text-[var(--c-muted)] bg-[var(--c-ghost)]'
@@ -133,21 +133,21 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
 
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="bg-[var(--c-ghost)] rounded-xl p-2.5 text-center border border-[var(--c-border)]">
-          <p className="text-[8px] text-[var(--c-muted)] uppercase tracking-wider">Supplied</p>
+          <p className="text-[10px] text-[var(--c-muted)] uppercase tracking-wider">Supplied</p>
           <p className="text-sm font-black text-[var(--c-text)] mt-0.5">{fmtQtl(totalQtl)}</p>
         </div>
         <div className="bg-[#E24B4A]/10 rounded-xl p-2.5 text-center border border-[#E24B4A]/20">
-          <p className="text-[8px] text-[#E24B4A] uppercase tracking-wider">Total Dr</p>
+          <p className="text-[10px] text-[#E24B4A] uppercase tracking-wider">Total Dr</p>
           <p className="text-sm font-black text-[#E24B4A] mt-0.5">{fmtK(totalDr)}</p>
         </div>
         <div className="bg-[#8A9A5B]/10 rounded-xl p-2.5 text-center border border-[#8A9A5B]/20">
-          <p className="text-[8px] text-[#8A9A5B] uppercase tracking-wider">Total Cr</p>
+          <p className="text-[10px] text-[#8A9A5B] uppercase tracking-wider">Total Cr</p>
           <p className="text-sm font-black text-[#8A9A5B] mt-0.5">{fmtK(totalCr)}</p>
         </div>
       </div>
 
       <div className="rounded-xl border border-[var(--c-border)] overflow-hidden">
-        <div className="grid bg-[var(--c-ghost)] px-3 py-2 text-[8px] font-bold uppercase tracking-wider text-[var(--c-muted)]"
+        <div className="grid bg-[var(--c-ghost)] px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--c-muted)]"
           style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px' }}>
           <span>Date</span><span>Particulars</span>
           <span className="text-right">Dr</span><span className="text-right">Cr</span>
@@ -165,19 +165,19 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
             <div key={i}
               className="grid items-center px-3 py-2.5 border-t border-[var(--c-border)]"
               style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px', background: isPay ? 'rgba(138,154,91,0.04)' : undefined }}>
-              <span className="text-[9px] text-[var(--c-faint)]">
+              <span className="text-[11px] text-[var(--c-faint)]">
                 {row.date ? row.date.slice(5).replace('-', '/') : '—'}
               </span>
               <div className="min-w-0">
-                <p className={`text-[10px] font-semibold truncate ${isPay ? 'text-[#8A9A5B]' : 'text-[var(--c-text)]'}`}>{row.label}</p>
-                <p className="text-[8px] text-[var(--c-faint)] truncate">{row.sub}</p>
+                <p className={`text-[12px] font-semibold truncate ${isPay ? 'text-[#8A9A5B]' : 'text-[var(--c-text)]'}`}>{row.label}</p>
+                <p className="text-[10px] text-[var(--c-faint)] truncate">{row.sub}</p>
               </div>
-              <span className="text-[10px] text-right text-[#E24B4A] font-mono">{row.dr > 0 ? fmtK(row.dr) : ''}</span>
-              <span className="text-[10px] text-right text-[#8A9A5B] font-mono">{row.cr > 0 ? fmtK(row.cr) : ''}</span>
-              <span className={`text-[10px] text-right font-mono font-bold ${row.balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
+              <span className="text-[12px] text-right text-[#E24B4A] font-mono">{row.dr > 0 ? fmtK(row.dr) : ''}</span>
+              <span className="text-[12px] text-right text-[#8A9A5B] font-mono">{row.cr > 0 ? fmtK(row.cr) : ''}</span>
+              <span className={`text-[12px] text-right font-mono font-bold ${row.balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
                 {fmtK(Math.abs(row.balance))}{row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
               </span>
-              <span className="text-center text-[11px]">
+              <span className="text-center text-[13px]">
                 {docUrl && <Attachment variant="chip" value={docUrl} icon={isPay ? '🧾' : '📄'} name="" />}
               </span>
             </div>
@@ -187,10 +187,10 @@ function CaneMillLedger({ harvestSessions, sales, buyers }) {
         {ledger.length > 0 && (
           <div className="grid items-center px-3 py-2.5 border-t-2 border-[var(--c-border)] bg-[var(--c-ghost)]"
             style={{ gridTemplateColumns: '48px 1fr 48px 48px 54px 18px' }}>
-            <span/><span className="text-[9px] font-bold text-[var(--c-sub)] uppercase">Totals</span>
-            <span className="text-[10px] text-right text-[#E24B4A] font-mono font-bold">{fmtK(totalDr)}</span>
-            <span className="text-[10px] text-right text-[#8A9A5B] font-mono font-bold">{fmtK(totalCr)}</span>
-            <span className={`text-[10px] text-right font-mono font-black ${balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
+            <span/><span className="text-[11px] font-bold text-[var(--c-sub)] uppercase">Totals</span>
+            <span className="text-[12px] text-right text-[#E24B4A] font-mono font-bold">{fmtK(totalDr)}</span>
+            <span className="text-[12px] text-right text-[#8A9A5B] font-mono font-bold">{fmtK(totalCr)}</span>
+            <span className={`text-[12px] text-right font-mono font-black ${balance > 0 ? 'text-[#BA7517]' : 'text-[#8A9A5B]'}`}>
               {fmtK(Math.abs(balance))}{balance > 0 ? ' Dr' : balance < 0 ? ' Cr' : ''}
             </span>
             <span/>
@@ -298,7 +298,7 @@ export default function Dashboard() {
           <h1 className="text-xl font-black text-[var(--c-text)] leading-tight">
             {greeting}, {firstName} 👋
           </h1>
-          <p className="text-[11px] text-[var(--c-faint)] mt-0.5">
+          <p className="text-[13px] text-[var(--c-faint)] mt-0.5">
             {format(now, 'EEE d MMM yyyy')} · {totalAcres.toFixed(1)} ac · {activeCycles.length} running
             {presentToday > 0 ? ` · ${presentToday} present` : ''}
           </p>
@@ -314,7 +314,7 @@ export default function Dashboard() {
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E24B4A] opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-[#E24B4A]" />
           </span>
-          <span className="text-[11px] font-bold text-[#E24B4A] tracking-widest">LIVE</span>
+          <span className="text-[13px] font-bold text-[#E24B4A] tracking-widest">LIVE</span>
           <span className="text-sm">📹</span>
         </button>
       </div>
@@ -378,7 +378,7 @@ export default function Dashboard() {
           subtitle={`${harvestSessions.length} parcels · tap row to expand`}
           noPad>
           {/* Column headers */}
-          <div className="grid px-3 py-2 text-[8px] font-bold uppercase tracking-wider text-[var(--c-muted)] bg-[var(--c-ghost)] border-b border-[var(--c-border)]"
+          <div className="grid px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--c-muted)] bg-[var(--c-ghost)] border-b border-[var(--c-border)]"
             style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}>
             <span>Partner</span>
             <span className="text-right">Expected</span>
@@ -409,21 +409,21 @@ export default function Dashboard() {
                   style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}
                 >
                   <div>
-                    <p className="text-[11px] font-bold text-[var(--c-text)]">{partner.name.split(' ')[0]}</p>
-                    <p className="text-[8px] text-[var(--c-faint)]">
+                    <p className="text-[13px] font-bold text-[var(--c-text)]">{partner.name.split(' ')[0]}</p>
+                    <p className="text-[10px] text-[var(--c-faint)]">
                       {pSessions.length > 0 ? `${pSessions.length} parchi` : 'No entries yet'}
                     </p>
                   </div>
-                  <span className="text-[11px] text-right font-mono font-semibold text-[var(--c-text)]">
+                  <span className="text-[13px] text-right font-mono font-semibold text-[var(--c-text)]">
                     {expected > 0 ? fmtK(expected) : '—'}
                   </span>
-                  <span className="text-[11px] text-right font-mono font-semibold text-[#8A9A5B]">
+                  <span className="text-[13px] text-right font-mono font-semibold text-[#8A9A5B]">
                     {received > 0 ? fmtK(received) : '—'}
                   </span>
-                  <span className="text-[11px] text-right font-mono font-semibold text-[#BA7517]">
+                  <span className="text-[13px] text-right font-mono font-semibold text-[#BA7517]">
                     {pending > 0 ? fmtK(pending) : '—'}
                   </span>
-                  <span className="text-[10px] text-center text-[var(--c-faint)]">
+                  <span className="text-[12px] text-center text-[var(--c-faint)]">
                     {hasParcels ? (isExpanded ? '▲' : '▼') : ''}
                   </span>
                 </div>
@@ -450,22 +450,22 @@ export default function Dashboard() {
                           <div key={sess.id}
                             className="grid items-center py-2 border-t border-[var(--c-border)]/60"
                             style={{ gridTemplateColumns: '36px 1fr 44px 52px 20px' }}>
-                            <span className="text-[9px] text-[var(--c-faint)]">
+                            <span className="text-[11px] text-[var(--c-faint)]">
                               {sess.date ? sess.date.slice(5).replace('-', '/') : '—'}
                             </span>
                             <div className="min-w-0">
-                              <p className="text-[10px] font-semibold text-[var(--c-text)] truncate">
+                              <p className="text-[12px] font-semibold text-[var(--c-text)] truncate">
                                 {sess.parchiNumber || '—'}
                               </p>
-                              <p className="text-[8px] text-[var(--c-faint)] truncate">
+                              <p className="text-[10px] text-[var(--c-faint)] truncate">
                                 {buyer?.name?.split(' ').slice(0, 3).join(' ') || sale?.buyerName || '—'}
                               </p>
                             </div>
-                            <span className="text-[10px] text-right font-mono text-[var(--c-sub)]">
+                            <span className="text-[12px] text-right font-mono text-[var(--c-sub)]">
                               {sess.qtyQtl ? sess.qtyQtl.toFixed(1) : '—'}
                             </span>
                             <div className="text-right">
-                              <p className={`text-[10px] font-bold font-mono ${isPaid ? 'text-[#8A9A5B]' : 'text-[#BA7517]'}`}>
+                              <p className={`text-[12px] font-bold font-mono ${isPaid ? 'text-[#8A9A5B]' : 'text-[#BA7517]'}`}>
                                 {amount ? fmtK(amount) : '—'}
                               </p>
                               <StatusBadge status={sale?.paymentStatus || 'pending'} />
@@ -485,7 +485,7 @@ export default function Dashboard() {
 
           {/* Totals footer */}
           {sortedPartners.length > 0 && (
-            <div className="grid px-3 py-2.5 bg-[var(--c-ghost)] text-[9px] font-bold"
+            <div className="grid px-3 py-2.5 bg-[var(--c-ghost)] text-[11px] font-bold"
               style={{ gridTemplateColumns: '1fr 58px 58px 58px 18px' }}>
               <span className="text-[var(--c-sub)] uppercase tracking-wider">Total</span>
               <span className="text-right font-mono text-[var(--c-text)]">{fmtK(sales.reduce((n, s) => n + s.grossAmount, 0))}</span>
@@ -535,7 +535,7 @@ export default function Dashboard() {
                               <p className="text-sm font-black text-[var(--c-text)] leading-tight">
                                 {cycle.plotLabel || '—'}
                               </p>
-                              <p className="text-[9px] text-[var(--c-faint)]">
+                              <p className="text-[11px] text-[var(--c-faint)]">
                                 {crop?.name || '—'} · {(cycle.acres || 0).toFixed(1)} ac
                                 {cycle.sowDate ? ` · ${cycle.sowDate.slice(5).replace('-', '/')}` : ''}
                               </p>
@@ -543,13 +543,13 @@ export default function Dashboard() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             {daysLeft != null && (
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full ${
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                                 daysLeft <= 30 ? 'bg-[#8A9A5B]/20 text-[#8A9A5B]' :
                                 daysLeft <= 60 ? 'bg-[#BA7517]/20 text-[#BA7517]' :
                                 'bg-[var(--c-border)] text-[var(--c-muted)]'
                               }`}>{daysLeft <= 0 ? 'Harvest now' : `${daysLeft}d`}</span>
                             )}
-                            <span className="text-[10px] text-[var(--c-faint)]">{isExpanded ? '▲' : '▼'}</span>
+                            <span className="text-[12px] text-[var(--c-faint)]">{isExpanded ? '▲' : '▼'}</span>
                           </div>
                         </div>
 
@@ -590,7 +590,7 @@ export default function Dashboard() {
                             ...(exp.opening > 0 ? [{ label: 'Before app', value: exp.opening, color: '#64748B' }] : []),
                           ].map(({ label, value, color }) => (
                             <div key={label} className="px-3 py-2.5 text-center">
-                              <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">{label}</p>
+                              <p className="text-[10px] text-[var(--c-faint)] uppercase tracking-wider">{label}</p>
                               <p className="text-xs font-bold mt-0.5" style={{ color: value > 0 ? color : 'var(--c-muted)' }}>
                                 {value > 0 ? fmtK(value) : '₹0'}
                               </p>
@@ -618,16 +618,16 @@ export default function Dashboard() {
                 <span className="text-lg">{emoji}</span>
                 <div>
                   <p className="text-sm font-bold text-[var(--c-text)]">{label}</p>
-                  <p className="text-[9px] text-[var(--c-faint)]">
+                  <p className="text-[11px] text-[var(--c-faint)]">
                     {count > 0 ? `${count} head` : 'None registered'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">Revenue</p>
+                  <p className="text-[10px] text-[var(--c-faint)] uppercase tracking-wider">Revenue</p>
                   <p className="text-xs font-bold text-[#8A9A5B]">₹0</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[8px] text-[var(--c-faint)] uppercase tracking-wider">Expense</p>
+                  <p className="text-[10px] text-[var(--c-faint)] uppercase tracking-wider">Expense</p>
                   <p className="text-xs font-bold text-[#E24B4A]">₹0</p>
                 </div>
               </div>
@@ -646,7 +646,7 @@ export default function Dashboard() {
                     <span className="text-base">{crop?.emoji || '🌱'}</span>
                     <div>
                       <p className="text-xs font-semibold text-[var(--c-text)]">{crop?.name || '?'}</p>
-                      <p className="text-[9px] text-[var(--c-faint)]">
+                      <p className="text-[11px] text-[var(--c-faint)]">
                         {cycle.plotLabel}
                         {cycle.harvestDate ? ` · ${cycle.harvestDate.slice(0, 7)}` : ''}
                       </p>

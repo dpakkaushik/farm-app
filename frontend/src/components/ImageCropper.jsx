@@ -105,7 +105,7 @@ export default function ImageCropper({ file, onDone, onCancel }) {
         <div className="flex gap-2">
           {ASPECTS.map(a => (
             <button key={a.key} onClick={() => setAspect(a.key)}
-              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-colors ${
+              className={`flex-1 py-2 rounded-lg text-[13px] font-semibold transition-colors ${
                 aspect === a.key
                   ? 'bg-[#8A9A5B] text-white'
                   : 'bg-white/15 text-white/80 active:bg-white/25'}`}>

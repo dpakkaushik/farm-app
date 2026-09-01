@@ -49,7 +49,7 @@ function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent
       <div className="flex-1 min-w-0">
         <p className={`${indent ? 'text-[13px]' : 'text-sm'} font-semibold truncate`}
           style={{ color: danger ? '#E24B4A' : active ? '#8A9A5B' : 'var(--c-text)' }}>{label}</p>
-        {sub && <p className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
+        {sub && <p className="text-[13px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</p>}
       </div>
       {trailing ??(chevron && <ChevronRight size={15} className="shrink-0" style={{ color: 'var(--c-faint)' }} />)}
     </button>
@@ -58,7 +58,7 @@ function Row({ icon: Icon, label, sub, onClick, active, danger, trailing, indent
 
 function SectionLabel({ children }) {
   return (
-    <p className="px-5 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--c-faint)' }}>
+    <p className="px-5 pt-3 pb-1 text-[12px] font-bold uppercase tracking-widest" style={{ color: 'var(--c-faint)' }}>
       {children}
     </p>
   )
@@ -142,8 +142,8 @@ export default function ProfileMenu() {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold truncate" style={{ color: 'var(--c-text)' }}>{profile?.full_name || 'You'}</p>
-              <p className="text-[11px] truncate" style={{ color: 'var(--c-muted)' }}>{profile?.email}</p>
-              <p className="text-[10px] mt-0.5" style={{ color: '#8A9A5B' }}>Edit profile →</p>
+              <p className="text-[13px] truncate" style={{ color: 'var(--c-muted)' }}>{profile?.email}</p>
+              <p className="text-[12px] mt-0.5" style={{ color: '#8A9A5B' }}>Edit profile →</p>
             </div>
           </button>
           <button onClick={() => setOpen(false)}
@@ -163,7 +163,7 @@ export default function ProfileMenu() {
               <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0" style={{ background: '#8A9A5B20' }}>🌾</div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.farm_name}</p>
-                <p className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
+                <p className="text-[13px]" style={{ color: 'var(--c-faint)' }}>
                   {f.total_acres ? `${f.total_acres} acres · ` : ''}{f.role}
                 </p>
               </div>

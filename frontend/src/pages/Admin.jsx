@@ -170,7 +170,7 @@ function CropsMaster() {
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
               />
             )}
-            <p className="text-[9px] text-[#BA7517] mt-1">
+            <p className="text-[11px] text-[#BA7517] mt-1">
               Names are case-sensitive and must use Title Case — "Wheat" not "wheat" or "WHEAT". Custom names must match exactly throughout the app.
             </p>
           </FRow>
@@ -189,7 +189,7 @@ function CropsMaster() {
                 )
               })}
             </div>
-            {form.emoji && <p className="text-[10px] text-[var(--c-muted)] mt-1">Selected: {form.emoji}</p>}
+            {form.emoji && <p className="text-[12px] text-[var(--c-muted)] mt-1">Selected: {form.emoji}</p>}
           </FRow>
           <FRow label="Season">
             <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
@@ -246,21 +246,21 @@ function CropsMaster() {
             {form.color && (
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="w-3 h-3 rounded" style={{ background: form.color }} />
-                <span className="text-[10px] text-[var(--c-muted)]">{form.color}</span>
+                <span className="text-[12px] text-[var(--c-muted)]">{form.color}</span>
               </div>
             )}
           </FRow>
           {/* Residuals section */}
           <div className="border-t border-[var(--c-border)] pt-3 space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-[var(--c-text)]">By-products / Residuals</p>
+              <p className="text-[13px] font-semibold text-[var(--c-text)]">By-products / Residuals</p>
               <button type="button"
                 onClick={() => setForm(p => ({ ...p, residuals: [...(p.residuals || []), { name: '', unit: 'quintal', qty_per_acre: '', expected_rate: '' }] }))}
-                className="text-[10px] text-[#8A9A5B] border border-[#8A9A5B]/40 px-2 py-0.5 rounded-lg hover:bg-[#8A9A5B]/10">
+                className="text-[12px] text-[#8A9A5B] border border-[#8A9A5B]/40 px-2 py-0.5 rounded-lg hover:bg-[#8A9A5B]/10">
                 + Add Residual
               </button>
             </div>
-            <p className="text-[9px] text-[var(--c-faint)]">e.g. Bhoosa from Wheat, Husk from Rice — tracked automatically when harvest is recorded</p>
+            <p className="text-[11px] text-[var(--c-faint)]">e.g. Bhoosa from Wheat, Husk from Rice — tracked automatically when harvest is recorded</p>
             {(form.residuals || []).map((r, i) => (
               <div key={i} className="bg-[var(--c-surface)] rounded-xl border border-[var(--c-border)] p-2.5 space-y-1.5">
                 <div className="flex gap-1.5 items-center">
@@ -282,7 +282,7 @@ function CropsMaster() {
               </div>
             ))}
             {(form.residuals || []).length > 0 && (
-              <p className="text-[9px] text-[var(--c-faint)]">Qty/ac × plot acres = auto quantity at harvest time</p>
+              <p className="text-[11px] text-[var(--c-faint)]">Qty/ac × plot acres = auto quantity at harvest time</p>
             )}
           </div>
 
@@ -303,8 +303,8 @@ function CropsMaster() {
             <div className="w-8 h-8 rounded-lg shrink-0" style={{ background: c.color }} />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--c-text)]">{c.emoji} {c.name}</p>
-              <p className="text-[10px] text-[var(--c-muted)]">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
-              {activeCycles > 0 && <p className="text-[10px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
+              <p className="text-[12px] text-[var(--c-muted)]">{c.duration_days}d · {c.yieldPerAcre} qtl/ac · ₹{c.pricePerQtl}/qtl</p>
+              {activeCycles > 0 && <p className="text-[12px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -435,8 +435,8 @@ function InventoryMaster() {
         <div key={i.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[var(--c-text)]">{i.name}</p>
-            <p className="text-[10px] text-[var(--c-muted)]">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
-            <p className="text-[10px] text-[#8A9A5B] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
+            <p className="text-[12px] text-[var(--c-muted)]">{CAT_LABEL[i.category]} · {i.unit} · ₹{i.costPerUnit}/unit · min {i.minThreshold}</p>
+            <p className="text-[12px] text-[#8A9A5B] mt-0.5">Stock: {i.currentStock} {i.unit}</p>
           </div>
           <div className="flex items-center gap-2 ml-3 shrink-0">
             <button
@@ -491,12 +491,12 @@ function ActivityTypesMaster() {
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
       {toast && <Toast msg={toast.m} type={toast.type} />}
 
-      <p className="text-[11px] text-[var(--c-faint)] px-1">
+      <p className="text-[13px] text-[var(--c-faint)] px-1">
         Activity types used in Log Activity and crop templates. System types cannot be removed. Add custom types below.
       </p>
 
       {/* System types — display only */}
-      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">System (built-in)</p>
+      <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide">System (built-in)</p>
       <div className="flex flex-wrap gap-2">
         {systemTypes.map(a => (
           <span key={a.id} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border"
@@ -507,7 +507,7 @@ function ActivityTypesMaster() {
       </div>
 
       {/* Custom types */}
-      <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mt-2">Custom</p>
+      <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide mt-2">Custom</p>
       <button onClick={() => setForm({ label: '', emoji: '📋' })}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add Custom Activity Type
@@ -584,7 +584,7 @@ function WorkTypesSection({ showToast }) {
   return (
     <>
       {confirm && <ConfirmDialog {...confirm} onCancel={() => setConfirm(null)} />}
-      <p className="text-[11px] text-[var(--c-faint)] px-1">
+      <p className="text-[13px] text-[var(--c-faint)] px-1">
         Work type labels used when logging contractual or regular work. No rate attached — rate is filled at log time.
       </p>
       <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 flex gap-2">
@@ -790,10 +790,10 @@ function LabourMaster() {
 
       {/* ── Permanent Staff ── */}
       {tab === 'staff' && (<>
-        <p className="text-[11px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
+        <p className="text-[13px] text-[var(--c-faint)] px-1">Office staff with fixed monthly salary. Attendance tracked daily.</p>
         <div className="flex items-center justify-between bg-[var(--c-nav)] border border-[var(--c-border)] rounded-2xl px-4 py-2.5">
           <div>
-            <p className="text-[10px] text-[var(--c-faint)]">Monthly holidays — all staff</p>
+            <p className="text-[12px] text-[var(--c-faint)]">Monthly holidays — all staff</p>
             {holidayEdit !== null
               ? <div className="flex items-center gap-2 mt-1">
                   <input type="number" min="0" max="31" autoFocus className="finput w-20 text-sm py-1"
@@ -807,7 +807,7 @@ function LabourMaster() {
           </div>
           {holidayEdit === null && (
             <button onClick={() => setHolidayEdit(String(manpowerSettings.staffMonthlyHolidays))}
-              className="text-[11px] text-[#8A9A5B] border border-[#8A9A5B]/30 px-3 py-1.5 rounded-lg hover:bg-[#8A9A5B]/10">Edit</button>
+              className="text-[13px] text-[#8A9A5B] border border-[#8A9A5B]/30 px-3 py-1.5 rounded-lg hover:bg-[#8A9A5B]/10">Edit</button>
           )}
         </div>
         <button onClick={() => setForm({ monthlySalary: '', dailyRate: '', openingBalance: '0' })}
@@ -846,7 +846,7 @@ function LabourMaster() {
                 <input type="date" className="finput" value={form.joinDate || ''} onChange={e => setForm(p => ({ ...p, joinDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
               </FRow>
             </div>
-            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
+            <p className="text-[12px] text-[var(--c-faint)] px-0.5">Opening balance: positive = farm owes them, negative = they owe farm</p>
             <FRow label="Photo">
               <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
                 onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
@@ -878,7 +878,7 @@ function LabourMaster() {
 
       {/* ── Regular Labour ── */}
       {tab === 'regular' && (<>
-        <p className="text-[11px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
+        <p className="text-[13px] text-[var(--c-faint)] px-1">Regular farm workers paid per day. Attendance tracked daily.</p>
         <button onClick={() => setForm({ workType: 'Farm Worker', openingBalance: '0' })}
           className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
           <Plus size={14} /> Add Regular Labourer
@@ -909,7 +909,7 @@ function LabourMaster() {
               <input type="number" className="finput" placeholder="0"
                 value={form.openingBalance || ''} onChange={e => setForm(p => ({ ...p, openingBalance: e.target.value }))} />
             </FRow>
-            <p className="text-[10px] text-[var(--c-faint)] px-0.5">Positive = farm owes them from last month. Negative = they owe farm.</p>
+            <p className="text-[12px] text-[var(--c-faint)] px-0.5">Positive = farm owes them from last month. Negative = they owe farm.</p>
             <FRow label="Photo">
               <FilePicker accept="image/*" file={photoFile} preview={form.photoUrl}
                 onFile={f => { setPhotoFile(f); if (!f) setForm(p => ({ ...p, photoUrl: null })) }} />
@@ -944,7 +944,7 @@ function LabourMaster() {
 
       {/* ── Advances ── */}
       {tab === 'advances' && (<>
-        <p className="text-[11px] text-[var(--c-faint)] px-1">Salary advances given to permanent staff or regular labour. Deducted at month-end salary.</p>
+        <p className="text-[13px] text-[var(--c-faint)] px-1">Salary advances given to permanent staff or regular labour. Deducted at month-end salary.</p>
         {allTracked.length === 0 ? (
           <p className="text-xs text-[var(--c-faint)] text-center py-6">Add staff or regular labour first to record advances.</p>
         ) : (<>
@@ -998,7 +998,7 @@ function LabourMaster() {
             <p className="text-xs text-[var(--c-faint)] text-center py-4">No pending advances</p>
           ) : (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Pending Recovery</p>
+              <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Pending Recovery</p>
               {advances.map(adv => {
                 const person = allTracked.find(p => p.id === adv.labourerId)
                 return (
@@ -1006,7 +1006,7 @@ function LabourMaster() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name || '—'}</p>
-                        <p className="text-[10px] text-[var(--c-muted)]">{adv.date}{adv.reason ? ` · ${adv.reason}` : ''}</p>
+                        <p className="text-[12px] text-[var(--c-muted)]">{adv.date}{adv.reason ? ` · ${adv.reason}` : ''}</p>
                       </div>
                       <p className="text-base font-bold text-[#BA7517]">₹{adv.amount}</p>
                     </div>
@@ -1173,7 +1173,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
 
   return (
     <div className="p-4 pt-0 space-y-3 pb-6">
-      <div className="bg-[var(--c-nav)] rounded-2xl p-2.5 text-[10px] text-[var(--c-muted)] leading-relaxed">
+      <div className="bg-[var(--c-nav)] rounded-2xl p-2.5 text-[12px] text-[var(--c-muted)] leading-relaxed">
         Staff: <span className="text-[var(--c-sub)]">monthly salary · free holidays + leaves + PH paid · Sunday can be marked present</span>
         &nbsp;·&nbsp;Regular: <span className="text-[var(--c-sub)]">days present × daily rate</span>
       </div>
@@ -1200,7 +1200,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
           </div>
           <div>
             <p className="text-sm font-semibold text-[var(--c-text)]">{person?.name}</p>
-            <p className="text-[10px] text-[var(--c-muted)]">
+            <p className="text-[12px] text-[var(--c-muted)]">
               {isStaffPerson ? `${person?.designation} · ₹${person?.monthlySalary}/mo · ${manpowerSettings.staffMonthlyHolidays} holidays/mo` : `${person?.workType} · ₹${person?.ratePerDay || '—'}/day`}
             </p>
           </div>
@@ -1218,7 +1218,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
       <div className="bg-[var(--c-nav)] rounded-2xl overflow-hidden">
         <div className="grid grid-cols-7 border-b border-[var(--c-border)]">
           {DAY_LABELS.map((d, i) => (
-            <div key={d} className="text-center py-2 text-[10px] font-bold"
+            <div key={d} className="text-center py-2 text-[12px] font-bold"
               style={{ color: i === 0 ? '#E24B4A80' : 'var(--c-faint)' }}>{d}</div>
           ))}
         </div>
@@ -1233,12 +1233,12 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
                 disabled={cell.isFuture || isTapping}
                 className="aspect-square flex flex-col items-center justify-center gap-0.5 border border-white/[0.04] transition-opacity disabled:cursor-default"
                 style={{ background: style ? style.bg + '30' : 'transparent', opacity: cell.isFuture ? 0.35 : 1 }}>
-                <span className="text-[10px] font-semibold leading-none"
+                <span className="text-[12px] font-semibold leading-none"
                   style={{ color: cell.isSun && !cell.recStatus ? '#E24B4A60' : style ? style.bg : 'var(--c-sub)' }}>
                   {cell.d}
                 </span>
                 {style && style.label && (
-                  <span className="text-[8px] font-bold leading-none px-1 py-0.5 rounded"
+                  <span className="text-[10px] font-bold leading-none px-1 py-0.5 rounded"
                     style={{ background: style.bg + '50', color: style.bg }}>
                     {isTapping ? '…' : style.label}
                   </span>
@@ -1267,7 +1267,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
         ].map(({ label, val, color }) => (
           <div key={label} className="bg-[var(--c-nav)] rounded-xl p-3 text-center border border-[var(--c-border)]">
             <p className="text-lg font-bold" style={{ color }}>{val}</p>
-            <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{label}</p>
+            <p className="text-[12px] text-[var(--c-muted)] mt-0.5">{label}</p>
           </div>
         ))}
       </div>
@@ -1275,7 +1275,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
         <div className="bg-[var(--c-surface)] rounded-2xl p-4 flex items-center justify-between border border-[var(--c-border)]">
           <div>
             <p className="text-xs text-[var(--c-muted)]">Estimated salary</p>
-            <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{salaryNote}</p>
+            <p className="text-[12px] text-[var(--c-faint)] mt-0.5">{salaryNote}</p>
           </div>
           <p className="text-xl font-bold text-[#8A9A5B]">₹{estSalary.toLocaleString('en-IN')}</p>
         </div>
@@ -1285,22 +1285,22 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
       <div className="flex flex-wrap gap-2">
         {Object.entries(ATT_STYLES).filter(([k]) => k !== 'weekly_off').map(([s, cfg]) => (
           <div key={s} className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded text-[8px] font-bold flex items-center justify-center"
+            <div className="w-4 h-4 rounded text-[10px] font-bold flex items-center justify-center"
               style={{ background: cfg.bg + '30', color: cfg.bg, border: `1px solid ${cfg.bg}60` }}>
               {cfg.label}
             </div>
-            <span className="text-[10px] text-[var(--c-faint)] capitalize">{s.replace('_', ' ')}</span>
+            <span className="text-[12px] text-[var(--c-faint)] capitalize">{s.replace('_', ' ')}</span>
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-[var(--c-faint)] text-center">Tap a day to cycle · Sunday tap marks present (overtime)</p>
+      <p className="text-[12px] text-[var(--c-faint)] text-center">Tap a day to cycle · Sunday tap marks present (overtime)</p>
 
       {/* Public Holidays */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Public Holidays</p>
+          <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide">Public Holidays</p>
           <button onClick={() => setHForm({ date: '', name: '' })}
-            className="text-[10px] text-[#7B2D8B] px-2 py-1 border border-[#7B2D8B]/30 rounded-lg hover:bg-[#7B2D8B]/10">
+            className="text-[12px] text-[#7B2D8B] px-2 py-1 border border-[#7B2D8B]/30 rounded-lg hover:bg-[#7B2D8B]/10">
             + Add
           </button>
         </div>
@@ -1325,12 +1325,12 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
           </div>
         )}
         {publicHolidays.length === 0
-          ? <p className="text-[10px] text-[var(--c-faint)] text-center py-2">No public holidays added</p>
+          ? <p className="text-[12px] text-[var(--c-faint)] text-center py-2">No public holidays added</p>
           : publicHolidays.map(h => (
             <div key={h.id} className="flex items-center justify-between py-2 border-b border-[var(--c-border)]">
               <div>
                 <p className="text-xs font-semibold text-[var(--c-text)]">{h.name}</p>
-                <p className="text-[10px] text-[#7B2D8B]">{h.date}</p>
+                <p className="text-[12px] text-[#7B2D8B]">{h.date}</p>
               </div>
               <button onClick={() => deletePublicHoliday(h.id)} className="text-[var(--c-faint)] hover:text-[#E24B4A]"><Trash2 size={13} /></button>
             </div>
@@ -1451,8 +1451,8 @@ function PlotsMaster() {
           </div>
 
           <div className="border-t border-[var(--c-border)] pt-3">
-            <p className="text-[10px] text-[var(--c-muted)] mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
-            <div className="grid grid-cols-2 gap-[2px] text-[9px] text-[var(--c-faint)] px-7 mb-1">
+            <p className="text-[12px] text-[var(--c-muted)] mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
+            <div className="grid grid-cols-2 gap-[2px] text-[11px] text-[var(--c-faint)] px-7 mb-1">
               <span>Latitude</span><span>Longitude</span>
             </div>
             <div className="space-y-2">
@@ -1462,7 +1462,7 @@ function PlotsMaster() {
               <PointRow label="D" latKey="point_d_lat" lngKey="point_d_lng" />
             </div>
             {!hasAllPoints(form || {}) && (
-              <p className="text-[10px] text-[#BA7517] mt-1.5">⚠ Fill all 4 points to draw on map</p>
+              <p className="text-[12px] text-[#BA7517] mt-1.5">⚠ Fill all 4 points to draw on map</p>
             )}
           </div>
 
@@ -1485,23 +1485,23 @@ function PlotsMaster() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-[var(--c-text)]">{plot.name}</p>
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                  <span className="text-[10px] text-[var(--c-muted)]">{plot.area_acres} acres</span>
-                  {plot.soil_type   && <span className="text-[10px] text-[var(--c-faint)]">{plot.soil_type}</span>}
-                  {plot.water_source && <span className="text-[10px] text-[var(--c-faint)]">{plot.water_source}</span>}
+                  <span className="text-[12px] text-[var(--c-muted)]">{plot.area_acres} acres</span>
+                  {plot.soil_type   && <span className="text-[12px] text-[var(--c-faint)]">{plot.soil_type}</span>}
+                  {plot.water_source && <span className="text-[12px] text-[var(--c-faint)]">{plot.water_source}</span>}
                 </div>
                 {hasPoints ? (
                   <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-0.5">
                     {[['A', plot.point_a_lat, plot.point_a_lng], ['B', plot.point_b_lat, plot.point_b_lng],
                       ['C', plot.point_c_lat, plot.point_c_lng], ['D', plot.point_d_lat, plot.point_d_lng]].map(([lbl, lat, lng]) => (
-                      <span key={lbl} className="text-[9px] text-[#8A9A5B]/70 font-mono">
+                      <span key={lbl} className="text-[11px] text-[#8A9A5B]/70 font-mono">
                         {lbl}: {Number(lat).toFixed(5)}, {Number(lng).toFixed(5)}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[10px] text-[#BA7517]/70 mt-0.5">No boundary set</p>
+                  <p className="text-[12px] text-[#BA7517]/70 mt-0.5">No boundary set</p>
                 )}
-                {activeCycles > 0 && <p className="text-[10px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
+                {activeCycles > 0 && <p className="text-[12px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
               </div>
               <div className="flex items-center gap-2 ml-3 shrink-0">
                 <button onClick={() => setForm({
@@ -1633,7 +1633,7 @@ function UsersMaster() {
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: r.color }} />
                   <div>
                     <p className="text-xs font-semibold text-[var(--c-text)]">{r.label}</p>
-                    <p className="text-[10px] text-[var(--c-muted)]">{r.desc}</p>
+                    <p className="text-[12px] text-[var(--c-muted)]">{r.desc}</p>
                   </div>
                   {form.role === r.value && <span className="ml-auto text-[#8A9A5B] text-xs">✓</span>}
                 </button>
@@ -1658,31 +1658,31 @@ function UsersMaster() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-[var(--c-text)]">{user.full_name}</p>
-                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded border" style={roleStyle(user.role)}>
+                  <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded border" style={roleStyle(user.role)}>
                     {ROLES.find(r => r.value === user.role)?.label}
                   </span>
-                  {!user.is_active && <span className="text-[9px] text-[#E24B4A] bg-[#E24B4A]/10 px-1.5 py-0.5 rounded">Inactive</span>}
-                  {isSelf && <span className="text-[9px] text-[var(--c-faint)] bg-[var(--c-card)] px-1.5 py-0.5 rounded">You</span>}
+                  {!user.is_active && <span className="text-[11px] text-[#E24B4A] bg-[#E24B4A]/10 px-1.5 py-0.5 rounded">Inactive</span>}
+                  {isSelf && <span className="text-[11px] text-[var(--c-faint)] bg-[var(--c-card)] px-1.5 py-0.5 rounded">You</span>}
                 </div>
-                <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{user.email}</p>
-                {user.phone && <p className="text-[10px] text-[var(--c-faint)]">{user.phone}</p>}
+                <p className="text-[12px] text-[var(--c-muted)] mt-0.5">{user.email}</p>
+                {user.phone && <p className="text-[12px] text-[var(--c-faint)]">{user.phone}</p>}
               </div>
               {!isSelf && (
                 <div className="flex items-center gap-2 shrink-0">
                   <select value={user.role}
                     onChange={e => changeRole(user.id, e.target.value)}
-                    className="text-[10px] bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-lg px-1.5 py-1 text-[var(--c-text)] focus:outline-none"
+                    className="text-[12px] bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-lg px-1.5 py-1 text-[var(--c-text)] focus:outline-none"
                     style={{ background: 'var(--c-surface)' }}>
                     {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: 'var(--c-surface)' }}>{r.label}</option>)}
                   </select>
                   {user.is_active ? (
                     <button onClick={() => handleDeactivate(user)}
-                      className="text-[10px] px-2 py-1 rounded-lg border border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10 transition-colors">
+                      className="text-[12px] px-2 py-1 rounded-lg border border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10 transition-colors">
                       Deactivate
                     </button>
                   ) : (
                     <button onClick={() => handleReactivate(user)}
-                      className="text-[10px] px-2 py-1 rounded-lg border border-[#8A9A5B]/30 text-[#8A9A5B] hover:bg-[#8A9A5B]/10 transition-colors">
+                      className="text-[12px] px-2 py-1 rounded-lg border border-[#8A9A5B]/30 text-[#8A9A5B] hover:bg-[#8A9A5B]/10 transition-colors">
                       Reactivate
                     </button>
                   )}
@@ -1713,22 +1713,22 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-bold text-[var(--c-text)]">{person.name}</p>
             {!isActive && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border"
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full border"
                 style={{ color: '#E24B4A', borderColor: '#E24B4A40', background: '#E24B4A10' }}>
                 ⏸ Deactivated
               </span>
             )}
           </div>
-          <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{subLabel}</p>
+          <p className="text-[12px] text-[var(--c-muted)] mt-0.5">{subLabel}</p>
           {person.phone && (
             <a href={`tel:${person.phone}`}
-              className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold rounded-lg px-2 py-0.5 border transition-colors hover:bg-[var(--c-ghost)]"
+              className="inline-flex items-center gap-1 mt-1 text-[12px] font-semibold rounded-lg px-2 py-0.5 border transition-colors hover:bg-[var(--c-ghost)]"
               style={{ color: accentColor, borderColor: accentColor + '40' }}>
               📞 {person.phone}
             </a>
           )}
           {person.openingBalance !== 0 && (
-            <p className="text-[10px] mt-1" style={{ color: person.openingBalance > 0 ? '#8A9A5B' : '#E24B4A' }}>
+            <p className="text-[12px] mt-1" style={{ color: person.openingBalance > 0 ? '#8A9A5B' : '#E24B4A' }}>
               Opening bal: {person.openingBalance > 0 ? '+' : ''}₹{Number(person.openingBalance).toLocaleString()}
             </p>
           )}
@@ -1745,27 +1745,27 @@ function PersonCard({ person, accentColor, isLogOpen, onToggleLog, onEdit, onDel
       {/* Action bar */}
       <div className="flex border-t border-[var(--c-border)] divide-x divide-[var(--c-border)]">
         <button onClick={onToggleLog}
-          className={`flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors ${isLogOpen ? 'text-[#BA7517] bg-[#BA7517]/8' : 'text-[var(--c-muted)] hover:text-[var(--c-sub)]'}`}>
+          className={`flex-1 py-2.5 text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors ${isLogOpen ? 'text-[#BA7517] bg-[#BA7517]/8' : 'text-[var(--c-muted)] hover:text-[var(--c-sub)]'}`}>
           📋 Log
         </button>
         <button onClick={onEdit}
-          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#8A9A5B] flex items-center justify-center gap-1 transition-colors">
+          className="flex-1 py-2.5 text-[12px] font-semibold text-[var(--c-muted)] hover:text-[#8A9A5B] flex items-center justify-center gap-1 transition-colors">
           ✏️ Edit
         </button>
         {isActive ? (
           <button onClick={onDeactivate}
-            className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] flex items-center justify-center gap-1 transition-colors">
+            className="flex-1 py-2.5 text-[12px] font-semibold text-[var(--c-muted)] hover:text-[#BA7517] flex items-center justify-center gap-1 transition-colors">
             ⏸ Pause
           </button>
         ) : (
           <button onClick={onReactivate}
-            className="flex-1 py-2.5 text-[10px] font-semibold flex items-center justify-center gap-1 transition-colors"
+            className="flex-1 py-2.5 text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors"
             style={{ color: '#8A9A5B' }}>
             ▶ Activate
           </button>
         )}
         <button onClick={onDelete}
-          className="flex-1 py-2.5 text-[10px] font-semibold text-[var(--c-muted)] hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
+          className="flex-1 py-2.5 text-[12px] font-semibold text-[var(--c-muted)] hover:text-[#E24B4A] flex items-center justify-center gap-1 transition-colors">
           🗑 Delete
         </button>
       </div>
@@ -1834,15 +1834,15 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
     })
   }, [personId])
 
-  if (!rows) return <div className="px-4 pb-3 text-[10px] text-[var(--c-faint)]">Loading…</div>
+  if (!rows) return <div className="px-4 pb-3 text-[12px] text-[var(--c-faint)]">Loading…</div>
 
   const monthKeys = Object.keys(rows.months).sort().reverse()
 
   return (
     <div className="border-t border-[var(--c-border)] px-4 pb-4 pt-3 space-y-2">
-      <p className="text-[10px] font-bold text-[var(--c-faint)] uppercase tracking-wide">Salary Log — Last 6 Months</p>
+      <p className="text-[12px] font-bold text-[var(--c-faint)] uppercase tracking-wide">Salary Log — Last 6 Months</p>
       {monthKeys.length === 0 && (
-        <p className="text-[10px] text-[var(--c-faint)] italic">No attendance recorded yet</p>
+        <p className="text-[12px] text-[var(--c-faint)] italic">No attendance recorded yet</p>
       )}
       {monthKeys.map(ym => {
         const { present, half, absent } = rows.months[ym]
@@ -1865,21 +1865,21 @@ function SalaryLog({ personId, ratePerDay, monthlySalary }) {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-semibold text-[var(--c-text)]">{label}</p>
-                <p className="text-[10px] text-[var(--c-muted)] mt-0.5">
+                <p className="text-[12px] text-[var(--c-muted)] mt-0.5">
                   {present}P · {half}H · {absent}A · {paidDays} paid days
                 </p>
                 {advance > 0 && (
-                  <p className="text-[10px] text-[#BA7517] mt-0.5">Advance taken: ₹{advance.toLocaleString()}</p>
+                  <p className="text-[12px] text-[#BA7517] mt-0.5">Advance taken: ₹{advance.toLocaleString()}</p>
                 )}
                 {recovered > 0 && (
-                  <p className="text-[10px] text-[#6366f1] mt-0.5">Recovered from him: ₹{recovered.toLocaleString()}</p>
+                  <p className="text-[12px] text-[#6366f1] mt-0.5">Recovered from him: ₹{recovered.toLocaleString()}</p>
                 )}
               </div>
               {earned !== null && (
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-sm font-bold text-[#8A9A5B]">₹{earned.toLocaleString()}</p>
                   {advance > 0 && (
-                    <p className="text-[10px] text-[var(--c-muted)]">Net ₹{net.toLocaleString()}</p>
+                    <p className="text-[12px] text-[var(--c-muted)]">Net ₹{net.toLocaleString()}</p>
                   )}
                 </div>
               )}
@@ -2036,13 +2036,13 @@ function BuyersMaster() {
                 const sel = form.buys.includes(cat.key)
                 return (
                   <button key={cat.key} type="button" onClick={() => toggleBuys(cat.key)}
-                    className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${sel ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/40'}`}>
+                    className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${sel ? 'bg-[#8A9A5B]/20 border-[#8A9A5B] text-[#8A9A5B]' : 'border-[var(--c-border)] text-[var(--c-muted)] hover:border-[#8A9A5B]/40'}`}>
                     {cat.emoji} {cat.label}
                   </button>
                 )
               })}
             </div>
-            {!form.buys.length && <p className="text-[9px] text-[#BA7517] mt-1">Select at least one product category</p>}
+            {!form.buys.length && <p className="text-[11px] text-[#BA7517] mt-1">Select at least one product category</p>}
           </FRow>
           <div className="flex gap-2">
             <button onClick={save} disabled={saving}
@@ -2061,15 +2061,15 @@ function BuyersMaster() {
           <div key={b.id} className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-4 flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--c-text)]">{b.name}</p>
-              <p className="text-[10px] text-[var(--c-muted)] mt-0.5">{entityLabel}{b.address ? ` · ${b.address}` : ''}</p>
-              {b.contact && <p className="text-[10px] text-[var(--c-faint)]">{b.contact}</p>}
+              <p className="text-[12px] text-[var(--c-muted)] mt-0.5">{entityLabel}{b.address ? ` · ${b.address}` : ''}</p>
+              {b.contact && <p className="text-[12px] text-[var(--c-faint)]">{b.contact}</p>}
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {cats.length ? cats.map(c => (
-                  <span key={c.key} className="text-[9px] px-1.5 py-0.5 rounded-full border border-[#8A9A5B]/30 text-[#8A9A5B] bg-[#8A9A5B]/08">
+                  <span key={c.key} className="text-[11px] px-1.5 py-0.5 rounded-full border border-[#8A9A5B]/30 text-[#8A9A5B] bg-[#8A9A5B]/08">
                     {c.emoji} {c.label}
                   </span>
                 )) : (
-                  <span className="text-[9px] text-[var(--c-faint)]">No categories set</span>
+                  <span className="text-[11px] text-[var(--c-faint)]">No categories set</span>
                 )}
               </div>
             </div>
@@ -2161,8 +2161,8 @@ function PartnersMaster() {
               {accountsOf(p.id).map(a => (
                 <div key={a.id} className="flex items-center justify-between mt-1.5 pt-1.5"
                   style={{ borderTop: '0.5px solid var(--c-border)' }}>
-                  <span className="text-[11px] text-[var(--c-muted)]">🏦 {a.name}</span>
-                  <span className="text-[11px] font-semibold"
+                  <span className="text-[13px] text-[var(--c-muted)]">🏦 {a.name}</span>
+                  <span className="text-[13px] font-semibold"
                     style={{ color: balanceOf(a.id) >= 0 ? '#8A9A5B' : '#E24B4A' }}>
                     ₹{balanceOf(a.id).toLocaleString('en-IN')}
                   </span>
@@ -2303,7 +2303,7 @@ function CyclesMaster() {
               )}
             </select>
             {availablePlots.length === 0 && (
-              <p className="text-[10px] text-[#BA7517] mt-1">⚠ All plots have active cycles. End a cycle before starting a new one.</p>
+              <p className="text-[12px] text-[#BA7517] mt-1">⚠ All plots have active cycles. End a cycle before starting a new one.</p>
             )}
           </FRow>
 
@@ -2336,7 +2336,7 @@ function CyclesMaster() {
 
           {preAppSowing && (
             <FRow label="Spent before the app (optional)">
-              <p className="text-[10px] text-[var(--c-faint)] mb-2 leading-relaxed">
+              <p className="text-[12px] text-[var(--c-faint)] mb-2 leading-relaxed">
                 Sown before the farm joined — this money counts into the crop's P&amp;L cost.
                 Split by category so crop reports can compare it with what the app tracked since.
               </p>
@@ -2372,7 +2372,7 @@ function CyclesMaster() {
 
       {activeCycles.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Active Cycles ({activeCycles.length})</p>
+          <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Active Cycles ({activeCycles.length})</p>
           {activeCycles.map(c => {
             const crop = cropMaster.find(cr => cr.id === c.cropId)
             const now  = new Date(); now.setHours(0,0,0,0)
@@ -2387,8 +2387,8 @@ function CyclesMaster() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[var(--c-text)]">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
-                  <p className="text-[10px] text-[var(--c-muted)]">Sown {c.sowDate} · Day {days} · {left}d left</p>
-                  <p className="text-[10px] text-[var(--c-faint)]">{c.season}</p>
+                  <p className="text-[12px] text-[var(--c-muted)]">Sown {c.sowDate} · Day {days} · {left}d left</p>
+                  <p className="text-[12px] text-[var(--c-faint)]">{c.season}</p>
                   {/* Cycles sown before the farm joined can carry pre-app spend
                       (crop_cycles.opening_cost) — editable right here. */}
                   {farmJoined && c.sowDate < farmJoined.slice(0, 10) && (
@@ -2401,29 +2401,29 @@ function CyclesMaster() {
                           </div>
                         ) : (
                           <input type="number" min="0" inputMode="decimal" autoFocus
-                            className="finput mb-2" style={{ width: '130px', padding: '4px 8px', fontSize: '11px' }}
+                            className="finput mb-2" style={{ width: '130px', padding: '4px 8px', fontSize: '13px' }}
                             placeholder="Spent before app ₹"
                             value={editCost.value}
                             onChange={e => setEditCost(ec => ({ ...ec, value: e.target.value }))} />
                         )}
                         <div className="flex items-center gap-1.5">
                           <button onClick={saveOpeningCost}
-                            className="px-2.5 py-1 text-[10px] font-bold rounded-lg"
+                            className="px-2.5 py-1 text-[12px] font-bold rounded-lg"
                             style={{ background: '#8A9A5B', color: '#fff' }}>Save</button>
                           <button onClick={() => setEditCost(null)}
-                            className="px-1.5 py-1 text-[10px] rounded-lg text-[var(--c-muted)]">✕</button>
+                            className="px-1.5 py-1 text-[12px] rounded-lg text-[var(--c-muted)]">✕</button>
                         </div>
                       </div>
                     ) : (
                       <button onClick={() => openCostEditor(c)}
-                        className="mt-1 text-[10px] font-semibold" style={{ color: '#BA7517' }}>
+                        className="mt-1 text-[12px] font-semibold" style={{ color: '#BA7517' }}>
                         Spent before app: {c.openingCost != null ? `₹${Number(c.openingCost).toLocaleString('en-IN')}` : 'not set'} · edit
                       </button>
                     )
                   )}
                 </div>
                 <button onClick={() => handleEndCycle(c)}
-                  className="shrink-0 px-2 py-1.5 text-[10px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10 transition-colors">
+                  className="shrink-0 px-2 py-1.5 text-[12px] font-semibold border border-[#BA7517]/40 text-[#BA7517] rounded-lg hover:bg-[#BA7517]/10 transition-colors">
                   End
                 </button>
               </div>
@@ -2434,13 +2434,13 @@ function CyclesMaster() {
 
       {inactiveCycles.length > 0 && (
         <div>
-          <p className="text-[10px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Past Cycles ({inactiveCycles.length})</p>
+          <p className="text-[12px] font-bold text-[var(--c-muted)] uppercase tracking-wide mb-2">Past Cycles ({inactiveCycles.length})</p>
           {inactiveCycles.map(c => {
             const crop = cropMaster.find(cr => cr.id === c.cropId)
             return (
               <div key={c.id} className="bg-[var(--c-nav)]/60 rounded-2xl border border-[var(--c-border)] p-3 mb-1.5 opacity-60">
                 <p className="text-xs font-semibold text-[var(--c-text)]">{c.plotLabel} — {crop?.name || 'Unknown'}</p>
-                <p className="text-[10px] text-[var(--c-muted)]">{c.sowDate} · {c.status} · {c.season}</p>
+                <p className="text-[12px] text-[var(--c-muted)]">{c.sowDate} · {c.status} · {c.season}</p>
               </div>
             )
           })}

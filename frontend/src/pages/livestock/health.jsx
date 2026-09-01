@@ -49,10 +49,10 @@ export function CheckupBanner({ checkups, onOpen }) {
       className="w-full mt-2 flex items-center gap-2 px-3 py-2 rounded-xl text-left"
       style={{ background: color + '14', border: `1px solid ${color}40` }}>
       <AlertTriangle size={14} style={{ color, flexShrink: 0 }} />
-      <p className="text-[11px] font-semibold flex-1" style={{ color }}>
+      <p className="text-[13px] font-semibold flex-1" style={{ color }}>
         {text}{due.length > 1 ? ` · +${due.length - 1} more` : ''}
       </p>
-      <span className="text-[10px] font-bold" style={{ color }}>View</span>
+      <span className="text-[12px] font-bold" style={{ color }}>View</span>
     </button>
   )
 }
@@ -68,7 +68,7 @@ export function DueList({ checkups, onPick }) {
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ borderColor: '#BA751740', background: 'var(--c-nav)' }}>
-      <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest"
+      <p className="px-4 py-2 text-[12px] font-bold uppercase tracking-widest"
         style={{ color: '#BA7517', background: '#BA751710' }}>Checkups due</p>
       <div className="divide-y divide-[var(--c-border)]">
         {due.map(c => {
@@ -79,9 +79,9 @@ export function DueList({ checkups, onPick }) {
               className="w-full flex items-center justify-between px-4 py-2.5 text-left">
               <div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>{animalLabel(c.animal)}</p>
-                <p className="text-[10px]" style={{ color: 'var(--c-muted)' }}>Due {c.date}</p>
+                <p className="text-[12px]" style={{ color: 'var(--c-muted)' }}>Due {c.date}</p>
               </div>
-              <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+              <span className="text-[12px] font-bold px-2 py-1 rounded-full"
                 style={{ background: (overdue ? '#E24B4A' : '#BA7517') + '18', color: overdue ? '#E24B4A' : '#BA7517' }}>
                 {overdue ? `${Math.abs(c.days)}d overdue` : `in ${c.days}d`}
               </span>
@@ -108,7 +108,7 @@ export function VisitRow({ log: h, animalName, framed = true, onDelete }) {
             )}
             <HealthPill status={h.healthStatus} />
           </div>
-          <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-muted)' }}>{h.date}</p>
+          <p className="text-[12px] mt-0.5" style={{ color: 'var(--c-muted)' }}>{h.date}</p>
         </div>
         {onDelete && (
           <button onClick={onDelete} className="p-1 shrink-0" style={{ color: 'var(--c-muted)' }}>
@@ -117,12 +117,12 @@ export function VisitRow({ log: h, animalName, framed = true, onDelete }) {
         )}
       </div>
 
-      {h.symptoms  && <p className="text-[11px] mt-2"    style={{ color: 'var(--c-text)'  }}>🩺 {h.symptoms}</p>}
-      {h.treatment && <p className="text-[11px] mt-0.5"  style={{ color: 'var(--c-text)'  }}>💊 {h.treatment}</p>}
-      {h.notes     && <p className="text-[10px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{h.notes}</p>}
+      {h.symptoms  && <p className="text-[13px] mt-2"    style={{ color: 'var(--c-text)'  }}>🩺 {h.symptoms}</p>}
+      {h.treatment && <p className="text-[13px] mt-0.5"  style={{ color: 'var(--c-text)'  }}>💊 {h.treatment}</p>}
+      {h.notes     && <p className="text-[12px] mt-0.5 italic" style={{ color: 'var(--c-faint)' }}>{h.notes}</p>}
 
       {(h.vetName || h.nextCheckup) && (
-        <div className="mt-2 flex items-center gap-2 flex-wrap text-[10px]" style={{ color: 'var(--c-muted)' }}>
+        <div className="mt-2 flex items-center gap-2 flex-wrap text-[12px]" style={{ color: 'var(--c-muted)' }}>
           {h.vetName && (
             <span className="px-1.5 py-0.5 rounded" style={{ background: 'var(--c-ghost)' }}>{h.vetName}</span>
           )}
@@ -178,7 +178,7 @@ export function HealthPanel({ animal, animals }) {
   return (
     <div className="border-t border-[var(--c-border)]">
       {next && (
-        <p className="px-4 pt-3 text-[10px] font-semibold"
+        <p className="px-4 pt-3 text-[12px] font-semibold"
           style={{ color: !isDue(next) ? 'var(--c-muted)' : next.days < 0 ? '#E24B4A' : '#BA7517' }}>
           {next.days < 0
             ? `Checkup ${Math.abs(next.days)} days overdue`
@@ -188,14 +188,14 @@ export function HealthPanel({ animal, animals }) {
 
       <div className="p-3">
         <button onClick={() => setShowAdd(true)}
-          className="w-full py-2 rounded-xl text-[11px] font-semibold border-2 border-dashed flex items-center justify-center gap-1.5"
+          className="w-full py-2 rounded-xl text-[13px] font-semibold border-2 border-dashed flex items-center justify-center gap-1.5"
           style={{ borderColor: '#8A9A5B40', color: '#8A9A5B', background: '#8A9A5B08' }}>
           <Plus size={12} /> Log a Vet Visit
         </button>
       </div>
 
       {logs.length === 0 ? (
-        <p className="px-4 pb-3 text-[10px]" style={{ color: 'var(--c-faint)' }}>No vet visits recorded yet</p>
+        <p className="px-4 pb-3 text-[12px]" style={{ color: 'var(--c-faint)' }}>No vet visits recorded yet</p>
       ) : (
         <div className="border-t border-[var(--c-border)] divide-y divide-[var(--c-border)]">
           {logs.map(h => (
@@ -253,7 +253,7 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
             </button>
           ))}
         </div>
-        <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
+        <p className="text-[12px] mt-1" style={{ color: 'var(--c-muted)' }}>
           This becomes the animal's status on the Animals tab.
         </p>
       </FRow>
@@ -278,7 +278,7 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
             onChange={e => u('nextCheckup', e.target.value)} />
         </FRow>
       </div>
-      <p className="text-[10px] -mt-2" style={{ color: 'var(--c-muted)' }}>
+      <p className="text-[12px] -mt-2" style={{ color: 'var(--c-muted)' }}>
         Set a next checkup and the app will warn you before it falls due.
       </p>
 
@@ -342,7 +342,7 @@ export default function HealthTab({ animals, allAnimals, face }) {
       <div className="flex rounded-xl overflow-hidden border border-[var(--c-border)]">
         {[[false, face.title], [true, 'All animals']].map(([v, label]) => (
           <button key={label} onClick={() => setScope(v)}
-            className="flex-1 py-2 text-[11px] font-semibold transition-colors"
+            className="flex-1 py-2 text-[13px] font-semibold transition-colors"
             style={{
               background: wide === v ? '#8A9A5B14' : 'var(--c-ghost)',
               color:      wide === v ? '#8A9A5B'   : 'var(--c-muted)',

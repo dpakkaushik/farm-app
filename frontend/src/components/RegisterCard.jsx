@@ -33,13 +33,13 @@ export default function RegisterCard({
           {thumb}
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate" style={{ color: 'var(--c-text)' }}>{title}</p>
-            {subline && <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--c-muted)' }}>{subline}</p>}
+            {subline && <p className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--c-muted)' }}>{subline}</p>}
           </div>
         </div>
         <div className="text-right shrink-0">
           <p className="text-2xl font-bold leading-none tabular-nums" style={{ color: figureColor || 'var(--c-text)' }}>{figure}</p>
-          {figureLabel && <p className="text-[10px] mt-0.5" style={{ color: 'var(--c-faint)' }}>{figureLabel}</p>}
-          {status && <p className="text-[10px] font-semibold" style={{ color: status.color }}>{status.text}</p>}
+          {figureLabel && <p className="text-[12px] mt-0.5" style={{ color: 'var(--c-faint)' }}>{figureLabel}</p>}
+          {status && <p className="text-[12px] font-semibold" style={{ color: status.color }}>{status.text}</p>}
         </div>
       </div>
       {action && (

@@ -204,13 +204,13 @@ export default function App() {
                     <Icon size={18} strokeWidth={isActive ? 2.3 : 1.8}
                       style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.55)' }} />
                     {to === '/media' && mediaUnread > 0 && (
-                      <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[8px] font-bold rounded-full flex items-center justify-center px-0.5">
+                      <span className="absolute -top-1.5 -right-2 min-w-[14px] h-[14px] bg-[#E24B4A] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
                         {mediaUnread > 9 ? '9+' : mediaUnread}
                       </span>
                     )}
                   </span>
                   {isActive && (
-                    <span className="text-[11px] font-bold text-white whitespace-nowrap">{label}</span>
+                    <span className="text-[13px] font-bold text-white whitespace-nowrap">{label}</span>
                   )}
                 </div>
               )}

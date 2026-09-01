@@ -56,7 +56,7 @@ export default function FilterSheet({ value, onChange, groups, applyLabel, label
         <Filter size={13} style={{ color: count ? SAGE : 'var(--c-muted)' }} />
         {label}
         {count > 0 && (
-          <span className="min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold text-white flex items-center justify-center"
+          <span className="min-w-[16px] h-4 px-1 rounded-full text-[12px] font-bold text-white flex items-center justify-center"
             style={{ background: SAGE }}>{count}</span>
         )}
       </button>
@@ -97,7 +97,7 @@ export default function FilterSheet({ value, onChange, groups, applyLabel, label
                       {g.label}
                     </span>
                     {set && (
-                      <p className="text-[10px] font-semibold mt-0.5 truncate" style={{ color: SAGE }}>
+                      <p className="text-[12px] font-semibold mt-0.5 truncate" style={{ color: SAGE }}>
                         {valueLabel(g, v)}
                       </p>
                     )}
@@ -139,14 +139,14 @@ export function AppliedChips({ value, groups, onChange, className = '' }) {
       {chips.map(c => (
         <button key={c.key} onClick={() => onChange(sanitizeDraft({ ...value, [c.key]: c.allValue }, resolved))}
           aria-label={`Remove filter ${c.label}`}
-          className="shrink-0 flex items-center gap-1 h-7 pl-2.5 pr-1.5 rounded-full border text-[11px] font-semibold"
+          className="shrink-0 flex items-center gap-1 h-7 pl-2.5 pr-1.5 rounded-full border text-[13px] font-semibold"
           style={{ background: `${SAGE}12`, borderColor: `${SAGE}55`, color: SAGE }}>
           {c.label}<X size={11} />
         </button>
       ))}
       {chips.length > 1 && (
         <button onClick={() => onChange(clearedValue(value, resolved))}
-          className="shrink-0 text-[11px] font-semibold px-2" style={{ color: 'var(--c-muted)' }}>
+          className="shrink-0 text-[13px] font-semibold px-2" style={{ color: 'var(--c-muted)' }}>
           Clear
         </button>
       )}

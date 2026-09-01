@@ -60,7 +60,7 @@ function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
           <FRow label="Bill (photo or PDF, optional)">
             <FilePicker accept="image/*,application/pdf" file={billFile} onFile={setBillFile} />
           </FRow>
-          <p className="text-[10px] leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+          <p className="text-[12px] leading-relaxed" style={{ color: 'var(--c-muted)' }}>
             This adds the full amount to that party's ledger. Settle it from
             Ledger → Party Ledger, the same as any other bill.
           </p>
@@ -88,7 +88,7 @@ function Modal({ title, onClose, children }) {
 function FRow({ label, children }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
+      <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{label}</p>
       {children}
     </div>
   )

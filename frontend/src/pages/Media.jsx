@@ -397,7 +397,7 @@ export default function Media() {
                         <Play size={16} fill="white" className="text-white ml-0.5"/>
                       </div>
                       {item.duration && (
-                        <span className="absolute top-2 right-2 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded-md font-mono">
+                        <span className="absolute top-2 right-2 text-[12px] bg-black/70 text-white px-1.5 py-0.5 rounded-md font-mono">
                           {item.duration}
                         </span>
                       )}
@@ -410,15 +410,15 @@ export default function Media() {
                     {/* White, not a theme token: this sits on a dark gradient
                         in both themes. */}
                     <div className="flex flex-wrap gap-1">
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md text-white bg-white/20 backdrop-blur-sm">
+                      <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md text-white bg-white/20 backdrop-blur-sm">
                         {item.plotLabel}
                       </span>
-                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-sm"
+                      <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md backdrop-blur-sm"
                         style={{ background: actColor(item.activity).bg + 'cc', color: actColor(item.activity).text }}>
                         {item.activity}
                       </span>
                     </div>
-                    <p className="text-[9px] text-white/70">{fmtDate(item.date)}</p>
+                    <p className="text-[11px] text-white/70">{fmtDate(item.date)}</p>
                   </div>
                 </div>
               </div>
@@ -615,7 +615,7 @@ export default function Media() {
             {filtered[viewerIdx].caption && (
               <p className="text-sm text-white/85 leading-relaxed">{filtered[viewerIdx].caption}</p>
             )}
-            <p className="text-[10px] text-white/50 mt-1">By {filtered[viewerIdx].uploadedBy}</p>
+            <p className="text-[12px] text-white/50 mt-1">By {filtered[viewerIdx].uploadedBy}</p>
           </div>
         </div>
       )}

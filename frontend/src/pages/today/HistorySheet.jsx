@@ -32,7 +32,7 @@ export default function HistorySheet({
 
       <div className="p-4 space-y-4 overflow-y-auto">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--c-faint)' }}>
+          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--c-faint)' }}>
             Quick pick
           </p>
           <div className="flex flex-wrap gap-2">
@@ -47,7 +47,7 @@ export default function HistorySheet({
         </div>
 
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--c-faint)' }}>
+          <p className="text-[12px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--c-faint)' }}>
             Or choose dates
           </p>
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export default function HistorySheet({
             That's a {warnDays}-day range — it may take a moment to draw. Tap again to continue.
           </p>
         )}
-        <p className="text-[11px] leading-snug" style={{ color: 'var(--c-faint)' }}>
+        <p className="text-[13px] leading-snug" style={{ color: 'var(--c-faint)' }}>
           Only days with something recorded appear. The bell's calendar marks those days too.
         </p>
       </div>

@@ -157,7 +157,7 @@ export default function CreateFarmModal({ onClose }) {
               />
             </div>
             {form.lat && form.lng && (
-              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+              <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
                 📌 {parseFloat(form.lat).toFixed(4)}°N, {parseFloat(form.lng).toFixed(4)}°E — map will open here
               </div>
             )}

@@ -40,7 +40,7 @@ export default function ResourcesPage() {
         style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
         {TABS.map(({ key, label, Icon }) => (
           <button key={key} onClick={() => setTab(key)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-semibold transition-all"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[14px] font-semibold transition-all"
             style={tab === key
               ? { background: '#8A9A5B', color: '#fff' }
               : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }

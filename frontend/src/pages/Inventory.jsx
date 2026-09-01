@@ -293,7 +293,7 @@ export default function Inventory() {
               <FRow label="Entry Date">
                 <input className="finput" value={fmtBillDate(TODAY_STR)} readOnly tabIndex={-1}
                   style={{ opacity: 0.55, cursor: 'default' }} />
-                <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                <p className="text-[11px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
                   Today — recorded for you.
                 </p>
               </FRow>
@@ -301,11 +301,11 @@ export default function Inventory() {
                 <input type="date" className="finput" value={billMeta.date} max={TODAY_STR}
                   onChange={e => bm('date', e.target.value)} style={{ colorScheme: 'dark' }} />
                 {billMeta.date ? (
-                  <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                  <p className="text-[11px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
                     The date printed on the bill.
                   </p>
                 ) : (
-                  <p className="text-[9px] mt-1 leading-snug" style={{ color: '#BA7517' }}>
+                  <p className="text-[11px] mt-1 leading-snug" style={{ color: '#BA7517' }}>
                     Read it off the bill.{' '}
                     <button type="button" onClick={() => bm('date', TODAY_STR)}
                       className="underline font-semibold">Bill is from today</button>
@@ -331,7 +331,7 @@ export default function Inventory() {
                   <>
                     <input className="finput mt-1.5" placeholder="Shop name"
                       value={billMeta.vendor} onChange={e => bm('vendor', e.target.value)} />
-                    <p className="text-[9px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
+                    <p className="text-[11px] mt-1 leading-snug" style={{ color: 'var(--c-faint)' }}>
                       Added to your parties, so this bill shows as money owed to them.
                     </p>
                   </>
@@ -353,15 +353,15 @@ export default function Inventory() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-[var(--c-sub)]">Items Purchased</p>
-                <p className="text-[10px] text-[var(--c-faint)]">{billLines.length} row{billLines.length > 1 ? 's' : ''}</p>
+                <p className="text-[12px] text-[var(--c-faint)]">{billLines.length} row{billLines.length > 1 ? 's' : ''}</p>
               </div>
 
               {/* Column headers */}
               <div className="grid grid-cols-[1fr_64px_80px_56px_28px] gap-1 mb-1.5 px-1">
-                <p className="text-[9px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Item</p>
-                <p className="text-[9px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Qty</p>
-                <p className="text-[9px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Rate</p>
-                <p className="text-[9px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Amt</p>
+                <p className="text-[11px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Item</p>
+                <p className="text-[11px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Qty</p>
+                <p className="text-[11px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Rate</p>
+                <p className="text-[11px] font-semibold text-[var(--c-faint)] uppercase tracking-wide">Amt</p>
                 <span />
               </div>
 
@@ -401,7 +401,7 @@ export default function Inventory() {
                             placeholder={line.kind === 'machinery' ? 'Machine name' : 'Asset name'}
                             value={line.name} onChange={e => updateLine(i, 'name', e.target.value)} />
                           <div className="flex items-center gap-1">
-                            <select className="finput text-[10px] py-1 px-1.5 flex-1 min-w-0" value={line.subType}
+                            <select className="finput text-[12px] py-1 px-1.5 flex-1 min-w-0" value={line.subType}
                               onChange={e => updateLine(i, 'subType', e.target.value)}
                               style={{ background: 'var(--c-surface)' }}>
                               {SUB_TYPES[line.kind].map(t => (
@@ -411,7 +411,7 @@ export default function Inventory() {
                               ))}
                             </select>
                             <button onClick={() => setLineKind(i, 'stock')}
-                              className="shrink-0 text-[9px] px-1.5 py-1 rounded-md"
+                              className="shrink-0 text-[11px] px-1.5 py-1 rounded-md"
                               style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
                               ↩ stock
                             </button>
@@ -452,7 +452,7 @@ export default function Inventory() {
                   <p className="text-xl font-bold text-[#8A9A5B]">₹{billTotal.toLocaleString()}</p>
                 </div>
                 {capitalTotal > 0 && (
-                  <p className="text-[10px] mt-1" style={{ color: 'var(--c-muted)' }}>
+                  <p className="text-[12px] mt-1" style={{ color: 'var(--c-muted)' }}>
                     Stock ₹{(billTotal - capitalTotal).toLocaleString()} · Machinery &amp; assets ₹{capitalTotal.toLocaleString()}
                     <span className="block">Whole bill is owed to {billMeta.vendor.trim() || 'the vendor'}.</span>
                   </p>
@@ -504,7 +504,7 @@ export default function Inventory() {
                 })}
               </div>
               {(form.plotIds || []).length === 0 && (
-                <p className="text-[10px] text-[var(--c-faint)] mt-1.5">No plots selected — will be recorded as General Use</p>
+                <p className="text-[12px] text-[var(--c-faint)] mt-1.5">No plots selected — will be recorded as General Use</p>
               )}
             </FRow>
 
@@ -529,13 +529,13 @@ export default function Inventory() {
                       <p className="font-semibold" style={{ color: stage === 'active' ? '#8A9A5B' : '#BA7517' }}>
                         {plot.name} · {area}ac
                       </p>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                      <span className="text-[11px] font-bold px-1.5 py-0.5 rounded"
                         style={{ background: (stage === 'active' ? '#8A9A5B' : '#BA7517') + '25', color: stage === 'active' ? '#8A9A5B' : '#BA7517' }}>
                         {stage === 'active' ? 'Active cycle' : 'Preparation'}
                       </span>
                     </div>
                     {cycle && (
-                      <p className="text-[var(--c-sub)] mt-0.5 text-[10px]">
+                      <p className="text-[var(--c-sub)] mt-0.5 text-[12px]">
                         {cropMaster.find(c => c.id === cycle.cropId)?.name || '—'} · Sown {cycle.sowDate}
                       </p>
                     )}
@@ -568,8 +568,8 @@ export default function Inventory() {
                 </div>
                 {selectedPlotObjs.length > 1 && plotSplit.map(({ plot, splitQty }) => (
                   <div key={plot.id} className="flex items-center justify-between">
-                    <p className="text-[10px] text-[var(--c-muted)]">{plot.name} ({plot.area_acres}ac)</p>
-                    <p className="text-[10px] font-semibold text-[var(--c-text)]">{splitQty} {selected.unit} · ₹{Math.round(splitQty * selected.costPerUnit).toLocaleString()}</p>
+                    <p className="text-[12px] text-[var(--c-muted)]">{plot.name} ({plot.area_acres}ac)</p>
+                    <p className="text-[12px] font-semibold text-[var(--c-text)]">{splitQty} {selected.unit} · ₹{Math.round(splitQty * selected.costPerUnit).toLocaleString()}</p>
                   </div>
                 ))}
               </div>
@@ -678,7 +678,7 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
             </div>
             {(vendorFilter || from || to) && (
               <button onClick={() => { setVendorFilter(''); setFrom(''); setTo('') }}
-                className="text-[10px] text-[#E24B4A] hover:underline">Clear filters</button>
+                className="text-[12px] text-[#E24B4A] hover:underline">Clear filters</button>
             )}
           </div>
         )}
@@ -696,14 +696,14 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-[var(--c-text)]">{g.vendor}</p>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#8A9A5B]/15 text-[#8A9A5B]">
+                      <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-[#8A9A5B]/15 text-[#8A9A5B]">
                         BILL · {g.items.length} items
                       </span>
                     </div>
                     <div className="flex gap-3 mt-0.5 flex-wrap">
-                      <p className="text-[10px] text-[var(--c-faint)]">{billRef(g.invoiceNo, g.date)}</p>
+                      <p className="text-[12px] text-[var(--c-faint)]">{billRef(g.invoiceNo, g.date)}</p>
                       {entryDiffers(g.date, g.entryDate) && (
-                        <p className="text-[10px]" style={{ color: '#BA7517' }}
+                        <p className="text-[12px]" style={{ color: '#BA7517' }}
                           title="The bill carries a different date from the day it was entered">
                           entered {fmtBillDate(g.entryDate)}
                         </p>
@@ -723,7 +723,7 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
                       <div key={p.id} className="px-4 py-2.5 flex items-center justify-between">
                         <div>
                           <p className="text-xs font-medium text-[var(--c-text)]">{item?.name || '—'}</p>
-                          <p className="text-[10px] text-[var(--c-muted)]">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
+                          <p className="text-[12px] text-[var(--c-muted)]">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
                         </div>
                         <p className="text-sm font-semibold text-[var(--c-text)]">₹{p.totalCost.toLocaleString()}</p>
                       </div>
@@ -743,9 +743,9 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
                   <p className="text-sm font-semibold text-[var(--c-text)]">{item?.name || '—'}</p>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">{p.vendor}</p>
                   <div className="flex flex-wrap gap-x-3 mt-0.5">
-                    <p className="text-[10px] text-[var(--c-faint)]">{billRef(p.invoiceNo, p.invoiceDate || p.date)}</p>
+                    <p className="text-[12px] text-[var(--c-faint)]">{billRef(p.invoiceNo, p.invoiceDate || p.date)}</p>
                     {entryDiffers(p.invoiceDate || p.date, p.entryDate) && (
-                      <p className="text-[10px]" style={{ color: '#BA7517' }}
+                      <p className="text-[12px]" style={{ color: '#BA7517' }}
                         title="The bill carries a different date from the day it was entered">
                         entered {fmtBillDate(p.entryDate)}
                       </p>
@@ -759,7 +759,7 @@ function PurchaseLogs({ purchases, inventoryMaster }) {
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-base font-bold text-[var(--c-text)]">₹{p.totalCost.toLocaleString()}</p>
-                  <p className="text-[10px] text-[var(--c-muted)]">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
+                  <p className="text-[12px] text-[var(--c-muted)]">{p.qty} {item?.unit} @ ₹{p.unitPrice}</p>
                 </div>
               </div>
             </div>
@@ -855,7 +855,7 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
             </div>
             {(itemFilter || plotFilter || stageFilter || from || to) && (
               <button onClick={() => { setItemFilter(''); setPlotFilter(''); setStageFilter(''); setFrom(''); setTo('') }}
-                className="text-[10px] text-[#E24B4A] hover:underline">Clear filters</button>
+                className="text-[12px] text-[#E24B4A] hover:underline">Clear filters</button>
             )}
           </div>
         )}
@@ -872,19 +872,19 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-semibold text-[var(--c-text)]">{item?.name || '—'}</p>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded"
                       style={{ background: color + '20', color }}>
                       {STAGE_LABEL[i.stage] || i.stage}
                     </span>
                   </div>
                   <p className="text-xs text-[var(--c-muted)] mt-0.5">{i.plotLabel || '—'}</p>
-                  <p className="text-[10px] text-[var(--c-faint)] mt-0.5">{i.date}</p>
-                  {i.purpose && <p className="text-[10px] text-[var(--c-muted)] mt-0.5 italic">{i.purpose}</p>}
+                  <p className="text-[12px] text-[var(--c-faint)] mt-0.5">{i.date}</p>
+                  {i.purpose && <p className="text-[12px] text-[var(--c-muted)] mt-0.5 italic">{i.purpose}</p>}
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <p className="text-base font-bold text-[var(--c-text)]">₹{i.totalCost.toLocaleString()}</p>
-                  <p className="text-[10px] text-[var(--c-muted)]">{i.qty} {item?.unit}</p>
-                  <p className="text-[10px] text-[var(--c-faint)]">@ ₹{i.unitCost}/{item?.unit}</p>
+                  <p className="text-[12px] text-[var(--c-muted)]">{i.qty} {item?.unit}</p>
+                  <p className="text-[12px] text-[var(--c-faint)]">@ ₹{i.unitCost}/{item?.unit}</p>
                 </div>
               </div>
             </div>

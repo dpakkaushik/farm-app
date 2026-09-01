@@ -41,7 +41,7 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
                 <div className="w-full h-28 rounded-2xl flex flex-col items-center justify-center gap-1 border border-dashed"
                   style={{ background: 'var(--c-ghost)', borderColor: 'var(--c-border)' }}>
                   <span className="text-3xl">{emoji}</span>
-                  <span className="text-[11px] font-semibold" style={{ color: 'var(--c-muted)' }}>Add a photo</span>
+                  <span className="text-[13px] font-semibold" style={{ color: 'var(--c-muted)' }}>Add a photo</span>
                 </div>
               )}
           </button>
@@ -67,7 +67,7 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl p-4" style={{ background: 'var(--c-ghost)' }}>
             {facts.map(f => (
               <div key={f.label} className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{f.label}</p>
+                <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{f.label}</p>
                 {f.missing
                   ? <button onClick={() => onEdit(item)} className="text-[13px] font-semibold underline decoration-dotted" style={{ color: 'var(--c-faint)' }}>{f.value}</button>
                   : <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.value}</p>}
@@ -75,14 +75,14 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
             ))}
             {item.billFileUrl && (
               <div className="col-span-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--c-muted)' }}>Bill</p>
+                <p className="text-[12px] font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--c-muted)' }}>Bill</p>
                 <Attachment variant="chip" value={item.billFileUrl} bucket={BUCKETS.photos}
                   name={item.billInvoiceNo ? `Bill #${item.billInvoiceNo}` : 'Bill'} />
               </div>
             )}
             {item.notes && (
               <div className="col-span-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>Notes</p>
+                <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>Notes</p>
                 <p className="text-[13px] leading-snug" style={{ color: 'var(--c-text)' }}>{item.notes}</p>
               </div>
             )}
@@ -90,12 +90,12 @@ export default function AssetSheet({ item, kind, vendorName, onClose, onEdit, on
 
           {gone && (
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl p-4 border" style={{ borderColor: 'var(--c-border)' }}>
-              <p className="col-span-2 text-[10px] font-bold uppercase tracking-wide" style={{ color: '#888' }}>
+              <p className="col-span-2 text-[12px] font-bold uppercase tracking-wide" style={{ color: '#888' }}>
                 {item.disposalType === 'sold' ? 'Sold' : 'Scrapped'}
               </p>
               {gone.map(f => (
                 <div key={f.label} className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{f.label}</p>
+                  <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: 'var(--c-muted)' }}>{f.label}</p>
                   <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{f.value}</p>
                 </div>
               ))}

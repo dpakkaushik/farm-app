@@ -181,7 +181,7 @@ export default function UiKit() {
         style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border)' }}>
         {[['', 'Components'], ...Object.entries(SCREENS).map(([k, v]) => [k, v.label])].map(([k, label]) => (
           <button key={k || 'kit'} onClick={() => setParams(k ? { screen: k } : {})}
-            className="shrink-0 px-3 h-8 rounded-lg text-[11px] font-bold"
+            className="shrink-0 px-3 h-8 rounded-lg text-[13px] font-bold"
             style={screen === k
               ? { background: '#8A9A5B', color: '#fff' }
               : { background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
@@ -234,7 +234,7 @@ function Gallery() {
             <button className="relative w-10 h-10 flex items-center justify-center rounded-xl border"
               style={{ background: 'var(--c-card)', borderColor: 'var(--c-border-md)' }}>
               <Bell size={17} className="text-[var(--c-sub)]" />
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[10px] font-bold"
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full text-[12px] font-bold"
                 style={{ background: '#E24B4A', color: '#fff' }}>4</span>
             </button>
           </div>
@@ -243,7 +243,7 @@ function Gallery() {
         <Label>Bell popover — task calendar with history</Label>
         <div className="px-4">
           <div className="rounded-2xl border p-3.5 shadow-2xl" style={{ background: 'var(--c-nav)', borderColor: 'var(--c-border-md)' }}>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--c-faint)] mb-3">Task Calendar</p>
+            <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--c-faint)] mb-3">Task Calendar</p>
             <TaskCalendar tasks={TASKS} todayStr={TODAY_STR} historyDates={HISTORY}
               onOpenDay={() => {}} onMarkDone={() => {}} />
           </div>
@@ -252,7 +252,7 @@ function Gallery() {
         <Label>Combined filter (tap it) + applied chips</Label>
         <div className="px-4 flex items-center gap-2">
           <FilterSheet value={filters} onChange={setFilters} groups={GROUPS} applyLabel={() => 'Show 34 items'} />
-          <span className="text-[11px] text-[var(--c-faint)]">← tap</span>
+          <span className="text-[13px] text-[var(--c-faint)]">← tap</span>
         </div>
         <AppliedChips value={filters} groups={GROUPS} onChange={setFilters} className="px-4 pt-2" />
 
@@ -288,15 +288,15 @@ function Gallery() {
 }
 
 const Label = ({ children }) => (
-  <p className="px-4 pt-6 pb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: '#8A9A5B' }}>{children}</p>
+  <p className="px-4 pt-6 pb-1 text-[12px] font-bold uppercase tracking-widest" style={{ color: '#8A9A5B' }}>{children}</p>
 )
 function Pill({ count, label, color, dim, icon }) {
   return (
     <div className={`shrink-0 flex items-center gap-1.5 h-7 px-2.5 rounded-full border ${dim ? 'opacity-40' : ''}`}
       style={{ background: color + '12', borderColor: color + '55' }}>
       {icon && <span style={{ color }}>{icon}</span>}
-      <span className="text-[11px] font-bold tabular-nums" style={{ color }}>{count}</span>
-      <span className="text-[11px] font-semibold" style={{ color }}>{label}</span>
+      <span className="text-[13px] font-bold tabular-nums" style={{ color }}>{count}</span>
+      <span className="text-[13px] font-semibold" style={{ color }}>{label}</span>
     </div>
   )
 }

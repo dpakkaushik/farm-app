@@ -140,7 +140,7 @@ export default function ImageViewer({
       </div>
 
       {!pdf && (
-        <p className="text-center text-[10px] text-white/40 shrink-0"
+        <p className="text-center text-[12px] text-white/40 shrink-0"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
           Double-tap to zoom
         </p>
