@@ -1,236 +1,170 @@
-# Salary month settlement — spec
+# Salary in the Expenses tab — paid vs pending, month-wise
 
-**Status:** draft, awaiting owner review. Nothing built.
-**Date:** 2026-09-02
+**Status:** design agreed with the owner 2026-09-02. Not built.
 **Sibling:** [`SPEC-bill-wise-vendor-settlement.md`](SPEC-bill-wise-vendor-settlement.md) — the same
-complaint for vendors, solved differently and deliberately so. Read the *Why not allocations*
-section below before proposing a table here.
+complaint for vendors, solved with an allocations table. **Deliberately not repeated here.**
+Read *Why this is not the vendor fix* before proposing a table.
+
+> **This file replaced a longer first draft** that proposed a declared per-payment settlement flag,
+> snapshot columns and a new DB function. The owner's simplification — *"expense tab should only
+> show the paid and pending and a redirect button"* — removed the need for all of it. The old
+> design is in git history at `18da60a` if the reasoning is ever wanted; do not resurrect it
+> without a new reason.
 
 ---
 
-## The owner's complaint, in his words
+## The complaint
 
 > "why it isnt showing status as paid here why?"
 
-then, after we dug:
+then, decisively:
 
 > "we are showing it in expenses as a amount we need to pay while the user record he may pay
 > different amount"
 
-That second sentence is the whole spec. The Expenses tab presents an accrued wage as **a bill to
-be settled** — a fixed figure, a Pending pill, a per-row "Pay in Labour → Salary →" button. But a
-wage is not a bill. What actually changes hands is decided at payment time: less if he took
-advances, less if old dues are being deducted, less if cash is short that day. So the tab asserts
-a payable that does not exist, then calls it Pending forever because nothing ever matches it.
+The Expenses tab presents an accrued wage as **a bill to be settled** — a fixed figure, a Pending
+pill, a per-row "Pay in Labour → Salary →" button on all seventeen rows. A wage is not a bill.
+What changes hands is decided at payment time: less if he took advances, less if old dues are
+deducted, less if cash is short. So the tab asserts a payable that does not exist, then calls it
+Pending forever because nothing ever matches it.
 
-## What is wrong today, with evidence
-
-Three separate faults, all visible on one screen (Ledger → Money Out → Expenses → Staff & Regular
-Salary, "Standing Crops · All"):
+## What is wrong today
 
 **1. The status can never say Paid.** `v_expense_ledger`'s salary branch hardcodes
-`false as is_paid` ([`0014_salary_accrual.sql:156`](../supabase/migrations/0014_salary_accrual.sql)),
-with the comment *"settled against the khata, not row by row"*. And
-[`LedgerPage.jsx:2362`](../frontend/src/pages/LedgerPage.jsx) tests `key === 'salary'` **before**
+`false as is_paid` ([`0014_salary_accrual.sql:156`](../supabase/migrations/0014_salary_accrual.sql)).
+And [`LedgerPage.jsx:2362`](../frontend/src/pages/LedgerPage.jsx) tests `key === 'salary'` **before**
 `row.is_paid`, so even a true flag would be swallowed by the link branch.
 
 **2. The Paid total hides ₹29,500 of real cash.**
 [`LedgerPage.jsx:2727`](../frontend/src/pages/LedgerPage.jsx) sums `salary_payments` only and
-ignores `salary_advances` entirely. Every one of the seven regular labourers was paid by advance,
-not by a salary payment. That money left the cash box, is in the Cash Book, and did reduce their
-khata (`v_salary_dues` subtracts advances identically to payments) — it just is not counted here.
-Two further defects in the same two lines: `Math.min(total, paidTotal)` **clamps**, so
-over-settlement is silently hidden rather than shown; and the paid figure is **all-time and
-unfiltered** while the accrual rows respect the View filter, so any FY or Month view reports a
-wrong Paid.
+ignores `salary_advances`. All seven regular labourers were paid by advance, not by a salary
+payment. That money left the cash box, is in the Cash Book, and did reduce their khata
+(`v_salary_dues` subtracts advances identically to payments) — it just is not counted here.
+Two further defects in the same two lines: `Math.min(total, paidTotal)` **clamps**, hiding
+over-settlement rather than showing it; and the figure is **all-time and unfiltered** while the
+accrual rows respect the View filter, so any FY or Month view reports a wrong Paid.
 
-**3. The amount is hand-typed.** [`Labour.jsx:946`](../frontend/src/pages/Labour.jsx) calls
-`openPayModal(w, 'salary')` with **no prefill** — the field opens empty and someone computes the
-figure mentally. On 31 Aug this produced two different rules on one screen: Harinder was paid his
-full ₹10,000 with his ₹14,346 old debt untouched, while Ram Bachan was paid ₹9,210 — exactly
-₹11,000 *minus* his ₹1,790 old debt.
+**3. Seventeen redirect buttons** where one would do.
 
-### Live figures at the time of writing
+## The design
 
-| | |
-|---|---|
-| Wages accrued (17 worker-months) | ₹82,079 |
-| Recorded as `salary_payments` | ₹49,710 (5 rows, all 31 Aug, all staff) |
-| Paid via `salary_advances`, net of recoveries | ₹29,500 (7 regular labourers) |
-| Screen says pending | **₹32,369** |
-| Actually not handed over | **₹7,679** |
-
-## The model
-
-Two kinds of difference between the wage and the cash, and they must be handled differently:
-
-| Difference | Nature | Handled by |
-|---|---|---|
-| He took advances this month | mechanical, no judgment | **arithmetic** |
-| Old dues deducted / cash short | a decision someone made | **a recorded declaration** |
-
-So: **advances are always netted arithmetically; the flag carries only the judgment.** This is
-what makes a differing paid amount safe — the difference is either *explained* by advances or
-*declared* closed, and never guessed at.
-
-### Definitions
-
-For a worker-month row in `v_salary_accrual`:
+The Expenses tab reports **cost and cash**. Settlement lives in Manpower → Salary. The salary
+group shows two figures, a month-wise breakup, and one button.
 
 ```
-net_payable = earned − advances taken that month − payments already made that month
+Staff & Regular Salary                              ₹82,079
+Wages earned by staff & regular workers
+  Paid ₹72,610  ·  Pending ₹9,469
+
+  Aug 2026        ₹78,400     Paid ₹72,610     Pending ₹5,790
+  Sep 2026         ₹3,679     Paid      ₹0     Pending ₹3,679
+
+  ┌──────────────────────────────────────────────────────────┐
+  │            Open Manpower → Salary  →                     │
+  └──────────────────────────────────────────────────────────┘
 ```
 
-`advances taken that month` is net of recoveries (a negative `salary_advances.amount` is money
-recovered *from* the worker — see CLAUDE.md "do not undo" item 7). Clamped at zero: a worker who
-over-drew has a net payable of nil, not a negative.
+- **Rows are months, not worker-months.** The 17 per-worker rows go away; per-worker detail is
+  already in Manpower → Salary (payment history per card, plus the ⤓ staff-balance CSV built
+  31 Aug). No Status column anywhere, because no row claims settlement any more.
+- **One button at the foot**, replacing all seventeen per-row links. Lands on Manpower → Salary.
+  A payment made there changes these figures on next load — no new plumbing, the numbers derive
+  from the same tables.
 
-**Decided: advances are matched to the month they were taken in, by `advance_date`, and an
-unrecovered advance from an earlier month does NOT offset this month's wage.** Note that the
-Labour card's own `advTotal` at [`Labour.jsx:820`](../frontend/src/pages/Labour.jsx) *does* fold in
-carried-forward unrecovered advances, so the card and this rule will disagree unless the modal's
-prefill uses the month-scoped figure. Use the month-scoped one in both places — the Ledger status
-and the Pay Salary prefill must derive from one definition or they will drift apart, which is the
-class of bug this whole spec exists to remove.
+### The arithmetic — all of it
 
-### Row status rules
-
-Evaluated in this order:
-
-| Condition | Status shown | Link? |
-|---|---|---|
-| A payment for that worker-month with `status` settled | **Paid** | no |
-| A payment for that worker-month with `status` part | **Part-paid · ₹X still owed** | yes |
-| No payment, `net_payable ≤ 0` | **Paid** | no |
-| No payment, `net_payable > 0` | **Pending · ₹X** | **yes** |
-
-The "Pay in Labour → Salary →" per-row button is **deleted**. It survives nowhere; see the group
-footer below.
-
-### Group figures
-
-The group header keeps its two figures, both now correct:
-
-- **Amount** — wages accrued in the period. Unchanged.
-- **Paid** — `Amount − Pending`, where Pending is the sum of the per-row pending/shortfall
-  figures above. Ties by construction, so the two can never disagree.
-
-**Paid here means "wage settled", not "cash handed over", and the difference is deliberate.**
-Ram Bachan's row counts the full ₹11,000 as paid though only ₹9,210 left the box — the other
-₹1,790 was settled by set-off against his old dues, so the wage expense is discharged. Cash
-movement is the Cash Book's job and it already records this correctly. Do not "correct" this to
-sum `amount_paid`: that would reintroduce fault 2 in a new form, and Paid would stop tying to
-Amount − Pending.
-
-The `Math.min` clamp is **removed** and the figure is **period-filtered** with the rows, fixing
-fault 2 in full. Under a Month or FY view, Paid and Pending now describe that period only.
-
-### One link, at the foot
-
-Per the owner: *"just show how much is pending and how much is paid and a tab below that takes
-user to salary tab where he can check the history or extract reports."*
-
-One full-width action at the **bottom of the expanded salary group** — "Open Labour → Salary" —
-replacing the seventeen per-row buttons. It lands on the Salary tab, which already holds the
-per-worker payment and advance history and the ⤓ staff-balance CSV built on 31 Aug. Nothing new
-is needed there.
-
-### Pay Salary modal
-
-The amount **stays editable** — this reverses the "prefilled uneditable" instruction of earlier
-the same day, at the owner's own finding that no single correct figure exists to lock to. Do not
-re-lock it.
-
-What changes: the modal shows the breakup it already computes on the card, and prefills from it.
+Per worker-month, from `v_salary_accrual`:
 
 ```
-Ram Bachan · Aug 2026
-  Wage earned          ₹11,000
-  Advances taken      −     ₹0
-  Old dues            − ₹1,790
-  ────────────────────────────
-  Net payable           ₹9,210
-  Paying now          [ 9,210 ]   ← editable
+settled = min(earned, payments that month + advances that month)
+pending = earned − settled
 ```
 
-On save:
+Then sum per calendar month for the rows, and over the period for the header.
 
-- The calculation is written to the columns that **already exist and are never populated** —
-  `days_present`, `gross_salary`, `opening_balance`, `advances_total`, `net_payable`,
-  `closing_balance`. Every payment then carries a permanent record of *why* it was that amount
-  instead of a bare number.
-- **Amount ≥ net payable** → status settled, silently. No question asked. Covers the normal case
-  and the Ram Bachan case alike.
-- **Amount < net payable** → one question, once: *"₹1,790 less than payable — is August closed,
-  or still owed?"* → **Closed** (settled) or **₹1,790 still owed** (part).
+Three things make this correct where the current code is not:
 
-Old dues appear as a line only when the worker owes; the deduction defaults to the full amount
-**capped at this month's wage**, and is editable to any figure including zero. Harinder's
-₹14,346 must never reduce his ₹10,714 wage to nil — a man paid nothing walks off the farm.
+- **Advances count**, net of recoveries (a negative `salary_advances.amount` is money recovered
+  *from* the worker — CLAUDE.md "do not undo" item 7). This is the ₹29,500.
+- **The clamp moves to the row, where it means something.** A worker who over-drew (Deena took
+  ₹9,000 against ₹4,700 earned) contributes zero pending, not negative — and his surplus cannot
+  offset another man's shortfall, because you cannot pay Vikram with Deena's advance.
+- **Period-filtered with the rows**, so Paid and Pending describe the chosen FY or month.
 
-## Schema
+`paid + pending === earned` by construction, in every period view.
 
-Verified on the live DB: `salary_payments` already carries `days_present`, `gross_salary`,
-`opening_balance`, `advances_total`, `net_payable`, `amount_paid`, `closing_balance` and
-`status text NOT NULL`. All six numeric snapshot columns read **0** on all five live rows. The
-`status` column already reads **`'paid'`** on all five — written, never read back.
+### Matching rules, decided
 
-**So August needs no data fix.** The moment the tab reads that column, the five staff payments
-read Paid correctly, Ram Bachan included.
+- **Payments** match on `salary_payments.payment_month` — `date NOT NULL`, populated on every
+  live row. The link already exists; it was simply never read.
+- **Advances** match on the calendar month of `advance_date`. An unrecovered advance from an
+  earlier month does **not** offset this month's wage. Note the Labour card's own `advTotal` at
+  [`Labour.jsx:820`](../frontend/src/pages/Labour.jsx) *does* fold in carried-forward advances —
+  that is a per-worker khata view and may legitimately differ; do not "align" them without
+  thinking, but never let the Ledger use the carried-forward figure.
 
-**One thing to check before assuming no migration is needed:** the check constraint on
-`salary_payments.status`. If it does not admit a part-payment value, one narrow migration widens
-it. Treat `'paid'` as settled so existing rows carry over free.
+### On Ram Bachan, who will read ₹1,790 pending
 
-## Atomicity — fold in the outstanding defect
+He earned ₹11,000 and was handed ₹9,210 — exactly his wage minus his ₹1,790 old dues. His month
+is closed in reality but will show ₹1,790 pending here, and **that is right, not a flaw.** The
+deduction was never recorded anywhere: no recovery row, no note, nothing. The figure is a prompt
+to record something genuinely missing. Recording it as a recovery in Manpower — the mechanic
+built 20 Aug — drops it to zero *and* correctly reduces his debt.
 
-CLAUDE.md records a known defect: `addSalaryPayment` writes the payment row and the cash entry as
-**two non-atomic writes**, and an interrupted save on 31 Aug left Harinder's ₹10,000 payment with
-no cash line at all (fixed by hand on 1 Sep). Vendors were retired by
-[`0035`](../supabase/migrations/0035_vendor_payment_allocations.sql)'s `record_vendor_payment()`.
+This is why no declared-settlement flag is needed. A shortfall is either explained by advances
+(arithmetic) or it is a real gap in the records.
 
-This work adds a third write (the snapshot columns) to that same two-write pattern, which would
-make the hole **likelier, not rarer**. So `record_salary_payment()` — payment row, snapshot,
-cash line, one transaction — ships with this, mirroring 0035's shape. Not optional.
+## Cost
 
-## Why not allocations
+**No migration, no schema change, no new table, no DB function.** Every figure comes from tables
+already loaded in the store. `salary_payments.payment_month` already carries the month link.
 
-The vendor fix needed `vendor_payment_allocations` because a payment had to choose **among many
-open bills** — ₹50,000 against one ₹50,000 bill, two ₹20,000s and a ₹10,000. Here there is
-exactly one thing being settled: one worker, one month. There is nothing to allocate among; the
-only unknown is *done or not done*. A table for a boolean is over-engineering, and the boolean
-column already exists.
+Where the logic lives: pure and tested in `frontend/src/lib/salaryLedger.js`, in the shape of
+[`billSettlement.js`](../frontend/src/lib/billSettlement.js) and
+[`labourGroups.js`](../frontend/src/lib/labourGroups.js). `LedgerPage.jsx` consumes it; the
+`salaryPaidTotal` prop, the `Math.min` clamp and the per-row salary link branch are deleted.
+
+Optionally `v_expense_ledger`'s `false as is_paid` can stay exactly as it is — nothing reads it
+for salary any more. Leaving the view untouched is preferred: fewer moving parts, and the comment
+on that line remains true.
 
 ## Invariants to pin with tests
 
-Pure logic goes in `lib/salarySettlement.js`, tested with vitest like
-[`billSettlement.js`](../frontend/src/lib/billSettlement.js):
+1. `paid + pending === earned`, per month row and for the header, in every period view.
+2. A worker whose advances exceed his month's wage contributes zero pending, never negative.
+3. One worker's surplus advance never reduces another worker's pending.
+4. A recovery (negative advance) increases pending again — money given back is owed again.
+5. Period filtering moves the rows and both figures together; no all-time leak.
+6. With today's live data: Aug ₹78,400 → paid ₹72,610 / pending ₹5,790; Sep ₹3,679 → pending
+   ₹3,679; header ₹82,079 → paid ₹72,610 / pending ₹9,469.
 
-1. `paid + pending === amount` for every group, in every period view.
-2. A worker whose advances exceed his month's wage reads Paid, never negative-pending.
-3. A settled payment of any amount reads Paid — including one below net payable.
-4. A part payment reads its declared shortfall, not the arithmetic difference.
-5. Recoveries (negative advances) reduce the advance offset, so a worker who gave money back
-   still shows the wage as owed.
-6. Period-filtering the rows and the paid figure move together — no all-time leak.
+## Why this is not the vendor fix
 
-## What this deliberately does not do
+Yesterday's vendor work needed `vendor_payment_allocations` because a payment had to choose
+**among many open bills** — ₹50,000 against one ₹50,000 bill, two ₹20,000s and a ₹10,000. A bill
+is a document with a fixed amount that is either cleared or not.
 
-- **No write-off.** Unchanged from CLAUDE.md: a worker who absconds owing money can only be
-  cleared by editing his opening balance in Admin.
-- **No change to `v_salary_dues` or the khata.** The balance arithmetic is already correct and
-  is the authority on what is owed. This spec changes only what the *Expenses tab* reports.
-- **No per-month closing of a worker's account.** The status says whether that month's wage was
-  handed over, not that the man is square. Those are different questions and the khata answers
-  the second.
-- **The status is a human declaration** and can therefore be wrong. Accepted: the khata remains
-  the arithmetic authority, and a settled month on a worker who still owes is explained by the
-  old-dues deduction, exactly as it should be.
+A worker's month is not a document. The wage is computed from attendance, money moves
+continuously, and the authority on what is owed is the running khata — which `v_salary_dues`
+already computes correctly. So the Expenses tab reports cost and cash and points at the khata,
+rather than pretending each month is an invoice.
+
+## Deliberately not in scope
+
+- **`record_salary_payment()` atomicity.** `addSalaryPayment` still writes the payment row and the
+  cash entry as two non-atomic writes — the defect that lost Harinder's ₹10,000 cash line on
+  31 Aug (fixed by hand 1 Sep). It remains an **open defect** and should still be built the way
+  `record_vendor_payment` was in [`0035`](../supabase/migrations/0035_vendor_payment_allocations.sql).
+  It is unbundled from this work only because this change adds no new write, so it does not make
+  the hole likelier. Advances and expense payments share the exposure.
+- **No write-off**, unchanged. A worker who absconds owing money can only be cleared by editing
+  his opening balance in Admin.
+- **No change to `v_salary_dues` or the khata.** Its arithmetic is already right.
 
 ## Open questions for the owner
 
 1. **Satya Pal Rajvanshi −₹1,32,900 and Ramj −₹28,700** — two workers carrying large opening
-   debts, accruing nothing (no attendance, no salary rate), not present in the 21 Aug record.
-   ₹1.6L of the ₹2.3L the khata says workers owe. Deliberate entries, or a data-entry problem?
+   debts, accruing nothing (no attendance, no salary rate), absent from the 21 Aug record.
+   ₹1.6L of the ₹2.3L the khata says workers owe. Deliberate, or a data-entry problem?
 2. **Deepak's salary is still ₹0** on both `monthly_salary` and `daily_base_rate`, so he accrues
-   nothing and his ₹8,933 can never work itself off. Flagged since 20 Aug, still open.
+   nothing and his ₹8,933 can never work itself off against wages. Flagged 20 Aug, still open.
