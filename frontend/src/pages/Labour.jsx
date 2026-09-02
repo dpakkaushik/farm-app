@@ -635,6 +635,9 @@ const crdr = (n) => (n > 0 ? 'Cr.' : n < 0 ? 'Dr.' : '')
 // farm is owed it back, which is the figure worth chasing. Plain amounts
 // (Earned, Advance, Paid, Recovered) carry no colour at all, so a coloured
 // number always answers "which way?".
+// Kept as constants for the inline styles below; the summary boxes spell the
+// same hexes literally in their Tailwind tint classes, as every other file here
+// does — there is no colour token in this project.
 const OWES_OUT  = '#8A9A5B'
 const OWED_BACK = '#E24B4A'
 const amountTone = (v) => (Number(v) ? 'var(--c-text)' : 'var(--c-muted)')
@@ -825,26 +828,28 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
           another man's wage. Two colours only on this screen, and they mean
           DIRECTION: green the farm owes out, red the farm is owed back. */}
       {(position.farmOwes > 0 || position.workersOwe > 0) && (
-        <div className="grid grid-cols-2 gap-px bg-[var(--c-border)] rounded-2xl overflow-hidden border border-[var(--c-border)]">
-          {[
-            ['Farm owes workers', position.farmOwes, position.crCount, 'Cr.', OWES_OUT, null],
-            ['Workers owe farm', position.workersOwe, position.drCount, 'Dr.', OWED_BACK,
-              position.drNotWorking > 0
-                ? `${position.drNotWorking} no longer working`
-                : null],
-          ].map(([label, amount, count, tag, color, note]) => (
-            <div key={label} className="bg-[var(--c-nav)] px-3 py-2.5">
-              <p className="text-[11px] text-[var(--c-faint)]">{label}</p>
-              <p className="text-base font-bold" style={{ color }}>
-                ₹{Math.round(amount).toLocaleString('en-IN')}
-                <span className="text-[11px] font-semibold ml-0.5">{tag}</span>
-              </p>
-              <p className="text-[11px] text-[var(--c-faint)]">
-                {count} {count === 1 ? 'worker' : 'workers'}
-                {note ? ` · ${note}` : ''}
-              </p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-[#8A9A5B]/10 border border-[#8A9A5B]/20 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-[var(--c-muted)] mb-1">Farm owes workers</p>
+            <p className="text-sm font-bold text-[#8A9A5B]">
+              ₹{Math.round(position.farmOwes).toLocaleString('en-IN')}
+              <span className="text-[11px] font-semibold ml-0.5">Cr.</span>
+            </p>
+            <p className="text-[11px] text-[var(--c-faint)] mt-0.5">
+              {position.crCount} {position.crCount === 1 ? 'worker' : 'workers'}
+            </p>
+          </div>
+          <div className="bg-[#E24B4A]/10 border border-[#E24B4A]/20 rounded-xl p-3 text-center">
+            <p className="text-[11px] text-[var(--c-muted)] mb-1">Workers owe farm</p>
+            <p className="text-sm font-bold text-[#E24B4A]">
+              ₹{Math.round(position.workersOwe).toLocaleString('en-IN')}
+              <span className="text-[11px] font-semibold ml-0.5">Dr.</span>
+            </p>
+            <p className="text-[11px] text-[var(--c-faint)] mt-0.5">
+              {position.drCount} {position.drCount === 1 ? 'worker' : 'workers'}
+              {position.drNotWorking > 0 && ` · ${position.drNotWorking} left`}
+            </p>
+          </div>
         </div>
       )}
 

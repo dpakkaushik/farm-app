@@ -79,12 +79,19 @@ figures while the khata still counts them. Load them unfiltered that day.
 nomenclature?"* and *"right now there are many colors for worker owes and farm owes shouldnt we
 just have red and green"*. The one-sided "₹2,30,060 to recover from workers" is replaced by a
 two-cell strip — **Farm owes workers ₹13,441 Cr. (7 workers)** · **Workers owe farm ₹2,30,060 Dr.
-(9 workers · 2 no longer working)** — from new `khataPosition(dues)` in
+(9 workers · 2 left)** — from new `khataPosition(dues)` in
 [`workerRecovery.js`](frontend/src/lib/workerRecovery.js) (4 specs, **339 green**). **No net
 figure, deliberately**: one man's debt cannot pay another man's wage, the same reason the Ledger
 clamps per worker-month. "2 no longer working" is there because paused/removed debtors get no card
 on that screen (Gambhira ₹13,495 + Deepak ₹8,933), so their debt was invisible. Nomenclature
 matches the cards' own "Farm owes"/"Worker owes" and his paper register's CR/DR.
+**A UI rule he corrected me on, worth obeying everywhere:** page-level summary boxes are
+**separate tinted cards** in a `grid gap-2` — `bg-[hex]/10 border border-[hex]/20 rounded-xl p-3
+text-center`, 11px muted label, `text-sm font-bold` figure in the accent — exactly as
+`MonthSummaryStrip` on the Attendance tab does. My first cut used the **fused** `gap-px
+bg-[var(--c-border)]` block, which is the style for a breakdown grid INSIDE a card (a worker's
+Opening/Earned/Advance/Paid), not for boxes at the top of a page. *"why these new pills are
+combined why you arent using standar approach in UI"* — don't mix the two again.
 **The colour rule, and it is now the only one on that screen: colour means DIRECTION of money.**
 `OWES_OUT = #8A9A5B` green (the farm owes it out) · `OWED_BACK = #E24B4A` red (the farm is owed it
 back — the figure worth chasing). It replaced five hues (red AND amber for the two directions,
