@@ -59,7 +59,9 @@
       "Bash(rm -rf lintsrc)",
       "Bash(grep -v \"URLSearchParams\\\\|Admin.jsx\\\\|Field.jsx\\\\|^$\")",
       "Bash(sed -i 's/  khataMonths, inMonthRange, STATUS_LABEL,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,/' src/pages/LedgerPage.jsx)",
-      "Bash(sed -i 's/  khataMonths, inMonthRange,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange,/' src/lib/__tests__/billSettlement.test.js)"
+      "Bash(sed -i 's/  khataMonths, inMonthRange,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange,/' src/lib/__tests__/billSettlement.test.js)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(j.length+' files, '+j.reduce\\(\\(s,f\\)=>s+f.errorCount,0\\)+' no-undef errors'\\)}\\)\")"
     ],
     "additionalDirectories": [
       "\\",

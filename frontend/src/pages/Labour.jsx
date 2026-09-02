@@ -93,6 +93,12 @@ export default function Labour() {
         document.getElementById('log-work-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 300)
     }
+    // The Ledger's salary group sends the owner here to settle a month — it
+    // reports what is paid and pending but never takes a payment itself.
+    if (params.get('go') === 'salary') {
+      setSubTab('salary')
+      setParams({}, { replace: true })
+    }
   }, [params, setParams])
 
   return (

@@ -14,6 +14,7 @@ import {
 import { summarizeCropPnl } from '../lib/farmOverview'
 import useBackClose from '../hooks/useBackClose'
 import { groupLabourRows, shortDate } from '../lib/labourGroups'
+import { salaryMonthRows, salaryTotals } from '../lib/salaryLedger'
 import {
   openItemsFor, unsettled, settled, vendorBillsFrom, allocationsForVendor,
   planAllocation, settlementNarration, toAllocationRows,
@@ -2219,7 +2220,57 @@ function collapseBills(rows, purchaseById) {
   return out
 }
 
-function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
+// The salary group's body: one row per month, and ONE door to settlement.
+// Not a payable list — there is no Pay button and no per-row status, because
+// what changes hands is decided in Manpower → Salary, not asserted here.
+function SalaryMonths({ rows, onGoSalary }) {
+  return (
+    <div style={{ borderTop: '0.5px solid var(--c-border)' }}>
+      <table className="w-full text-xs">
+        <thead>
+          <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+            {['Month', 'Wages earned', 'Paid', 'Pending'].map((h, i) => (
+              <th key={h} className={`px-3 py-2 font-medium ${i ? 'text-right' : 'text-left'}`}
+                style={{ color: 'var(--c-faint)' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.month} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
+              <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-text)' }}>
+                {r.label}
+                <span className="ml-1.5 text-[11px]" style={{ color: 'var(--c-faint)' }}>
+                  · {r.workers} {r.workers === 1 ? 'worker' : 'workers'}
+                </span>
+              </td>
+              <td className="px-3 py-2 text-right font-medium" style={{ color: 'var(--c-text)' }}>{fmt(r.earned)}</td>
+              <td className="px-3 py-2 text-right" style={{ color: '#8A9A5B' }}>{fmt(r.paid)}</td>
+              <td className="px-3 py-2 text-right font-medium"
+                style={{ color: r.pending > 0 ? '#BA7517' : 'var(--c-faint)' }}>
+                {r.pending > 0 ? fmt(r.pending) : '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="px-3 py-3">
+        <button onClick={onGoSalary}
+          className="w-full py-2.5 rounded-xl text-[12px] font-semibold"
+          style={{ background: '#8A9A5B', color: '#fff', border: 'none', cursor: 'pointer' }}>
+          Open Manpower → Salary  →
+        </button>
+        <p className="text-[11px] mt-1.5 text-center" style={{ color: 'var(--c-faint)' }}>
+          Payments, advances and each worker's khata live there — including the
+          month's staff-balance report.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
                        canPay = false, onPayRow, onGoVendors, onGoSalary,
                        purchases = [], inventoryMaster = [], labourLogs = [],
                        openingCost = 0 }) {
@@ -2242,11 +2293,15 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
   if (grouped.vendor_purchase) {
     grouped.vendor_purchase.paid = Math.min(grouped.vendor_purchase.total, totalVendorPaid)
   }
-  // Same shape as vendors: salary accrues per worker-month but is settled in lump
-  // sums against the khata, so "Paid" is the real cash handed over, not a per-row
-  // flag — which would otherwise read ₹0 forever.
+  // Salary is NOT a payable and this group does not pretend it is. A wage is
+  // settled by a salary payment OR by the advances the worker already took, and
+  // the split is arithmetic per worker-month (lib/salaryLedger.js) — never a
+  // per-row flag, which read ₹0 forever, and never a group-level clamp, which
+  // let one man's surplus advance pay another man's wage.
+  const salary = salaryTotals(salaryRows)
   if (grouped.salary) {
-    grouped.salary.paid = Math.min(grouped.salary.total, salaryPaidTotal)
+    grouped.salary.total = salary.earned
+    grouped.salary.paid  = salary.paid
   }
 
   const [expanded, setExpanded] = useState(null)
@@ -2299,9 +2354,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
         const isOpen = expanded === key
         // Purchases collapse by bill, labour by job. Two different readings of
         // the same complaint: the ledger reports the parts, the books owe one line.
-        const entries = key === 'labour'
-          ? groupLabourRows(data.rows, labourById)
-          : collapseBills(data.rows, purchaseById)
+        const entries = key === 'salary'
+          ? salaryRows
+          : key === 'labour'
+            ? groupLabourRows(data.rows, labourById)
+            : collapseBills(data.rows, purchaseById)
         return (
           <Card key={key} className="p-0">
             <button className="w-full flex items-center justify-between px-4 py-3"
@@ -2311,7 +2368,9 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                   {CATEGORY_LABELS[key] || key}
                 </span>
                 <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
-                  {entries.length} entries · Pending: {fmt(pending)}
+                  {entries.length} {key === 'salary'
+                    ? (entries.length === 1 ? 'month' : 'months')
+                    : 'entries'} · Pending: {fmt(pending)}
                 </span>
                 {GROUP_HINTS[key] && (
                   <span className="text-[11px] italic" style={{ color: 'var(--c-faint)' }}>
@@ -2332,7 +2391,11 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
               </div>
             </button>
 
-            {isOpen && (
+            {isOpen && key === 'salary' && (
+              <SalaryMonths rows={entries} onGoSalary={onGoSalary} />
+            )}
+
+            {isOpen && key !== 'salary' && (
               <div style={{ borderTop: '0.5px solid var(--c-border)' }}>
                 <table className="w-full text-xs">
                   <thead>
@@ -2358,12 +2421,6 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryPaidTotal = 0,
                               className="text-[11px] font-semibold underline"
                               style={{ color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer' }}>
                               Pay in Party Ledger →
-                            </button>
-                          ) : key === 'salary' ? (
-                            <button onClick={onGoSalary}
-                              className="text-[11px] font-semibold underline"
-                              style={{ color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer' }}>
-                              Pay in Labour → Salary →
                             </button>
                           ) : row.is_paid ? (
                             /* The method is written to paid_via on every payment
@@ -2619,7 +2676,8 @@ export default function LedgerPage() {
     incomeLedger, expenseLedger, monthlySummary: monthlySummaryAll, livestockPnl, cropPnl,
     cropResiduals, recordResidualSale,
     loadLedgerData, addOwnerCashEntry, addVendorPayment, addVendor, updateVendor,
-    markLabourGroupPaid, addExpensePayment, salaryDues, salaryPayments, labourLogs,
+    markLabourGroupPaid, addExpensePayment, salaryDues, salaryPayments, salaryAccrual,
+    advances, labourLogs,
     accounts, recordTransfer, capitalPurchases,
     ownerCashEntries, addBuyerReceipt,
   } = useAppStore()
@@ -2724,7 +2782,17 @@ export default function LedgerPage() {
   // the others would hide real wage debt, so only positive balances are summed.
   const totalSalaryDues = salaryDues
     .reduce((s, w) => s + Math.max(0, Number(w.balance_due || 0)), 0)
-  const salaryPaidTotal = salaryPayments.reduce((s, p) => s + Number(p.amount || 0), 0)
+  // Wages earned vs actually settled, month by month, narrowed to the chosen
+  // period exactly as the ledger rows are. Advances count as settlement here —
+  // the seven regular labourers are paid that way and nothing else, so summing
+  // salary_payments alone hid ₹29,500 of real cash and called it Pending.
+  const salaryRows = useMemo(
+    () => salaryMonthRows({
+      accrual: salaryAccrual, payments: salaryPayments, advances,
+      inPeriod, period: fy,
+    }),
+    [salaryAccrual, salaryPayments, advances, fy],
+  )
   // Receivable = what remains after partial payments, across crop and tree deals.
   // Plus whatever buyers already owed at go-live — crop taken before the app,
   // with no sale record behind it. The mirror of a party's opening balance.
@@ -3060,7 +3128,7 @@ export default function LedgerPage() {
               .reduce((s, c) => s + Number(c.amount || 0), 0)}
             openingCost={openingCostFY}
             expectedRevenue={expectedRevenueFY}
-            onGoSalary={() => navigate('/labour')}
+            onGoSalary={() => navigate('/labour?go=salary')}
             monthlySummary={monthlySummary}
           />
         )}
@@ -3129,13 +3197,13 @@ export default function LedgerPage() {
             options={[['expenses', 'Expenses'], ['parties', 'Party Khata (whom I owe)']]} />
           <ExpensesTab
             expenseLedger={expenseLedgerFY} vendorPayments={vendorPaymentsFY}
-            salaryPaidTotal={salaryPaidTotal}
+            salaryRows={salaryRows}
             openingCost={openingCostFY}
             purchases={purchases} inventoryMaster={inventoryMaster}
             labourLogs={labourLogs}
             canPay={canManage}
             onGoVendors={() => setMoneyOutView('parties')}
-            onGoSalary={() => navigate('/labour')}
+            onGoSalary={() => navigate('/labour?go=salary')}
             onPayRow={setPayRow}
           />
           </>

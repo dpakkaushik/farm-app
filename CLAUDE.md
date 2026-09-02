@@ -11,9 +11,50 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-01 (bill-wise vendor settlement shipped — a payment now says which bills it cleared, the khata leads with Outstanding and folds the rest into History, and the register downloads as one workbook per vendor; earlier the same day: two 31-Aug salary payments reverted on the live DB + Harinder's lost cash line written) · **detail:** [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-02 (salary in the Ledger stopped pretending a wage is a bill — the Expenses tab reports Paid vs Pending month-wise with advances finally counted, and one button hands settlement to Manpower) · **detail:** [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (1 Sep, latest) — a payment finally says WHICH BILLS it cleared.** His question:
+**Just done (2 Sep) — the Ledger stopped calling a wage a bill.** He opened Expenses → Staff &
+Regular Salary and asked *"really 49k is paid out of 82k salaries?"*, then *"why it isnt showing
+status as paid here why?"*. Three faults, all real: the view hardcoded `false as is_paid` on every
+salary row ([`0014`](supabase/migrations/0014_salary_accrual.sql)) and `LedgerPage` tested
+`key === 'salary'` **before** the flag anyway, so no salary row could ever read Paid; the group's
+Paid summed `salary_payments` alone and **ignored `salary_advances` entirely**, hiding **₹29,500**
+of real cash (all seven regular labourers are paid by advance, never by a salary payment); and the
+figure was clamped with `Math.min` and unfiltered by period while the rows were filtered. Pending
+read ₹32,369 when **₹9,469** was owed.
+**The design took four rounds to get right, and the reversals matter.** He first asked for the Pay
+Salary amount to be *prefilled and uneditable* "so that it always matches calculation". I built
+nothing and asked, because his own 31-Aug data used two rules: Harinder got his full ₹10,000 with
+his ₹14,346 old debt untouched, Ram Bachan got ₹9,210 — exactly ₹11,000 *minus* his ₹1,790 old
+debt. He saw it himself — *"this wont be solved with my idea better wait and plan"* — then named
+the real fault: *"we are showing it in expenses as a amount we need to pay while the user record he
+may pay different amount."* **So the locked field is dead; do not re-lock it.** A first spec
+proposing a declared settlement flag + snapshot columns + a DB function was then **deleted** by his
+simplification (*"expense tab should only show the paid and pending and a redirect button"*) — it
+is in git at `18da60a` if the reasoning is ever wanted.
+**What shipped:** the salary group's rows are **months, not the 17 worker-months** (his ask:
+*"even month wise overall breakup will also be good"*) — Aug ₹78,400 → paid ₹72,610 / pending
+₹5,790, Sep ₹3,679 wholly pending, header ₹82,079 → **₹72,610 paid / ₹9,469 pending**. No Status
+column and no per-row Pay anywhere; **one button at the foot** → `/labour?go=salary` (new deep
+link). All of it is arithmetic in [`lib/salaryLedger.js`](frontend/src/lib/salaryLedger.js)
+(**28 specs, 322 green**): `settled = clamp(payments + advances, 0, earned)` per worker-month,
+summed per month, period-filtered on the same entry date the view uses (`min(month end, today)`).
+**Two invariants worth keeping:** `paid + pending === earned` by construction, and **the clamp
+lives on the worker-month, never the group** — Deena's ₹4,300 surplus advance must not pay
+Vikram's ₹1,650 shortfall. **No migration, no schema change** — `payment_month` was already on
+`salary_payments` and simply never read; the store now loads `v_salary_accrual` (the ledger row's
+own id is an md5 of worker+month, so it cannot be matched back to a payment).
+**Ram Bachan reads ₹1,790 pending and that is deliberate** — his old-dues deduction was never
+recorded anywhere, so the figure is a prompt to enter a real missing recovery, not a display bug.
+**"Paid" here means wage settled, not cash handed over:** his row counts the full ₹11,000 though
+₹9,210 left the box. Do not "fix" that to sum `amount_paid` — it would break the tie to
+`earned − pending` and reintroduce the old fault in a new form.
+**Also found, unresolved, and worth his eye:** two workers carrying large opening debts that were
+NOT in the 21 Aug record and accrue nothing (no attendance, no salary rate) —
+**Satya Pal Rajvanshi −₹1,32,900** and **Ramj −₹28,700**, ₹1.6L of the ₹2.3L the khata says
+workers owe. Deliberate entries or a data-entry problem? Asked twice, not yet answered.
+
+**Also done (1 Sep) — a payment finally says WHICH BILLS it cleared.** His question:
 *"lets say we settle 50000 and there was one 50000 bill and two 20k bills and one 10k bill — how
 app will know which bill to clear?"* It could not: `vendor_payments` held a vendor and an amount
 and nothing else. Now **Pay Vendor lists that party's open items with a checkbox each** (bill no ·

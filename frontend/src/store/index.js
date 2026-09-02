@@ -544,6 +544,10 @@ const useAppStore = create((set, get) => ({
   advances:          [],   // salary_advances rows
   salaryPayments:    [],   // salary_payments rows
   salaryDues:        [],   // v_salary_dues — khata balance per worker
+  // v_salary_accrual — what each worker earned, per month. The Ledger needs the
+  // worker+month keys (the expense-ledger row's own id is an md5 of them, so it
+  // cannot be matched back to a payment) to say what a month has settled.
+  salaryAccrual:     [],
   machineryMaster:   [],
   farmAssets:        [],
   livestockMaster:   [],
@@ -2668,6 +2672,7 @@ const useAppStore = create((set, get) => ({
       { data: livestockPnlRaw },
       { data: cropPnlRaw },
       { data: salaryDuesRaw },
+      { data: salaryAccrualRaw },
       { data: accountsRaw },
     ] = await Promise.all([
       supabase.from('vendors').select('*').eq('farm_id', farmId).order('name'),
@@ -2687,10 +2692,12 @@ const useAppStore = create((set, get) => ({
       supabase.from('v_livestock_pnl').select('*').eq('farm_id', farmId),
       supabase.from('v_crop_pnl').select('*').eq('farm_id', farmId),
       supabase.from('v_salary_dues').select('*'),
+      supabase.from('v_salary_accrual').select('labourer_id, month, earned').eq('farm_id', farmId),
       supabase.from('accounts').select('*').eq('farm_id', farmId).eq('is_active', true).order('created_at'),
     ])
     set({
       salaryDues:       salaryDuesRaw       || [],
+      salaryAccrual:    salaryAccrualRaw    || [],
       accounts:         accountsRaw         || [],
       vendors:          vendorsRaw          || [],
       vendorPayments:   vendorPaymentsRaw   || [],
