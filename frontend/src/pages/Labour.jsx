@@ -13,7 +13,7 @@ import useBackClose from '../hooks/useBackClose'
 import { buildStaffBalance } from '../lib/staffBalance'
 import { balanceBeforeMonth } from '../lib/salaryLedger'
 import {
-  owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
+  owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, khataPosition,
   khataEvents, buildWorkerKhata, recoveryOutcome,
 } from '../lib/workerRecovery'
 
@@ -630,6 +630,15 @@ function MonthWorkLogs({ logs, month }) {
 // Dr. = the worker owes the farm. Same convention as the STAFF BALANCE CSV.
 const crdr = (n) => (n > 0 ? 'Cr.' : n < 0 ? 'Dr.' : '')
 
+// Two colours on the Salary screen, and they mean DIRECTION of money — not
+// good/bad, and not one hue per field. Green: the farm owes it out. Red: the
+// farm is owed it back, which is the figure worth chasing. Plain amounts
+// (Earned, Advance, Paid, Recovered) carry no colour at all, so a coloured
+// number always answers "which way?".
+const OWES_OUT  = '#8A9A5B'
+const OWED_BACK = '#E24B4A'
+const amountTone = (v) => (Number(v) ? 'var(--c-text)' : 'var(--c-muted)')
+
 function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, salaryAccrual = [], addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, showToast, month, setMonth, att }) {
   const [modal,   setModal]   = useState(null)
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
@@ -737,7 +746,10 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
     status: d.status,
     balance: Number(d.balance_due || 0),
   }))
-  const stillToCollect = totalOwedToFarm(dues)
+  // Both sides of the khata for the header. Read off v_salary_dues, so it is
+  // the books' all-time position — including debtors whose cards this screen
+  // never shows.
+  const position = khataPosition(dues)
 
   // outstanding is kept on the modal so the recovery line can say what is left
   // after a part payment. The prefill is a convenience for the common case of
@@ -794,11 +806,6 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-bold text-[var(--c-muted)] uppercase tracking-wide">Salary &amp; Advances</p>
-          {stillToCollect > 0 && (
-            <p className="text-[12px] text-[#BA7517] mt-0.5">
-              ₹{Math.round(stillToCollect).toLocaleString('en-IN')} to recover from workers
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <input type="month" value={month} onChange={e => setMonth(e.target.value)}
@@ -813,6 +820,33 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
           </button>
         </div>
       </div>
+
+      {/* Both sides of the khata, never netted — one man's debt cannot pay
+          another man's wage. Two colours only on this screen, and they mean
+          DIRECTION: green the farm owes out, red the farm is owed back. */}
+      {(position.farmOwes > 0 || position.workersOwe > 0) && (
+        <div className="grid grid-cols-2 gap-px bg-[var(--c-border)] rounded-2xl overflow-hidden border border-[var(--c-border)]">
+          {[
+            ['Farm owes workers', position.farmOwes, position.crCount, 'Cr.', OWES_OUT, null],
+            ['Workers owe farm', position.workersOwe, position.drCount, 'Dr.', OWED_BACK,
+              position.drNotWorking > 0
+                ? `${position.drNotWorking} no longer working`
+                : null],
+          ].map(([label, amount, count, tag, color, note]) => (
+            <div key={label} className="bg-[var(--c-nav)] px-3 py-2.5">
+              <p className="text-[11px] text-[var(--c-faint)]">{label}</p>
+              <p className="text-base font-bold" style={{ color }}>
+                ₹{Math.round(amount).toLocaleString('en-IN')}
+                <span className="text-[11px] font-semibold ml-0.5">{tag}</span>
+              </p>
+              <p className="text-[11px] text-[var(--c-faint)]">
+                {count} {count === 1 ? 'worker' : 'workers'}
+                {note ? ` · ${note}` : ''}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {allWorkers.length === 0 && (
         <p className="text-center text-[var(--c-faint)] text-sm py-8">No staff or labourers added yet.</p>
@@ -864,7 +898,8 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
                 <p className="text-[11px] text-[var(--c-muted)]">
                   {balance > 0 ? 'Farm owes' : balance < 0 ? 'Worker owes' : 'Balance'}
                 </p>
-                <p className={`text-base font-bold ${balance > 0 ? 'text-[#E24B4A]' : balance < 0 ? 'text-[#BA7517]' : 'text-[var(--c-muted)]'}`}>
+                <p className="text-base font-bold"
+                  style={{ color: balance > 0 ? OWES_OUT : balance < 0 ? OWED_BACK : 'var(--c-muted)' }}>
                   ₹{Math.abs(balance).toLocaleString('en-IN')}
                   {balance !== 0 && <span className="text-[11px] font-semibold ml-0.5">{crdr(balance)}</span>}
                 </p>
@@ -874,11 +909,14 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
             {/* Salary breakdown grid */}
             <div className={`grid ${advBack > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-px bg-[var(--c-border)] border-t border-[var(--c-border)]`}>
               {[
-                ['Opening', opening, opening > 0 ? '#E24B4A' : 'var(--c-muted)'],
-                ['Earned',  earned + contractPay, '#8A9A5B'],
-                ['Advance', advGiven, advGiven > 0 ? '#BA7517' : 'var(--c-muted)'],
-                ...(advBack > 0 ? [['Recovered', advBack, '#6366f1']] : []),
-                ['Paid',    paidThisMonth, paidThisMonth > 0 ? '#8A9A5B' : 'var(--c-muted)'],
+                // Opening is a BALANCE, so it wears the direction colours.
+                // Everything else is a plain amount and stays neutral — on this
+                // screen colour means which way the money runs, nothing else.
+                ['Opening', opening, opening > 0 ? OWES_OUT : opening < 0 ? OWED_BACK : 'var(--c-muted)'],
+                ['Earned',  earned + contractPay, amountTone(earned + contractPay)],
+                ['Advance', advGiven, amountTone(advGiven)],
+                ...(advBack > 0 ? [['Recovered', advBack, amountTone(advBack)]] : []),
+                ['Paid',    paidThisMonth, amountTone(paidThisMonth)],
               ].map(([label, val, color]) => (
                 <div key={label} className="bg-[var(--c-nav)] py-2.5 text-center">
                   <p className="text-[11px] text-[var(--c-faint)] mb-0.5">{label}</p>

@@ -74,12 +74,25 @@ though ₹9,210 left the box. Do not "fix" that to sum `amount_paid` — it brea
 `is_recovered = false`. No row carries that flag today (a recovery is a NEGATIVE advance row,
 0033, not a flag) so it is a no-op — but if anything ever sets it, advances vanish from these
 figures while the khata still counts them. Load them unfiltered that day.
-**Still NOT done, and he asked for it:** a combined **farm owes vs workers owe** strip at the top
-of Manpower → Salary (₹13,441 Cr across 7 · ₹2,30,060 Dr across 9, 2 of them no longer working;
-no net figure — one man's debt cannot pay another's wage), replacing the one-sided "₹2,30,060 to
-recover from workers", plus **cutting that screen's five colours down to two** — his ask, and my
-recommendation was red = worker owes, green = farm owes, everything else grey, with the direction
-still to confirm.
+**Also shipped, same round — the Salary tab shows BOTH SIDES and wears TWO COLOURS.** His asks:
+*"can at top we show a combined overall what farm owes vs what worker owes with a better
+nomenclature?"* and *"right now there are many colors for worker owes and farm owes shouldnt we
+just have red and green"*. The one-sided "₹2,30,060 to recover from workers" is replaced by a
+two-cell strip — **Farm owes workers ₹13,441 Cr. (7 workers)** · **Workers owe farm ₹2,30,060 Dr.
+(9 workers · 2 no longer working)** — from new `khataPosition(dues)` in
+[`workerRecovery.js`](frontend/src/lib/workerRecovery.js) (4 specs, **339 green**). **No net
+figure, deliberately**: one man's debt cannot pay another man's wage, the same reason the Ledger
+clamps per worker-month. "2 no longer working" is there because paused/removed debtors get no card
+on that screen (Gambhira ₹13,495 + Deepak ₹8,933), so their debt was invisible. Nomenclature
+matches the cards' own "Farm owes"/"Worker owes" and his paper register's CR/DR.
+**The colour rule, and it is now the only one on that screen: colour means DIRECTION of money.**
+`OWES_OUT = #8A9A5B` green (the farm owes it out) · `OWED_BACK = #E24B4A` red (the farm is owed it
+back — the figure worth chasing). It replaced five hues (red AND amber for the two directions,
+sage for Earned/Paid, amber for Advance, indigo for Recovered). **Opening keeps the direction
+colours because it IS a balance**; Earned, Advance, Paid and Recovered are plain amounts and are
+now neutral, so a coloured number always answers "which way?". **Red on worker-owes was my call,
+not his** — the alternative accounting convention (red for the farm's liability) is one constant
+swap away if he prefers it.
 **Also found, unresolved, and worth his eye:** two workers carrying large opening debts that were
 NOT in the 21 Aug record and accrue nothing (no attendance, no salary rate) —
 **Satya Pal Rajvanshi −₹1,32,900** and **Ramj −₹28,700**, ₹1.6L of the ₹2.3L the khata says

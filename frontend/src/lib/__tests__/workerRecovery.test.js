@@ -2,7 +2,44 @@ import { describe, it, expect } from 'vitest'
 import {
   isRecovery, splitAdvances, owedToFarm, owedToWorker, isSettled, canHideWorker,
   hiddenWithBalance, totalOwedToFarm, khataEvents, buildWorkerKhata, recoveryOutcome,
+  khataPosition,
 } from '../workerRecovery'
+
+describe('khataPosition — both sides of the workers\' khata', () => {
+  // The live position: 7 workers owed ₹13,441, 9 owing ₹2,30,060, two of them
+  // no longer working (Gambhira ₹13,495 and Deepak ₹8,933 — paused, so no card
+  // on the Salary screen shows them).
+  const DUES = [
+    { balance_due: 536,     status: 'active' },
+    { balance_due: 4730,    status: 'active' },
+    { balance_due: -132900, status: 'active' },
+    { balance_due: -13495,  status: 'paused' },
+    { balance_due: -8933,   status: 'paused' },
+    { balance_due: 0,       status: 'active' },
+    { balance_due: -0.4,    status: 'active' },   // paise, not a debt
+  ]
+
+  it('reports each side separately and never nets them', () => {
+    const p = khataPosition(DUES)
+    expect(p.farmOwes).toBe(5266)
+    expect(p.workersOwe).toBe(155328)
+    expect(p.crCount).toBe(2)
+    expect(p.drCount).toBe(3)
+  })
+
+  it('counts debtors who are no longer working', () => {
+    expect(khataPosition(DUES).drNotWorking).toBe(2)
+  })
+
+  it('ignores balances inside the paise tolerance', () => {
+    const p = khataPosition([{ balance_due: -0.4 }, { balance_due: 0.6 }])
+    expect(p).toEqual({ farmOwes: 0, workersOwe: 0, crCount: 0, drCount: 0, drNotWorking: 0 })
+  })
+
+  it('is safe on no rows', () => {
+    expect(khataPosition().farmOwes).toBe(0)
+  })
+})
 
 // The six workers who actually owe the farm on 20 Aug 2026, from v_salary_dues.
 // Two of them — Gambhira and Jhingur — are paused, so no screen shows them while

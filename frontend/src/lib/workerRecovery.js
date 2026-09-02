@@ -105,6 +105,32 @@ export function hiddenWithBalance(duesRows = []) {
 }
 
 /** Total still to collect from workers, across every row handed in. */
+/**
+ * Both sides of the workers' khata, for the Salary tab's header.
+ *
+ * Deliberately NOT netted. One man's debt cannot pay another man's wage, so a
+ * single figure would be meaningless — the same reason the Ledger clamps
+ * settlement per worker-month rather than per group.
+ *
+ * `drNotWorking` counts debtors no card on that screen shows: paused workers
+ * are filtered out upstream and removed ones are never loaded, so without this
+ * their debt is invisible.
+ */
+export function khataPosition(duesRows = []) {
+  const p = { farmOwes: 0, workersOwe: 0, crCount: 0, drCount: 0, drNotWorking: 0 }
+  duesRows.forEach(r => {
+    const cr = owedToWorker(r.balance_due)
+    const dr = owedToFarm(r.balance_due)
+    if (cr > SETTLED_TOLERANCE) { p.farmOwes += cr; p.crCount += 1 }
+    if (dr > SETTLED_TOLERANCE) {
+      p.workersOwe += dr
+      p.drCount += 1
+      if (r.status && r.status !== 'active') p.drNotWorking += 1
+    }
+  })
+  return p
+}
+
 export function totalOwedToFarm(duesRows = []) {
   return duesRows.reduce((s, r) => s + owedToFarm(r.balance_due), 0)
 }
