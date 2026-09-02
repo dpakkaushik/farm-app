@@ -44,11 +44,42 @@ lives on the worker-month, never the group** — Deena's ₹4,300 surplus advanc
 Vikram's ₹1,650 shortfall. **No migration, no schema change** — `payment_month` was already on
 `salary_payments` and simply never read; the store now loads `v_salary_accrual` (the ledger row's
 own id is an md5 of worker+month, so it cannot be matched back to a payment).
-**Ram Bachan reads ₹1,790 pending and that is deliberate** — his old-dues deduction was never
-recorded anywhere, so the figure is a prompt to enter a real missing recovery, not a display bug.
-**"Paid" here means wage settled, not cash handed over:** his row counts the full ₹11,000 though
-₹9,210 left the box. Do not "fix" that to sum `amount_paid` — it would break the tie to
-`earned − pending` and reintroduce the old fault in a new form.
+**Fixed the same day, after he challenged it — THE OPENING BALANCE IS THE THIRD WAY A WAGE GETS
+SETTLED.** The first cut compared a month's wage only to that month's cash, so Ram Bachan showed
+₹1,790 pending and I told him to record a missing recovery. **Both wrong**, and he caught it:
+*"isnt 786 his salary for two days … 786 is deducted from the opening balance hence showing
+1004 whats wrong"*. Checked every record he has — opening −₹1,790, Aug earned ₹11,000, paid
+₹9,210 tagged Aug, **no advances** → **end-Aug exactly ₹0**, and `v_salary_dues` +₹786 for
+September's 2 days. **His wage paid the debt off**; a recovery entry would have credited him
+twice (+₹2,576). So `settleWorkerMonth` takes `carriedDebt` and the rule is **asymmetric**: a
+negative carried balance (he owes) is settled *out of* the wage; a positive one (the farm owes —
+Vikram's pre-app ₹3,080) is a separate liability and must NOT pretend the wage was paid. Each
+month needs the balance the previous one left, so it is a chronological **walk per worker**
+(`workerMonthSettlements`) and **the walk must cover ALL months before the period filter** — the
+`annotatePockets` lesson. Figures now: **Aug ₹75,750 paid / ₹2,650 pending** (only Vikram ₹1,650
++ Ram Naresh ₹1,000 are short), Sep ₹714 / ₹2,965, header **₹76,464 / ₹5,615**. All three wrong
+answers (₹32,369, ₹9,469) are pinned as regression tests. A worker who owes the farm overall has
+**nothing** pending — Harinder's Sep ₹714 reduces his ₹13,632 debt, it is not a payable.
+**Same root cause, second symptom, also fixed: the Salary card's Opening.** It used
+`labour_master.opening_balance` EVERY month, so from month two it charged a settled debt again —
+Ram Bachan's September card read "Worker owes ₹1,004" while the books said +₹786.
+`balanceBeforeMonth` gives his balance at the chosen month's start, so the card now agrees with
+`v_salary_dues`; its **Advance column is month-scoped too** (earlier unrecovered advances were
+piled in there as well and, now that they sit inside Opening, were being subtracted twice).
+`v_salary_accrual` moved into **`loadAll`** for it — a figure that depends on whether the Ledger
+was opened first is a bug (the `accounts` lesson of 17 Aug).
+**"Paid" means wage settled, not cash handed over:** Ram Bachan's row counts the full ₹11,000
+though ₹9,210 left the box. Do not "fix" that to sum `amount_paid` — it breaks the tie to
+`earned − pending`. **One latent trap, documented in the lib:** the store fetches `advances` with
+`is_recovered = false`. No row carries that flag today (a recovery is a NEGATIVE advance row,
+0033, not a flag) so it is a no-op — but if anything ever sets it, advances vanish from these
+figures while the khata still counts them. Load them unfiltered that day.
+**Still NOT done, and he asked for it:** a combined **farm owes vs workers owe** strip at the top
+of Manpower → Salary (₹13,441 Cr across 7 · ₹2,30,060 Dr across 9, 2 of them no longer working;
+no net figure — one man's debt cannot pay another's wage), replacing the one-sided "₹2,30,060 to
+recover from workers", plus **cutting that screen's five colours down to two** — his ask, and my
+recommendation was red = worker owes, green = farm owes, everything else grey, with the direction
+still to confirm.
 **Also found, unresolved, and worth his eye:** two workers carrying large opening debts that were
 NOT in the 21 Aug record and accrue nothing (no attendance, no salary rate) —
 **Satya Pal Rajvanshi −₹1,32,900** and **Ramj −₹28,700**, ₹1.6L of the ₹2.3L the khata says

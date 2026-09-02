@@ -73,11 +73,13 @@ Wages earned by staff & regular workers
 
 ### The arithmetic — all of it
 
-Per worker-month, from `v_salary_accrual`:
+Per worker-month, walked in date order from `v_salary_accrual`:
 
 ```
-settled = min(earned, payments that month + advances that month)
-pending = earned − settled
+carriedDebt = max(0, −balance at month start)
+settled     = clamp(payments + advances + carriedDebt, 0, earned)
+pending     = earned − settled
+balance    += earned − advances − payments     // the khata formula, unchanged
 ```
 
 Then sum per calendar month for the rows, and over the period for the header.
@@ -103,16 +105,40 @@ Three things make this correct where the current code is not:
   that is a per-worker khata view and may legitimately differ; do not "align" them without
   thinking, but never let the Ledger use the carried-forward figure.
 
-### On Ram Bachan, who will read ₹1,790 pending
+### The opening balance is the third way a wage gets settled
 
-He earned ₹11,000 and was handed ₹9,210 — exactly his wage minus his ₹1,790 old dues. His month
-is closed in reality but will show ₹1,790 pending here, and **that is right, not a flaw.** The
-deduction was never recorded anywhere: no recovery row, no note, nothing. The figure is a prompt
-to record something genuinely missing. Recording it as a recovery in Manpower — the mechanic
-built 20 Aug — drops it to zero *and* correctly reduces his debt.
+**This was got wrong on the first pass and corrected the same day — read it before touching the
+arithmetic again.** The first cut compared a month's wage only to that month's cash, so Ram
+Bachan showed ₹1,790 pending, and the spec argued that was a *prompt to record a missing
+recovery*. **Both were wrong.** Verified against every record he has:
 
-This is why no declared-settlement flag is needed. A shortfall is either explained by advances
-(arithmetic) or it is a real gap in the records.
+```
+1 Aug    opening (labour_master)              −₹1,790   he owed the farm
+August   earned ₹11,000 (29.5 days), advances none
+         → farm owes 11,000 − 1,790 = ₹9,210
+31 Aug   paid ₹9,210, tagged Aug 2026
+         → balance ₹0  — square, by his own deduction
+2 Sep    earned ₹786 (2 days)
+         → farm owes ₹786, which is what v_salary_dues says
+```
+
+His wage **paid the debt off**. Nothing was missing, and entering a ₹1,790 recovery would have
+credited him twice — the books would have read +₹2,576.
+
+So `settleWorkerMonth` takes a third input, `carriedDebt`: what the worker owed when the month
+began. The rule is asymmetric and that asymmetry is the whole point:
+
+- a **negative** carried balance (he owes) is settled *out of* the wage — it counts as settlement;
+- a **positive** carried balance (the farm owes, e.g. Vikram's pre-app ₹3,080) is a separate
+  liability and must **not** pretend the wage was paid.
+
+Because each month needs the balance the *previous* one left, the settlement is a chronological
+**walk per worker** (`workerMonthSettlements`), and the walk must cover **all** months before the
+period filter is applied — the same rule `annotatePockets` follows in `lib/cashPockets.js`. Handed
+only the period's rows it would restart every worker at his 1-Aug opening, which is the bug.
+
+Consequence: a worker who owes the farm overall has **nothing** pending, because the farm does not
+owe him cash — Harinder's September ₹714 reduces his ₹13,632 debt rather than becoming a payable.
 
 ## Cost
 
@@ -135,8 +161,24 @@ on that line remains true.
 3. One worker's surplus advance never reduces another worker's pending.
 4. A recovery (negative advance) increases pending again — money given back is owed again.
 5. Period filtering moves the rows and both figures together; no all-time leak.
-6. With today's live data: Aug ₹78,400 → paid ₹72,610 / pending ₹5,790; Sep ₹3,679 → pending
-   ₹3,679; header ₹82,079 → paid ₹72,610 / pending ₹9,469.
+6. A carried DEBT settles the wage; a carried CREDIT does not.
+7. An opening balance is consumed once, never re-applied in a later month.
+8. With today's live data: Aug ₹78,400 → paid ₹75,750 / pending ₹2,650 (only Vikram ₹1,650 and
+   Ram Naresh ₹1,000 are short); Sep ₹3,679 → paid ₹714 / pending ₹2,965; header ₹82,079 →
+   **paid ₹76,464 / pending ₹5,615**. The three wrong answers this file has given — ₹32,369
+   (payments only), ₹9,469 (advances counted, carried debt ignored) — are pinned as regressions.
+
+### Also fixed here: the Salary card's Opening
+
+Same root cause, second symptom. The card used `labour_master.opening_balance` **every month**,
+so from month two it charged a settled debt again — Ram Bachan's September card read *"Worker
+owes ₹1,004"* (−1,790 + 786) while the books said the farm owed him ₹786. `balanceBeforeMonth`
+now gives his balance at the start of the chosen month, so the card agrees with `v_salary_dues`.
+Its Advance column is now **month-scoped too**: earlier unrecovered advances used to be piled in
+there as well, and with them inside Opening they were being subtracted twice.
+
+`v_salary_accrual` moved into `loadAll` for this — a figure that depends on whether you opened
+the Ledger first is a bug, the same lesson as `accounts` on 17 Aug.
 
 ## Why this is not the vendor fix
 

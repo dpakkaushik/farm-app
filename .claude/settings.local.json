@@ -61,7 +61,11 @@
       "Bash(sed -i 's/  khataMonths, inMonthRange, STATUS_LABEL,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,/' src/pages/LedgerPage.jsx)",
       "Bash(sed -i 's/  khataMonths, inMonthRange,/  khataMonths, monthRangeOptions, monthsByYear, inMonthRange,/' src/lib/__tests__/billSettlement.test.js)",
       "Bash(echo \"exit=$?\")",
-      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(j.length+' files, '+j.reduce\\(\\(s,f\\)=>s+f.errorCount,0\\)+' no-undef errors'\\)}\\)\")"
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);console.log\\(j.length+' files, '+j.reduce\\(\\(s,f\\)=>s+f.errorCount,0\\)+' no-undef errors'\\)}\\)\")",
+      "Bash(rm -rf C:/Users/Admin/AppData/Local/Temp/claude/c--Users-Admin-Desktop-github-clone-farm-app/d4eef384-ba92-4692-a920-9caf4cd79a11/scratchpad/lintsweep/src)",
+      "Bash(cp -r c:/Users/Admin/Desktop/github_clone/farm-app/frontend/src C:/Users/Admin/AppData/Local/Temp/claude/c--Users-Admin-Desktop-github-clone-farm-app/d4eef384-ba92-4692-a920-9caf4cd79a11/scratchpad/lintsweep/src)",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\).on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);const bad=j.filter\\(f=>f.errorCount\\);console.log\\(j.length+' files, '+bad.length+' with errors'\\);bad.forEach\\(f=>f.messages.forEach\\(m=>console.log\\(f.filePath.split\\('src'\\)[1]+':'+m.line+' '+m.message\\)\\)\\)}\\)\")",
+      "Bash(python -)"
     ],
     "additionalDirectories": [
       "\\",

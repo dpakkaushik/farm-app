@@ -2786,12 +2786,19 @@ export default function LedgerPage() {
   // period exactly as the ledger rows are. Advances count as settlement here —
   // the seven regular labourers are paid that way and nothing else, so summing
   // salary_payments alone hid ₹29,500 of real cash and called it Pending.
+  // Openings matter: a worker who owed the farm at go-live has that debt paid
+  // off BY his wage, so the gap between his wage and his cash is settled, not
+  // pending. Ram Bachan opened August owing ₹1,790, earned ₹11,000, was handed
+  // ₹9,210 — and is square. Without this the tab overstated Pending and the
+  // gap looked like a missing recovery, which would have credited him twice.
   const salaryRows = useMemo(
     () => salaryMonthRows({
       accrual: salaryAccrual, payments: salaryPayments, advances,
+      openings: Object.fromEntries(
+        (salaryDues || []).map(d => [d.labourer_id, Number(d.opening_balance || 0)])),
       inPeriod, period: fy,
     }),
-    [salaryAccrual, salaryPayments, advances, fy],
+    [salaryAccrual, salaryPayments, advances, salaryDues, fy],
   )
   // Receivable = what remains after partial payments, across crop and tree deals.
   // Plus whatever buyers already owed at go-live — crop taken before the app,

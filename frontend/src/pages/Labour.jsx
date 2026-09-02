@@ -11,6 +11,7 @@ import { calcStaffEarned, daysInMonth, monthLabel, logsInMonth, monthlyLabourSum
 import { contractUnit } from '../lib/labourGroups'
 import useBackClose from '../hooks/useBackClose'
 import { buildStaffBalance } from '../lib/staffBalance'
+import { balanceBeforeMonth } from '../lib/salaryLedger'
 import {
   owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, totalOwedToFarm,
   khataEvents, buildWorkerKhata, recoveryOutcome,
@@ -41,7 +42,7 @@ const MODAL_KIND = {
 
 export default function Labour() {
   const [subTab, setSubTab] = useState('attendance')
-  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, plots, logLabourBatch } = useAppStore()
+  const { permanentStaff: allStaff, regularLabourers: allLabourers, labourLogs, cropCycles, cropMaster, advances, salaryPayments, salaryAccrual, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, plots, logLabourBatch } = useAppStore()
   const permanentStaff    = allStaff.filter(s => s.isActive !== false)
   const regularLabourers  = allLabourers.filter(l => l.isActive !== false)
   const [toast, setToast] = useState(null)
@@ -120,7 +121,7 @@ export default function Labour() {
 
       <div className="flex-1 overflow-y-auto">
         {subTab === 'attendance' && <LabourToday permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} cropCycles={cropCycles} cropMaster={cropMaster} showToast={showToast} plots={plots} logLabourBatch={logLabourBatch} summaryMonth={logMonth} setSummaryMonth={setLogMonth} summaryAtt={logMonthAtt} onAttendanceMarked={onAttendanceMarked} />}
-        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} recordWorkerRecovery={recordWorkerRecovery} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
+        {subTab === 'salary'  && <LabourSalary permanentStaff={permanentStaff} regularLabourers={regularLabourers} labourLogs={labourLogs} advances={advances} salaryPayments={salaryPayments} salaryAccrual={salaryAccrual} addSalaryPayment={addSalaryPayment} deleteSalaryPayment={deleteSalaryPayment} addAdvance={addAdvance} recordWorkerRecovery={recordWorkerRecovery} showToast={showToast} month={logMonth} setMonth={setLogMonth} att={logMonthAtt} />}
       </div>
 
       {toast && (
@@ -629,7 +630,7 @@ function MonthWorkLogs({ logs, month }) {
 // Dr. = the worker owes the farm. Same convention as the STAFF BALANCE CSV.
 const crdr = (n) => (n > 0 ? 'Cr.' : n < 0 ? 'Dr.' : '')
 
-function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, showToast, month, setMonth, att }) {
+function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, salaryPayments, salaryAccrual = [], addSalaryPayment, deleteSalaryPayment, addAdvance, recordWorkerRecovery, showToast, month, setMonth, att }) {
   const [modal,   setModal]   = useState(null)
   const [form,    setForm]    = useState({ amount: '', date: new Date().toISOString().slice(0,10), notes: '', givenBy: '', paymentMode: 'cash', attachment: null })
   const [saving,  setSaving]  = useState(false)
@@ -823,12 +824,25 @@ function LabourSalary({ permanentStaff, regularLabourers, labourLogs, advances, 
           ? calcStaffEarned(days, dayCount, w.monthlySalary, w.monthlyHoliday)
           : Math.round(days * (w.ratePerDay || 0))
         const contractPay  = labourLogs.filter(l => l.labourMasterId === w.id && l.date?.startsWith(month)).reduce((s, l) => s + (l.totalCost || 0), 0)
-        const advRows      = [...monthAdvances.filter(a => a.labourerId === w.id), ...advances.filter(a => a.labourerId === w.id && !a.date?.startsWith(month) && !a.isRecovered)]
+        // THIS month's advances only. Earlier unrecovered ones used to be piled
+        // in here too, but they now sit inside Opening where they belong —
+        // counting them in both places subtracted them twice.
+        const advRows      = monthAdvances.filter(a => a.labourerId === w.id)
         // given and recovered are shown separately; only the net is arithmetic —
         // it is what v_salary_dues subtracts.
         const { given: advGiven, recovered: advBack, net: advTotal } = splitAdvances(advRows)
         const paidThisMonth= monthPayments.filter(p => p.labourerId === w.id && p.type === 'salary').reduce((s, p) => s + p.amount, 0)
-        const opening      = w.openingBalance || 0
+        // His balance when THIS month began, not his go-live figure. Using the
+        // latter charged a settled debt again from month two: Ram Bachan read
+        // "Worker owes ₹1,004" in September (−1,790 + 786) though August's wage
+        // had already cleared the ₹1,790 and the books said +₹786.
+        const opening      = balanceBeforeMonth({
+          month,
+          opening:  w.openingBalance || 0,
+          accrual:  salaryAccrual.filter(r => r.labourer_id === w.id),
+          payments: salaryPayments.filter(p => p.labourerId === w.id),
+          advances: advances.filter(a => a.labourerId === w.id),
+        })
         const balance      = opening + earned + contractPay - advTotal - paidThisMonth
         // The Recover button offers what the books say is outstanding, not this
         // card's month-scoped figure. Falls back to the card while dues load.

@@ -596,6 +596,7 @@ const useAppStore = create((set, get) => ({
         { data: attendanceRaw },
         { data: advancesRaw },
         { data: salaryPaymentsRaw },
+        { data: salaryAccrualAllRaw },
         { data: workTypesRaw },
         { data: activityTypesRaw },
         { data: machineryRaw },
@@ -653,6 +654,10 @@ const useAppStore = create((set, get) => ({
           .eq('is_recovered', false)
           .order('advance_date', { ascending: false }),
         supabase.from('salary_payments').select('*').eq('farm_id', farmId).order('payment_date', { ascending: false }),
+        // Loaded on login, not only by the Ledger: the Salary card needs it to
+        // work out each worker's balance at the start of the chosen month, and
+        // a figure that depends on which page you opened first is a bug.
+        supabase.from('v_salary_accrual').select('labourer_id, month, earned').eq('farm_id', farmId),
         supabase.from('work_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('name'),
         supabase.from('activity_types').select('*').eq('farm_id', farmId).eq('is_active', true).order('sort_order'),
         supabase.from('machinery_master').select('*').eq('farm_id', farmId).eq('is_active', true).order('display_id'),
@@ -712,6 +717,7 @@ const useAppStore = create((set, get) => ({
         ),
         advances:          (advancesRaw || []).map(mapAdvance),
         salaryPayments:    (salaryPaymentsRaw || []).map(mapSalaryPayment),
+        salaryAccrual:     salaryAccrualAllRaw  || [],
         workTypes:         (workTypesRaw || []).map(w => ({ id: w.id, name: w.name })),
         activityTypes:     (activityTypesRaw || []).map(a => ({ id: a.id, name: a.name, label: a.label, emoji: a.emoji, isSystem: a.is_system })),
         machineryMaster:    (machineryRaw || []).map(m => mapMachinery(m, billsById)),

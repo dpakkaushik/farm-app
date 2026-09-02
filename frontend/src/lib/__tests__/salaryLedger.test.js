@@ -1,12 +1,14 @@
 import { describe, test, expect } from 'vitest'
 import {
-  accrualEntryDate, monthLabel, settleWorkerMonth, salaryMonthRows, salaryTotals,
+  accrualEntryDate, monthLabel, settleWorkerMonth, workerMonthSettlements,
+  balanceBeforeMonth, salaryMonthRows, salaryTotals,
 } from '../salaryLedger'
 import { inPeriod } from '../period'
 
-// The live August/September position at the time this shipped, used as the
-// end-to-end fixture. Five staff paid by salary payment, seven regular
-// labourers paid by advance — the case the old code could not see.
+// The live August/September position, used as the end-to-end fixture. Five
+// staff paid by salary payment, seven regular labourers paid by advance, and
+// nine of the twelve carrying an opening balance — the three things the first
+// cut of this file got wrong in turn.
 const AUG = '2026-08-01', SEP = '2026-09-01'
 const w = (id, month, earned) => ({ labourer_id: id, month, earned })
 
@@ -44,6 +46,12 @@ const LIVE = {
     { labourerId: 'vikram',   date: '2026-08-15', amount: 1500 },
     { labourerId: 'vikram',   date: '2026-08-31', amount: 2000 },
   ],
+  // Negative = he owed the farm at go-live. Straight off labour_master.
+  openings: {
+    harinder: -14346, vijay: 0, krishna: 0, phool: 0, bachan: -1790,
+    chotelal: -6003, deena: -20825, jhingur: -2125, kailash: -97,
+    darash: 4561, naresh: 2085, vikram: 3080,
+  },
   today: '2026-09-02',
 }
 
@@ -88,12 +96,25 @@ describe('settleWorkerMonth', () => {
       .toEqual({ earned: 5150, settled: 4000, pending: 1150 })
   })
 
+  test('a carried debt settles the wage — the Ram Bachan case', () => {
+    // Opened August owing ₹1,790, earned ₹11,000, handed ₹9,210. His wage paid
+    // the debt off: nothing is pending, and his khata is already right at +786.
+    expect(settleWorkerMonth({ earned: 11000, payments: 9210, carriedDebt: 1790 }))
+      .toEqual({ earned: 11000, settled: 11000, pending: 0 })
+  })
+
+  test('a carried CREDIT does not settle the wage', () => {
+    // Vikram was owed ₹3,080 before the app. That is a separate liability — it
+    // cannot pretend his August wage was paid.
+    expect(settleWorkerMonth({ earned: 5150, advances: 3500, carriedDebt: -3080 }).pending)
+      .toBe(1650)
+  })
+
   test('payments and advances add up', () => {
     expect(settleWorkerMonth({ earned: 5000, payments: 1000, advances: 2000 }).pending).toBe(2000)
   })
 
   test('a net recovery owes the wage again in full, never more', () => {
-    // Money given back is money owed again — but pending can never exceed earned.
     expect(settleWorkerMonth({ earned: 1200, advances: -5000 }))
       .toEqual({ earned: 1200, settled: 0, pending: 1200 })
   })
@@ -109,6 +130,95 @@ describe('settleWorkerMonth', () => {
   })
 })
 
+describe('workerMonthSettlements — the chronological walk', () => {
+  test("Ram Bachan: August closes at zero, September's wage is what is owed", () => {
+    const rows = workerMonthSettlements({
+      accrual:  [w('bachan', AUG, 11000), w('bachan', SEP, 786)],
+      payments: [{ labourerId: 'bachan', month: '2026-08', amount: 9210, type: 'salary' }],
+      openings: { bachan: -1790 },
+    })
+    expect(rows.find(r => r.month === '2026-08').pending).toBe(0)
+    expect(rows.find(r => r.month === '2026-09').pending).toBe(786)
+  })
+
+  test('an opening balance is consumed once, not re-applied every month', () => {
+    // The exact defect being fixed: the card charged Ram Bachan's ₹1,790 again
+    // in September and read "Worker owes ₹1,004" while the books said +₹786.
+    const rows = workerMonthSettlements({
+      accrual:  [w('x', AUG, 1000), w('x', SEP, 1000)],
+      payments: [{ labourerId: 'x', month: '2026-08', amount: 500, type: 'salary' }],
+      openings: { x: -500 },
+    })
+    expect(rows.map(r => r.pending)).toEqual([0, 1000])
+  })
+
+  test('a worker who owes the farm has nothing pending — Harinder', () => {
+    // He owes ₹13,632 all through; his wage reduces the debt rather than
+    // becoming cash the farm must hand over.
+    const rows = workerMonthSettlements({
+      accrual:  [w('harinder', AUG, 10000), w('harinder', SEP, 714)],
+      payments: [{ labourerId: 'harinder', month: '2026-08', amount: 10000, type: 'salary' }],
+      openings: { harinder: -14346 },
+    })
+    expect(rows.every(r => r.pending === 0)).toBe(true)
+  })
+
+  test('months are walked in date order however they arrive', () => {
+    const rows = workerMonthSettlements({
+      accrual: [w('x', SEP, 1000), w('x', AUG, 1000)],   // out of order on purpose
+      openings: { x: -1000 },
+    })
+    expect(rows.map(r => r.month)).toEqual(['2026-08', '2026-09'])
+    expect(rows.map(r => r.pending)).toEqual([0, 1000])
+  })
+
+  test('a missing opening is treated as zero', () => {
+    const rows = workerMonthSettlements({ accrual: [w('x', AUG, 500)] })
+    expect(rows[0].pending).toBe(500)
+  })
+})
+
+describe('balanceBeforeMonth — the card Opening bug', () => {
+  const RB = {
+    opening: -1790,
+    accrual:  [w('bachan', AUG, 11000), w('bachan', SEP, 786)],
+    payments: [{ labourerId: 'bachan', month: '2026-08', amount: 9210, type: 'salary' }],
+  }
+
+  test('August opens on his go-live figure', () => {
+    expect(balanceBeforeMonth({ ...RB, month: AUG })).toBe(-1790)
+  })
+
+  test('September opens at ZERO — August already cleared the ₹1,790', () => {
+    // The card read −1,790 here and so showed "Worker owes ₹1,004".
+    expect(balanceBeforeMonth({ ...RB, month: SEP })).toBe(0)
+  })
+
+  test('September closing then agrees with the books: farm owes ₹786', () => {
+    const open = balanceBeforeMonth({ ...RB, month: SEP })
+    expect(open + 786).toBe(786)
+  })
+
+  test('advances before the month reduce the opening', () => {
+    expect(balanceBeforeMonth({
+      month: SEP, opening: 0,
+      accrual: [w('x', AUG, 5000)],
+      advances: [{ labourerId: 'x', date: '2026-08-15', amount: 2000 }],
+    })).toBe(3000)
+  })
+
+  test('nothing before the month leaves the go-live figure untouched', () => {
+    expect(balanceBeforeMonth({ month: AUG, opening: 4561 })).toBe(4561)
+  })
+
+  test('an advance row is not counted as a salary payment', () => {
+    expect(balanceBeforeMonth({
+      month: SEP, opening: 0, accrual: [w('x', AUG, 1000)],
+      payments: [{ labourerId: 'x', month: '2026-08', amount: 1000, type: 'advance' }],
+    })).toBe(1000)
+  })
+})
+
 describe('salaryMonthRows — the live position', () => {
   const rows = salaryMonthRows({ ...LIVE, inPeriod })
 
@@ -116,40 +226,30 @@ describe('salaryMonthRows — the live position', () => {
     expect(rows.map(r => r.label)).toEqual(['Sep 2026', 'Aug 2026'])
   })
 
-  test('August: advances counted, so paid is 72,610 and pending 5,790', () => {
+  test('August: only Vikram and Ram Naresh are short — ₹2,650', () => {
     const aug = rows.find(r => r.month === '2026-08')
     expect(aug.earned).toBe(78400)
-    expect(aug.paid).toBe(72610)
-    expect(aug.pending).toBe(5790)
+    expect(aug.paid).toBe(75750)
+    expect(aug.pending).toBe(2650)
     expect(aug.workers).toBe(12)
   })
 
-  test('September is wholly pending — the month is still running', () => {
+  test('September: the four staff who are square are owed their days', () => {
     const sep = rows.find(r => r.month === '2026-09')
     expect(sep.earned).toBe(3679)
-    expect(sep.paid).toBe(0)
-    expect(sep.pending).toBe(3679)
+    expect(sep.pending).toBe(2965)   // Harinder's ₹714 is not owed — he owes the farm
+    expect(sep.paid).toBe(714)
   })
 
-  test('the header reads 82,079 earned · 72,610 paid · 9,469 pending', () => {
-    expect(salaryTotals(rows)).toEqual({ earned: 82079, paid: 72610, pending: 9469 })
+  test('the header reads 82,079 earned · 76,464 paid · 5,615 pending', () => {
+    expect(salaryTotals(rows)).toEqual({ earned: 82079, paid: 76464, pending: 5615 })
   })
 
-  test('NOT the old figures — this is the whole point of the change', () => {
+  test('none of the three wrong answers this file has given', () => {
     const { paid, pending } = salaryTotals(rows)
     expect(paid).not.toBe(49710)     // salary_payments alone
-    expect(pending).not.toBe(32369)  // the advances it used to hide
-  })
-
-  test('Ram Bachan still shows ₹1,790 pending, deliberately', () => {
-    // His old-dues deduction was never recorded anywhere. The figure is a
-    // prompt to record a real missing entry, not a display bug.
-    const one = salaryMonthRows({
-      accrual: [w('bachan', AUG, 11000)],
-      payments: [{ labourerId: 'bachan', month: '2026-08', amount: 9210, type: 'salary' }],
-      inPeriod, today: LIVE.today,
-    })
-    expect(one[0].pending).toBe(1790)
+    expect(pending).not.toBe(32369)  // the advances it hid
+    expect(pending).not.toBe(9469)   // ignoring carried debt
   })
 })
 
@@ -162,14 +262,13 @@ describe('invariants', () => {
   })
 
   test("one worker's surplus never reduces another's pending", () => {
-    // Deena +4,300 over-advanced, Vikram 1,650 short. Netting them at the group
-    // would show 0 pending; per worker-month it correctly shows Vikram's gap.
     const rows = salaryMonthRows({
       accrual: [w('deena', AUG, 4700), w('vikram', AUG, 5150)],
       advances: [
         { labourerId: 'deena',  date: '2026-08-15', amount: 9000 },
         { labourerId: 'vikram', date: '2026-08-15', amount: 3500 },
       ],
+      openings: { deena: -20825, vikram: 3080 },
       inPeriod, today: LIVE.today,
     })
     expect(rows[0].pending).toBe(1650)
@@ -208,11 +307,20 @@ describe('invariants', () => {
   })
 })
 
-describe('period filtering moves rows and figures together', () => {
+describe('period filtering', () => {
   test('a month view keeps only that month', () => {
     const rows = salaryMonthRows({ ...LIVE, inPeriod, period: '2026-08' })
     expect(rows).toHaveLength(1)
-    expect(salaryTotals(rows)).toEqual({ earned: 78400, paid: 72610, pending: 5790 })
+    expect(salaryTotals(rows)).toEqual({ earned: 78400, paid: 75750, pending: 2650 })
+  })
+
+  test('the walk still runs over ALL months, so September is not re-opened', () => {
+    // Filtered to September alone, Ram Bachan must still show ₹786 — not
+    // ₹1,004-worth of re-applied opening. The cashPockets lesson: annotate
+    // everything, then filter.
+    const rows = salaryMonthRows({ ...LIVE, inPeriod, period: '2026-09' })
+    expect(rows).toHaveLength(1)
+    expect(rows[0].pending).toBe(2965)
   })
 
   test('a month with no wages reports nothing rather than leaking all-time', () => {
