@@ -1,7 +1,30 @@
 # The Android back gesture, and how far we took it
 
 **Date:** 2026-08-26 · **Asked as:** *"Back swipe gesture should work on app. did u understood
-this?"* then *"is it needed for app?"*
+this?"* then *"is it needed for app?"* · **Reopened 2026-09-02:** *"phones backswipe isnt
+working even though i already asked you to fix this before"*
+
+## Why the 26 Aug fix never worked on the phone (fixed 2 Sep)
+
+The whole design below rests on one premise: *"the swipe reaches a web app as a plain history
+back."* That is true in a browser — and **false in this app's own APK**. The app ships as a
+Capacitor 8 shell, and Capacitor **core has no back handling at all** (verified in the
+installed `@capacitor/android` source: zero hits for `onBackPressed`/`OnBackInvoked` outside a
+Cordova mock). The goBack-into-the-WebView behaviour everyone assumes is implemented by the
+**`@capacitor/app` plugin — which was never installed** (only `app-launcher` and `status-bar`
+were). So on the phone the gesture fell through to the system default and closed the app from
+any screen; `backTrap.js` sat waiting for a `popstate` that could never arrive. The 26 Aug
+verification ran in desktop Chromium — the one environment that supplies the conversion layer
+the phone lacks — which is how a fix that "worked" shipped broken.
+
+**The fix (2 Sep):** `@capacitor/app@8.1.1` installed and synced into the android project, plus
+[`lib/nativeBack.js`](../frontend/src/lib/nativeBack.js) (4 tests, injected env like backTrap)
+registered once in `main.jsx`: `canGoBack → history.back()` (popstate fires, backTrap closes
+the top overlay, or the router walks back a page), `!canGoBack → App.minimizeApp()` (the
+plugin's own no-listener default swallows a root back outright — a dead swipe — so the listener
+is not optional). The plugin registers via `OnBackPressedDispatcher`, so it survives predictive
+back on targetSdk 36. **This half is NATIVE: it reaches a phone only inside a rebuilt APK,
+never via a Vercel deploy.** Any future change to it means rebuild + reinstall.
 
 ## What was broken
 

@@ -11,7 +11,31 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-02 (salary in the Ledger stopped pretending a wage is a bill — the Expenses tab reports Paid vs Pending month-wise with advances finally counted, and one button hands settlement to Manpower) · **detail:** [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-02, evening (the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just done (2 Sep, evening) — the phone's back swipe works, and why it never did.** His
+report: *"phones backswipe isnt working even though i already asked you to fix this before."*
+The 26 Aug fix was real JS but verified only in desktop Chromium, and its premise — "the swipe
+reaches a web app as a plain history back" — is **false inside the APK**: Capacitor core has NO
+back handling at all (verified in the installed `@capacitor/android` source); that behaviour
+lives in the **`@capacitor/app` plugin, which was never installed** (only app-launcher and
+status-bar were). So on the phone every swipe fell through to Android and closed the whole app,
+while `backTrap.js` waited for a popstate that could never arrive. Fixed:
+`@capacitor/app@8.1.1` installed and synced into `frontend/android`, and
+[`lib/nativeBack.js`](frontend/src/lib/nativeBack.js) (4 specs, **343 green**; injected env
+like backTrap) registered once in `main.jsx` — `canGoBack → history.back()` (popstate fires,
+backTrap closes the top overlay, else the router walks back a page), at the root →
+`minimizeApp()`, because the plugin's own no-listener default SWALLOWS a root back (a dead
+swipe), so the listener is not optional. **The catch, and it reverses the 26 Aug assumption:
+this half is NATIVE — it reaches a phone only inside a rebuilt APK, never via a Vercel
+deploy.** A fresh debug build with the plugin compiled in sits at
+`frontend/android/app/build/outputs/apk/debug/app-debug.apk` (2 Sep); **the owner installs it
+once**, then JS changes ride deploys as before. Any future native dep = rebuild + reinstall
+again. Gotcha worth keeping: `android/local.properties` (gitignored) must write `sdk.dir` with
+FORWARD slashes — Java-properties escaping silently mangles `C:\…` and gradle dies with
+"Invalid file path". Build recipe that works on this machine:
+`JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" ./gradlew assembleDebug` in
+`frontend/android`.
 
 **Just done (2 Sep) — the Ledger stopped calling a wage a bill.** He opened Expenses → Staff &
 Regular Salary and asked *"really 49k is paid out of 82k salaries?"*, then *"why it isnt showing
