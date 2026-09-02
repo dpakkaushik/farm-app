@@ -11,7 +11,12 @@ import { registerNativeBack } from './lib/nativeBack'
 // back — route it into history so backTrap can close overlays. No-op on web.
 registerNativeBack({
   isNative:    () => Capacitor.isNativePlatform(),
-  addListener: (event, fn) => CapacitorApp.addListener(event, fn),
+  addListener: (event, fn) => {
+    // Registration is async over the native bridge; if it ever fails the swipe
+    // would silently close the app again — make that loud enough to find.
+    CapacitorApp.addListener(event, fn)
+      .catch((err) => console.error('backButton listener failed to register', err))
+  },
   back:        () => window.history.back(),
   minimize:    () => CapacitorApp.minimizeApp(),
 })

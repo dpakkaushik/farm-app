@@ -35,7 +35,9 @@ again. Gotcha worth keeping: `android/local.properties` (gitignored) must write 
 FORWARD slashes — Java-properties escaping silently mangles `C:\…` and gradle dies with
 "Invalid file path". Build recipe that works on this machine:
 `JAVA_HOME="C:\Program Files\Android\Android Studio\jbr" ./gradlew assembleDebug` in
-`frontend/android`.
+`frontend/android`. Code-reviewed same day (approve, 0 critical/high); its one MEDIUM — the
+async listener registration could fail silently — is closed with a logging `.catch` in
+`main.jsx` (JS-only, rides Vercel, the built APK stays valid).
 
 **Just done (2 Sep) — the Ledger stopped calling a wage a bill.** He opened Expenses → Staff &
 Regular Salary and asked *"really 49k is paid out of 82k salaries?"*, then *"why it isnt showing
