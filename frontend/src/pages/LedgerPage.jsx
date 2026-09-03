@@ -21,6 +21,7 @@ import {
   monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,
 } from '../lib/billSettlement'
 import { buildVendorWorkbook } from '../lib/vendorWorkbook'
+import { pnlPosition, pendingExpected } from '../lib/pnlHeadline'
 import SelectField from '../components/SelectField'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -2505,10 +2506,59 @@ function MarginPill({ actualPct, expectedPct, isActual }) {
   )
 }
 
-function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cropPnl, isMonthView = false }) {
-  const net = totalIncome - totalExpenses
+// One line of a report: what it is, how it did, and the figures behind it in a
+// fused breakdown grid — the house style for a breakdown INSIDE a card. It
+// replaced a 4-column table that could not fit "Est. Revenue" and "Actual
+// Revenue" side by side on a phone (owner, 3 Sep: "the cards for reports should
+// be better designed for clarity").
+function ReportRow({ title, sub, right, cells }) {
+  return (
+    <div className="px-3 py-3 border-b last:border-b-0" style={{ borderColor: 'var(--c-border)' }}>
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--c-text)' }}>{title}</div>
+          {sub && <div className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>{sub}</div>}
+        </div>
+        {right}
+      </div>
+      <div className="grid gap-px rounded-lg overflow-hidden"
+        style={{ background: 'var(--c-border)', gridTemplateColumns: `repeat(${cells.length}, minmax(0,1fr))` }}>
+        {cells.map(c => (
+          // The label box is two lines tall whether or not the label needs both,
+          // so "Actual Revenue" wrapping cannot drop its figure below the others.
+          <div key={c.label} className="px-2 py-1.5 text-center" style={{ background: 'var(--c-ghost)' }}>
+            <div className="text-[11px] leading-tight min-h-[26px] flex items-center justify-center"
+              style={{ color: 'var(--c-faint)' }}>{c.label}</div>
+            <div className="text-[13px] font-bold leading-tight whitespace-nowrap"
+              style={{ color: c.tone || 'var(--c-text)' }}>{c.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const ReportCard = ({ title, note, children }) => (
+  <Card className="p-0">
+    <div className="px-3 pt-3 pb-2">
+      <div className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>{title}</div>
+      {note && <div className="text-[11px] mt-0.5" style={{ color: 'var(--c-faint)' }}>{note}</div>}
+    </div>
+    <div className="border-t" style={{ borderColor: 'var(--c-border)' }}>{children}</div>
+  </Card>
+)
+
+// Exported for the dev-only /uikit harness — this tab is pure props, so it can
+// be drawn there without a session. Keep it that way.
+export function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cropPnl, isMonthView = false }) {
   const cropMerged = mergeByCrop(cropPnl)
   const animalPnl  = livestockPnl.filter(row => !isPet(row))
+  // A shortfall is only a LOSS when there is nothing left to sell — see
+  // lib/pnlHeadline.js. Standing cane and paddy are money in the ground.
+  const position = pnlPosition({
+    income: totalIncome, expenses: totalExpenses, expectedAhead: pendingExpected(cropPnl),
+  })
+  const POS_TONE = { good: '#8A9A5B', bad: '#E24B4A', neutral: 'var(--c-text)' }
   return (
     <div className="flex flex-col gap-3 pt-3">
       {/* Under a month, the crop tables are absent on purpose — say why, or
@@ -2521,141 +2571,92 @@ function PnlTab({ totalIncome, totalExpenses, openingCost = 0, livestockPnl, cro
           FY views.
         </div>
       )}
-      {/* One line, not a card: the Summary already carries these three numbers.
-          This tab's value is the breakdown — which crop, which animal. */}
-      <div className="flex items-center justify-between px-1">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[13px]" style={{ color: 'var(--c-faint)' }}>
-            {fmt(totalIncome)} in · {fmt(totalExpenses)} out
+      {/* One line, not a card: the Summary already carries these numbers. This
+          tab's value is the breakdown — which crop, which plot, which animal. */}
+      <div className="flex items-end justify-between gap-3 px-1">
+        <div className="min-w-0">
+          <span className="text-[13px]" style={{ color: 'var(--c-sub)' }}>
+            {fmt(totalExpenses)} spent · {fmt(totalIncome)} earned
           </span>
-          {/* Names the reconciliation outright. Without it the "out" figure and
+          {/* Names the reconciliation outright. Without it the "spent" figure and
               the crop cost below it look like two rival answers. */}
           {openingCost > 0 && (
-            <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
-              of which {fmt(openingCost)} spent before the app — the opening cost carried in the crop rows below
-            </span>
+            <div className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
+              incl. {fmt(openingCost)} spent before the app
+            </div>
           )}
         </div>
-        <span className="text-xs font-bold" style={{ color: net >= 0 ? '#8A9A5B' : '#E24B4A' }}>
-          Net {net >= 0 ? 'Profit' : 'Loss'} {fmt(Math.abs(net))}
-        </span>
+        <div className="text-right shrink-0">
+          <div className="text-[11px]" style={{ color: 'var(--c-faint)' }}>{position.label}</div>
+          <div className="text-sm font-bold" style={{ color: POS_TONE[position.tone] }}>
+            {fmt(position.amount)}
+          </div>
+        </div>
       </div>
 
-      {/* Livestock P&L — pets dropped. v_livestock_pnl reports every animal, but a
-          pet has no revenue side, so its row can only ever read as a loss the
+      {/* Crops first, then plots, then livestock — this is a farm app, and the
+          crop is the business (owner, 3 Sep). */}
+      {cropMerged.length > 0 && (
+        <ReportCard title="Crop P&L" note="Every plot of a crop, added together">
+          {cropMerged.map((row) => {
+            const isActual = row.revenue > 0
+            const rev      = isActual ? row.revenue : row.expected
+            const pct      = rev > 0 ? Math.round((rev - row.cost) / rev * 1000) / 10 : 0
+            return (
+              <ReportRow key={row.crop}
+                title={row.crop}
+                sub={`${row.cycles} plot${row.cycles !== 1 ? 's' : ''} · ${row.acres} ac`}
+                right={<MarginPill actualPct={pct} expectedPct={pct} isActual={isActual} />}
+                cells={[
+                  { label: 'Cost',           value: fmt(row.cost),     tone: '#E24B4A' },
+                  { label: 'Est. Revenue',   value: fmt(row.expected) },
+                  { label: 'Actual Revenue', value: fmt(row.revenue),  tone: isActual ? '#8A9A5B' : 'var(--c-faint)' },
+                ]} />
+            )
+          })}
+        </ReportCard>
+      )}
+
+      {cropPnl.length > 0 && (
+        <ReportCard title="Plot-wise P&L" note="Each plot's own cycle">
+          {cropPnl.map((row, i) => {
+            const isActual = Number(row.revenue) > 0
+            return (
+              <ReportRow key={i}
+                title={row.plot_name}
+                sub={`${row.crop_name} · ${row.season}`}
+                right={<MarginPill actualPct={row.margin_pct} expectedPct={row.expected_margin_pct}
+                  isActual={isActual} />}
+                cells={[
+                  { label: 'Cost',           value: fmt(row.total_cost),      tone: '#E24B4A' },
+                  { label: 'Est. Revenue',   value: fmt(row.expected_revenue) },
+                  { label: 'Actual Revenue', value: fmt(row.revenue),         tone: isActual ? '#8A9A5B' : 'var(--c-faint)' },
+                ]} />
+            )
+          })}
+        </ReportCard>
+      )}
+
+      {/* Livestock last — pets dropped. v_livestock_pnl reports every animal, but
+          a pet has no revenue side, so its row can only ever read as a loss the
           size of its upkeep. Its cost still counts in the totals above; the
           running figure lives on the pet's card under Livestock → Pets. */}
       {animalPnl.length > 0 && (
-        <Card className="p-0">
-          <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-            Livestock — Individual P&L
-          </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                {['Animal','Cost','Revenue','Profit/Loss'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {animalPnl.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                  <td className="px-3 py-2">
-                    <div className="font-medium" style={{ color: 'var(--c-text)' }}>{row.animal_name || '—'}</div>
-                    <div className="text-[11px]" style={{ color: 'var(--c-faint)' }}>{row.species}</div>
-                  </td>
-                  <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.total_cost)}</td>
-                  <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>{fmt(row.total_revenue)}</td>
-                  <td className="px-3 py-2 font-bold"
-                    style={{ color: Number(row.profit_loss) >= 0 ? '#8A9A5B' : '#E24B4A' }}>
-                    {fmt(Math.abs(row.profit_loss))}
-                    {Number(row.profit_loss) < 0 ? ' ▼' : ' ▲'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
-
-      {/* Crop P&L — merged at crop level across plots */}
-      {cropMerged.length > 0 && (
-        <Card className="p-0">
-          <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-            Crops — P&L (all plots merged)
-          </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                {['Crop','Cost','Revenue','Margin'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cropMerged.map((row) => {
-                const isActual = row.revenue > 0
-                const rev      = isActual ? row.revenue : row.expected
-                const pct      = rev > 0 ? Math.round((rev - row.cost) / rev * 1000) / 10 : 0
-                return (
-                  <tr key={row.crop} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                    <td className="px-3 py-2">
-                      <div className="font-medium" style={{ color: 'var(--c-text)' }}>{row.crop}</div>
-                      <div className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
-                        {row.cycles} plot{row.cycles !== 1 ? 's' : ''} · {row.acres} ac
-                      </div>
-                    </td>
-                    <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.cost)}</td>
-                    <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>
-                      {fmt(rev)}
-                      {!isActual && <span className="text-[11px]" style={{ color: 'var(--c-faint)' }}> est.</span>}
-                    </td>
-                    <td className="px-3 py-2">
-                      <MarginPill actualPct={pct} expectedPct={pct} isActual={isActual} />
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </Card>
-      )}
-
-      {/* Crop P&L — per cycle (plot) */}
-      {cropPnl.length > 0 && (
-        <Card className="p-0">
-          <div className="px-4 pt-3 pb-2 text-xs font-semibold" style={{ color: 'var(--c-text)' }}>
-            Crop Cycles — P&L (per plot)
-          </div>
-          <table className="w-full text-xs">
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                {['Plot / Crop','Cost','Revenue','Margin'].map(h => (
-                  <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cropPnl.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                  <td className="px-3 py-2">
-                    <div className="font-medium" style={{ color: 'var(--c-text)' }}>{row.plot_name}</div>
-                    <div className="text-[11px]" style={{ color: 'var(--c-faint)' }}>
-                      {row.crop_name} · {row.season}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2" style={{ color: '#E24B4A' }}>{fmt(row.total_cost)}</td>
-                  <td className="px-3 py-2" style={{ color: '#8A9A5B' }}>{fmt(row.revenue)}</td>
-                  <td className="px-3 py-2">
-                    <MarginPill actualPct={row.margin_pct} expectedPct={row.expected_margin_pct}
-                      isActual={Number(row.revenue) > 0} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <ReportCard title="Livestock P&L" note="Per animal">
+          {animalPnl.map((row, i) => {
+            const pl = Number(row.profit_loss)
+            return (
+              <ReportRow key={i}
+                title={row.animal_name || '—'}
+                sub={row.species}
+                cells={[
+                  { label: 'Cost',    value: fmt(row.total_cost),    tone: '#E24B4A' },
+                  { label: 'Revenue', value: fmt(row.total_revenue), tone: Number(row.total_revenue) > 0 ? '#8A9A5B' : 'var(--c-faint)' },
+                  { label: pl >= 0 ? 'Profit' : 'Loss', value: fmt(Math.abs(pl)), tone: pl >= 0 ? '#8A9A5B' : '#E24B4A' },
+                ]} />
+            )
+          })}
+        </ReportCard>
       )}
 
       {animalPnl.length === 0 && cropPnl.length === 0 && (

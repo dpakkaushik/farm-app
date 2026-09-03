@@ -12,6 +12,7 @@ import Today from './Today'
 import Harvest from './Harvest'
 import ResourcesPage from './ResourcesPage'
 import Media from './Media'
+import { PnlTab } from './LedgerPage'
 
 // ── DEV-ONLY visual harness (/uikit) ────────────────────────────────────────
 // Not reachable in a production build (App.jsx gates it on import.meta.env.DEV).
@@ -150,11 +151,31 @@ const AUTH = {
   activeFarm:   { farm_id: 'f1', role: 'admin', name: 'Pallia Farm' },
 }
 
+// The Ledger's P&L tab is pure props, so it draws here with no session at all —
+// figures are the owner's real ones (3 Sep), which is what makes the layout
+// worth looking at: ₹25L revenue strings are the widest this screen ever shows.
+const PnlDemo = () => (
+  <div className="h-full overflow-y-auto px-4 pb-8">
+    <PnlTab
+      totalIncome={0} totalExpenses={1627352} openingCost={1353366}
+      cropPnl={[
+        { plot_name: 'Plot O',  crop_name: 'Paddy',     season: 'kharif_2026', total_cost: 18539,  revenue: 0, expected_revenue: 50200,  margin_pct: 0, expected_margin_pct: 63.1 },
+        { plot_name: 'Plot E1', crop_name: 'Sugarcane', season: 'kharif_2025', total_cost: 159109, revenue: 0, expected_revenue: 2516150, margin_pct: 0, expected_margin_pct: 79.9 },
+        { plot_name: 'Plot H',  crop_name: 'Paddy',     season: 'kharif_2026', total_cost: 525868, revenue: 1332950, expected_revenue: 1332950, margin_pct: 60.5, expected_margin_pct: 59.2 },
+      ]}
+      livestockPnl={[
+        { animal_name: 'Ganga', species: 'cow', total_cost: 0, total_revenue: 0, profit_loss: 0 },
+        { animal_name: 'Broiler — Batch 1', species: 'poultry', total_cost: 5116, total_revenue: 0, profit_loss: -5116 },
+      ]} />
+  </div>
+)
+
 const SCREENS = {
   today:     { label: 'Today',     Component: Today },
   harvest:   { label: 'Harvest',   Component: Harvest },
   resources: { label: 'Resources', Component: ResourcesPage },
   media:     { label: 'Media',     Component: Media },
+  pnl:       { label: 'P&L',       Component: PnlDemo },
 }
 
 export default function UiKit() {

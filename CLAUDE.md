@@ -11,9 +11,31 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-03 (every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-03 (the P&L tab stopped calling a standing crop a loss, and reads crops-first; every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (3 Sep) — every dropdown in the app is now the app's OWN sheet.** His report, with
+**Just done (3 Sep, 2nd) — the P&L tab stopped calling a standing crop a LOSS.** His four
+points, all shipped. **(1) Order is crops-first:** Crop P&L → Plot-wise P&L → Livestock. *"it is
+mainly a farm app, livestock shouldnt be at top."* **(2) The headline was wrong, not just
+wordy** — it read **"Net Loss ₹16,27,352"** while every rupee of it sits in cane and paddy that
+have not been sold. *"showing Loss as such isnt good or say right."* New
+[`lib/pnlHeadline.js`](frontend/src/lib/pnlHeadline.js) (**8 specs, 361 green**): a shortfall is
+a **loss only when nothing is left to sell**; while cycles stand it is **"Yet to recover"** in
+neutral, not red. `pnlPosition({income, expenses, expectedAhead})` → profit / invested / loss,
+`expectedAhead` from `pendingExpected(cropPnl)` (unsold cycles' `expected_revenue`; a sold
+cycle is excluded — its money is already income). **This does NOT offset or hide the gap**, the
+CLAUDE.md rule stands; it names it correctly. Strip is shorter too: `₹16,27,352 spent · ₹0
+earned` over `incl. ₹13,53,366 spent before the app`. **(3) Both revenue columns are named:**
+every crop row now shows **Cost · Est. Revenue · Actual Revenue** as headed cells — the old
+table appended a grey "est." to one figure and could not fit two. Titles are **"Crop P&L"**
+(the "(all plots merged)" is a note beneath) and **"Plot-wise P&L"** (was "Crop Cycles — P&L
+(per plot)"). **(4) The cramped 4-column tables are gone:** a row is now name + margin pill
+above a **fused `gap-px` breakdown grid** — the house style for a breakdown INSIDE a card. The
+label box is a fixed two lines tall so "Actual Revenue" wrapping cannot drop its figure below
+its neighbours (it did on the first cut). **Verified in a 360px Chromium** — no cell overflows,
+no sideways scroll, no page errors — because **`PnlTab` is now exported and drawn in `/uikit`
+(new "P&L" tab)**: it takes pure props, so it needs no session. **Keep it props-only.**
+
+**Also done (3 Sep) — every dropdown in the app is now the app's OWN sheet.** His report, with
 a screenshot of the Ledger's View control: *"the drop down opens as a separate window instead of
 a simple drop down … same happening at other places as well."* Cause, and it was never a bug in
 our code: **Android draws a native `<select>`'s option list itself**, as a system dialog in the
