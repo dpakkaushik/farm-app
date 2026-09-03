@@ -655,18 +655,16 @@ function TodayBoard() {
                 <label className="text-xs font-semibold text-[var(--c-sub)] uppercase tracking-wide block mb-2">
                   Activity Type
                 </label>
-                <div className="relative">
-                  <SelectField value={actType} onChange={e => changeActType(e.target.value)}
-                    className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
-                    style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
-                    {activityTypes.map(t => (
-                      <option key={t.name} value={t.name} style={{ background: 'var(--c-surface)' }}>
-                        {t.emoji}  {t.label}
-                      </option>
-                    ))}
-                  </SelectField>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
-                </div>
+                <SelectField value={actType} onChange={e => changeActType(e.target.value)}
+                  title="Activity type"
+                  className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none border"
+                  style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                  {activityTypes.map(t => (
+                    <option key={t.name} value={t.name} style={{ background: 'var(--c-surface)' }}>
+                      {t.emoji}  {t.label}
+                    </option>
+                  ))}
+                </SelectField>
               </div>
 
               {/* Driver + Tractor — ploughing only */}
@@ -679,17 +677,15 @@ function TodayBoard() {
                         Driver
                       </span>
                     </label>
-                    <div className="relative">
-                      <SelectField value={selDriver} onChange={e => setSelDriver(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
-                        style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
-                        <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
-                        {drivers.map(d => (
-                          <option key={d.id} value={d.id} style={{ background: 'var(--c-surface)' }}>{d.name}</option>
-                        ))}
-                      </SelectField>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
-                    </div>
+                    <SelectField value={selDriver} onChange={e => setSelDriver(e.target.value)}
+                      title="Driver"
+                      className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none border"
+                      style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                      <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id} style={{ background: 'var(--c-surface)' }}>{d.name}</option>
+                      ))}
+                    </SelectField>
                   </div>
 
                   <div>
@@ -699,17 +695,15 @@ function TodayBoard() {
                         Tractor
                       </span>
                     </label>
-                    <div className="relative">
-                      <SelectField value={selMachinery} onChange={e => setSelMachinery(e.target.value)}
-                        className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
-                        style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
-                        <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
-                        {tractors.map(t => (
-                          <option key={t.id} value={t.id} style={{ background: 'var(--c-surface)' }}>{t.label}</option>
-                        ))}
-                      </SelectField>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
-                    </div>
+                    <SelectField value={selMachinery} onChange={e => setSelMachinery(e.target.value)}
+                      title="Tractor"
+                      className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none border"
+                      style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
+                      <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
+                      {tractors.map(t => (
+                        <option key={t.id} value={t.id} style={{ background: 'var(--c-surface)' }}>{t.label}</option>
+                      ))}
+                    </SelectField>
                   </div>
                 </div>
               )}
