@@ -11,9 +11,39 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-03 (the P&L tab stopped calling a standing crop a loss, and reads crops-first; every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-03 (Money Out stopped explaining and started doing — one Pay button per group, no paragraphs; the P&L tab stopped calling a standing crop a loss, and reads crops-first; every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (3 Sep, 2nd) — the P&L tab stopped calling a standing crop a LOSS.** His four
+**Just done (3 Sep, 3rd) — Money Out stopped explaining and started doing.** *"there should be a
+pay button only, it will redirect user to the right place — why so much unnecesay explanation?
+… such unneccesary details are every where in app, remove such details from everywhere, keep a
+standard approch."* Deleted: the four `GROUP_HINTS` sentences, the paragraph under the salary
+button, the per-row "Pay in Party Ledger →" link (every row pointed at the same screen), and
+the three-line "Spent before the app" paragraph (now one line — *Already settled · not
+payable* — answering the only question that card raises, why it has no Pay button). The rule
+they described is now **the button**: `PayDoor`, one per group settled elsewhere
+(`GROUP_PAY_DOOR`), at the foot of its entries. Also fixed, both real defects he could see: the
+card printed the **raw column name `vendor_purchase`** (missing from `CATEGORY_LABELS`), and
+**"Purchase from" led every row** — stripped by `cleanDescription`
+([`lib/expenseRows.js`](frontend/src/lib/expenseRows.js), 7 specs, **368 green**), because under
+a group named Vendor Purchases those words identify nothing and the vendor does. **The expanded
+4-column table is now a list** — name leads with a chevron, `date · Bill #x · N items` beneath
+(bill/count moved OUT of the description into `row.meta`), amount and status right; on a 360px
+phone that table gave the description ~90px and wrapped "New Ankur · Bill #4703" over **five
+lines**. `BillLines`/`LabourLines` are blocks, not `<tr>`s, and "1 entries" reads "1 entry".
+Verified in a 360px Chromium over a **new `/uikit` Money Out screen** (`ExpensesTab` exported,
+pure props like `PnlTab`): vendor leads, tapping it reveals the bill's items, no sideways
+scroll, no page errors.
+**THE STANDARD, since he asked for one — a line of UI text earns its place only if it says
+something the screen cannot show.** Delete it when a button can do the job (redirects), when it
+restates the heading above it, or when it explains a rule the layout already implies. **Keep it
+in exactly three cases**, all still live and all deliberate: a **sign convention** ("positive =
+farm owes them, negative = they owe farm" — remove it and the data goes in wrong), an
+**irreversible act** ("after closing, no more supplies can be logged"), and a **non-obvious
+gesture** ("tap a day to cycle · Sunday tap marks present"). Audited the rest of the app after
+this fix: the remaining long strings are those three classes, wizard steps, empty states and
+user-typed notes — the Ledger was the offender.
+
+**Also done (3 Sep, 2nd) — the P&L tab stopped calling a standing crop a LOSS.** His four
 points, all shipped. **(1) Order is crops-first:** Crop P&L → Plot-wise P&L → Livestock. *"it is
 mainly a farm app, livestock shouldnt be at top."* **(2) The headline was wrong, not just
 wordy** — it read **"Net Loss ₹16,27,352"** while every rupee of it sits in cane and paddy that
