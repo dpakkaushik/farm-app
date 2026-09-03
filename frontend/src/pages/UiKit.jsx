@@ -12,7 +12,7 @@ import Today from './Today'
 import Harvest from './Harvest'
 import ResourcesPage from './ResourcesPage'
 import Media from './Media'
-import { PnlTab } from './LedgerPage'
+import { PnlTab, ExpensesTab } from './LedgerPage'
 
 // ── DEV-ONLY visual harness (/uikit) ────────────────────────────────────────
 // Not reachable in a production build (App.jsx gates it on import.meta.env.DEV).
@@ -170,12 +170,38 @@ const PnlDemo = () => (
   </div>
 )
 
+// Money Out, with the shapes that actually caused trouble: a vendor bill whose
+// description arrives as "Purchase from …", and a group settled elsewhere.
+const MoneyOutDemo = () => (
+  <div className="h-full overflow-y-auto px-4 pb-8">
+    <ExpensesTab
+      openingCost={1353366}
+      canPay
+      onGoVendors={() => {}} onGoSalary={() => {}} onPayRow={() => {}}
+      vendorPayments={[]}
+      purchases={[
+        { id: 'p1', billNo: '4703', invoiceNo: '4703', billDate: '2026-08-08', itemId: 'i1', qty: 2, rate: 900, amount: 1800 },
+        { id: 'p2', billNo: '4703', invoiceNo: '4703', billDate: '2026-08-08', itemId: 'i2', qty: 1, rate: 700, amount: 700 },
+      ]}
+      inventoryMaster={[{ id: 'i1', name: 'Urea', unit: 'bag' }, { id: 'i2', name: 'DAP', unit: 'bag' }]}
+      labourLogs={[]}
+      salaryRows={[{ month: '2026-08', label: 'Aug 2026', workers: 9, earned: 78400, paid: 75750, pending: 2650 }]}
+      expenseLedger={[
+        { id: 'p1', entry_date: '2026-08-08', description: 'Purchase from New Ankur', amount: 1800, expense_type: 'vendor_purchase', is_paid: false },
+        { id: 'p2', entry_date: '2026-08-08', description: 'Purchase from New Ankur', amount: 700,  expense_type: 'vendor_purchase', is_paid: false },
+        { id: 'e1', entry_date: '2026-08-20', description: 'Diesel for tractor',      amount: 2400, expense_type: 'farm_expense', category: 'farm_expense', is_paid: true, paid_date: '2026-08-20', payment_mode: 'cash' },
+        { id: 'e2', entry_date: '2026-08-24', description: 'Medicine',                amount: 900,  expense_type: 'farm_expense', category: 'farm_expense', is_paid: false },
+      ]} />
+  </div>
+)
+
 const SCREENS = {
   today:     { label: 'Today',     Component: Today },
   harvest:   { label: 'Harvest',   Component: Harvest },
   resources: { label: 'Resources', Component: ResourcesPage },
   media:     { label: 'Media',     Component: Media },
   pnl:       { label: 'P&L',       Component: PnlDemo },
+  moneyout:  { label: 'Money Out', Component: MoneyOutDemo },
 }
 
 export default function UiKit() {

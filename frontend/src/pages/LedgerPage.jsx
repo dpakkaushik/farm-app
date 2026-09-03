@@ -22,6 +22,7 @@ import {
 } from '../lib/billSettlement'
 import { buildVendorWorkbook } from '../lib/vendorWorkbook'
 import { pnlPosition, pendingExpected } from '../lib/pnlHeadline'
+import { cleanDescription } from '../lib/expenseRows'
 import SelectField from '../components/SelectField'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -65,6 +66,7 @@ const CATEGORY_LABELS = {
   labour:            'Outside Labour (Daily)',
   salary:            'Staff & Regular Salary',
   inventory_purchase:'Inventory Purchase',
+  vendor_purchase:   'Vendor Purchases',
   capital_purchase:  'Small Tools & Equipment',
   small_equipment:   'Small Tools & Equipment',
   farm_expense:      'General Expenses',
@@ -1253,10 +1255,10 @@ function purchasesAsBillRows(lines, vendorName) {
 }
 
 // The granular level: what the bill was actually made of.
-function BillLines({ items, inventoryMaster, colSpan }) {
+function BillLines({ items, inventoryMaster }) {
   return (
-    <tr style={{ background: 'var(--c-ghost)' }}>
-      <td colSpan={colSpan} className="px-3 py-1.5">
+    <div className="rounded-lg mt-2" style={{ background: 'var(--c-ghost)' }}>
+      <div className="px-3 py-1.5">
         {items.map(p => {
           const item = inventoryMaster.find(i => i.id === p.itemId)
           return (
@@ -1274,8 +1276,8 @@ function BillLines({ items, inventoryMaster, colSpan }) {
             </div>
           )
         })}
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
@@ -1287,10 +1289,10 @@ function BillLines({ items, inventoryMaster, colSpan }) {
 // row of the ₹6,520 job stores the whole 163 tanks; printed beside a ₹1,157 share
 // it reads as a contradiction. It belongs on the grouped line above, and does
 // appear there.
-function LabourLines({ items, colSpan }) {
+function LabourLines({ items }) {
   return (
-    <tr style={{ background: 'var(--c-ghost)' }}>
-      <td colSpan={colSpan} className="px-3 py-1.5">
+    <div className="rounded-lg mt-2" style={{ background: 'var(--c-ghost)' }}>
+      <div className="px-3 py-1.5">
         {items.map(i => (
           <div key={i.id} className="flex items-center gap-2 py-0.5">
             <span className="text-[12px] flex-1 min-w-0 truncate" style={{ color: 'var(--c-text)' }}>
@@ -1301,22 +1303,23 @@ function LabourLines({ items, colSpan }) {
             </span>
           </div>
         ))}
-        <div className="text-[11px] pt-1 mt-0.5 italic" style={{
+        <div className="text-[11px] pt-1 mt-0.5" style={{
           color: 'var(--c-faint)', borderTop: '0.5px solid var(--c-border)' }}>
-          One job, split across plots so each crop carries its own cost. Paid once.
+          One job, split across plots. Paid once.
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   )
 }
 
 // A particulars cell that opens its bill's line items, when it has any.
 function Particulars({ row, isOpen, onToggle }) {
-  if (!row.items?.length) return <>{row.particulars || row.description}</>
+  const text = cleanDescription(row.particulars || row.description)
+  if (!row.items?.length) return <>{text}</>
   return (
     <button onClick={onToggle} className="flex items-center gap-1 text-left"
       style={{ color: 'inherit', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}>
-      <span>{row.particulars || row.description}</span>
+      <span>{text}</span>
       <ChevronDown size={11} style={{
         color: 'var(--c-faint)', flexShrink: 0,
         transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s',
@@ -2186,11 +2189,15 @@ function BuyerReceiptModal({ buyer, onClose, onSave }) {
 // One rule decides where anything is paid: whoever has a khata is settled in the
 // khata (vendors → Party Ledger, staff/regular workers → Labour → Salary); only
 // khata-less entries (outside labour, general expenses) are paid on the row here.
-const GROUP_HINTS = {
-  vendor_purchase: 'Settled against the vendor khata in Party Ledger',
-  capital_purchase:'Machines and assets under the farm’s capital threshold — expensed in the month bought. Anything above it is capital and is not in this list.',
-  salary:          'Wages earned by staff & regular workers — settled in Labour → Salary',
-  labour:          'Outside workers with no khata — settle each entry here',
+//
+// That rule used to be written out as a sentence under every group heading, and
+// on each vendor row as well. The owner, 3 Sep: "there should be a pay button
+// only, it will redirect user to the right place — why so much unnecesay
+// explanation?" So the sentences are gone and the rule is expressed as the
+// button itself: one door per group, at the foot of the entries it settles.
+const GROUP_PAY_DOOR = {
+  vendor_purchase: 'Pay in Party Ledger',
+  salary:          'Pay in Manpower → Salary',
 }
 
 // v_expense_ledger reports inventory purchases one row per line item — the same
@@ -2214,10 +2221,12 @@ function collapseBills(rows, purchaseById) {
     g.amount += Number(row.amount || 0)
     g.items.push(p)
   }
+  // Bill number and item count are the row's SECOND line, not part of its name.
+  // Appended to the description they buried the only word that identifies the
+  // entry — the vendor — under a five-line wrap on a phone.
   for (const g of byBill.values()) {
-    g.description = g.description
-      + (g.invoiceNo ? ` · Bill #${g.invoiceNo}` : '')
-      + ` — ${itemCount(g.items.length)}`
+    g.meta = [g.invoiceNo ? `Bill #${g.invoiceNo}` : '', itemCount(g.items.length)]
+      .filter(Boolean).join(' · ')
   }
   return out
 }
@@ -2257,22 +2266,25 @@ function SalaryMonths({ rows, onGoSalary }) {
         </tbody>
       </table>
 
-      <div className="px-3 py-3">
-        <button onClick={onGoSalary}
-          className="w-full py-2.5 rounded-xl text-[12px] font-semibold"
-          style={{ background: '#8A9A5B', color: '#fff', border: 'none', cursor: 'pointer' }}>
-          Open Manpower → Salary  →
-        </button>
-        <p className="text-[11px] mt-1.5 text-center" style={{ color: 'var(--c-faint)' }}>
-          Payments, advances and each worker's khata live there — including the
-          month's staff-balance report.
-        </p>
-      </div>
+      <PayDoor label={GROUP_PAY_DOOR.salary} onClick={onGoSalary} />
     </div>
   )
 }
 
-function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
+// The one door out of a group that is settled somewhere else. It replaced a
+// sentence explaining where to go and a repeated per-row link saying the same.
+const PayDoor = ({ label, onClick }) => (
+  <div className="px-3 py-3">
+    <button onClick={onClick}
+      className="w-full py-2.5 rounded-xl text-[13px] font-semibold"
+      style={{ background: '#8A9A5B', color: '#fff', border: 'none', cursor: 'pointer' }}>
+      {label} →
+    </button>
+  </div>
+)
+
+// Exported for the dev-only /uikit harness — pure props, like PnlTab.
+export function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
                        canPay = false, onPayRow, onGoVendors, onGoSalary,
                        purchases = [], inventoryMaster = [], labourLogs = [],
                        openingCost = 0 }) {
@@ -2338,10 +2350,10 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
               <div className="text-xs font-medium" style={{ color: 'var(--c-text)' }}>
                 Spent before the app
               </div>
+              {/* One line, not a paragraph. It earns its place by answering the
+                  only question the row raises — why there is no Pay button. */}
               <div className="text-[12px] mt-0.5" style={{ color: 'var(--c-faint)' }}>
-                Crop cost carried in from your own records. Counted in the P&amp;L,
-                but not payable and not in the Cash Book — it was already settled
-                when the opening balances were set.
+                Already settled · not payable
               </div>
             </div>
             <div className="text-xs font-bold shrink-0" style={{ color: '#E24B4A' }}>
@@ -2372,13 +2384,8 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
                 <span className="text-[12px]" style={{ color: 'var(--c-faint)' }}>
                   {entries.length} {key === 'salary'
                     ? (entries.length === 1 ? 'month' : 'months')
-                    : 'entries'} · Pending: {fmt(pending)}
+                    : (entries.length === 1 ? 'entry' : 'entries')} · Pending {fmt(pending)}
                 </span>
-                {GROUP_HINTS[key] && (
-                  <span className="text-[11px] italic" style={{ color: 'var(--c-faint)' }}>
-                    {GROUP_HINTS[key]}
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right">
@@ -2397,64 +2404,90 @@ function ExpensesTab({ expenseLedger, vendorPayments = [], salaryRows = [],
               <SalaryMonths rows={entries} onGoSalary={onGoSalary} />
             )}
 
+            {/* A list, not a 4-column table. On a 360px phone that table gave
+                the description ~90px and wrapped "New Ankur · Bill #4703" over
+                five lines (owner, 3 Sep: "when expanded the look isnt good").
+                The name leads; date, bill and item count sit under it. */}
             {isOpen && key !== 'salary' && (
               <div style={{ borderTop: '0.5px solid var(--c-border)' }}>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                      {['Date','Description','Amount','Status'].map(h => (
-                        <th key={h} className="px-3 py-2 text-left font-medium" style={{ color: 'var(--c-faint)' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.slice(0, 20).map((row, i) => (
-                      <React.Fragment key={row.key || i}>
-                      <tr style={{ borderBottom: '0.5px solid var(--c-border)' }}>
-                        <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--c-faint)' }}>{fmtDate(row.entry_date)}</td>
-                        <td className="px-3 py-2" style={{ color: 'var(--c-text)' }}>
-                          <Particulars row={row} isOpen={!!openRows[row.key]}
-                            onToggle={() => toggleRow(row.key)} />
-                        </td>
-                        <td className="px-3 py-2 font-medium" style={{ color: 'var(--c-text)' }}>{fmt(row.amount)}</td>
-                        <td className="px-3 py-2">
-                          {key === 'vendor_purchase' ? (
-                            <button onClick={onGoVendors}
-                              className="text-[11px] font-semibold underline"
-                              style={{ color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer' }}>
-                              Pay in Party Ledger →
-                            </button>
-                          ) : row.is_paid ? (
-                            /* The method is written to paid_via on every payment
-                               but was read back nowhere, so a bank payment was
-                               indistinguishable from a cash one. */
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{ background: 'rgba(138,154,91,0.15)', color: '#8A9A5B' }}>
-                              Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}{payModeLabel(row.payment_mode)}
+                {entries.slice(0, 20).map((row, i) => {
+                  const canExpand = row.items?.length > 0
+                  const open = !!openRows[row.key]
+                  return (
+                    <div key={row.key || i} className="px-3 py-2.5 border-b"
+                      style={{ borderColor: 'var(--c-border)' }}>
+                      <div className="flex items-start justify-between gap-3">
+                        <button type="button" disabled={!canExpand}
+                          onClick={() => canExpand && toggleRow(row.key)}
+                          className="flex-1 min-w-0 text-left"
+                          style={{ background: 'none', border: 'none', padding: 0,
+                                   cursor: canExpand ? 'pointer' : 'default' }}>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[13px] font-semibold truncate"
+                              style={{ color: 'var(--c-text)' }}>
+                              {cleanDescription(row.particulars || row.description)}
                             </span>
-                          ) : canPay && (row.expense_type === 'labour' || row.expense_type === 'farm_expense') ? (
-                            <button onClick={() => onPayRow?.(row)}
-                              className="px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                              style={{ background: '#8A9A5B', color: '#fff' }}>
-                              Pay {fmt(row.amount)}
-                            </button>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{ background: 'rgba(186,117,23,0.15)', color: '#BA7517' }}>
-                              Pending
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                      {openRows[row.key] && row.items?.length > 0 && (
+                            {canExpand && (
+                              <ChevronDown size={12} className="shrink-0" style={{
+                                color: 'var(--c-faint)',
+                                transform: open ? 'rotate(180deg)' : 'none',
+                                transition: 'transform 0.2s',
+                              }} />
+                            )}
+                          </div>
+                          <div className="text-[11px] truncate" style={{ color: 'var(--c-faint)' }}>
+                            {[fmtDate(row.entry_date), row.meta].filter(Boolean).join(' · ')}
+                          </div>
+                        </button>
+
+                        <div className="text-right shrink-0">
+                          <div className="text-[13px] font-bold" style={{ color: 'var(--c-text)' }}>
+                            {fmt(row.amount)}
+                          </div>
+                          <div className="mt-1">
+                            {/* Vendor rows carry no per-row link any more: every
+                                one pointed at the same screen, so the group's
+                                single Pay button below says it once instead. */}
+                            {key === 'vendor_purchase' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ background: 'rgba(186,117,23,0.15)', color: '#BA7517' }}>
+                                Pending
+                              </span>
+                            ) : row.is_paid ? (
+                              /* The method is written to paid_via on every payment
+                                 but was read back nowhere, so a bank payment was
+                                 indistinguishable from a cash one. */
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap"
+                                style={{ background: 'rgba(138,154,91,0.15)', color: '#8A9A5B' }}>
+                                Paid{row.paid_date ? ` ${fmtDate(row.paid_date)}` : ''}{payModeLabel(row.payment_mode)}
+                              </span>
+                            ) : canPay && (row.expense_type === 'labour' || row.expense_type === 'farm_expense') ? (
+                              <button onClick={() => onPayRow?.(row)}
+                                className="px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap"
+                                style={{ background: '#8A9A5B', color: '#fff' }}>
+                                Pay {fmt(row.amount)}
+                              </button>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ background: 'rgba(186,117,23,0.15)', color: '#BA7517' }}>
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {open && canExpand && (
                         row.expense_type === 'labour'
-                          ? <LabourLines items={row.items} colSpan={4} />
-                          : <BillLines items={row.items} inventoryMaster={inventoryMaster} colSpan={4} />
+                          ? <LabourLines items={row.items} />
+                          : <BillLines items={row.items} inventoryMaster={inventoryMaster} />
                       )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
+                    </div>
+                  )
+                })}
+                {GROUP_PAY_DOOR[key] && (
+                  <PayDoor label={GROUP_PAY_DOOR[key]} onClick={onGoVendors} />
+                )}
               </div>
             )}
           </Card>
