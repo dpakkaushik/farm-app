@@ -14,6 +14,7 @@ import { itemsLabel, fmtINR as fmt } from './assets/assetFacts'
 import SummaryBox from '../components/SummaryBox'
 import { MACHINE_TYPES, ASSET_CATS } from './Assets'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 const TODAY_STR = localToday()
 // A bill line lands in one of three registers. Stock is consumed; machinery and
@@ -232,7 +233,7 @@ export default function Inventory() {
           {/* Stock only ever arrives on a bill, so "add" here is a purchase —
               the same dashed row every other register opens with. */}
           <AddButton onClick={openBillModal}>New Purchase</AddButton>
-          <FilterSelect value={catFilter} onChange={setCat}
+          <FilterSelect value={catFilter} onChange={setCat} title="Category"
             options={[['all', 'All categories'], ...CATS.map(c => [c, `${CAT_EMOJI[c]} ${CAT_LABEL[c]}`])]} />
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-4">
@@ -315,7 +316,7 @@ export default function Inventory() {
             </div>
             <div className="grid grid-cols-1 gap-2">
               <FRow label="Vendor *">
-                <select className="finput" value={billMeta.vendorId}
+                <SelectField className="finput" value={billMeta.vendorId}
                   onChange={e => {
                     const v = vendors.find(x => x.id === e.target.value)
                     setBillMeta(p => ({ ...p, vendorId: e.target.value, vendor: v ? v.name : '' }))
@@ -326,7 +327,7 @@ export default function Inventory() {
                     <option key={v.id} value={v.id} style={{ background: 'var(--c-surface)' }}>{v.name}</option>
                   ))}
                   <option value="__other__" style={{ background: 'var(--c-surface)' }}>Other — new shop…</option>
-                </select>
+                </SelectField>
                 {billMeta.vendorId === '__other__' && (
                   <>
                     <input className="finput mt-1.5" placeholder="Shop name"
@@ -371,7 +372,7 @@ export default function Inventory() {
                   return (
                     <div key={i} className="grid grid-cols-[1fr_64px_80px_56px_28px] gap-1 items-center">
                       {line.kind === 'stock' ? (
-                        <select className="finput text-xs py-2 px-2" value={line.itemId}
+                        <SelectField className="finput text-xs py-2 px-2" value={line.itemId}
                           onChange={e => {
                             const v = e.target.value
                             if (v === '__machinery__' || v === '__asset__') {
@@ -394,14 +395,14 @@ export default function Inventory() {
                           <option value="__asset__" style={{ background: 'var(--c-surface)' }}>
                             {LINE_KINDS.asset.emoji} Not stock — farm asset…
                           </option>
-                        </select>
+                        </SelectField>
                       ) : (
                         <div className="space-y-1">
                           <input className="finput text-xs py-2 px-2" autoFocus
                             placeholder={line.kind === 'machinery' ? 'Machine name' : 'Asset name'}
                             value={line.name} onChange={e => updateLine(i, 'name', e.target.value)} />
                           <div className="flex items-center gap-1">
-                            <select className="finput text-[12px] py-1 px-1.5 flex-1 min-w-0" value={line.subType}
+                            <SelectField className="finput text-[12px] py-1 px-1.5 flex-1 min-w-0" value={line.subType}
                               onChange={e => updateLine(i, 'subType', e.target.value)}
                               style={{ background: 'var(--c-surface)' }}>
                               {SUB_TYPES[line.kind].map(t => (
@@ -409,7 +410,7 @@ export default function Inventory() {
                                   {t.replace(/_/g, ' ')}
                                 </option>
                               ))}
-                            </select>
+                            </SelectField>
                             <button onClick={() => setLineKind(i, 'stock')}
                               className="shrink-0 text-[11px] px-1.5 py-1 rounded-md"
                               style={{ background: 'var(--c-ghost)', color: 'var(--c-muted)' }}>
@@ -510,14 +511,14 @@ export default function Inventory() {
 
             {selected.category === 'fuel' && (
               <FRow label="Machine (for diesel tracking)">
-                <select className="finput" value={form.machineryId || ''} onChange={e => f('machineryId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                <SelectField className="finput" value={form.machineryId || ''} onChange={e => f('machineryId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>No machine / general</option>
                   {(machineryMaster || []).filter(m => m.requiresDiesel).map(m => (
                     <option key={m.id} value={m.id} style={{ background: 'var(--c-surface)' }}>
                       {m.displayId} · {m.name}{m.regNo ? ` (${m.regNo})` : ''}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </FRow>
             )}
 
@@ -826,26 +827,26 @@ function IssueLogs({ issues, inventoryMaster, plots }) {
           <div className="bg-[var(--c-nav)] rounded-2xl border border-[var(--c-border)] p-3 space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Item">
-                <select className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                <SelectField className="finput text-xs" value={itemFilter} onChange={e => setItemFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>All items</option>
                   {inventoryMaster.map(i => <option key={i.id} value={i.id} style={{ background: 'var(--c-surface)' }}>{i.name}</option>)}
-                </select>
+                </SelectField>
               </FRow>
               <FRow label="Plot">
-                <select className="finput text-xs" value={plotFilter} onChange={e => setPlotFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                <SelectField className="finput text-xs" value={plotFilter} onChange={e => setPlotFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>All plots</option>
                   {plots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
-                </select>
+                </SelectField>
               </FRow>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Stage">
-                <select className="finput text-xs" value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
+                <SelectField className="finput text-xs" value={stageFilter} onChange={e => setStageFilter(e.target.value)} style={{ background: 'var(--c-surface)', padding: '8px 10px' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>All stages</option>
                   <option value="active"      style={{ background: 'var(--c-surface)' }}>Active Cycle</option>
                   <option value="preparation" style={{ background: 'var(--c-surface)' }}>Preparation</option>
                   <option value="farm_wide"   style={{ background: 'var(--c-surface)' }}>Farm-wide</option>
-                </select>
+                </SelectField>
               </FRow>
               <FRow label="From"><input type="date" className="finput text-xs" value={from} onChange={e => setFrom(e.target.value)} style={{ colorScheme: 'dark', padding: '8px 10px' }} /></FRow>
             </div>

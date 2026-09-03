@@ -9,6 +9,7 @@ import { Plus, Trash2, Stethoscope, AlertTriangle } from 'lucide-react'
 import FilterSelect from '../../components/FilterSelect'
 import AddButton from '../../components/AddButton'
 import { useAppStore } from '../../store'
+import SelectField from '../../components/SelectField'
 import {
   Modal, FRow, HealthPill, inp, TODAY, HEALTH_OPTIONS,
   animalLabel, daysFromToday, isActive,
@@ -226,13 +227,13 @@ function AddHealthModal({ animals, preselect, onClose, onConfirm, saving }) {
   return (
     <Modal title="Log a Vet Visit" onClose={onClose}>
       <FRow label="Animal *">
-        <select className={inp} value={f.livestockId} onChange={e => u('livestockId', e.target.value)}
+        <SelectField className={inp} value={f.livestockId} onChange={e => u('livestockId', e.target.value)}
           style={{ background: 'var(--c-ghost)' }}>
           <option value="">— Select animal —</option>
           {animals.filter(isActive).map(a => (
             <option key={a.id} value={a.id}>{animalLabel(a)} ({a.species})</option>
           ))}
-        </select>
+        </SelectField>
       </FRow>
 
       <FRow label="Date">
@@ -360,7 +361,7 @@ export default function HealthTab({ animals, allAnimals, face }) {
 
       {/* Filter to one animal inside the current scope */}
       {scopeLogs.length > 0 && (
-        <FilterSelect value={filter} onChange={setFilter}
+        <FilterSelect value={filter} onChange={setFilter} title="Animal"
           options={[['all', wide ? 'All animals' : `All ${face.title.toLowerCase()}`], ...inScope.map(a => [a.id, animalLabel(a)])]} />
       )}
 

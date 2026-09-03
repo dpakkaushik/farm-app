@@ -7,6 +7,7 @@ import { useAppStore } from '../store'
 import { supabase } from '../lib/supabase'
 import { useAuthStore, isAdmin } from '../store/auth'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 // ── Compression profiles ────────────────────────────────────────────────────
 const FULL_OPTIONS = {
@@ -495,7 +496,7 @@ export default function Media() {
             {form.activity !== 'events' && (
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1.5">Plot / Field</label>
-                <select value={form.plotId}
+                <SelectField value={form.plotId}
                   onChange={e => {
                     const opt = e.target.options[e.target.selectedIndex]
                     setForm(p => ({ ...p, plotId: e.target.value, plotLabel: opt.text }))
@@ -504,7 +505,7 @@ export default function Media() {
                   style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>Select plot…</option>
                   {allPlots.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.label}</option>)}
-                </select>
+                </SelectField>
               </div>
             )}
 

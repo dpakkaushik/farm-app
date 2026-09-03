@@ -9,6 +9,7 @@ import { useAppStore } from '../store'
 import { useAuthStore } from '../store/auth'
 import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/workerRecovery'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
@@ -145,7 +146,7 @@ function CropsMaster() {
         <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
           <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Crop' : 'New Crop'}</p>
           <FRow label="Crop">
-            <select
+            <SelectField
               className="finput"
               style={{ background: 'var(--c-surface)' }}
               value={enterCustom ? '__custom__' : (form.name || '')}
@@ -161,7 +162,7 @@ function CropsMaster() {
               <option value="">Select crop…</option>
               {CROP_NAME_LIST.map(n => <option key={n} value={n} style={{ background: 'var(--c-surface)' }}>{n}</option>)}
               <option value="__custom__" style={{ background: 'var(--c-surface)' }}>＋ Not in list — add name below</option>
-            </select>
+            </SelectField>
             {enterCustom && (
               <input
                 className="finput mt-1.5"
@@ -192,10 +193,10 @@ function CropsMaster() {
             {form.emoji && <p className="text-[12px] text-[var(--c-muted)] mt-1">Selected: {form.emoji}</p>}
           </FRow>
           <FRow label="Season">
-            <select className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+            <SelectField className="finput" value={form.season_type || ''} onChange={e => setForm(p => ({ ...p, season_type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
               {SEASONS.map(s => <option key={s.value} value={s.value} style={{ background: 'var(--c-surface)' }}>{s.label}</option>)}
-            </select>
+            </SelectField>
           </FRow>
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Growing days">
@@ -219,13 +220,13 @@ function CropsMaster() {
           </div>
           {(form.name || '').toLowerCase().includes('sugarcane') && (
             <FRow label="Sugarcane variety">
-              <select className="finput" style={{ background: 'var(--c-surface)' }}
+              <SelectField className="finput" style={{ background: 'var(--c-surface)' }}
                 value={form.varietyCategory || ''} onChange={e => setForm(p => ({ ...p, varietyCategory: e.target.value || null }))}>
                 <option value="" style={{ background: 'var(--c-surface)' }}>Select variety…</option>
                 <option value="early"  style={{ background: 'var(--c-surface)' }}>Early Maturing (SAP ₹400/qtl)</option>
                 <option value="common" style={{ background: 'var(--c-surface)' }}>Common Variety (SAP ₹390/qtl)</option>
                 <option value="late"   style={{ background: 'var(--c-surface)' }}>Late Maturing (SAP ₹390/qtl)</option>
-              </select>
+              </SelectField>
             </FRow>
           )}
           <FRow label="Map colour">
@@ -270,10 +271,10 @@ function CropsMaster() {
                     className="text-[var(--c-faint)] hover:text-[#E24B4A] shrink-0">✕</button>
                 </div>
                 <div className="flex gap-1.5 items-center">
-                  <select className="finput flex-1" style={{ background: 'var(--c-surface)' }}
+                  <SelectField className="finput flex-1" style={{ background: 'var(--c-surface)' }}
                     value={r.unit} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, unit: e.target.value } : x) }))}>
                     {['quintal','kg','bag','trolley','litre','bundle'].map(u => <option key={u} value={u} style={{ background: 'var(--c-surface)' }}>{u}</option>)}
-                  </select>
+                  </SelectField>
                   <input type="number" className="finput w-20" placeholder="Qty/ac"
                     value={r.qty_per_acre} onChange={e => setForm(p => ({ ...p, residuals: p.residuals.map((x, j) => j === i ? { ...x, qty_per_acre: e.target.value } : x) }))} />
                   <input type="number" className="finput w-20" placeholder="₹/unit"
@@ -401,9 +402,9 @@ function InventoryMaster() {
               value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
           </FRow>
           <FRow label="Category">
-            <select className="finput" value={form.category || ''} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+            <SelectField className="finput" value={form.category || ''} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               {CATS.map(c => <option key={c} value={c} style={{ background: 'var(--c-surface)' }}>{CAT_LABEL[c]}</option>)}
-            </select>
+            </SelectField>
           </FRow>
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Unit">
@@ -891,9 +892,9 @@ function LabourMaster() {
                 value={form.name || ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
             </FRow>
             <FRow label="Kind of work">
-              <select className="finput" value={form.workType || ''} onChange={e => setForm(p => ({ ...p, workType: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <SelectField className="finput" value={form.workType || ''} onChange={e => setForm(p => ({ ...p, workType: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
                 {WORK_TYPES.map(w => <option key={w} value={w} style={{ background: 'var(--c-surface)' }}>{w}</option>)}
-              </select>
+              </SelectField>
             </FRow>
             <div className="grid grid-cols-2 gap-2">
               <FRow label="Rate/day (₹)">
@@ -957,7 +958,7 @@ function LabourMaster() {
             <div className="bg-[var(--c-nav)] rounded-2xl border border-[#BA7517]/30 p-4 space-y-3">
               <p className="text-xs font-bold text-[#BA7517]">New Salary Advance</p>
               <FRow label="Person">
-                <select className="finput" value={advForm.labourerId} onChange={e => setAdvForm(p => ({ ...p, labourerId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+                <SelectField className="finput" value={advForm.labourerId} onChange={e => setAdvForm(p => ({ ...p, labourerId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
                   {permanentStaff.length > 0 && (
                     <optgroup label="Permanent Staff" style={{ background: 'var(--c-surface)' }}>
@@ -969,7 +970,7 @@ function LabourMaster() {
                       {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: 'var(--c-surface)' }}>{l.name}</option>)}
                     </optgroup>
                   )}
-                </select>
+                </SelectField>
               </FRow>
               <div className="grid grid-cols-2 gap-2">
                 <FRow label="Amount (₹)">
@@ -1180,7 +1181,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
 
       {/* Person selector */}
       {allPeople.length > 1 ? (
-        <select className="finput" value={personId || ''} onChange={e => setPersonId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
+        <SelectField className="finput" value={personId || ''} onChange={e => setPersonId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
           {permanentStaff.length > 0 && (
             <optgroup label="Permanent Staff" style={{ background: 'var(--c-surface)' }}>
               {permanentStaff.map(s => <option key={s.id} value={s.id} style={{ background: 'var(--c-surface)' }}>{s.name} — {s.designation || 'Staff'}</option>)}
@@ -1191,7 +1192,7 @@ React.useEffect(() => { loadMonthAttendance(year, month) }, [year, month])
               {regularLabourers.map(l => <option key={l.id} value={l.id} style={{ background: 'var(--c-surface)' }}>{l.name} — {l.workType || 'Worker'}</option>)}
             </optgroup>
           )}
-        </select>
+        </SelectField>
       ) : (
         <div className="flex items-center gap-2 px-1">
           <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
@@ -1439,14 +1440,14 @@ function PlotsMaster() {
 
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Soil type">
-              <select className="finput" value={form.soil_type || ''} onChange={e => f('soil_type', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+              <SelectField className="finput" value={form.soil_type || ''} onChange={e => f('soil_type', e.target.value)} style={{ background: 'var(--c-surface)' }}>
                 {SOIL_TYPES.map(s => <option key={s} value={s} style={{ background: 'var(--c-surface)' }}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-              </select>
+              </SelectField>
             </FRow>
             <FRow label="Water source">
-              <select className="finput" value={form.water_source || ''} onChange={e => f('water_source', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+              <SelectField className="finput" value={form.water_source || ''} onChange={e => f('water_source', e.target.value)} style={{ background: 'var(--c-surface)' }}>
                 {WATER_SRCS.map(w => <option key={w} value={w} style={{ background: 'var(--c-surface)' }}>{w.charAt(0).toUpperCase()+w.slice(1)}</option>)}
-              </select>
+              </SelectField>
             </FRow>
           </div>
 
@@ -1669,12 +1670,12 @@ function UsersMaster() {
               </div>
               {!isSelf && (
                 <div className="flex items-center gap-2 shrink-0">
-                  <select value={user.role}
+                  <SelectField value={user.role}
                     onChange={e => changeRole(user.id, e.target.value)}
                     className="text-[12px] bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-lg px-1.5 py-1 text-[var(--c-text)] focus:outline-none"
                     style={{ background: 'var(--c-surface)' }}>
                     {ROLES.map(r => <option key={r.value} value={r.value} style={{ background: 'var(--c-surface)' }}>{r.label}</option>)}
-                  </select>
+                  </SelectField>
                   {user.is_active ? (
                     <button onClick={() => handleDeactivate(user)}
                       className="text-[12px] px-2 py-1 rounded-lg border border-[#E24B4A]/30 text-[#E24B4A] hover:bg-[#E24B4A]/10 transition-colors">
@@ -2005,7 +2006,7 @@ function BuyersMaster() {
     <div className="p-4 space-y-3 pb-6">
       <AddButton onClick={() => setForm(blank())}>Add Buyer</AddButton>
 
-      <FilterSelect value={filter} onChange={setFilter}
+      <FilterSelect value={filter} onChange={setFilter} title="Buyer type"
         options={[['all', 'All buyers'], ...BUYER_CATEGORIES.map(cat => [cat.key, `${cat.emoji} ${cat.label}`])]} />
 
       {form !== null && (
@@ -2021,9 +2022,9 @@ function BuyersMaster() {
                 value={form.contact} onChange={e => setForm(p => ({ ...p, contact: e.target.value }))} />
             </FRow>
             <FRow label="Entity type">
-              <select className="finput" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <SelectField className="finput" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
                 {BUYER_ENTITY_TYPES.map(t => <option key={t.value} value={t.value} style={{ background: 'var(--c-surface)' }}>{t.label}</option>)}
-              </select>
+              </SelectField>
             </FRow>
           </div>
           <FRow label="Address">
@@ -2293,7 +2294,7 @@ function CyclesMaster() {
           <p className="text-xs font-bold text-[#8A9A5B]">New Crop Cycle</p>
 
           <FRow label="Plot (empty plots only)">
-            <select className="finput" value={form.plotId || ''} onChange={e => setForm(p => ({ ...p, plotId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+            <SelectField className="finput" value={form.plotId || ''} onChange={e => setForm(p => ({ ...p, plotId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               <option value="" style={{ background: 'var(--c-surface)' }}>Select plot…</option>
               {availablePlots.map(p => (
                 <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>
@@ -2301,19 +2302,19 @@ function CyclesMaster() {
               {availablePlots.length === 0 && (
                 <option disabled style={{ background: 'var(--c-surface)' }}>All plots have active cycles</option>
               )}
-            </select>
+            </SelectField>
             {availablePlots.length === 0 && (
               <p className="text-[12px] text-[#BA7517] mt-1">⚠ All plots have active cycles. End a cycle before starting a new one.</p>
             )}
           </FRow>
 
           <FRow label="Crop">
-            <select className="finput" value={form.cropId || ''} onChange={e => setForm(p => ({ ...p, cropId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+            <SelectField className="finput" value={form.cropId || ''} onChange={e => setForm(p => ({ ...p, cropId: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
               <option value="" style={{ background: 'var(--c-surface)' }}>Select crop…</option>
               {cropMaster.map(c => (
                 <option key={c.id} value={c.id} style={{ background: 'var(--c-surface)' }}>{c.emoji} {c.name} ({c.duration_days} days)</option>
               ))}
-            </select>
+            </SelectField>
           </FRow>
 
           <div className="grid grid-cols-2 gap-2">
@@ -2321,12 +2322,12 @@ function CyclesMaster() {
               <input type="date" className="finput" value={form.sowDate || ''} onChange={e => setForm(p => ({ ...p, sowDate: e.target.value }))} style={{ colorScheme: 'dark' }} />
             </FRow>
             <FRow label="Season">
-              <select className="finput" value={form.season || ''} onChange={e => setForm(p => ({ ...p, season: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
+              <SelectField className="finput" value={form.season || ''} onChange={e => setForm(p => ({ ...p, season: e.target.value }))} style={{ background: 'var(--c-surface)' }}>
                 <option value="" style={{ background: 'var(--c-surface)' }}>Select…</option>
                 {['kharif_2025','rabi_2025','kharif_2026','rabi_2026','zaid_2026','kharif_2027','rabi_2027'].map(s => (
                   <option key={s} value={s} style={{ background: 'var(--c-surface)' }}>{s}</option>
                 ))}
-              </select>
+              </SelectField>
             </FRow>
           </div>
 

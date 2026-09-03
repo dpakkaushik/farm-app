@@ -12,6 +12,7 @@ import { contractUnit } from '../lib/labourGroups'
 import useBackClose from '../hooks/useBackClose'
 import { buildStaffBalance } from '../lib/staffBalance'
 import { balanceBeforeMonth } from '../lib/salaryLedger'
+import SelectField from '../components/SelectField'
 import {
   owedToFarm, owedToWorker, splitAdvances, hiddenWithBalance, khataPosition,
   khataEvents, buildWorkerKhata, recoveryOutcome,
@@ -1373,10 +1374,10 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
 
         {/* Step 2 — Work Type */}
         <FRow label="Work Type">
-          <select className="finput" value={workTypeId} onChange={e => setWorkTypeId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
+          <SelectField className="finput" value={workTypeId} onChange={e => setWorkTypeId(e.target.value)} style={{ background: 'var(--c-surface)' }}>
             <option value="" style={{ background: 'var(--c-surface)' }}>Select work type…</option>
             {activityTypes.map(a => <option key={a.id} value={a.id} style={{ background: 'var(--c-surface)' }}>{a.emoji} {a.label}</option>)}
-          </select>
+          </SelectField>
         </FRow>
 
         {/* Step 3 — Worker Type */}
@@ -1437,7 +1438,7 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                 </div>
 
                 {workerType === 'regular' ? (
-                  <select className="finput" value={w.workerId}
+                  <SelectField className="finput" value={w.workerId}
                     onChange={e => updateWorker(w.id, 'workerId', e.target.value)}
                     style={{ background: 'var(--c-surface)', fontSize: 12, padding: '8px 12px' }}>
                     <option value="" style={{ background: 'var(--c-surface)' }}>Select worker…</option>
@@ -1446,7 +1447,7 @@ function LogWorkForm({ plots, cropCycles, cropMaster, regularLabourers, logLabou
                         {l.name} · ₹{l.ratePerDay}/day
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                 ) : (
                   <div>
                     <p className="text-[11px] text-[var(--c-faint)] mb-0.5">No. of Workers</p>

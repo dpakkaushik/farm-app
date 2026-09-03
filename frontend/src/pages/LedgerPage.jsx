@@ -21,6 +21,7 @@ import {
   monthRangeOptions, monthsByYear, inMonthRange, STATUS_LABEL,
 } from '../lib/billSettlement'
 import { buildVendorWorkbook } from '../lib/vendorWorkbook'
+import SelectField from '../components/SelectField'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
@@ -162,7 +163,7 @@ function AddCashModal({ accounts = [], onClose, onSave }) {
           onChange={e => setForm(f => ({ ...f, entry_date: e.target.value }))} />
       </Field>
       <Field label="Type">
-        <select className={inputCls} style={inputStyle} value={form.direction + ':' + form.entry_type}
+        <SelectField className={inputCls} style={inputStyle} value={form.direction + ':' + form.entry_type}
           onChange={e => {
             const [dir, typ] = e.target.value.split(':')
             setForm(f => ({ ...f, direction: dir, entry_type: typ }))
@@ -171,16 +172,16 @@ function AddCashModal({ accounts = [], onClose, onSave }) {
           <option value="in:revenue_receipt">Revenue received</option>
           <option value="out:owner_drawing">Owner takes money out (Drawing)</option>
           <option value="out:other_payment">Other payment</option>
-        </select>
+        </SelectField>
       </Field>
       {accounts.length > 1 && (
         <Field label="Account">
-          <select className={inputCls} style={inputStyle} value={form.account_id}
+          <SelectField className={inputCls} style={inputStyle} value={form.account_id}
             onChange={e => setForm(f => ({ ...f, account_id: e.target.value }))}>
             {accounts.map(a => (
               <option key={a.id} value={a.id}>{a.type === 'bank' ? '🏦' : '💵'} {a.name}</option>
             ))}
-          </select>
+          </SelectField>
         </Field>
       )}
       <Field label="Amount (₹)">
@@ -247,16 +248,16 @@ function MoveMoneyModal({ accounts, onClose, onSave }) {
         the bank. Not an income or an expense; the farm's total does not change.
       </p>
       <Field label="From">
-        <select className={inputCls} style={inputStyle} value={form.fromAccountId}
+        <SelectField className={inputCls} style={inputStyle} value={form.fromAccountId}
           onChange={e => setForm(f => ({ ...f, fromAccountId: e.target.value }))}>
           {ordered.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
-        </select>
+        </SelectField>
       </Field>
       <Field label="To">
-        <select className={inputCls} style={inputStyle} value={form.toAccountId}
+        <SelectField className={inputCls} style={inputStyle} value={form.toAccountId}
           onChange={e => setForm(f => ({ ...f, toAccountId: e.target.value }))}>
           {ordered.map(a => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
-        </select>
+        </SelectField>
       </Field>
       {form.fromAccountId === form.toAccountId && (
         <p className="text-[12px] mb-2" style={{ color: '#E24B4A' }}>Pick two different accounts.</p>
@@ -364,10 +365,10 @@ function PayVendorModal({ vendors, selectedVendor, onClose, onSave }) {
   return (
     <Modal title="Pay Vendor" onClose={onClose}>
       <Field label="Vendor">
-        <select className={inputCls} style={inputStyle} value={form.vendor_id}
+        <SelectField className={inputCls} style={inputStyle} value={form.vendor_id}
           onChange={e => pickVendor(e.target.value)}>
           {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-        </select>
+        </SelectField>
       </Field>
 
       {/* What the money can be put against. Outstanding, not the bill's face
@@ -588,13 +589,13 @@ function VendorModal({ vendor, onClose, onSave }) {
           value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
       </Field>
       <Field label="Category">
-        <select className={inputCls} style={inputStyle} value={form.category}
+        <SelectField className={inputCls} style={inputStyle} value={form.category}
           onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
           <option value="seed_fertilizer">Seeds / Fertilizer</option>
           <option value="fuel">Fuel / Petroleum</option>
           <option value="local_market">Local Market</option>
           <option value="other">Other</option>
-        </select>
+        </SelectField>
       </Field>
       <Field label="Phone (optional)">
         <input type="tel" className={inputCls} style={inputStyle}
@@ -1336,7 +1337,7 @@ const STATUS_TONE = {
 // browser draws each year as a heading of its own.
 function MonthSelect({ years, value, onChange, openLabel }) {
   return (
-    <select className="text-[12px] px-2 py-1 rounded-lg"
+    <SelectField className="text-[12px] px-2 py-1 rounded-lg"
       style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}
       value={value} onChange={e => onChange(e.target.value)}>
       <option value="">{openLabel}</option>
@@ -1345,7 +1346,7 @@ function MonthSelect({ years, value, onChange, openLabel }) {
           {months.map(m => <option key={m} value={m}>{MonthLabel(m + '-02')}</option>)}
         </optgroup>
       ))}
-    </select>
+    </SelectField>
   )
 }
 
@@ -3087,30 +3088,30 @@ export default function LedgerPage() {
           second drills into the chosen year month by month. */}
       <div className="shrink-0 flex items-center gap-2 px-4 pb-3">
         <span className="text-[12px] shrink-0" style={{ color: 'var(--c-faint)' }}>View:</span>
-        <select
+        <SelectField
           value={yearSel}
           onChange={e => { setYearSel(e.target.value); setMonthSel('') }}
-          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
+          title="Period"
+          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none min-w-0"
           style={{ background: 'var(--c-ghost)', color: 'var(--c-text)', border: '0.5px solid var(--c-border)' }}>
           <option value="all">Standing Crops · All</option>
           {fyOptions().map(opt => (
             <option key={opt} value={opt}>FY {fyLabel(opt)}</option>
           ))}
-        </select>
-        <select
+        </SelectField>
+        <SelectField
           value={monthSel}
           onChange={e => setMonthSel(e.target.value)}
           disabled={yearSel === 'all'}
-          title={yearSel === 'all' ? 'Pick a financial year first' : undefined}
-          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none"
+          title="Month"
+          className="px-2.5 py-1.5 rounded-xl text-xs font-medium outline-none min-w-0"
           style={{ background: 'var(--c-ghost)', border: '0.5px solid var(--c-border)',
-                   color: yearSel === 'all' ? 'var(--c-faint)' : 'var(--c-text)',
-                   opacity: yearSel === 'all' ? 0.55 : 1 }}>
+                   color: yearSel === 'all' ? 'var(--c-faint)' : 'var(--c-text)' }}>
           <option value="">{yearSel === 'all' ? 'Month —' : 'All months'}</option>
           {yearSel !== 'all' && fyMonths(yearSel).map(m => (
             <option key={m} value={m}>{monthLabel(m)}</option>
           ))}
-        </select>
+        </SelectField>
         <button onClick={downloadExcel}
           className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium shrink-0"
           style={{ background: 'var(--c-ghost)', color: '#8A9A5B', border: '0.5px solid var(--c-border)' }}>

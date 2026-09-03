@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { useAppStore } from '../../store'
 import { uploadAttachment } from '../../lib/attachments'
 import FilePicker from '../../components/FilePicker'
+import SelectField from '../../components/SelectField'
 import {
   DOCS, TODAY, PAY_MODES, revenueTypesFor,
   animalLabel, isActive, groupOf, fmt, inp, Modal, FRow, SegPicker,
@@ -23,13 +24,13 @@ function PlotRow({ value, onChange, group }) {
   if (group === 'pets') return null
   return (
     <FRow label="Kept on plot">
-      <select className={inp} value={value || ''} onChange={e => onChange(e.target.value || null)}
+      <SelectField className={inp} value={value || ''} onChange={e => onChange(e.target.value || null)}
         style={{ background: 'var(--c-ghost)' }}>
         <option value="">— Not on a plot —</option>
         {plots.map(p => (
           <option key={p.id} value={p.id}>{p.name} · {Number(p.area_acres) || 0} ac</option>
         ))}
-      </select>
+      </SelectField>
     </FRow>
   )
 }
@@ -87,9 +88,9 @@ export function AddLivestockModal({ group, onClose, onConfirm, saving }) {
         <>
           <div className="grid grid-cols-2 gap-3">
             <FRow label="Gender">
-              <select className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+              <SelectField className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
                 <option value="female">Female</option><option value="male">Male</option>
-              </select>
+              </SelectField>
             </FRow>
             <FRow label="Breed"><input className={inp} placeholder="e.g. Murrah" value={f.breed} onChange={e => u('breed', e.target.value)} /></FRow>
           </div>
@@ -133,9 +134,9 @@ export function EditLivestockModal({ item, onClose, onSave, saving }) {
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Species"><input className={inp} placeholder="buffalo, cow, ox…" value={f.species} onChange={e => u('species', e.target.value)} /></FRow>
         <FRow label="Gender">
-          <select className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.gender} onChange={e => u('gender', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             <option value="female">Female</option><option value="male">Male</option>
-          </select>
+          </SelectField>
         </FRow>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -347,12 +348,12 @@ export function RevenueModal({ animals, group, onClose }) {
       </FRow>
 
       <FRow label={group === 'birds' ? 'Flock' : 'Animal'}>
-        <select className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
+        <SelectField className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
           <option value="">{group === 'birds' ? '— Flock / General —' : '— Herd / General —'}</option>
           {animals.filter(isActive).map(a => (
             <option key={a.id} value={a.id}>{animalLabel(a)} ({a.species})</option>
           ))}
-        </select>
+        </SelectField>
       </FRow>
 
       <div className="grid grid-cols-2 gap-3">

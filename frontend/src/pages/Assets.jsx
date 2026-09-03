@@ -14,6 +14,7 @@ import SummaryBox from '../components/SummaryBox'
 import AssetCard  from './assets/AssetCard'
 import AssetSheet from './assets/AssetSheet'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 // Exported: the purchase-bill screen offers the same vocabularies when a bill
@@ -39,7 +40,7 @@ function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
   return (
     <div className="rounded-xl p-3 space-y-3" style={{ background: 'var(--c-ghost)' }}>
       <FRow label="Bought from">
-        <select className={inp} value={f.vendorId || ''}
+        <SelectField className={inp} value={f.vendorId || ''}
           onChange={e => {
             const v = vendors.find(x => x.id === e.target.value)
             u('vendorId', e.target.value); u('vendorName', v?.name || '')
@@ -49,7 +50,7 @@ function PurchaseSource({ f, u, vendors, billFile, setBillFile }) {
           {(vendors || []).filter(v => v.is_active).map(v => (
             <option key={v.id} value={v.id}>{v.name}</option>
           ))}
-        </select>
+        </SelectField>
       </FRow>
       {f.vendorId && (
         <>
@@ -120,14 +121,14 @@ function EditMachineryModal({ item, onClose, onSave, saving }) {
       <FRow label="Name"><input className={inp} value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Type">
-          <select className={inp} value={f.type} onChange={e => u('type', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.type} onChange={e => u('type', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {MACHINE_TYPES.map(t => <option key={t} value={t}>{CAT_EMOJI[t]||'🔧'} {t.replace(/_/g,' ')}</option>)}
-          </select>
+          </SelectField>
         </FRow>
         <FRow label="Status">
-          <select className={inp} value={f.status} onChange={e => u('status', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.status} onChange={e => u('status', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {STATUSES_M.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
-          </select>
+          </SelectField>
         </FRow>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -164,14 +165,14 @@ function EditFarmAssetModal({ item, onClose, onSave, saving }) {
       <FRow label="Name"><input className={inp} value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Category">
-          <select className={inp} value={f.category} onChange={e => u('category', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.category} onChange={e => u('category', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {ASSET_CATS.map(c => <option key={c} value={c}>{CAT_EMOJI[c]||'📦'} {c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-          </select>
+          </SelectField>
         </FRow>
         <FRow label="Status">
-          <select className={inp} value={f.status} onChange={e => u('status', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.status} onChange={e => u('status', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {STATUSES_A.map(s => <option key={s} value={s}>{s.replace(/_/g,' ')}</option>)}
-          </select>
+          </SelectField>
         </FRow>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -223,9 +224,9 @@ function AddMachineryModal({ onClose, onConfirm, saving, vendors, moneyFields })
       <FRow label="Name *"><input className={inp} placeholder="e.g. New Tractor" value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Type">
-          <select className={inp} value={f.type} onChange={e => u('type', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.type} onChange={e => u('type', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {MACHINE_TYPES.map(t => <option key={t} value={t}>{CAT_EMOJI[t]||'🔧'} {t.replace(/_/g,' ')}</option>)}
-          </select>
+          </SelectField>
         </FRow>
         <FRow label="Quantity"><input type="number" className={inp} min="1" value={f.quantity} onChange={e => u('quantity', e.target.value)} /></FRow>
       </div>
@@ -258,9 +259,9 @@ function AddFarmAssetModal({ onClose, onConfirm, saving, vendors, moneyFields })
       <FRow label="Name *"><input className={inp} placeholder="e.g. Water Tank 500L" value={f.name} onChange={e => u('name', e.target.value)} /></FRow>
       <div className="grid grid-cols-2 gap-3">
         <FRow label="Category">
-          <select className={inp} value={f.category} onChange={e => u('category', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
+          <SelectField className={inp} value={f.category} onChange={e => u('category', e.target.value)} style={{ background: 'var(--c-ghost)' }}>
             {ASSET_CATS.map(c => <option key={c} value={c}>{CAT_EMOJI[c]||'📦'} {c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
-          </select>
+          </SelectField>
         </FRow>
         <FRow label="Quantity"><input type="number" className={inp} min="1" value={f.quantity} onChange={e => u('quantity', e.target.value)} /></FRow>
       </div>
@@ -293,7 +294,7 @@ function RegisterTab({ items, kind, onOpen, onAdd, onIssueDiesel }) {
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         <AddButton onClick={onAdd}>{kind === 'machinery' ? 'Add Machinery' : 'Add Farm Asset'}</AddButton>
-        <FilterSelect value={filter} onChange={setFilter}
+        <FilterSelect value={filter} onChange={setFilter} title="Type"
           options={[['all', `All ${noun}`], ...kinds.map(k => [k, label(k)])]} />
         {list.map(item => (
           <AssetCard key={item.id} item={item} kind={kind} onOpen={onOpen} onIssueDiesel={onIssueDiesel} />

@@ -76,7 +76,7 @@ export default function TaskCalendar({ tasks, todayStr, onMarkDone, historyDates
 
       {/* Crop filter — on top of the grid, not a legend row at the bottom */}
       {cropNames.length > 1 && (
-        <FilterSelect value={crop} onChange={setCrop}
+        <FilterSelect value={crop} onChange={setCrop} title="Crop"
           options={[['all', 'All crops'], ...cropNames.map(n => [n, n])]} />
       )}
 

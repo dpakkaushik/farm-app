@@ -4,6 +4,7 @@ import { useAppStore } from '../store'
 import FilePicker from '../components/FilePicker'
 import { uploadAttachment, BUCKETS } from '../lib/attachments'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 // This file used to be a full page — the Expenses tab on Today, with a summary
 // header, category filter chips and a delete-able list. The owner asked for the
@@ -211,12 +212,12 @@ export function AddExpenseModal({ animals, onClose }) {
       {/* Step 3: Animal selector — only for livestock type */}
       {form.expenseType === 'livestock' && animals.length > 0 && (
         <FRow label="Animal (optional)">
-          <select className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
+          <SelectField className={inp} value={form.livestockId} onChange={e => set('livestockId', e.target.value)}>
             <option value="">— Any / Whole Herd —</option>
             {animals.filter(a => a.status === 'active').map(a => (
               <option key={a.id} value={a.id}>{a.name || a.tagId} ({a.species})</option>
             ))}
-          </select>
+          </SelectField>
         </FRow>
       )}
 

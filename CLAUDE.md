@@ -11,9 +11,34 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-02, evening (the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-03 (every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (2 Sep, evening) — the phone's back swipe works, and why it never did.** His
+**Just done (3 Sep) — every dropdown in the app is now the app's OWN sheet.** His report, with
+a screenshot of the Ledger's View control: *"the drop down opens as a separate window instead of
+a simple drop down … same happening at other places as well."* Cause, and it was never a bug in
+our code: **Android draws a native `<select>`'s option list itself**, as a system dialog in the
+phone's colours — cream over a dark app, uncontrollable by CSS. Offered him native (free, big
+touch targets) vs custom (ours to maintain); **he chose custom.**
+**The design that made a 57-dropdown sweep safe:** new
+[`components/SelectField.jsx`](frontend/src/components/SelectField.jsx) is a **drop-in for
+`<select>`** — it takes the SAME `<option>`/`<optgroup>` children and fires the same
+`onChange({target:{value}})`, so converting a screen was a one-word tag change and **not one
+handler or option list was rewritten**. It reads its rows from those children via pure
+[`lib/selectOptions.js`](frontend/src/lib/selectOptions.js) (**10 specs, 353 green**):
+optgroup headings kept, `.map()` arrays flattened, `{cond && …}` false-children skipped,
+split labels joined (`{a.emoji} {a.label}`), values normalised to STRINGS because that is what a
+real select hands back. `FilterSelect` (8 screens) was rewritten onto the same sheet, keeping
+its funnel and API and gaining a `title`; the Ledger's two View controls fold in too.
+**The back gesture came free** — the list opens in `BottomSheet`, which already traps it; that
+is why the sheet, not a hand-rolled popover, is the right shell. **Convention for anything new:
+never write a bare `<select>` — use `SelectField`, or `FilterSelect` when it is a filter.**
+Verified in a phone-sized Chromium over `/uikit`: **zero native `<select>` elements render
+anywhere**, pick applies and closes, back closes the sheet and stays on the page, a real form
+field ("Select vendor…") renders at full `.finput` width and opens, no page errors on any tab.
+A throwaway ESLint 9 `no-undef` sweep on a copy of `src/` came back clean (its two
+`URLSearchParams` hits are my config's missing global, not code).
+
+**Also done (2 Sep, evening) — the phone's back swipe works, and why it never did.** His
 report: *"phones backswipe isnt working even though i already asked you to fix this before."*
 The 26 Aug fix was real JS but verified only in desktop Chromium, and its premise — "the swipe
 reaches a web app as a plain history back" — is **false inside the APK**: Capacitor core has NO

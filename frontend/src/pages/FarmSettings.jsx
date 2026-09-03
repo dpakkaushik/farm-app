@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore, isAdmin } from '../store/auth'
 import { supabase } from '../lib/supabase'
+import SelectField from '../components/SelectField'
 
 const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', view_only: 'View Only' }
 
@@ -200,7 +201,7 @@ export default function FarmSettings() {
                 </div>
                 {amAdmin && !isMe ? (
                   <>
-                    <select
+                    <SelectField
                       value={m.role}
                       onChange={e => handleRoleChange(m.user_id, e.target.value)}
                       style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
@@ -208,7 +209,7 @@ export default function FarmSettings() {
                       <option value="admin">Admin</option>
                       <option value="manager">Manager</option>
                       <option value="view_only">View Only</option>
-                    </select>
+                    </SelectField>
                     <button
                       onClick={() => handleRemove(m.user_id)}
                       style={{ padding: '4px 8px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fff', color: '#dc2626', fontSize: '12px', cursor: 'pointer' }}
@@ -254,7 +255,7 @@ export default function FarmSettings() {
           </div>
 
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            <select
+            <SelectField
               value={inviteRole}
               onChange={e => setInviteRole(e.target.value)}
               style={{ flex: 1, padding: '9px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
@@ -262,7 +263,7 @@ export default function FarmSettings() {
               <option value="manager">Manager</option>
               <option value="admin">Admin</option>
               <option value="view_only">View Only</option>
-            </select>
+            </SelectField>
             <button
               onClick={handleCreateInvite}
               disabled={creating}

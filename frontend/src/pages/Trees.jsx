@@ -10,6 +10,7 @@ import useBackClose from '../hooks/useBackClose'
 import SummaryBox from '../components/SummaryBox'
 import ImageCropper from '../components/ImageCropper'
 import { uploadAttachment, deleteAttachment } from '../lib/attachments'
+import SelectField from '../components/SelectField'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 const YEAR  = new Date().getFullYear()
@@ -222,10 +223,10 @@ function PlantingModal({ speciesId, speciesName, planting, onClose }) {
       </FRow>
 
       <FRow label={form.locationType === 'plot' ? 'Plot' : 'Plot (optional — blank = farm perimeter)'}>
-        <select className={inp} value={form.plotId} onChange={e => set('plotId', e.target.value)}>
+        <SelectField className={inp} value={form.plotId} onChange={e => set('plotId', e.target.value)}>
           <option value="">— none —</option>
           {plots.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        </SelectField>
       </FRow>
 
       {form.locationType === 'boundary' && (
@@ -590,11 +591,11 @@ function SaleModal({ onClose }) {
       </FRow>
 
       <FRow label="Buyer">
-        <select className={inp} value={form.buyerId}
+        <SelectField className={inp} value={form.buyerId}
           onChange={e => set('buyerId', e.target.value)}>
           <option value="">— someone else —</option>
           {buyers.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
+        </SelectField>
       </FRow>
       {!form.buyerId && (
         <FRow label="Buyer name">
@@ -946,7 +947,7 @@ function SalesTab({ canEdit }) {
       )}
 
       {revenue.length > 0 && (
-        <FilterSelect value={filter} onChange={setFilter}
+        <FilterSelect value={filter} onChange={setFilter} title="Sale type"
           options={[['all', 'All sales'], ['fruit_lease', '🍍🍉 Leases'], ['timber_sale', '🪵 Timber']]} />
       )}
 
@@ -1079,7 +1080,7 @@ export default function Trees() {
             )}
 
             {species.length > 0 && (
-              <FilterSelect value={filter} onChange={setFilter}
+              <FilterSelect value={filter} onChange={setFilter} title="Tree type"
                 options={[['all', 'All trees'], ['fruit', '🍍🍉 Fruiting'], ['timber', '🪵 Timber']]} />
             )}
 

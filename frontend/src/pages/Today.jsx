@@ -13,6 +13,7 @@ import { buildDayBundle, datesInRange } from './today/dayBundle'
 import DayCard from './today/DayCard'
 import TaskCalendar from './today/TaskCalendar'
 import HistorySheet from './today/HistorySheet'
+import SelectField from '../components/SelectField'
 
 // Local date parts, never toISOString() — in IST that shift lands on yesterday
 // for the first five and a half hours of every day (see lib/period.js, which
@@ -655,7 +656,7 @@ function TodayBoard() {
                   Activity Type
                 </label>
                 <div className="relative">
-                  <select value={actType} onChange={e => changeActType(e.target.value)}
+                  <SelectField value={actType} onChange={e => changeActType(e.target.value)}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
                     style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
                     {activityTypes.map(t => (
@@ -663,7 +664,7 @@ function TodayBoard() {
                         {t.emoji}  {t.label}
                       </option>
                     ))}
-                  </select>
+                  </SelectField>
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
                 </div>
               </div>
@@ -679,14 +680,14 @@ function TodayBoard() {
                       </span>
                     </label>
                     <div className="relative">
-                      <select value={selDriver} onChange={e => setSelDriver(e.target.value)}
+                      <SelectField value={selDriver} onChange={e => setSelDriver(e.target.value)}
                         className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
                         style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
                         <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
                         {drivers.map(d => (
                           <option key={d.id} value={d.id} style={{ background: 'var(--c-surface)' }}>{d.name}</option>
                         ))}
-                      </select>
+                      </SelectField>
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
                     </div>
                   </div>
@@ -699,14 +700,14 @@ function TodayBoard() {
                       </span>
                     </label>
                     <div className="relative">
-                      <select value={selMachinery} onChange={e => setSelMachinery(e.target.value)}
+                      <SelectField value={selMachinery} onChange={e => setSelMachinery(e.target.value)}
                         className="w-full rounded-xl px-4 py-3 text-sm font-medium appearance-none outline-none border"
                         style={{ background: 'var(--c-bg)', color: 'var(--c-text)', borderColor: 'var(--c-border-md)' }}>
                         <option value="" style={{ background: 'var(--c-surface)' }}>— None —</option>
                         {tractors.map(t => (
                           <option key={t.id} value={t.id} style={{ background: 'var(--c-surface)' }}>{t.label}</option>
                         ))}
-                      </select>
+                      </SelectField>
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--c-muted)]">▾</div>
                     </div>
                   </div>

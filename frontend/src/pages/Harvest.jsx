@@ -8,6 +8,7 @@ import Attachment from '../components/Attachment'
 import OpeningCostBreakup from '../components/OpeningCostBreakup'
 import FilterSheet, { AppliedChips } from '../components/FilterSheet'
 import useBackClose from '../hooks/useBackClose'
+import SelectField from '../components/SelectField'
 
 const daysAgo = (dateStr) => Math.floor((new Date() - new Date(dateStr)) / 86400000)
 
@@ -885,12 +886,12 @@ export default function Harvest() {
               {/* Storage location */}
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Storage location</label>
-                <select value={form.storageLocation} onChange={e => f('storageLocation', e.target.value)}
+                <SelectField value={form.storageLocation} onChange={e => f('storageLocation', e.target.value)}
                   className="finput" style={{ background: 'var(--c-input)' }}>
                   <option value="own_godown">Own Godown</option>
                   <option value="mandi">Mandi</option>
                   <option value="buyer_store">Buyer's Store</option>
-                </select>
+                </SelectField>
               </div>
 
               {/* Moisture % */}
@@ -948,13 +949,13 @@ export default function Harvest() {
             </div>
             <div className="space-y-3">
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Plot</label>
-                <select value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
+                <SelectField value={form.plotId || ''} onChange={e => f('plotId', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
                   <option value="" style={{ background: '#1a2030' }}>Select plot…</option>
                   {plots.map(p => {
                     const hasActive = cropCycles.some(c => c.plotId === p.id && c.status === 'active')
                     return <option key={p.id} value={p.id} style={{ background: '#1a2030' }}>{p.name} ({Number(p.area_acres).toFixed(1)} ac){hasActive ? ' · +Mixed' : ''}</option>
                   })}
-                </select></div>
+                </SelectField></div>
               {newPlotHasActive && (
                 <div className="bg-[#BA7517]/10 border border-[#BA7517]/30 rounded-xl px-3 py-2.5 flex items-start gap-2">
                   <AlertTriangle size={14} className="text-[#BA7517] shrink-0 mt-0.5"/>
@@ -962,12 +963,12 @@ export default function Harvest() {
                 </div>
               )}
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Crop</label>
-                <select value={form.cropId || ''} onChange={e => f('cropId', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
+                <SelectField value={form.cropId || ''} onChange={e => f('cropId', e.target.value)} className="finput" style={{ background: '#1a2030' }}>
                   <option value="" style={{ background: '#1a2030' }}>Select crop…</option>
                   {cropMaster.map(c => (
                     <option key={c.id} value={c.id} style={{ background: '#1a2030' }}>{c.emoji} {c.name} ({c.duration_days}d · window ±{c.harvest_window_days}d)</option>
                   ))}
-                </select></div>
+                </SelectField></div>
               {form.plotId && selectedPlotForNew && (
                 <div className="bg-[var(--c-ghost)] rounded-xl px-3 py-2">
                   <p className="text-[12px] text-[var(--c-faint)]">Plot size</p>
@@ -1330,17 +1331,17 @@ export default function Harvest() {
                 <input placeholder="e.g. P-001" value={form.parchiNumber} onChange={e => f('parchiNumber', e.target.value)} className="finput"/></div>
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Partner <span className="text-[#E24B4A]">*</span></label>
-                <select className="finput" value={form.partnerId} onChange={e => f('partnerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                <SelectField className="finput" value={form.partnerId} onChange={e => f('partnerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>Select partner…</option>
                   {partners.map(p => <option key={p.id} value={p.id} style={{ background: 'var(--c-surface)' }}>{p.name}</option>)}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="text-xs text-[var(--c-sub)] block mb-1">Mill / Buyer <span className="text-[#E24B4A]">*</span></label>
-                <select className="finput" value={form.buyerId} onChange={e => f('buyerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
+                <SelectField className="finput" value={form.buyerId} onChange={e => f('buyerId', e.target.value)} style={{ background: 'var(--c-surface)' }}>
                   <option value="" style={{ background: 'var(--c-surface)' }}>Select mill…</option>
                   {buyers.map(b => <option key={b.id} value={b.id} style={{ background: 'var(--c-surface)' }}>{b.name}</option>)}
-                </select>
+                </SelectField>
               </div>
               <div><label className="text-xs text-[var(--c-sub)] block mb-1">Quantity (quintals)</label>
                 <input type="number" placeholder="e.g. 120" value={form.qtyQtl} onChange={e => f('qtyQtl', e.target.value)} className="finput"/></div>
