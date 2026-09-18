@@ -11,7 +11,29 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-18 (**the town you type moves the map, and a new farm hands you to Plot Master**; **picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-18 (**place suggestions as you type; lat/long boxes back**; the town you type moves the map, and a new farm hands you to Plot Master; **picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just done (18 Sep, 5th) — suggestions while you type, and the coordinate boxes are back.**
+*"cant we see suggestion when we type in location? … what is find for, instead there should be
+option to enter lat, long or choose from map."* (1) **Suggestions needed a different geocoder, not
+a debounce: Nominatim's usage policy FORBIDS autocomplete** and blocks IPs that do it — which is
+why the box only looked up on blur. **Photon** (photon.komoot.io) is OSM data, free, no key, built
+for type-ahead; verified live, *"gurga"* → *"Gurgaon, Haryana, India"* in <1s. New
+[`lib/geocode.js`](frontend/src/lib/geocode.js), **15 specs** on the pure parts — labels skip
+blanks and never repeat a part (a city whose name equalled its county printed *"Gurgaon,
+Gurgaon"*), coordinates read as **[lng, lat]** and rejected outside the world, and duplicate rows
+collapse (**Photon really does return the same Gurgaon twice**). (2) **"Find" is DELETED** — it was
+the map's own search doing the Location field's job on the same screen. Both are now
+[`PlaceSearch`](frontend/src/components/PlaceSearch.jsx): 350ms debounce, aborts the in-flight
+request, arrow keys, and **Enter is swallowed while the list is open** so choosing a place cannot
+submit the form and create the farm. `MapPicker` takes `showSearch={false}` where the parent owns
+the box. (3) **Latitude/Longitude are BACK — removing them with the old crosshair was my
+regression**; a surveyed or handheld-GPS figure beats tapping a tile. They write the same pin, and
+the map is **not** flown there automatically (half a longitude is a valid number — it would drag
+the map across the world per keystroke), so there is a **"Show … on the map"** button.
+**MapPicker's centre-following now keys on `mode`**, which was always the real reason: `corners`
+derives its centre from the corners you tap and must not follow; `point` takes it from a
+suggestion or that button, so it should. **Nominatim is no longer called anywhere. 397 green.**
 
 **Just done (18 Sep, 4th) — the map opened nowhere near the farm.** Three asks, one complaint:
 *"we give location lets suppose Gurgaon then the map below should go to gurgaon zoomed in … right
