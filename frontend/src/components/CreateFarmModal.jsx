@@ -1,23 +1,31 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import { useMapStore } from '../store'
+import MapPicker from './MapPicker'
 import useBackClose from '../hooks/useBackClose'
 
+// Create a farm — the same form FarmOnboarding shows the very first time, so it
+// uses the same picker.
+//
+// It used to "pick on map" by collapsing to a crosshair over whatever page was
+// behind and reading useMapStore's centre on Confirm. That could not work from
+// here: this modal opens inside ManageFarmsModal's own full-screen overlay, which
+// swallowed every drag, so the map never moved under the crosshair. It also
+// assumed a map was behind at all — open it from any page but Fields and there
+// was nothing to pan. MapPicker carries its own satellite map, so neither
+// assumption is needed.
 export default function CreateFarmModal({ onClose }) {
   const navigate = useNavigate()
   const { createFarm } = useAuthStore()
-  const [form, setForm]     = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
+  const [form, setForm]       = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
-  const [pickMode, setPickMode] = useState(false)
 
-  // Back gesture: out of map-picking first (the typed form survives), then out
-  useBackClose(() => {
-    if (loading) return
-    if (pickMode) setPickMode(false)
-    else onClose()
-  })
+  useBackClose(() => { if (!loading) onClose() })
+
+  const centre = (form.lat !== '' && form.lng !== '')
+    ? { lat: parseFloat(form.lat), lng: parseFloat(form.lng) }
+    : null
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -35,136 +43,58 @@ export default function CreateFarmModal({ onClose }) {
     }
   }
 
-  const confirmPickedLocation = () => {
-    const [lng, lat] = useMapStore.getState().center
-    setForm(f => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }))
-    setPickMode(false)
-  }
-
-  // ── Pick-on-map mode: collapse to a floating bottom bar ──────────────────
-  if (pickMode) {
-    return (
-      <>
-        {/* Crosshair fixed in screen center */}
-        <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 1900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', width: '40px', height: '40px' }}>
-            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '2px', background: '#8A9A5B', transform: 'translateY(-50%)' }} />
-            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: '#8A9A5B', transform: 'translateX(-50%)' }} />
-            <div style={{ position: 'absolute', top: '50%', left: '50%', width: '8px', height: '8px', borderRadius: '50%', background: '#8A9A5B', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2px #fff' }} />
-          </div>
-        </div>
-
-        {/* Floating instruction bar at bottom */}
-        <div style={{
-          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
-          zIndex: 1900, background: 'rgba(17,24,39,0.92)', backdropFilter: 'blur(8px)',
-          borderRadius: '14px', padding: '14px 20px', color: '#fff',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.4)', textAlign: 'center', minWidth: '280px',
-        }}>
-          <div style={{ fontSize: '13px', marginBottom: '12px', opacity: 0.85 }}>
-            📍 Pan the map to your farm, then tap <strong>Confirm</strong>
-          </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={() => setPickMode(false)}
-              style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#fff', fontSize: '13px', cursor: 'pointer' }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={confirmPickedLocation}
-              style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#8A9A5B', color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
-            >
-              ✓ Confirm Location
-            </button>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  // ── Normal modal ─────────────────────────────────────────────────────────
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: '16px', padding: '28px', width: '100%',
-        maxWidth: '420px', margin: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
-        <h2 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: 700 }}>Create New Farm</h2>
-        <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: '14px' }}>
+    <div style={overlay}>
+      <div style={card}>
+        <h2 style={{ margin: '0 0 4px', fontSize: '20px', fontWeight: 700, color: 'var(--c-text)' }}>Create New Farm</h2>
+        <p style={{ margin: '0 0 20px', color: 'var(--c-muted)', fontSize: '14px' }}>
           You'll be the admin of this farm and can invite managers.
         </p>
 
-        {error && (
-          <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '10px 14px', color: '#dc2626', fontSize: '13px', marginBottom: '16px' }}>
-            {error}
-          </div>
-        )}
+        {error && <div style={errBox}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>Farm Name *</label>
+            <label style={label}>Farm Name *</label>
             <input
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Sharma Farm, Khetlal Estate"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              style={input}
               autoFocus
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>Location</label>
+            <label style={label}>Location</label>
             <input
               value={form.location}
               onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
               placeholder="e.g. Pilibhit, Uttar Pradesh"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              style={input}
             />
           </div>
 
-          {/* Coordinates row */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>Map Location</label>
-              <button
-                type="button"
-                onClick={() => setPickMode(true)}
-                style={{ fontSize: '12px', color: '#8A9A5B', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                📍 Pick on Map
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <input
-                value={form.lat}
-                onChange={e => setForm(f => ({ ...f, lat: e.target.value }))}
-                placeholder="Latitude (e.g. 28.5073)"
-                type="number"
-                step="any"
-                style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
-              />
-              <input
-                value={form.lng}
-                onChange={e => setForm(f => ({ ...f, lng: e.target.value }))}
-                placeholder="Longitude (e.g. 80.4863)"
-                type="number"
-                step="any"
-                style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box' }}
-              />
-            </div>
-            {form.lat && form.lng && (
-              <div style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
-                📌 {parseFloat(form.lat).toFixed(4)}°N, {parseFloat(form.lng).toFixed(4)}°E — map will open here
-              </div>
-            )}
+            <label style={label}>Where is it?</label>
+            <p style={hint}>
+              Search for the nearest town, then drag the map and tap your farm. This is
+              what the Field map opens on — you can move it later.
+            </p>
+            <MapPicker
+              mode="point"
+              value={centre}
+              onChange={pt => setForm(f => ({
+                ...f,
+                lat: pt ? pt.lat : '',
+                lng: pt ? pt.lng : '',
+              }))}
+              height={220}
+            />
           </div>
 
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', display: 'block', marginBottom: '4px' }}>Total Acres</label>
+            <label style={label}>Total Acres</label>
             <input
               type="number"
               min="0"
@@ -172,23 +102,13 @@ export default function CreateFarmModal({ onClose }) {
               value={form.total_acres}
               onChange={e => setForm(f => ({ ...f, total_acres: e.target.value }))}
               placeholder="e.g. 75"
-              style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }}
+              style={input}
             />
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ flex: 1, padding: '11px', border: '1px solid #d1d5db', borderRadius: '8px', background: '#fff', fontSize: '14px', cursor: 'pointer', fontWeight: 600 }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ flex: 1, padding: '11px', border: 'none', borderRadius: '8px', background: loading ? '#9ca3af' : '#8A9A5B', color: '#fff', fontSize: '14px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: 600 }}
-            >
+            <button type="button" onClick={onClose} style={btnGhost}>Cancel</button>
+            <button type="submit" disabled={loading} style={btnPrimary(loading)}>
               {loading ? 'Creating…' : 'Create Farm'}
             </button>
           </div>
@@ -197,3 +117,34 @@ export default function CreateFarmModal({ onClose }) {
     </div>
   )
 }
+
+// ── Styles ───────────────────────────────────────────────────────────────────
+const overlay = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+  padding: `calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px))`,
+}
+// The map makes this form tall enough to outgrow a phone, so the card scrolls
+// rather than pushing its buttons off the screen.
+const card = {
+  background: 'var(--c-nav)', borderRadius: '16px', padding: '24px', width: '100%',
+  maxWidth: '420px', maxHeight: '100%', overflowY: 'auto',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+}
+const label = { fontSize: '13px', fontWeight: 600, color: 'var(--c-text)', display: 'block', marginBottom: '4px' }
+const hint  = { margin: '0 0 8px', fontSize: '12px', color: 'var(--c-muted)', lineHeight: 1.5 }
+const input = {
+  width: '100%', padding: '10px 12px', border: '1px solid var(--c-border-md)',
+  borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box',
+  background: 'var(--c-input)', color: 'var(--c-text)',
+}
+const errBox = {
+  background: 'rgba(226,75,74,0.1)', border: '1px solid rgba(226,75,74,0.3)',
+  borderRadius: '8px', padding: '10px 14px', color: '#E24B4A', fontSize: '13px', marginBottom: '16px',
+}
+const btnBase = { flex: 1, padding: '11px', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }
+const btnGhost = { ...btnBase, border: '1px solid var(--c-border-md)', background: 'transparent', color: 'var(--c-text)' }
+const btnPrimary = (loading) => ({
+  ...btnBase, border: 'none', background: loading ? 'var(--c-muted)' : '#8A9A5B',
+  color: '#fff', cursor: loading ? 'not-allowed' : 'pointer',
+})

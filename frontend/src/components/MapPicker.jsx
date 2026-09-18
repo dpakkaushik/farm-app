@@ -213,7 +213,7 @@ export default function MapPicker({
       {searchMsg && <p style={msg}>{searchMsg}</p>}
 
       <div style={{ position: 'relative' }}>
-        <div ref={container} style={{ height: `${height}px`, borderRadius: '10px', overflow: 'hidden', border: '1.5px solid #d1d5db' }} />
+        <div ref={container} style={{ height: `${height}px`, borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--c-border-md)' }} />
 
         <div style={hint}>
           {mode === 'point'
@@ -223,7 +223,7 @@ export default function MapPicker({
       </div>
 
       <div style={footRow}>
-        <div style={{ fontSize: '12px', color: '#6b7280', minWidth: 0 }}>
+        <div style={{ fontSize: '12px', color: 'var(--c-muted)', minWidth: 0 }}>
           {mode === 'corners' && done && (
             <span><strong style={{ color: '#8A9A5B' }}>≈ {acres.toFixed(2)} acres</strong> from the shape you drew</span>
           )}
@@ -246,11 +246,12 @@ export default function MapPicker({
 
 const searchRow = { display: 'flex', gap: '6px', marginBottom: '8px' }
 const searchInput = {
-  flex: 1, padding: '9px 12px', border: '1.5px solid #d1d5db',
+  flex: 1, padding: '9px 12px', border: '1.5px solid var(--c-border-md)',
+  background: 'var(--c-input)', color: 'var(--c-text)',
   borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', outline: 'none', minWidth: 0,
 }
 const searchBtn = {
-  padding: '9px 16px', border: 'none', borderRadius: '8px', background: '#374151',
+  padding: '9px 16px', border: 'none', borderRadius: '8px', background: '#8A9A5B',
   color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', flexShrink: 0,
 }
 const hint = {
@@ -264,7 +265,7 @@ const footRow = {
   gap: '8px', marginTop: '8px', minHeight: '24px',
 }
 const miniBtn = {
-  padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '6px',
-  background: '#fff', color: '#374151', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+  padding: '4px 10px', border: '1px solid var(--c-border-md)', borderRadius: '6px',
+  background: 'var(--c-surface)', color: 'var(--c-text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
 }
 const msg = { margin: '0 0 8px', fontSize: '12px', color: '#b45309' }

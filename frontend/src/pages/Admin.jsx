@@ -10,6 +10,8 @@ import { useAuthStore } from '../store/auth'
 import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/workerRecovery'
 import useBackClose from '../hooks/useBackClose'
 import SelectField from '../components/SelectField'
+import MapPicker, { polygonAcres } from '../components/MapPicker'
+import { cornersFromPlot, plotFromCorners } from '../lib/plotCorners'
 
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
@@ -1362,6 +1364,19 @@ function PlotsMaster() {
   const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
   const f = (field, val) => setForm(p => ({ ...p, [field]: val }))
 
+  // Corners the picker draws, and the plots already on the map so a new one can
+  // be placed against its neighbours instead of in empty space.
+  const corners    = cornersFromPlot(form || {})
+  const drawnAcres = polygonAcres(corners)
+  const otherPlots = plots
+    .filter(pl => pl.id !== form?.id)
+    .map(pl => ({ name: pl.name, points: cornersFromPlot(pl) }))
+    .filter(pl => pl.points.length >= 3)
+  const firstNeighbour = otherPlots[0]?.points[0]
+  const mapCentre  = corners[0] ? [corners[0].lng, corners[0].lat]
+    : firstNeighbour ? [firstNeighbour.lng, firstNeighbour.lat]
+    : undefined
+
   const hasAllPoints = (d) =>
     d.point_a_lat && d.point_a_lng && d.point_b_lat && d.point_b_lng &&
     d.point_c_lat && d.point_c_lng && d.point_d_lat && d.point_d_lng
@@ -1453,6 +1468,26 @@ function PlotsMaster() {
 
           <div className="border-t border-[var(--c-border)] pt-3">
             <p className="text-[12px] text-[var(--c-muted)] mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
+
+            {/* Tap the corners on satellite rather than typing eight latitudes.
+                The number fields below stay: they are how a surveyed figure gets
+                in, and how one corner gets nudged without redrawing the shape. */}
+            <div className="mb-3">
+              <MapPicker
+                mode="corners"
+                value={corners}
+                onChange={pts => setForm(prev => ({ ...prev, ...plotFromCorners(pts) }))}
+                center={mapCentre}
+                existing={otherPlots}
+                height={240}
+              />
+              {corners.length === 4 && (
+                <button type="button" onClick={() => f('area_acres', drawnAcres.toFixed(2))}
+                  className="mt-2 w-full py-2 border border-[#8A9A5B]/40 rounded-xl text-[12px] text-[#8A9A5B]">
+                  Use ≈ {drawnAcres.toFixed(2)} acres from this shape
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-[2px] text-[11px] text-[var(--c-faint)] px-7 mb-1">
               <span>Latitude</span><span>Longitude</span>
             </div>

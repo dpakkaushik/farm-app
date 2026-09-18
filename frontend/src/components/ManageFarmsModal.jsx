@@ -18,6 +18,11 @@ export default function ManageFarmsModal({ onClose }) {
   // Back gesture: out of edit/delete first, then out of the modal
   useBackClose(() => { if (view.mode === 'list') onClose(); else setView({ mode: 'list' }) })
 
+  // While Add New Farm is open this sheet steps aside completely. It used to stay
+  // mounted around it, and its full-screen overlay swallowed every drag meant for
+  // the map inside — which is why picking a location was impossible from here.
+  if (adding) return <CreateFarmModal onClose={() => setAdding(false)} />
+
   return (
     <div style={overlay}>
       <div style={sheet}>
@@ -52,8 +57,6 @@ export default function ManageFarmsModal({ onClose }) {
           )}
         </div>
       </div>
-
-      {adding && <CreateFarmModal onClose={() => setAdding(false)} />}
     </div>
   )
 }
