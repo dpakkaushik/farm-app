@@ -58,6 +58,23 @@ const polygonFC = (pts, props = {}) => (
     : { type: 'FeatureCollection', features: [{ type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: ring(pts) } }] }
 )
 
+// OpenStreetMap's Nominatim: free, no API key. Its usage policy forbids a lookup
+// per keystroke, so every caller fires this on an explicit action — a submit, or
+// a field losing focus — never on change. Returns [lng, lat], or null if the
+// place is not found.
+export async function geocodePlace(place) {
+  const term = (place || '').trim()
+  if (!term) return null
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(term)}`,
+    { headers: { Accept: 'application/json' } },
+  )
+  if (!res.ok) throw new Error('search failed')
+  const hits = await res.json()
+  if (!hits.length) return null
+  return [parseFloat(hits[0].lon), parseFloat(hits[0].lat)]
+}
+
 export default function MapPicker({
   mode = 'point',
   value,                  // point: {lat,lng}|null   corners: [{lat,lng}, ...]
@@ -165,6 +182,28 @@ export default function MapPicker({
     })
   }, [ready, existing])
 
+  // ── Follow the parent's `center` after mount ───────────────────────────────
+  //
+  // The opening view is set once at init, but the parent can move it later — the
+  // farm form geocodes its Location field as you leave it, so typing "Gurgaon"
+  // brings the map here rather than leaving you to hunt for it. Compared by
+  // VALUE: `center` is usually a fresh array literal each render, so an identity
+  // check would re-fly the map on every keystroke elsewhere in the form.
+  const flownTo = useRef(center ? `${center[0]},${center[1]}` : '')
+  useEffect(() => {
+    if (!ready || !map.current || !center) return
+    // Once anything is placed, the map stops following. The plot form derives
+    // `center` from the corners you tap, so without this the map would re-centre
+    // under your finger on every corner.
+    if (points.length) return
+    const key = `${center[0]},${center[1]}`
+    if (flownTo.current === key) return
+    flownTo.current = key
+    // Never zoom back out: if they have already zoomed past the town, a
+    // re-centre should keep their detail.
+    map.current.flyTo({ center, zoom: Math.max(map.current.getZoom(), 15), essential: true })
+  }, [ready, center?.[0], center?.[1], points.length])
+
   // ── Place search ───────────────────────────────────────────────────────────
   //
   // OpenStreetMap's Nominatim: free, no API key. Fired only on explicit submit —
@@ -176,14 +215,10 @@ export default function MapPicker({
     setSearching(true)
     setSearchMsg('')
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
-        { headers: { Accept: 'application/json' } },
-      )
-      if (!res.ok) throw new Error('search failed')
-      const hits = await res.json()
-      if (!hits.length) { setSearchMsg(`Couldn't find "${q}" — try a nearby town.`); return }
-      map.current?.flyTo({ center: [parseFloat(hits[0].lon), parseFloat(hits[0].lat)], zoom: 15, essential: true })
+      const hit = await geocodePlace(q)
+      if (!hit) { setSearchMsg(`Couldn't find "${q}" — try a nearby town.`); return }
+      flownTo.current = `${hit[0]},${hit[1]}`   // ours, not the parent's — don't re-fly
+      map.current?.flyTo({ center: hit, zoom: 15, essential: true })
     } catch {
       setSearchMsg('Search is unavailable right now — pan and zoom to your farm instead.')
     } finally {

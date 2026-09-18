@@ -1372,10 +1372,15 @@ function PlotsMaster() {
     .filter(pl => pl.id !== form?.id)
     .map(pl => ({ name: pl.name, points: cornersFromPlot(pl) }))
     .filter(pl => pl.points.length >= 3)
+  // Where the picker opens, most specific first: this plot's own corner, then a
+  // neighbouring plot, then the farm centre chosen when the farm was created.
+  // Without that last one a brand-new farm opens on the whole of India at z3.6,
+  // which is the "complicated" the owner meant — you cannot find your field there.
+  const farmCentre = useAuthStore(s => s.activeFarm?.map_state?.center)
   const firstNeighbour = otherPlots[0]?.points[0]
   const mapCentre  = corners[0] ? [corners[0].lng, corners[0].lat]
     : firstNeighbour ? [firstNeighbour.lng, firstNeighbour.lat]
-    : undefined
+    : (Array.isArray(farmCentre) && farmCentre.length === 2 ? farmCentre : undefined)
 
   const hasAllPoints = (d) =>
     d.point_a_lat && d.point_a_lng && d.point_b_lat && d.point_b_lng &&

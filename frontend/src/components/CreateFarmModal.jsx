@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth'
-import MapPicker from './MapPicker'
+import MapPicker, { geocodePlace } from './MapPicker'
 import useBackClose from '../hooks/useBackClose'
 
 // Create a farm — the same form FarmOnboarding shows the very first time, so it
@@ -20,12 +20,38 @@ export default function CreateFarmModal({ onClose }) {
   const [form, setForm]       = useState({ name: '', location: '', total_acres: '', lat: '', lng: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
+  const [mapCentre, setMapCentre] = useState(null)  // [lng, lat] — where the map should open
+  const [locMsg, setLocMsg]   = useState(null)
+  const lookedUp              = useRef('')
 
   useBackClose(() => { if (!loading) onClose() })
 
   const centre = (form.lat !== '' && form.lng !== '')
     ? { lat: parseFloat(form.lat), lng: parseFloat(form.lng) }
     : null
+
+  // Typing a town here moves the map below to it, so the farm pin is a tap away
+  // instead of a hunt from a view of the whole country. Fired on BLUR, never on
+  // change: Nominatim's usage policy forbids a lookup per keystroke, and leaving
+  // the field is exactly when you move to the map anyway.
+  const lookUpLocation = async () => {
+    const q = form.location.trim()
+    if (!q || q === lookedUp.current) return
+    lookedUp.current = q
+    setLocMsg('Finding ' + q + '…')
+    try {
+      const hit = await geocodePlace(q)
+      if (!hit) { setLocMsg(`Couldn't find "${q}" — search the map below, or pan to it.`); return }
+      // Clearing the pin is what lets the map move: the picker stops following
+      // `center` once a point is placed. Changing the town means the old pin was
+      // in the wrong one anyway, so it has to go.
+      setForm(f => ({ ...f, lat: '', lng: '' }))
+      setMapCentre(hit)
+      setLocMsg(null)
+    } catch {
+      setLocMsg('Could not look that up just now — use the map search below.')
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -35,7 +61,10 @@ export default function CreateFarmModal({ onClose }) {
     try {
       await createFarm(form)
       onClose()
-      navigate('/field?newFarm=1')
+      // Plots are the next thing a new farm needs, and the plot picker opens on
+      // the centre just chosen — so this hands straight over instead of dropping
+      // the user on an empty map.
+      navigate('/admin?tab=Plots')
     } catch (err) {
       setError(err.message || 'Failed to create farm')
     } finally {
@@ -70,9 +99,11 @@ export default function CreateFarmModal({ onClose }) {
             <input
               value={form.location}
               onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+              onBlur={lookUpLocation}
               placeholder="e.g. Pilibhit, Uttar Pradesh"
               style={input}
             />
+            {locMsg && <p style={locNote}>{locMsg}</p>}
           </div>
 
           <div>
@@ -89,6 +120,7 @@ export default function CreateFarmModal({ onClose }) {
                 lat: pt ? pt.lat : '',
                 lng: pt ? pt.lng : '',
               }))}
+              center={mapCentre}
               height={220}
             />
           </div>
@@ -132,6 +164,7 @@ const card = {
   boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
 }
 const label = { fontSize: '13px', fontWeight: 600, color: 'var(--c-text)', display: 'block', marginBottom: '4px' }
+const locNote = { margin: '6px 0 0', fontSize: '12px', color: 'var(--c-muted)' }
 const hint  = { margin: '0 0 8px', fontSize: '12px', color: 'var(--c-muted)', lineHeight: 1.5 }
 const input = {
   width: '100%', padding: '10px 12px', border: '1px solid var(--c-border-md)',
