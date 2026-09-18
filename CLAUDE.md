@@ -11,7 +11,25 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-18 (**picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-18 (**the town you type moves the map, and a new farm hands you to Plot Master**; **picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just done (18 Sep, 4th) — the map opened nowhere near the farm.** Three asks, one complaint:
+*"we give location lets suppose Gurgaon then the map below should go to gurgaon zoomed in … right
+now it is complicated."* (1) **The Location field now moves the map.** Geocoded on **BLUR, never
+on change** — Nominatim's policy forbids a lookup per keystroke, and leaving the field is exactly
+when you move to the map. The single Nominatim call site is now **`geocodePlace()`**, exported
+from MapPicker and used by its own search box too. (2) **Saving a new farm lands on Admin → Plots**
+(was `/field?newFarm=1`) — plots are what a new farm needs next, and the plot picker opens on the
+centre just chosen, so the steps hand over. (3) **The plot picker falls back to the farm's own
+`map_state` centre** when the plot has no corners and there are no neighbours; before this the
+first plot of a new farm opened **on the whole of India at z3.6**. MapPicker can now follow its
+`center` prop after mount, compared **by VALUE** (it is a fresh array each render — an identity
+check would re-fly on every keystroke), and **stops following once any point is placed**: the plot
+form derives `center` from the corners you tap, so without that guard the map re-centres under
+your finger. The matching hole is closed in the farm form — geocoding a **new** town **clears the
+pin**, or the map could never move again after the first tap. **Caught by the no-undef sweep
+before it shipped:** the new state was first named `centre`, which the file already used for the
+pin. **382 green.**
 
 **Just done (18 Sep, 3rd) — "Pick on Map" could not be dragged, and a plot's boundary was
 eight boxes to type.** His screenshot: the crosshair pinned at centre, the map frozen behind it.
