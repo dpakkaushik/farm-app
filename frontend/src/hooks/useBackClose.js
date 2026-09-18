@@ -7,6 +7,11 @@ const trapBack = createBackTrapper({
   pushState: (state) => window.history.pushState(state, ''),
   getState:  () => window.history.state,
   back:      () => window.history.back(),
+  // A UI close defers its back() by a tick so an overlay opening in the same
+  // React commit can inherit the parked entry instead of racing it. See
+  // lib/backTrap.js — firing it inline is what made every drawer row (Manage
+  // Farms, About) close itself the instant it opened.
+  schedule:  (fn) => setTimeout(fn, 0),
   onPop:     (fn) => {
     window.addEventListener('popstate', fn)
     return () => window.removeEventListener('popstate', fn)

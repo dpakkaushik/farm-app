@@ -5,11 +5,17 @@ import { createBackTrapper, MARKER } from '../backTrap'
 // listeners. `deferBack` holds a programmatic back() in the queue until the test
 // calls settle() — real browsers process one asynchronously, which is what makes
 // a remount mid-gesture (dev fast-refresh) worth pinning down.
+//
+// `schedule` is injected too, because a UI close no longer spends its entry
+// inline — it waits a tick so an overlay opening in the same React commit can
+// inherit it. runTimers() is that tick.
 function fakeBrowser({ state = {}, deferBack = false } = {}) {
   const entries = [state]
   const listeners = new Set()
+  const timers = []
   let pending = 0
   let exited = false
+  let backs = 0
 
   const settle = () => {
     while (pending > 0) {
@@ -26,14 +32,17 @@ function fakeBrowser({ state = {}, deferBack = false } = {}) {
     env: {
       pushState: (s) => { entries.push(s) },
       getState:  () => entries[entries.length - 1],
-      back:      () => { queue(); if (!deferBack) settle() },
+      back:      () => { backs += 1; queue(); if (!deferBack) settle() },
       onPop:     (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
+      schedule:  (fn) => { timers.push(fn) },
     },
     press: () => { queue(); settle() },   // the user's gesture
+    runTimers: () => { timers.splice(0).forEach(fn => fn()) },
     settle,
     depth:  () => entries.length,
     state:  () => entries[entries.length - 1],
     exited: () => exited,
+    backs:  () => backs,
   }
 }
 
@@ -63,6 +72,7 @@ describe('createBackTrapper', () => {
     const dispose = createBackTrapper(b.env)(() => {})
 
     dispose()
+    b.runTimers()
 
     expect(b.depth()).toBe(1)
   })
@@ -73,6 +83,7 @@ describe('createBackTrapper', () => {
     const dispose = createBackTrapper(b.env)(() => { closed += 1 })
 
     dispose()
+    b.runTimers()
     b.press()
 
     expect(closed).toBe(0)
@@ -89,11 +100,13 @@ describe('createBackTrapper', () => {
     b.press()
     expect(closed).toEqual(['viewer'])
     disposeViewer()                     // React unmounts what just closed
+    b.runTimers()
     expect(b.exited()).toBe(false)
 
     b.press()
     expect(closed).toEqual(['viewer', 'sheet'])
     disposeSheet()
+    b.runTimers()
     expect(b.exited()).toBe(false)
   })
 
@@ -105,6 +118,7 @@ describe('createBackTrapper', () => {
     // carries none of our marker.
     b.env.pushState({ idx: 9 })
     dispose()
+    b.runTimers()
 
     expect(b.depth()).toBe(3)
     expect(b.state()).toEqual({ idx: 9 })
@@ -116,10 +130,52 @@ describe('createBackTrapper', () => {
     let closed = 0
 
     const dispose = trap(() => {})
-    dispose()                           // queues a back…
+    dispose()                           // parks a back…
     trap(() => { closed += 1 })         // …and the overlay remounts first
+    b.runTimers()
     b.settle()
 
     expect(closed).toBe(0)
+  })
+
+  // ── The drawer → modal handoff ────────────────────────────────────────────
+  // A profile-drawer row that opens a modal closes the drawer and mounts the
+  // modal in ONE React commit: dispose() then trapBack(), no tick between them.
+  // Firing the drawer's back() inline let the browser destroy the modal's entry
+  // and hand the modal a popstate it read as the user pressing back — so Manage
+  // Farms and About did nothing at all when tapped.
+  it('hands the parked entry to an overlay opening in the same tick', () => {
+    const b = fakeBrowser()
+    const trap = createBackTrapper(b.env)
+    let modalClosed = 0
+
+    const disposeDrawer = trap(() => {})
+    expect(b.depth()).toBe(2)
+
+    disposeDrawer()                       // one commit: drawer out…
+    trap(() => { modalClosed += 1 })      // …modal in
+    b.runTimers()
+
+    expect(modalClosed).toBe(0)           // the modal survives being opened
+    expect(b.backs()).toBe(0)             // the drawer's back() was dropped
+    expect(b.depth()).toBe(2)             // still exactly one parked entry
+    expect(b.state()[MARKER]).toBe(1)
+  })
+
+  it('still closes the inherited overlay on a real back press', () => {
+    const b = fakeBrowser()
+    const trap = createBackTrapper(b.env)
+    let modalClosed = 0
+
+    const disposeDrawer = trap(() => {})
+    disposeDrawer()
+    trap(() => { modalClosed += 1 })
+    b.runTimers()
+
+    b.press()
+
+    expect(modalClosed).toBe(1)
+    expect(b.exited()).toBe(false)        // the gesture closed the modal, not the app
+    expect(b.depth()).toBe(1)
   })
 })

@@ -24,17 +24,51 @@ const depthOf = (state) => state?.[MARKER] || 0
 
 /**
  * @param {{ pushState: (state:object)=>void, getState: ()=>object|null,
- *           back: ()=>void, onPop: (fn:()=>void)=>()=>void }} env
+ *           back: ()=>void, onPop: (fn:()=>void)=>()=>void,
+ *           schedule?: (fn:()=>void)=>void }} env
  * @returns {(onClose:()=>void) => () => void} trapBack(onClose) → dispose
  */
 export function createBackTrapper(env) {
   const stack = []   // overlays currently open, most recent last
 
+  // Closing from the UI has to spend the entry we parked, or the user's next
+  // back press looks dead. Firing history.back() straight from dispose() is
+  // what broke it: a drawer row that opens a modal closes the drawer AND mounts
+  // the modal in ONE React commit, so the back() is still queued when the modal
+  // pushes its own entry. Chromium resolves that queued traversal against the
+  // entry that was current when back() was CALLED, so the modal's entry is
+  // destroyed and the modal reads the popstate as the user pressing back —
+  // closing itself the instant it opened. (Verified in a real browser; the
+  // earlier fake, which popped whatever was last at process time, could not
+  // show it.)
+  //
+  // So the back() waits a tick. If another overlay opens first it inherits the
+  // parked entry and the back() is dropped: one entry, one overlay, no race.
+  const schedule = env.schedule || ((fn) => setTimeout(fn, 0))
+  let parked = null   // { depth } an entry a UI close means to spend, once idle
+
+  const spendLater = (depth) => {
+    const mine = { depth }
+    parked = mine
+    schedule(() => {
+      if (parked !== mine) return          // an overlay inherited it
+      parked = null
+      if (depthOf(env.getState()) === depth) env.back()
+    })
+  }
+
   return function trapBack(onClose) {
     const token = { onClose, popped: false }
     stack.push(token)
     const depth = stack.length
-    env.pushState({ ...env.getState(), [MARKER]: depth })
+
+    // Take over the entry a same-tick close parked for us rather than pushing a
+    // second one and racing its back().
+    if (parked && parked.depth === depth && depthOf(env.getState()) === depth) {
+      parked = null
+    } else {
+      env.pushState({ ...env.getState(), [MARKER]: depth })
+    }
 
     const off = env.onPop(() => {
       // One back press fires popstate on EVERY listener, so only the overlay on
@@ -59,7 +93,7 @@ export function createBackTrapper(env) {
       // user's next back press look dead. Two cases deliberately skip this: the
       // gesture already spent it, and something navigated while we were open
       // (the marker is gone, and going back would undo that navigation).
-      if (!token.popped && depthOf(env.getState()) === depth) env.back()
+      if (!token.popped && depthOf(env.getState()) === depth) spendLater(depth)
     }
   }
 }
