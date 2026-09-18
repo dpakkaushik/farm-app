@@ -11,7 +11,26 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-18 (**Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-18 (**picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just done (18 Sep, 3rd) — "Pick on Map" could not be dragged, and a plot's boundary was
+eight boxes to type.** His screenshot: the crosshair pinned at centre, the map frozen behind it.
+**Pick on Map never had a map of its own** — it collapsed to a crosshair over whatever page was
+behind and read `useMapStore`'s centre on Confirm. From Manage Farms that is impossible: the
+create form opens *inside* `ManageFarmsModal`'s full-screen overlay, which **swallowed every
+drag**. It also assumed a map was behind at all — open it from any page but Fields and there is
+nothing to pan. **[`MapPicker`](frontend/src/components/MapPicker.jsx) already solved this for the
+first-farm wizard** (own satellite map, place search, pin, undo/clear; `mode="point"` for a farm
+centre, `mode="corners"` for a plot's four points) — `CreateFarmModal` now uses it, and
+ManageFarmsModal **steps aside** while it is open instead of wrapping it in a second scrim. The
+plot form got the other half of the ask: **Admin → Plots now opens on satellite — tap A, B, C, D**
+around the edge, neighbouring plots drawn for context, one tap to take the acres from the shape.
+**The eight number boxes STAY** — a surveyed figure has to get in somehow, and one corner
+sometimes needs nudging without redrawing. Converters in
+[`lib/plotCorners.js`](frontend/src/lib/plotCorners.js) (**12 specs**) read the columns as a
+**PREFIX, not a filter**: with A blank and B set, filtering would slide B into A's slot and
+silently reshape the plot. MapPicker's hardcoded light colours became theme vars — it now renders
+in the dark Admin form too. **382 green.**
 
 **Just done (18 Sep, 2nd) — every profile-drawer row that opens a window was dead.** The owner:
 *"why manage farm isnt working."* **Manage Farms AND About both did nothing at all** — and that
