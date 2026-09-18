@@ -11,9 +11,27 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-18 (the dead `backend/` tree deleted — CLAUDE.md now describes the architecture this app actually has; **nothing the app does changed**) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-18 (**Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
 
-**Just done (18 Sep) — the `backend/` folder is GONE, and this file finally describes this
+**Just done (18 Sep, 2nd) — every profile-drawer row that opens a window was dead.** The owner:
+*"why manage farm isnt working."* **Manage Farms AND About both did nothing at all** — and that
+pair is what named the cause: the fault was the shared **back-gesture trap**, not either window.
+A drawer row closes the drawer and mounts the modal in ONE React commit, so `dispose()` and
+`trapBack()` run with no tick between them; `dispose()` fired `history.back()` **inline** to spend
+the drawer's parked entry, and **Chromium resolves a queued traversal against the entry current
+when `back()` was CALLED, not when it runs** — so it destroyed the entry the modal had just
+pushed and handed the modal a popstate, which the modal read as the user pressing back. It closed
+itself the instant it opened. **The old fake browser could not show this** (it pops whatever is
+last at *process* time, so the modal survived and the test passed) — reproduced and verified
+against a **real Chromium via a throwaway Playwright harness**, which is the method to reach for
+when a fake and a phone disagree. Fix: a UI close **parks** its `back()` for a tick, and an
+overlay opening in the same commit **inherits that entry and drops the back()** — one entry, one
+overlay, no race. `schedule` joins `pushState/getState/back/onPop` as injected plumbing so tests
+drive the tick and stay synchronous. Two specs added, one of which **fails on the old code**;
+the other guards the opposite direction so the 2 Sep gesture work is not undone. **370 green.**
+**Web-only change — the APK loads the live URL, so no reinstall.**
+
+**Also done (18 Sep, 1st) — the `backend/` folder is GONE, and this file finally describes this
 app.** 44 Python files (FastAPI routers, SQLAlchemy models) that **never ran once**: nothing
 imported them, their dependencies were never installed, the frontend never called them — zero
 `axios` imports, no `VITE_API_URL` — and `config.py` built a **SQL Server** connection string
