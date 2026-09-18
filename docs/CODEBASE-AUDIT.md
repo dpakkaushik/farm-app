@@ -1,5 +1,16 @@
 # Codebase Structure Audit
 
+> **Problem 1 was fixed on 2026-09-18.** `backend/` (44 files) is deleted, and
+> CLAUDE.md §2, §3, §7, §8, §9, §11 and §12 now describe the real architecture —
+> React + Supabase, with views, triggers and RLS as the backend. The 10 committed
+> `.pyc` files are untracked. The stale `.gitignore` entries for
+> `backend/dependencies.py` and `backend/schemas/` are gone, as is the
+> "comes from the FastAPI backend" comment in `src/data/demo.js`.
+>
+> **Problems 2 and 3 stand.** The store is still one file owning every domain, and
+> there is still no ESLint, no CI and no error boundary — though the test suite has
+> since grown to 368 specs across 21 files, which is not nothing.
+
 **Date:** 2026-08-05
 **Commit audited:** `c7e83e7` (master, clean, synced with origin)
 **Scope:** repository structure, coupling, and troubleshootability — *not* a bug hunt

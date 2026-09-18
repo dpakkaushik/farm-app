@@ -11,7 +11,25 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-03 (Money Out stopped explaining and started doing — one Pay button per group, no paragraphs; the P&L tab stopped calling a standing crop a loss, and reads crops-first; every dropdown is now the app's own sheet, not Android's cream system dialog — 57 of them, via a drop-in `<select>` replacement; 2 Sep: the phone's back swipe finally works — the 26 Aug fix was missing its NATIVE half, `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once**; earlier the same day: salary in the Ledger stopped pretending a wage is a bill) · **detail:** [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-18 (the dead `backend/` tree deleted — CLAUDE.md now describes the architecture this app actually has; **nothing the app does changed**) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+
+**Just done (18 Sep) — the `backend/` folder is GONE, and this file finally describes this
+app.** 44 Python files (FastAPI routers, SQLAlchemy models) that **never ran once**: nothing
+imported them, their dependencies were never installed, the frontend never called them — zero
+`axios` imports, no `VITE_API_URL` — and `config.py` built a **SQL Server** connection string
+for a database that is Postgres. [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) named this
+its **problem #1** on 5 Aug (*"every investigation starts from a false map"*); this is that fix,
+and the audit now carries a note saying so. Rewritten to match reality: **§2** (there is no
+application server — Postgres views, triggers and RLS *are* the backend; MapLibre not Mapbox,
+no shadcn/ui, no Axios), **§3** (the real tree), **§4** (RLS enforces roles, not a service
+layer), **§7** (where logic may live — a *view* for any figure two screens must agree on, a
+tested `lib/` module for what SQL cannot do, **never a component**), **§8** (there are no API
+endpoints), **§9** (what is built, and what was abandoned *with the reason*), **§11** (two env
+vars, both public), **§12** (no `requirements.txt`). Swept up with it: the 10 committed `.pyc`
+files untracked, `.gitignore`'s dead `backend/` entries removed, and `data/demo.js`'s "comes
+from the FastAPI backend" comment corrected. **No app behaviour changed — 368 tests green,
+build clean.** The audit's **#2 (one 2,409-line store) and #3 (no ESLint, no CI, no error
+boundary) still stand** — #3 is the one that lets a blank page reach the owner.
 
 **Just done (3 Sep, 3rd) — Money Out stopped explaining and started doing.** *"there should be a
 pay button only, it will redirect user to the right place — why so much unnecesay explanation?
@@ -848,143 +866,111 @@ A farm management system for **medium-sized farm owners (50–100 acres)** who d
 
 ## 2. Tech Stack
 
-### Backend (Python-heavy — use Python wherever possible)
+> **This section used to describe a Python FastAPI backend the app never ran.**
+> A `backend/` folder sat in the repo for months holding FastAPI routers and
+> SQLAlchemy models. Nothing imported it, its dependencies were never installed,
+> and the frontend never called it — not one `axios` import, no `VITE_API_URL`.
+> It was deleted on 2026-09-18. The stack table had drifted the same way §6 warns
+> the schema did: it named **Mapbox**, **shadcn/ui** and **Axios**, none of which
+> this app uses.
+>
+> What follows is what actually runs.
 
-| Layer | Technology |
-|---|---|
-| API Framework | **FastAPI** (Python) |
-| Language | **Python 3.11+** |
-| ORM | **SQLAlchemy 2.0** (async) |
-| Data Validation | **Pydantic v2** (comes with FastAPI) |
-| Database Driver | **asyncpg** |
-| Auth | **Supabase Auth** + **python-jose** for JWT |
-| File Storage | **Supabase Storage** via `supabase-py` |
-| Background Tasks | **Celery** + Redis (for alerts, notifications) |
-| Geospatial | **Shapely** + **GeoJSON** for plot boundaries |
-| PDF Generation | **WeasyPrint** or **ReportLab** |
-| WhatsApp Alerts | **Twilio** Python SDK |
-| Testing | **pytest** + **pytest-asyncio** |
-| SDK | **anthropic** Python SDK (for AI features later) |
+### There is no application server
 
-### Frontend (minimal JS — only for UI)
+The React app talks to **Supabase directly** via `@supabase/supabase-js`. Access
+control and the money rules are enforced by **Postgres itself** — RLS policies,
+views and triggers (§6). That is the entire backend.
+
+Which is why **[`supabase/migrations/`](supabase/migrations/) is the most important
+directory in the repo.** A migration here is not a schema chore, it is a deployment
+of backend logic. There are 40, numbered and idempotent, applied in order.
+
+### Frontend
 
 | Layer | Technology |
 |---|---|
 | Framework | **React 18** + **Vite** |
-| Styling | **Tailwind CSS** |
-| Components | **shadcn/ui** |
-| Map | **Mapbox GL JS** (satellite tiles + plot polygons) |
-| State | **Zustand** |
-| API Client | **Axios** |
+| Styling | **Tailwind CSS** — hand-rolled components; there is **no shadcn/ui** |
+| Map | **MapLibre GL JS** + free demo tiles — **no Mapbox, and no map token** |
+| State | **Zustand** — `src/store/`, with `index.js` the main store |
+| Data access | **`@supabase/supabase-js`** (`src/lib/supabase.js`) — there is **no Axios** |
 | Charts | **Recharts** |
+| Excel export | **SheetJS** (`xlsx`) |
+| Android | **Capacitor** — wraps this same build; `frontend/capacitor.config.json` |
 | Testing | **vitest** — `npm test` in `frontend/`, specs in `src/**/__tests__/`. Config is `vitest.config.js`, kept deliberately separate from `vite.config.js` so a test setting can never break a Vercel deploy. |
+
+### Where the logic lives
+
+| Kind | Where |
+|---|---|
+| Pure, tested calculation | `frontend/src/lib/*.js` — 23 modules, specs beside them in `lib/__tests__/` |
+| Loading and mutations | `frontend/src/store/index.js` (Zustand) |
+| Derived money figures | Postgres **views** — `v_crop_pnl`, `v_expense_ledger`, `v_cash_book`, `v_salary_dues` |
+| Invariants | Postgres **triggers** and **RLS**, in the migrations |
+
+**The rule that follows:** anything that must never disagree with itself belongs in
+a view, or in a `lib/` module with tests — never in a component. This is why the
+Dashboard and the Ledger agree by construction: both read `v_crop_pnl`.
 
 ### Infrastructure
 
 | Layer | Technology |
 |---|---|
-| Database | **Supabase** (PostgreSQL 15) |
-| File Storage | **Supabase Storage** |
-| Backend Hosting | **Railway** |
-| Frontend Hosting | **Vercel** |
-| Cache / Queue | **Upstash Redis** |
+| Database | **Supabase** (PostgreSQL 15) — schema, RLS, views, triggers |
+| File Storage | **Supabase Storage** (buckets listed in §6) |
+| Frontend Hosting | **Vercel** — deploys automatically on every push to `master` |
+| Android | **Capacitor** — built locally, no store listing |
+
+There is no Railway, no Redis, no Celery, no queue. **Nothing in this app runs on a
+schedule** — there is no server to run it on. Any feature that needs to happen
+without someone opening the app (§7.3's alert engine, for example) does not exist
+and cannot, as the app is built today.
 
 ---
 
 ## 3. Project Structure
 
+There are three top-level directories. `frontend/` is the app, `supabase/` is the
+backend, `docs/` is the reasoning behind both.
+
 ```
 farm-app/
 │
-├── backend/                        # Python FastAPI backend
-│   ├── main.py                     # FastAPI app entry point
-│   ├── config.py                   # Settings via pydantic-settings
-│   ├── database.py                 # Async SQLAlchemy engine + session
-│   ├── dependencies.py             # FastAPI dependency injection
-│   │
-│   ├── models/                     # SQLAlchemy ORM models
-│   │   ├── __init__.py
-│   │   ├── farm.py
-│   │   ├── plot.py
-│   │   ├── crop.py
-│   │   ├── activity.py
-│   │   ├── inventory.py
-│   │   ├── harvest.py
-│   │   ├── sale.py
-│   │   ├── diary.py
-│   │   ├── alert.py
-│   │   └── media.py
-│   │
-│   ├── schemas/                    # Pydantic request/response schemas
-│   │   ├── __init__.py
-│   │   ├── farm.py
-│   │   ├── plot.py
-│   │   ├── crop.py
-│   │   ├── activity.py
-│   │   ├── inventory.py
-│   │   ├── harvest.py
-│   │   ├── sale.py
-│   │   ├── diary.py
-│   │   └── alert.py
-│   │
-│   ├── routers/                    # FastAPI routers (one per domain)
-│   │   ├── __init__.py
-│   │   ├── auth.py
-│   │   ├── farms.py
-│   │   ├── plots.py
-│   │   ├── crops.py
-│   │   ├── activities.py
-│   │   ├── inventory.py
-│   │   ├── harvest.py
-│   │   ├── sales.py
-│   │   ├── diary.py
-│   │   ├── alerts.py
-│   │   ├── dashboard.py
-│   │   └── media.py
-│   │
-│   ├── services/                   # Business logic layer (Python)
-│   │   ├── __init__.py
-│   │   ├── crop_service.py         # Auto-generate activities from templates
-│   │   ├── inventory_service.py    # Stock management, cost attribution
-│   │   ├── alert_service.py        # Alert generation logic
-│   │   ├── cost_service.py         # P&L calculation
-│   │   ├── notification_service.py # WhatsApp via Twilio
-│   │   ├── storage_service.py      # Supabase Storage file handling
-│   │   └── report_service.py       # PDF report generation
-│   │
-│   ├── tasks/                      # Celery background tasks
-│   │   ├── __init__.py
-│   │   ├── alert_tasks.py          # Scheduled alert checks
-│   │   └── notification_tasks.py   # WhatsApp message sending
-│   │
-│   ├── migrations/                 # Alembic DB migrations
-│   │   └── versions/
-│   │
-│   ├── tests/
-│   │   ├── conftest.py
-│   │   ├── test_crops.py
-│   │   ├── test_inventory.py
-│   │   └── test_cost.py
-│   │
-│   ├── alembic.ini
-│   ├── requirements.txt
-│   └── Dockerfile
+├── CLAUDE.md                       # this file — the snapshot at the top is read every session
+├── docs/                           # HANDOFF-*.md (long reasoning), SPEC-*.md, DECISION-*.md
 │
-└── frontend/                       # React frontend
+├── supabase/                       # ← the backend
+│   ├── migrations/                 # 40 numbered idempotent .sql files: schema, RLS, views, triggers
+│   └── data-fixes/                 # one .md per live-data repair, with before/after figures
+│
+└── frontend/
     ├── src/
-    │   ├── pages/
-    │   │   ├── Field.jsx           # Map view
-    │   │   ├── Dashboard.jsx       # Owner morning screen
-    │   │   ├── PlotDetail.jsx
-    │   │   ├── Inventory.jsx
-    │   │   ├── Diary.jsx           # Manager daily log
-    │   │   └── Reports.jsx
-    │   ├── components/
-    │   ├── hooks/
-    │   ├── api/                    # Axios API calls to FastAPI
-    │   └── store/                  # Zustand state
-    ├── package.json
-    └── vite.config.js
+    │   ├── main.jsx                # mounts React; registers the Android back handler
+    │   ├── App.jsx                 # routes + the floating bottom nav
+    │   ├── index.css               # Tailwind layers + the bottom-nav padding rule
+    │   │
+    │   ├── pages/                  # one file per screen
+    │   │   ├── Today.jsx           # the day card — the manager's home screen
+    │   │   ├── Field.jsx           # MapLibre plot map
+    │   │   ├── Dashboard.jsx       # owner's whole-cycle overview
+    │   │   ├── LedgerPage.jsx      # the money screen — the largest file in the app
+    │   │   ├── Labour.jsx          # attendance, Log Work, salary khata
+    │   │   ├── Harvest.jsx  Inventory.jsx  Trees.jsx  Livestock.jsx  Assets.jsx
+    │   │   ├── Admin.jsx  Media.jsx  Expenses.jsx  ResourcesPage.jsx
+    │   │   ├── UiKit.jsx           # /uikit — visual check page for the shared components
+    │   │   └── today/  ledger/  livestock/  assets/     # per-screen parts
+    │   │
+    │   ├── lib/                    # pure logic + __tests__/  ← calculation goes HERE
+    │   ├── store/                  # Zustand — index.js (main), auth.js, trees.js, theme.js
+    │   ├── components/             # shared UI — SummaryBox, RegisterCard, FilterSheet, …
+    │   ├── hooks/                  # useBackClose, useWeather
+    │   └── api/client.js           # thin Supabase query helpers (Field and Diary use it)
+    │
+    ├── android/                    # Capacitor Android project (generated)
+    ├── capacitor.config.json
+    ├── vite.config.js
+    └── vitest.config.js            # separate from vite.config.js on purpose — see §2
 ```
 
 ---
@@ -1006,7 +992,9 @@ farm-app/
 | Manage crop templates | ✅ | ❌ |
 | Farm settings | ❌ | ✅ |
 
-Roles are enforced at the FastAPI dependency layer using JWT claims from Supabase Auth.
+Roles are enforced by **Postgres RLS**, through the `is_farm_member()` and
+`has_farm_role()` helpers reading the Supabase Auth JWT (§6). There is no service
+layer to enforce them in — hiding a button in React hides nothing from the anon key.
 
 ---
 
@@ -1020,7 +1008,8 @@ Two main screens accessible via **tabs at the top**:
 ### 5.1 Field View (default screen)
 
 **What it shows:**
-- Full satellite map (Mapbox) of the farm
+- Full satellite map of the farm — **MapLibre GL** over Esri World Imagery raster
+  tiles, with an Esri labels layer above it (no Mapbox, no token, no bill)
 - Translucent colored polygon overlays for each plot
 - Plot label on each polygon: plot name, crop, status pill
 - Color coding by crop health status:
@@ -1144,324 +1133,183 @@ If a migration adds a table, it must also enable RLS and add the four policies a
 
 ---
 
-## 7. Core Business Logic (Python Services)
+## 7. Core Business Logic
 
-### 7.1 Seed Issue Trigger — `crop_service.py`
+> This section used to hold four Python service modules — `crop_service.py`,
+> `cost_service.py`, `alert_service.py`, `storage_service.py` — with full function
+> bodies. **None of them ever existed.** They belonged to the FastAPI backend
+> deleted on 2026-09-18 (§2). They were wrong about the domain too: they computed
+> P&L from a `harvests` table and generated rows into an `activities` table, and
+> **neither table exists** (§6).
+>
+> What follows is where the logic actually lives, and the rule for adding more.
 
-When manager issues seeds from inventory, this is the trigger for everything:
+### The three places logic may live
 
-```python
-async def start_crop_cycle(
-    plot_id: UUID,
-    template_id: UUID,
-    sow_date: date,
-    seed_item_id: UUID,
-    seed_quantity: float,
-    db: AsyncSession
-) -> CropCycle:
-    # 1. Create crop cycle
-    cycle = CropCycle(plot_id=plot_id, template_id=template_id, sow_date=sow_date)
-    cycle.expected_harvest_date = sow_date + timedelta(days=template.duration_days)
+**1. A Postgres view — for any figure two screens must agree on.**
 
-    # 2. Auto-generate all activities from template schedule
-    for activity_def in template.activity_schedule:
-        activity = Activity(
-            crop_cycle_id=cycle.id,
-            activity_type=activity_def["type"],
-            scheduled_date=sow_date + timedelta(days=activity_def["day"]),
-            label=activity_def["label"],
-            status="pending"
-        )
-        db.add(activity)
+`v_crop_pnl`, `v_expense_ledger`, `v_cash_book`, `v_salary_dues`. The Dashboard and
+the Ledger cannot contradict each other on crop profit because both read
+`v_crop_pnl` — the agreement is structural, not maintained by hand. A figure
+computed separately in two components will drift, and has, more than once.
 
-    # 3. Issue seeds from inventory (reduces stock, attributes cost)
-    await inventory_service.issue_item(
-        item_id=seed_item_id,
-        quantity=seed_quantity,
-        crop_cycle_id=cycle.id,
-        purpose="sowing"
-    )
+**2. A `lib/` module with tests — for calculation the database cannot do.**
 
-    # 4. Update plot status to active
-    await plot_service.set_status(plot_id, "active")
+`frontend/src/lib/*.js`, 23 modules, specs beside them in `lib/__tests__/`. Pure
+functions: data in, data out, no Supabase call, no React. The ones carrying real
+rules:
 
-    return cycle
-```
+| Module | The rule it owns |
+|---|---|
+| `period.js` | what an FY or a month means; `'all' \| 'YYYY' \| 'YYYY-MM'` |
+| `labourGroups.js` | one job is one payment; the per-plot split is for cost only |
+| `workerRecovery.js` | a negative `salary_advances` row is money recovered |
+| `cashPockets.js` | cash vs bank, annotated all-time *before* any period filter |
+| `billSettlement.js` | which bills a vendor payment cleared |
+| `salaryLedger.js` | month-wise paid vs pending |
+| `farmOverview.js` | per-cycle expected vs received |
 
-### 7.2 P&L Calculation — `cost_service.py`
+**3. A Postgres trigger — for an invariant that must hold whoever writes.**
 
-```python
-async def get_crop_cycle_pnl(cycle_id: UUID, db: AsyncSession) -> dict:
-    # Input costs from inventory issues
-    input_cost = await db.scalar(
-        select(func.sum(InventoryIssue.total_cost))
-        .where(InventoryIssue.crop_cycle_id == cycle_id)
-    ) or 0
+In the migrations: ledger entries, opening-figure guards, cycle auto-assignment.
 
-    # Labor costs from activities
-    labor_cost = await db.scalar(
-        select(func.sum(Activity.labor_cost))
-        .where(Activity.crop_cycle_id == cycle_id)
-    ) or 0
+### Where logic must not live
 
-    # Revenue from sales
-    revenue = await db.scalar(
-        select(func.sum(Sale.total_revenue))
-        .join(Harvest)
-        .where(Harvest.crop_cycle_id == cycle_id)
-    ) or 0
+**Not in a component.** A figure computed inline in a `.jsx` has no test and no
+second reader, so nothing catches it when the other screen showing that same number
+changes. When a component needs a calculation, the calculation moves to `lib/` and
+the component calls it.
 
-    total_cost = input_cost + labor_cost
-    return {
-        "input_cost": input_cost,
-        "labor_cost": labor_cost,
-        "total_cost": total_cost,
-        "revenue": revenue,
-        "profit": revenue - total_cost,
-        "margin_pct": round(((revenue - total_cost) / revenue * 100), 1) if revenue else 0
-    }
-```
+### Two hazards proven here in practice
 
-### 7.3 Alert Engine — `alert_service.py`
+- **There is no ESLint in `frontend/`, and Vite does no undefined-variable
+  analysis.** `npm run build` stayed green while the Salary tab rendered blank: an
+  edit had dropped two variables the page still used, and no test mounts a page
+  component. **Any edit that rewrites a block of a page must be re-read for
+  identifiers it no longer declares.**
+- **Build dates from LOCAL parts, never `toISOString()`.** That call returns the
+  previous day for Indian evening timestamps. It has caused a real off-by-one in FY
+  detection and again in month-end — `monthEnd` in `workerRecovery.js` exists
+  because of it.
 
-Runs as a Celery scheduled task every morning at 6 AM:
+### Nothing runs on a schedule
 
-```python
-async def run_daily_alert_check(farm_id: UUID, db: AsyncSession):
-    checks = [
-        check_diary_missing,       # no diary submitted yesterday
-        check_low_inventory,       # stock below min_threshold
-        check_harvest_due,         # harvest within 10 days
-        check_irrigation_gap,      # no irrigation logged for 5+ days
-        check_budget_exceeded,     # cycle spend > budget by 20%
-        check_pending_payments,    # payment_status=pending for 15+ days
-        check_health_concerns,     # health_rating='concern' not followed up
-    ]
-    for check in checks:
-        await check(farm_id, db)
-```
-
-### 7.4 File Upload — `storage_service.py`
-
-```python
-async def upload_file(
-    file: UploadFile,
-    entity_type: str,
-    entity_id: UUID,
-    uploaded_by: UUID,
-    db: AsyncSession
-) -> MediaFile:
-    bucket = BUCKET_MAP[entity_type]  # maps entity to correct bucket
-    path = f"{entity_type}/{entity_id}/{uuid4()}_{file.filename}"
-
-    # Upload to Supabase Storage
-    supabase.storage.from_(bucket).upload(path, await file.read())
-
-    # Store reference in DB
-    media = MediaFile(
-        entity_type=entity_type,
-        entity_id=entity_id,
-        bucket=bucket,
-        storage_path=path,
-        original_name=file.filename,
-        file_size_bytes=file.size,
-        mime_type=file.content_type,
-        uploaded_by=uploaded_by
-    )
-    db.add(media)
-    return media
-
-BUCKET_MAP = {
-    "inventory_purchase": "inventory-docs",
-    "crop_health_log": "farm-photos",
-    "harvest": "harvest-docs",
-    "sale": "sales-docs",
-    "daily_diary": "diary-media",
-}
-```
+The old §7.3 described a Celery alert engine firing at 6 AM. There is no server, so
+there is no 6 AM. **Every figure in this app is computed when someone opens a
+screen.** Proactive alerts (§10.6) stay an aspiration; the route that would not
+require adding an application server is Supabase `pg_cron` calling a database
+function.
 
 ---
 
-## 8. API Endpoints (FastAPI)
+## 8. Data Access — there are no API endpoints
 
-### Auth
-```
-POST   /auth/login
-POST   /auth/logout
-GET    /auth/me
-```
+> This section used to list some 35 REST endpoints across nine FastAPI routers.
+> **None were ever served.** The app has no HTTP API of its own and no base URL —
+> `VITE_API_URL` appears in no source file.
 
-### Farm & Plots
-```
-GET    /farms/{farm_id}
-GET    /farms/{farm_id}/plots
-POST   /farms/{farm_id}/plots
-PUT    /plots/{plot_id}
-GET    /plots/{plot_id}/summary       # full status for map popup
-```
+Every read and write goes through `@supabase/supabase-js` straight to Postgres,
+with **RLS deciding what the caller may see** (§6). The anon key ships inside the
+frontend bundle and is public; it is RLS, not the key, that separates tenants.
 
-### Crop Cycles
-```
-POST   /plots/{plot_id}/cycles/start  # triggers seed issue + auto-activities
-GET    /plots/{plot_id}/cycles
-GET    /cycles/{cycle_id}
-GET    /cycles/{cycle_id}/pnl         # profit & loss
+```js
+// the shape of every call in this app
+const { data, error } = await supabase
+  .from('crop_cycles')
+  .select('*, crops(name), plots(name)')   // FK embeds, not SQL joins
+  .eq('farm_id', getFarmId())              // defence in depth — RLS enforces it anyway
 ```
 
-### Activities
-```
-GET    /cycles/{cycle_id}/activities
-PUT    /activities/{id}/complete       # mark done + log workers/cost
-```
+| What you want | Where it is |
+|---|---|
+| Loading and mutations | `frontend/src/store/index.js` — `loadAll()` and the action functions |
+| A few plot / crop reads | `frontend/src/api/client.js` (Field and Diary only) |
+| Derived money figures | `select` from a `v_*` view — never recomputed client-side |
+| File upload | `supabase.storage.from(bucket)`, path recorded in `media_files` (§6) |
 
-### Inventory
-```
-GET    /farms/{farm_id}/inventory
-POST   /inventory/items               # add new item to master
-POST   /inventory/purchase            # record purchase + upload bill
-POST   /inventory/issue               # issue to plot (reduces stock)
-GET    /inventory/items/{id}/history  # all transactions
-```
-
-### Harvest & Sales
-```
-POST   /cycles/{cycle_id}/harvest     # record harvest + upload photo
-POST   /harvests/{id}/sales           # record sale + upload receipt
-GET    /harvests/{id}/sales
-```
-
-### Diary
-```
-POST   /diary                         # manager submits daily diary
-GET    /farms/{farm_id}/diary         # owner views diary feed
-GET    /diary/{date}                  # specific day
-```
-
-### Dashboard
-```
-GET    /farms/{farm_id}/dashboard     # all data for owner morning screen
-GET    /farms/{farm_id}/alerts        # all unread alerts
-PUT    /alerts/{id}/read
-```
-
-### Media
-```
-POST   /media/upload                  # upload any file, returns media_file record
-GET    /media/{entity_type}/{entity_id}   # all files for an entity
-DELETE /media/{id}
-```
+**`getFarmId()` in `store/index.js` scopes queries client-side. That is defence in
+depth, never the enforcement.** A new table without RLS is readable by anyone
+holding the anon key — which is everyone.
 
 ---
 
-## 9. Features — Development Phases
+## 9. Features — What Is Built
 
-### Phase 1 — Foundation
-- [ ] FastAPI project setup with SQLAlchemy + Supabase
-- [ ] Auth (login, JWT, roles)
-- [ ] Farm + Plot CRUD
-- [ ] Crop Templates
-- [ ] Basic React shell with Field + Dashboard tabs
-- [ ] Mapbox integration with static plot polygons
+> This was six phases of checkboxes, **not one of which was ever ticked**, across
+> a year in which most of them shipped. It is now a statement of what exists.
+> For what changed last and what is in flight, read the snapshot at the top of
+> this file — that is the live status, and this is not.
 
-### Phase 2 — Core Operations
-- [ ] Crop cycle start (seed issue trigger)
-- [ ] Auto-activity generation from template
-- [ ] Daily diary submission (manager)
-- [ ] Inventory master + purchase recording
-- [ ] File upload (bills, receipts, photos)
-- [ ] Inventory issue + auto stock deduction
+**Shipped, in daily use:** auth with farm roles and invitations · farm and plot CRUD ·
+the MapLibre plot map · crop cycles with template-generated activities · the manager's
+day card and task calendar · inventory master, bills, purchases and issue-to-plot ·
+file upload to Supabase Storage · the owner Dashboard · crop health logs · harvest
+sessions · sales · per-cycle P&L · the Ledger (cash book, vendor and salary khatas,
+Excel export) · attendance, Log Work and worker recovery · livestock · trees · assets ·
+multi-farm with RLS · new-farm onboarding · an Android build via Capacitor.
 
-### Phase 3 — Visibility & Alerts
-- [ ] Owner dashboard with all sections
-- [ ] Crop health logging with photos
-- [ ] Alert engine (Celery tasks)
-- [ ] WhatsApp notifications via Twilio
-- [ ] Real-time map overlay with plot status
+**Abandoned, with the reason — do not revive without reading it:**
 
-### Phase 4 — Harvest & Financials
-- [ ] Harvest recording
-- [ ] Sales recording
-- [ ] P&L per crop cycle
-- [ ] Season summary reports (PDF via WeasyPrint)
-- [ ] Budget vs actual tracking
+| Was planned | What happened |
+|---|---|
+| FastAPI backend, SQLAlchemy, Alembic | **Never ran.** Deleted 2026-09-18 — §2 |
+| Celery alert engine at 6 AM | **Cannot work as built** — there is no server (§7) |
+| WhatsApp alerts via Twilio | Not built; needs that same missing runner |
+| PDF reports via WeasyPrint | Superseded by **Excel export** (SheetJS) — what the owner's accountant actually asked for |
+| Mapbox + a map token | Replaced by **MapLibre** on free tiles — no token, no bill |
 
-### Phase 5 — Intelligence
-- [ ] Season-over-season comparison
-- [ ] Yield benchmarking by plot and crop
-- [ ] Cost per quintal analysis
-- [ ] AI chat agent to query farm data (Anthropic SDK)
+**Not built:** season-over-season comparison · yield benchmarking · cost per quintal ·
+an AI agent over farm data · subscription billing · Hindi UI · offline diary with sync.
 
-### Phase 6 — SaaS
-- [ ] Multi-farm support
-- [ ] Subscription billing (Razorpay)
-- [ ] Onboarding flow
-- [ ] Hindi / regional language support for manager UI
-- [ ] Offline diary mode with sync
+**What comes next is governed by the owner's steer** (quoted in the snapshot):
+*"we are going too accounts heavy."* Operational work before more accounting depth.
 
 ---
 
 ## 10. Key Design Decisions
 
-1. **Python everywhere possible** — FastAPI, SQLAlchemy, Pydantic, Celery, Shapely, ReportLab, Twilio SDK. Only React for UI.
+1. **The database is the backend** — React talks to Postgres through Supabase. Rules live in views, triggers and RLS, with tested `lib/` modules for what SQL cannot do (§2, §7). There is no application server. Adding one is a large decision to be argued on its merits, not a detail to slip in. *(This item used to read "Python everywhere possible". It was aspiration, never fact — no Python ever ran here.)*
 2. **Seed issue is the trigger** — crop cycle, activities, and cost tracking all start when seeds are issued from inventory. Nothing starts before that.
 3. **Media is polymorphic** — one `media_files` table handles all documents and photos. Never store files in the database.
 4. **Costs are derived, not entered** — P&L is always calculated from actual inventory issues + labor logged. No manual cost entry.
 5. **Manager UI must be ≤3 taps** — if logging something takes more than 3 taps, redesign it. Manager compliance is everything.
 6. **Alerts are proactive** — the owner should never have to check. The app tells him when something needs attention.
 7. **WhatsApp over email** — Indian farm owners check WhatsApp, not email. All critical alerts go to WhatsApp.
-8. **GeoJSON for plots** — `geo_polygon` stored as GeoJSON. Rendered as Mapbox polygon layers. Shapely used for area calculations in Python.
-9. **Row Level Security** — Supabase RLS policies enforce that owners only see their own farm data. FastAPI also enforces this at the service layer.
+8. **GeoJSON for plots** — `geo_polygon` is `jsonb`, rendered as MapLibre polygon layers. **Area is not computed from it:** `plots.area_acres` is a stored, entered figure, and it is what every money view multiplies by. Editing a boundary does not change a cost.
+9. **Row Level Security is the only enforcement** — RLS decides what a caller sees. The `getFarmId()` filter in the client is defence in depth and nothing more; the anon key is public (§6, §8).
 10. **Offline first (Phase 6)** — diary submissions queued locally if no internet, synced when connection returns.
 
 ---
 
 ## 11. Environment Variables
 
-```bash
-# Backend (.env)
-DATABASE_URL=postgresql+asyncpg://...
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=...
-SUPABASE_ANON_KEY=...
-JWT_SECRET=...
-REDIS_URL=redis://...
-TWILIO_ACCOUNT_SID=...
-TWILIO_AUTH_TOKEN=...
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-ANTHROPIC_API_KEY=...            # for AI features in Phase 5
+**There are two, and they are both public.**
 
-# Frontend (.env)
-VITE_API_URL=https://api.yourfarm.app
-VITE_MAPBOX_TOKEN=...
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
+```bash
+# frontend/.env — the only .env in the repo
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=...     # ships inside the bundle; RLS is what protects the data
 ```
+
+Read in exactly one place, [`src/lib/supabase.js`](frontend/src/lib/supabase.js).
+Vercel holds the same two for deploys.
+
+**A service-role key must never appear here.** It bypasses RLS, and anything in a
+`VITE_`-prefixed variable is compiled into the JavaScript every visitor downloads.
+
+Gone with the backend: `DATABASE_URL`, `JWT_SECRET`, `REDIS_URL`, the Twilio trio,
+`ANTHROPIC_API_KEY`. Also gone: `VITE_API_URL` (there is no API) and
+`VITE_MAPBOX_TOKEN` (MapLibre uses free tiles). One legacy reference survives —
+`VITE_FARM_ID` in [`Diary.jsx`](frontend/src/pages/Diary.jsx#L5), which predates
+multi-farm; every other screen resolves the farm through `getFarmId()`.
 
 ---
 
-## 12. Python Requirements
+## 12. Dependencies
 
-```
-# requirements.txt
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-sqlalchemy[asyncio]==2.0.30
-asyncpg==0.29.0
-pydantic==2.7.1
-pydantic-settings==2.2.1
-python-jose[cryptography]==3.3.0
-python-multipart==0.0.9
-supabase==2.4.2
-celery==5.4.0
-redis==5.0.4
-shapely==2.0.4
-geojson==3.1.0
-weasyprint==62.3
-twilio==9.0.5
-anthropic==0.26.0
-alembic==1.13.1
-pytest==8.2.0
-pytest-asyncio==0.23.6
-httpx==0.27.0
-python-dotenv==1.0.1
-```
+`frontend/package.json` is the only manifest. `npm install` in `frontend/` is the
+only setup step — **run it after any pull that changed `package.json`**, or the
+build fails on a missing import with no other warning.
+
+There is no `requirements.txt`. This section used to pin 21 Python packages for a
+backend that never ran; they were removed with it on 2026-09-18.

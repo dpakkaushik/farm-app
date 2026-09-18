@@ -1,5 +1,6 @@
 // ── Shared demo data ─────────────────────────────────────────────────────────
-// In production this all comes from the FastAPI backend.
+// In production this all comes from Supabase, via the store in src/store/index.js.
+// (This line used to name a FastAPI backend; there has never been one — see CLAUDE.md §2.)
 // Today: 2026-05-25
 
 export const CROP_TEMPLATES = [
