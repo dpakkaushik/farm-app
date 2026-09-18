@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
+import PlaceSearch from './PlaceSearch'
 
 // Satellite coordinate picker. Two jobs, one component:
 //
@@ -58,29 +59,13 @@ const polygonFC = (pts, props = {}) => (
     : { type: 'FeatureCollection', features: [{ type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: ring(pts) } }] }
 )
 
-// OpenStreetMap's Nominatim: free, no API key. Its usage policy forbids a lookup
-// per keystroke, so every caller fires this on an explicit action — a submit, or
-// a field losing focus — never on change. Returns [lng, lat], or null if the
-// place is not found.
-export async function geocodePlace(place) {
-  const term = (place || '').trim()
-  if (!term) return null
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(term)}`,
-    { headers: { Accept: 'application/json' } },
-  )
-  if (!res.ok) throw new Error('search failed')
-  const hits = await res.json()
-  if (!hits.length) return null
-  return [parseFloat(hits[0].lon), parseFloat(hits[0].lat)]
-}
-
 export default function MapPicker({
   mode = 'point',
   value,                  // point: {lat,lng}|null   corners: [{lat,lng}, ...]
   onChange,
   center,                 // [lng, lat] — where to open
   existing = [],          // read-only polygons to show for context: [{name, points}]
+  showSearch = true,      // off where the parent has its own place box (the farm form)
   height = 260,
 }) {
   const container = useRef(null)
@@ -89,8 +74,6 @@ export default function MapPicker({
   const valueRef  = useRef(value)
   const [ready,    setReady]    = useState(false)
   const [query,    setQuery]    = useState('')
-  const [searching, setSearching] = useState(false)
-  const [searchMsg, setSearchMsg] = useState('')
 
   const points = mode === 'corners' ? (value || []) : (value ? [value] : [])
   valueRef.current = value
@@ -192,40 +175,23 @@ export default function MapPicker({
   const flownTo = useRef(center ? `${center[0]},${center[1]}` : '')
   useEffect(() => {
     if (!ready || !map.current || !center) return
-    // Once anything is placed, the map stops following. The plot form derives
-    // `center` from the corners you tap, so without this the map would re-centre
-    // under your finger on every corner.
-    if (points.length) return
+    // 'corners' derives `center` from the corners you tap, so following it would
+    // re-centre the map under your finger on every corner. 'point' never does —
+    // its centre comes from a chosen suggestion or the Show-on-map button — so
+    // there it follows, which is the whole point.
+    if (mode === 'corners') return
     const key = `${center[0]},${center[1]}`
     if (flownTo.current === key) return
     flownTo.current = key
     // Never zoom back out: if they have already zoomed past the town, a
     // re-centre should keep their detail.
     map.current.flyTo({ center, zoom: Math.max(map.current.getZoom(), 15), essential: true })
-  }, [ready, center?.[0], center?.[1], points.length])
+  }, [ready, mode, center?.[0], center?.[1]])
 
   // ── Place search ───────────────────────────────────────────────────────────
   //
   // OpenStreetMap's Nominatim: free, no API key. Fired only on explicit submit —
   // never per keystroke, which its usage policy forbids.
-  const search = async (e) => {
-    e.preventDefault()
-    const q = query.trim()
-    if (!q || searching) return
-    setSearching(true)
-    setSearchMsg('')
-    try {
-      const hit = await geocodePlace(q)
-      if (!hit) { setSearchMsg(`Couldn't find "${q}" — try a nearby town.`); return }
-      flownTo.current = `${hit[0]},${hit[1]}`   // ours, not the parent's — don't re-fly
-      map.current?.flyTo({ center: hit, zoom: 15, essential: true })
-    } catch {
-      setSearchMsg('Search is unavailable right now — pan and zoom to your farm instead.')
-    } finally {
-      setSearching(false)
-    }
-  }
-
   const undo  = () => onChange(mode === 'corners' ? points.slice(0, -1) : null)
   const clear = () => onChange(mode === 'corners' ? [] : null)
 
@@ -234,18 +200,18 @@ export default function MapPicker({
 
   return (
     <div>
-      <form onSubmit={search} style={searchRow}>
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search a village, town or district…"
-          style={searchInput}
-        />
-        <button type="submit" disabled={searching} style={searchBtn}>
-          {searching ? '…' : 'Find'}
-        </button>
-      </form>
-      {searchMsg && <p style={msg}>{searchMsg}</p>}
+      {showSearch && (
+        <div style={{ marginBottom: '8px' }}>
+          <PlaceSearch
+            value={query}
+            onChange={setQuery}
+            onPick={hit => {
+              flownTo.current = `${hit.lng},${hit.lat}`   // ours, not the parent's
+              map.current?.flyTo({ center: [hit.lng, hit.lat], zoom: 15, essential: true })
+            }}
+          />
+        </div>
+      )}
 
       <div style={{ position: 'relative' }}>
         <div ref={container} style={{ height: `${height}px`, borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--c-border-md)' }} />
@@ -279,16 +245,6 @@ export default function MapPicker({
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const searchRow = { display: 'flex', gap: '6px', marginBottom: '8px' }
-const searchInput = {
-  flex: 1, padding: '9px 12px', border: '1.5px solid var(--c-border-md)',
-  background: 'var(--c-input)', color: 'var(--c-text)',
-  borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', outline: 'none', minWidth: 0,
-}
-const searchBtn = {
-  padding: '9px 16px', border: 'none', borderRadius: '8px', background: '#8A9A5B',
-  color: '#fff', fontSize: '13px', fontWeight: 700, cursor: 'pointer', flexShrink: 0,
-}
 const hint = {
   position: 'absolute', left: '10px', bottom: '10px',
   background: 'rgba(17,24,39,0.82)', color: '#fff',
@@ -303,4 +259,3 @@ const miniBtn = {
   padding: '4px 10px', border: '1px solid var(--c-border-md)', borderRadius: '6px',
   background: 'var(--c-surface)', color: 'var(--c-text)', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
 }
-const msg = { margin: '0 0 8px', fontSize: '12px', color: '#b45309' }
