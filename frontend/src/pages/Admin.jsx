@@ -1376,6 +1376,18 @@ function PlotsMaster() {
   const openForm = (draft) => { setForm(draft); setStep(STEPS.DETAILS) }
   const closeForm = () => { setForm(null); setStep(STEPS.DETAILS) }
 
+  // ?new=1 — the Field map's Add Plot button lands here with step 1 already
+  // open, so its door is one tap and not three. The param is cleared on
+  // arrival, the way Today's ?log=expense does it, or a later back or reload
+  // would reopen a form the user had closed.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('new') !== '1') return
+    url.searchParams.delete('new')
+    window.history.replaceState(window.history.state, '', url.pathname + url.search)
+    openForm({ ...EMPTY_PLOT })
+  }, [])
+
   // Corners the picker draws, and the plots already on the map so a new one can
   // be placed against its neighbours instead of in empty space.
   const corners    = cornersFromPlot(form || {})

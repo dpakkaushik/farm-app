@@ -11,7 +11,24 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-21 (**Add Plot is two steps now — details, then a full-screen satellite map you tap four corners on**; a typed area is never overwritten by the shape; `updatePlot` stopped sending `''` to numeric columns) · earlier 2026-09-18: place suggestions as you type and the lat/long boxes back; the town you type moves the map; every profile-drawer row that opens a window was dead; the unused `backend/` tree deleted and CLAUDE.md rewritten to the architecture this app actually has · 2026-09-03: Money Out stopped explaining and started doing; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet · 2 Sep: the back swipe works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) ← **now marked BUILT, with the two deviations and why** · [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md)
+**Last updated:** 2026-09-21 (**the map's four tool buttons are one expandable icon, and the field map has an Add Plot door**; **Add Plot is two steps — details, then a full-screen satellite map you tap four corners on**; a typed area is never overwritten by the shape; `updatePlot` stopped sending `''` to numeric columns) · earlier 2026-09-18: place suggestions as you type and the lat/long boxes back; the town you type moves the map; every profile-drawer row that opens a window was dead; the unused `backend/` tree deleted and CLAUDE.md rewritten to the architecture this app actually has · 2026-09-03: Money Out stopped explaining and started doing; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet · 2 Sep: the back swipe works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) ← **now marked BUILT, with the two deviations and why** · [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md)
+
+**Also done (21 Sep, 2nd) — the map's four tool buttons became one, and the field map got an
+Add Plot door.** His screenshot with the right-hand stack ringed: *"collapse them into 1 icon
+expandable, also i need one add plot button, use the space well."* Zoom in, zoom out, go-to-
+coordinates and layers ran a fifth of the way down a phone and hid the field behind them; they
+now fold into a single **SlidersHorizontal** button that expands to the same four, and
+**collapsing takes their panels with it** — a panel left open with no button behind it reads as
+a bug. The sage ring that meant "an overlay is on" moved to the toggle, so that state survives
+the fold. **Add Plot is a sage pill in the bottom-right corner, on the same baseline as the
+legend** (same `calc(96px + safe-area)`), because the top right is for map tools and the
+opposite corner was empty — that is the "use the space well". **It is a DOOR, not a second
+flow:** it navigates to `/admin?tab=Plots&new=1`, and the new `?new=1` opens step 1 on arrival
+and clears the param (the `?log=expense` convention — otherwise a reload reopens a form the
+user closed). **Admins only**, since only they can write plots. **This reverses the 21 Sep
+design answer "no Field-map entry point"** — his own later ask, so the plan doc's table is
+history, not the current rule. **Not visually verified**: Field needs a session and is not in
+`/uikit`, so this one shipped on a clean build, 417 green and the no-undef sweep alone.
 
 **Just done (21 Sep) — Add Plot became two steps, and the map is the whole screen.**
 His two screenshots of another farm app: a plain details form, then a full-screen satellite map

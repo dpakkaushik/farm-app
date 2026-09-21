@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import maplibregl from 'maplibre-gl'
 import { useMapStore, useAppStore } from '../store'
 import { useTreeStore } from '../store/trees'
-import { useAuthStore } from '../store/auth'
+import { useAuthStore, isAdmin } from '../store/auth'
 import { farmApi } from '../api/client'
 import SetupChecklist from '../components/SetupChecklist'
 import useWeather from '../hooks/useWeather'
@@ -14,6 +14,7 @@ import {
   X, Layers, Upload, ZoomIn, ZoomOut, Navigation,
   Eye, EyeOff, CheckCircle2, Clock,
   Sprout, ChevronRight, Camera, ChevronDown,
+  SlidersHorizontal, Plus,
 } from 'lucide-react'
 
 // ── Farm infrastructure (boundary outline + internal channel) ─────────────────
@@ -141,6 +142,7 @@ export default function Field() {
   const [selectedPlotId, setSelectedPlotId]     = useState(null)
   const [showCoordPanel, setShowCoordPanel]     = useState(false)
   const [showOverlayPanel, setShowOverlayPanel] = useState(false)
+  const [toolsOpen, setToolsOpen]               = useState(false)
   const [coordInput, setCoordInput]             = useState({ lat: '', lng: '' })
   const [overlayOpacity, setOverlayOpacity]     = useState(overlay?.opacity ?? 0.7)
   const [overlayVisible, setOverlayVisible]     = useState(true)
@@ -559,6 +561,19 @@ export default function Field() {
   const zoomIn  = () => map.current?.zoomIn({ duration:300 })
   const zoomOut = () => map.current?.zoomOut({ duration:300 })
 
+  // Folding the tools away takes their panels with them: a panel left open with
+  // no visible button behind it reads as a bug.
+  const toggleTools = () => setToolsOpen(open => {
+    if (open) { setShowCoordPanel(false); setShowOverlayPanel(false) }
+    return !open
+  })
+
+  // The add door. Admin - Plots owns the two-step flow (details, then the
+  // full-screen boundary map); ?new=1 opens step 1 on arrival so this is one
+  // tap, not three. Only admins can write plots, so only they see it.
+  const canAddPlot = isAdmin(activeFarm?.role)
+  const goAddPlot  = () => navigate('/admin?tab=Plots&new=1')
+
   return (
     <div className="relative w-full h-full">
       <div ref={mapContainer} className="absolute inset-0" />
@@ -693,18 +708,27 @@ export default function Field() {
       </>)}
 
       {/* Right controls */}
-      {/* z-30 keeps these above the plot card's tap-to-close backdrop (z-10);
+      {/* One button, expanding to four. Four permanent buttons ran a fifth of
+          the way down the phone and hid the field behind them — the map is the
+          screen, so the tools fold away until asked for.
+          z-30 keeps these above the plot card's tap-to-close backdrop (z-10);
           without it, zooming while a card is open just closed the card. */}
       <div className="absolute top-3 right-3 z-30 flex flex-col gap-2">
-        <button onClick={zoomIn}  className="map-btn"><ZoomIn  size={16}/></button>
-        <button onClick={zoomOut} className="map-btn"><ZoomOut size={16}/></button>
-        <button onClick={() => { setShowCoordPanel(v=>!v); setShowOverlayPanel(false) }} className="map-btn"><Navigation size={16}/></button>
-        <button onClick={() => { setShowOverlayPanel(v=>!v); setShowCoordPanel(false) }} className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}><Layers size={16}/></button>
+        <button onClick={toggleTools} aria-label={toolsOpen ? 'Hide map tools' : 'Map tools'} aria-expanded={toolsOpen}
+          className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}>
+          {toolsOpen ? <X size={16}/> : <SlidersHorizontal size={16}/>}
+        </button>
+        {toolsOpen && (<>
+          <button onClick={zoomIn}  aria-label="Zoom in"  className="map-btn"><ZoomIn  size={16}/></button>
+          <button onClick={zoomOut} aria-label="Zoom out" className="map-btn"><ZoomOut size={16}/></button>
+          <button onClick={() => { setShowCoordPanel(v=>!v); setShowOverlayPanel(false) }} aria-label="Go to coordinates" className="map-btn"><Navigation size={16}/></button>
+          <button onClick={() => { setShowOverlayPanel(v=>!v); setShowCoordPanel(false) }} aria-label="Plot layout overlay" className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}><Layers size={16}/></button>
+        </>)}
       </div>
 
       {/* Coordinate panel */}
       {showCoordPanel && (
-        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-64 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-64 max-w-[calc(100vw-72px)] shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Go to Coordinates</span>
             <button onClick={() => setShowCoordPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -719,7 +743,7 @@ export default function Field() {
 
       {/* Overlay panel */}
       {showOverlayPanel && (
-        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-72 shadow-xl border border-white/10">
+        <div className="absolute top-3 right-14 z-30 bg-[var(--c-nav)]/95 backdrop-blur-sm rounded-xl p-4 w-72 max-w-[calc(100vw-72px)] shadow-xl border border-white/10">
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs font-semibold text-white uppercase tracking-wide">Plot Layout Overlay</span>
             <button onClick={() => setShowOverlayPanel(false)} className="text-white/40 hover:text-white"><X size={14}/></button>
@@ -792,6 +816,18 @@ export default function Field() {
           </div>
         )}
       </div>
+
+      {/* Add Plot — the empty corner opposite the legend, on the same line as
+          it, so the two balance instead of everything crowding the top right.
+          The FLOW itself stays in Admin: this is a door to it, not a second
+          copy of it. Admins only — a manager landing on Admin sees nothing. */}
+      {canAddPlot && (
+        <button onClick={goAddPlot}
+          className="absolute right-3 z-30 flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[13px] font-bold shadow-lg"
+          style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))', background: '#8A9A5B', color: '#fff' }}>
+          <Plus size={15} strokeWidth={2.75}/> Add Plot
+        </button>
+      )}
 
       {selectedPlot && (
         <PlotDetailPanel
