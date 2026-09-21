@@ -187,7 +187,13 @@ export default function App() {
           index.css; page-level bottom sheets and modals sit above it (z-50). */}
       <nav className="absolute inset-x-0 bottom-0 z-40 px-5 pointer-events-none"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}>
-        <div className="pointer-events-auto flex items-center justify-around rounded-full px-1.5 py-1 shadow-2xl backdrop-blur-md"
+        {/* justify-BETWEEN, not around: around banks half a gap at each end, so
+            the active pill floated off the bar's edge whenever the first or last
+            tab was the one selected. Between puts every spare pixel between the
+            tabs instead, and px-1 matches py-1 so the inset is the same 4px on
+            all four sides — the pill reads as nested in the bar, not adrift in
+            it. */}
+        <div className="pointer-events-auto flex items-center justify-between rounded-full px-1 py-1 shadow-2xl backdrop-blur-md"
           style={{ background: 'rgba(32,37,19,0.92)', border: '1px solid rgba(255,255,255,0.10)',
                    boxShadow: '0 8px 28px rgba(0,0,0,0.4)' }}>
           {NAV.map(({ to, label, Icon }) => (

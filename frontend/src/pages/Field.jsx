@@ -713,7 +713,10 @@ export default function Field() {
           screen, so the tools fold away until asked for.
           z-30 keeps these above the plot card's tap-to-close backdrop (z-10);
           without it, zooming while a card is open just closed the card. */}
-      <div className="absolute top-3 right-3 z-30 flex flex-col gap-2">
+      {/* items-end, not the flex default of stretch: the Add Plot pill below is
+          wider than the 36px tool buttons, and stretch would blow them up to
+          match it. */}
+      <div className="absolute top-3 right-3 z-30 flex flex-col items-end gap-2">
         <button onClick={toggleTools} aria-label={toolsOpen ? 'Hide map tools' : 'Map tools'} aria-expanded={toolsOpen}
           className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}>
           {toolsOpen ? <X size={16}/> : <SlidersHorizontal size={16}/>}
@@ -724,6 +727,19 @@ export default function Field() {
           <button onClick={() => { setShowCoordPanel(v=>!v); setShowOverlayPanel(false) }} aria-label="Go to coordinates" className="map-btn"><Navigation size={16}/></button>
           <button onClick={() => { setShowOverlayPanel(v=>!v); setShowCoordPanel(false) }} aria-label="Plot layout overlay" className={`map-btn ${overlay ? 'ring-1 ring-[#8A9A5B]' : ''}`}><Layers size={16}/></button>
         </>)}
+
+        {/* Add Plot sits LAST in this column, not first, and that ordering is
+            load-bearing: the coordinate and overlay panels anchor at top-3 and
+            open only while the tools are expanded, so keeping the pill beneath
+            them is what stops a panel from opening on top of it. Collapsed, it
+            lands just under the tools button — where he pointed. */}
+        {canAddPlot && (
+          <button onClick={goAddPlot}
+            className="flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[13px] font-bold shadow-lg"
+            style={{ background: '#8A9A5B', color: '#fff' }}>
+            <Plus size={15} strokeWidth={2.75}/> Add Plot
+          </button>
+        )}
       </div>
 
       {/* Coordinate panel */}
@@ -816,18 +832,6 @@ export default function Field() {
           </div>
         )}
       </div>
-
-      {/* Add Plot — the empty corner opposite the legend, on the same line as
-          it, so the two balance instead of everything crowding the top right.
-          The FLOW itself stays in Admin: this is a door to it, not a second
-          copy of it. Admins only — a manager landing on Admin sees nothing. */}
-      {canAddPlot && (
-        <button onClick={goAddPlot}
-          className="absolute right-3 z-30 flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-[13px] font-bold shadow-lg"
-          style={{ bottom: 'calc(96px + env(safe-area-inset-bottom, 0px))', background: '#8A9A5B', color: '#fff' }}>
-          <Plus size={15} strokeWidth={2.75}/> Add Plot
-        </button>
-      )}
 
       {selectedPlot && (
         <PlotDetailPanel
