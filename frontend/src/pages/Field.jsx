@@ -366,16 +366,26 @@ export default function Field() {
       setCurrentZoom(Math.round(z * 10) / 10)
       const state = { zoom:z, center:[c.lng,c.lat], bearing:map.current.getBearing(), pitch:map.current.getPitch() }
       setMapState(state)
+      // Bind the position to the farm it was captured on. Read now, not in the
+      // timer: a farm switch or delete inside the next second would otherwise
+      // write this farm's coordinates onto a different farm's row.
+      const capturedFarmId = useAuthStore.getState().activeFarmId
       clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => useAuthStore.getState().saveActiveFarmMapState(state), 1000)
+      saveTimer.current = setTimeout(
+        () => useAuthStore.getState().saveActiveFarmMapState(state, capturedFarmId), 1000)
     })
     return () => { clearTimeout(saveTimer.current); markersRef.current.forEach(m => m.remove()); map.current?.remove(); map.current = null }
   }, [])
 
-  // Fly to farm location when active farm changes
+  // Fly to farm location when active farm changes.
   useEffect(() => {
-    if (!map.current || !activeFarm?.map_state?.center) return
-    map.current.flyTo({ center: activeFarm.map_state.center, zoom: activeFarm.map_state.zoom || 15, essential: true })
+    if (!map.current) return
+    // Belt and braces with the store's own guard: a save captured on the farm we
+    // are leaving must not land on the one we are arriving at.
+    clearTimeout(saveTimer.current)
+    const centre = activeFarm?.map_state?.center
+    if (!centre) return
+    map.current.flyTo({ center: centre, zoom: activeFarm.map_state.zoom || 15, essential: true })
   }, [activeFarmId])
 
   // Refresh map polygons + labels whenever live data changes

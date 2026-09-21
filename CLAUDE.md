@@ -11,7 +11,7 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-21 (**the map's four tool buttons are one expandable icon, the field map has an Add Plot door, and the bottom nav lost its end gaps**; **Add Plot is two steps — details, then a full-screen satellite map you tap four corners on**; a typed area is never overwritten by the shape; `updatePlot` stopped sending `''` to numeric columns) · earlier 2026-09-18: place suggestions as you type and the lat/long boxes back; the town you type moves the map; every profile-drawer row that opens a window was dead; the unused `backend/` tree deleted and CLAUDE.md rewritten to the architecture this app actually has · 2026-09-03: Money Out stopped explaining and started doing; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet · 2 Sep: the back swipe works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) ← **now marked BUILT, with the two deviations and why** · [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md)
+**Last updated:** 2026-09-21 (**Pallia's map centre was silently overwritten by a deleted farm and is restored**; the map's four tool buttons are one expandable icon, the field map has an Add Plot door, and the bottom nav lost its end gaps**; **Add Plot is two steps — details, then a full-screen satellite map you tap four corners on**; a typed area is never overwritten by the shape; `updatePlot` stopped sending `''` to numeric columns) · earlier 2026-09-18: place suggestions as you type and the lat/long boxes back; the town you type moves the map; every profile-drawer row that opens a window was dead; the unused `backend/` tree deleted and CLAUDE.md rewritten to the architecture this app actually has · 2026-09-03: Money Out stopped explaining and started doing; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet · 2 Sep: the back swipe works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) ← **now marked BUILT, with the two deviations and why** · [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md)
 
 **Also done (21 Sep, 2nd) — the map's four tool buttons became one, and the field map got an
 Add Plot door.** His screenshot with the right-hand stack ringed: *"collapse them into 1 icon
@@ -38,6 +38,27 @@ tabs — and `px-1` matches `py-1` so the inset is the same 4px on all four side
 real Chromium by rendering the nav markup against the BUILT css in the scratchpad: the shell
 returns `/uikit` **before** the nav renders, so that harness cannot see it. Field itself is
 still unverified visually for the same reason — it needs a session.
+
+**Also done (21 Sep, 3rd) — the field map was NOT stuck; Pallia's saved centre had been
+overwritten with a deleted farm's.** He created a farm, deleted it, and reported *"my field
+screen is still stuck at newly added farm screen … even when i am clicking over pallia farm i
+cant move to the farm on map."* The delete had worked — one row, Pallia — but its
+`map_state.center` read **`[77.359, 28.293]`, Delhi NCR**, while its own 68 plot corners average
+**`[80.4864, 28.5068]`**. The map was flying exactly where it was told, 350km away, by all three
+routes that read `map_state` (first load, the on-load flyTo, the farm-switch effect) — which is
+why every way in looked equally dead. **Cause: the `moveend` handler captured the position and
+wrote it a second later, reading the active farm id WHEN THE TIMER FIRED.** Move the map on
+farm B, delete or switch inside that second, and B's coordinates land on whoever is active when
+it resolves — and `deleteFarm → refreshFarms` flips `activeFarmId` inside exactly that window.
+The saved zoom of **18.0886** is the tell: an arbitrary fractional zoom is a live map view, not
+anything a form writes. **Fix: a captured position is bound to the farm it was captured on** —
+[`lib/mapState.js`](frontend/src/lib/mapState.js) (**4 specs, 421 green**), the store action
+takes a `capturedFarmId` and refuses a mismatch, and the farm-switch effect cancels any pending
+save. It **fails safe**: a missing id saves nowhere, because forgetting where the map was is
+trivial and writing it to another farm is this. Data restored from the plot corners, recorded in
+[`supabase/data-fixes/2026-09-21-pallia-map-centre-restored.md`](supabase/data-fixes/2026-09-21-pallia-map-centre-restored.md).
+**The same race can still be reasoned about elsewhere: any debounced write that reads
+`activeFarmId` at fire time rather than capture time has this shape.**
 
 **Just done (21 Sep) — Add Plot became two steps, and the map is the whole screen.**
 His two screenshots of another farm app: a plain details form, then a full-screen satellite map

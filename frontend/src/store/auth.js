@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { canSaveMapState } from '../lib/mapState'
 import { supabase } from '../lib/supabase'
 
 async function fetchProfile(userId) {
@@ -224,9 +225,15 @@ const useAuthStore = create((set, get) => ({
   // the home position is a farm setting, and they simply don't get to change it. The
   // local map still moved for their session; only persistence is denied. Patches the
   // in-memory farm rather than refetching, because this fires on every pan.
-  saveActiveFarmMapState: async (mapState) => {
+  // capturedFarmId is the farm that was on screen when this position was read.
+  // It is REQUIRED: the call is debounced, so between capture and write the user
+  // can switch farms or delete the one they were on, and without this guard the
+  // position lands on whoever is active when the timer fires. That is how Pallia
+  // Farm ended up with a Delhi centre on 21 Sep. See lib/mapState.js.
+  saveActiveFarmMapState: async (mapState, capturedFarmId) => {
     const { activeFarmId } = get()
-    if (!activeFarmId || !mapState) return
+    if (!mapState) return
+    if (!canSaveMapState({ capturedFarmId, activeFarmId })) return
     const { error } = await supabase.from('farms')
       .update({ map_state: mapState })
       .eq('id', activeFarmId)
