@@ -1,6 +1,20 @@
 # Add Plot: a two-step flow with a full-screen map
 
-**Date:** 2026-09-21 · **Status:** DESIGNED AND APPROVED IN CHAT, NOT BUILT.
+**Date:** 2026-09-21 · **Status: BUILT 2026-09-21.** Kept as the record of WHY it is
+shaped this way — the three decisions below are his, not defaults to revisit.
+
+**What shipped, against this plan:**
+[`components/PlotDrawScreen.jsx`](../frontend/src/components/PlotDrawScreen.jsx) (step 2),
+[`lib/plotDraft.js`](../frontend/src/lib/plotDraft.js) + 20 specs (the area rules),
+`MapPicker` gained `height="fill"` and `chrome={false}`, and `/uikit?screen=plotdraw`
+draws the step with no login. **Two deviations, both deliberate:**
+1. **Save is enabled by four corners OR a typed area**, not by four corners alone. All 17
+   live plots have boundaries, but a plot without one is savable today and renaming such a
+   plot must not require inventing its corners. `saveBlock()` owns that rule and prints the
+   reason under the button.
+2. **GPS stays maplibre's own control, top-right**, beside zoom; Undo and Clear went
+   bottom-right where a thumb reaches, rather than all three in one stack.
+
 **Asked as:** the owner sent two screenshots of another farm app — a plain "Add New Plot"
 form, then a full-screen satellite map where you tap four corners with Undo / Clear / GPS and
 a Save Plot bar — and said *"i liked how they created plot here … think wisely and plan well."*

@@ -11,7 +11,47 @@
 > every session; the `docs/HANDOFF-*.md` files do not. So the state that must never be lost
 > lives here, and the long reasoning lives in the handoff this section points at.
 
-**Last updated:** 2026-09-18 (**place suggestions as you type; lat/long boxes back**; the town you type moves the map, and a new farm hands you to Plot Master; **picking a farm or plot location on the map works**; **Manage Farms and About open again** — every profile-drawer row that opens a window did nothing at all; the dead `backend/` tree also deleted, and CLAUDE.md now describes the architecture this app actually has) · earlier 2026-09-03: Money Out stopped explaining and started doing, one Pay button per group; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet, not Android's cream system dialog; 2 Sep: the back swipe finally works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **the audit this closes; its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md) · earlier: [Phase 1](supabase/data-fixes/2026-08-12-phase1-fresh-install-cleanup.md) · [Phase 2](supabase/data-fixes/2026-08-12-phase2-opening-cost-breakups.md)
+**Last updated:** 2026-09-21 (**Add Plot is two steps now — details, then a full-screen satellite map you tap four corners on**; a typed area is never overwritten by the shape; `updatePlot` stopped sending `''` to numeric columns) · earlier 2026-09-18: place suggestions as you type and the lat/long boxes back; the town you type moves the map; every profile-drawer row that opens a window was dead; the unused `backend/` tree deleted and CLAUDE.md rewritten to the architecture this app actually has · 2026-09-03: Money Out stopped explaining and started doing; the P&L tab stopped calling a standing crop a loss; every dropdown became the app's own sheet · 2 Sep: the back swipe works — `@capacitor/app` was never installed, and **the owner must install the rebuilt APK once** · **detail:** [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) ← **now marked BUILT, with the two deviations and why** · [`docs/CODEBASE-AUDIT.md`](docs/CODEBASE-AUDIT.md) ← **its problems #2 and #3 still stand** · [`docs/HANDOFF-back-gesture.md`](docs/HANDOFF-back-gesture.md) ← **premise corrected 2 Sep, read before touching back-gesture code** · [`docs/SPEC-salary-month-settlement.md`](docs/SPEC-salary-month-settlement.md) · [`docs/SPEC-bill-wise-vendor-settlement.md`](docs/SPEC-bill-wise-vendor-settlement.md) · [`docs/DECISION-fy-and-opening-costs.md`](docs/DECISION-fy-and-opening-costs.md) ← **read before reopening any FY/opening-cost question** · [figures](supabase/data-fixes/2026-08-13-owner-stated-figures.md) · [plan](docs/PLAN-fresh-install-standard.md)
+
+**Just done (21 Sep) — Add Plot became two steps, and the map is the whole screen.**
+His two screenshots of another farm app: a plain details form, then a full-screen satellite map
+with Undo / Clear / GPS and a Save Plot bar — *"i liked how they created plot here."* Designed
+and approved last session, built this one against
+[`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md) (**now marked BUILT — read it
+before changing this flow, the three decisions in it are his**). **Almost none of this was new
+machinery**: `MapPicker` has tapped four corners with live acreage, Undo, Clear, GPS and the
+neighbours drawn underneath since 18 Sep — it was just rendered at `height={240}` inside a long
+scrolling form, so the job was presentation. It gained `height="fill"` and `chrome={false}`
+(the parent draws its own hint, readout and buttons); **its 4-corner logic is untouched.**
+New [`components/PlotDrawScreen.jsx`](frontend/src/components/PlotDrawScreen.jsx) is step 2 and
+takes **pure props** — no store, no session — so it draws in `/uikit?screen=plotdraw`, which is
+where it was checked at 360px in a real Chromium.
+**The rules are in [`lib/plotDraft.js`](frontend/src/lib/plotDraft.js) (20 specs, 417 green), and
+one of them matters more than the rest: a TYPED area is never overwritten by the drawn shape.**
+Blank area → the shape fills it; typed area → it stands, and when the shape disagrees by more
+than 10% the bar **says so** ("You typed 4.00 acres · this shape is ≈ 5.63") with a *Use 5.63*
+button that only fires if he presses it. A finger on a satellite tile is not a survey. The
+readout prints the figure that will actually be saved, plus where it came from — *as typed* or
+*from the shape* — so the two can never silently differ.
+**One deviation from the plan, deliberate: Save is enabled by four corners OR a typed area**,
+not by four corners alone. All 17 live plots have boundaries, but a plot without one is savable
+today, and renaming such a plot must not demand its corners be invented first. `saveBlock()`
+owns that and prints the reason under the disabled button ("2 more corners to go").
+**Found and fixed en route, a live defect this flow would have hit on day one:**
+`updatePlot` passed the form's raw strings through to Postgres while `addPlot` has always
+coerced them. A corner cleared in the UI arrives as `''`, and **Postgres refuses `''::numeric`
+outright** — verified against the live DB — so pressing **Clear** while editing a plot and
+saving would have failed the whole update with a raw database error in the toast. It now
+coerces the nine numeric columns the same way `addPlot` does. Nothing in the live data was
+affected: all 17 plots have complete boundaries, which is why this survived unseen.
+**Also fixed, seen only because the screen could be looked at: every neighbouring plot printed
+its name TWICE.** MapLibre clips a polygon at tile boundaries and labels each piece, and a
+field straddling two tiles is the normal case. Names now come from their own point source
+(`existing-pts`), one label per plot. The fontstack is `Open Sans Semibold` because that is one
+of the two the demotiles glyph server actually serves — **Open Sans Regular 404s**, so do not
+"tidy" it. **The 8 coordinate boxes survive**, moved off the main path behind a *Type
+coordinates* sheet on step 2; they are how a surveyed figure gets in, and how one corner gets
+nudged without redrawing the shape. **Do not remove them again.**
 
 **Just done (18 Sep, 5th) — suggestions while you type, and the coordinate boxes are back.**
 *"cant we see suggestion when we type in location? … what is find for, instead there should be
@@ -53,24 +93,17 @@ pin**, or the map could never move again after the first tap. **Caught by the no
 before it shipped:** the new state was first named `centre`, which the file already used for the
 pin. **382 green.**
 
-**Just done (18 Sep, 3rd) — "Pick on Map" could not be dragged, and a plot's boundary was
-eight boxes to type.** His screenshot: the crosshair pinned at centre, the map frozen behind it.
-**Pick on Map never had a map of its own** — it collapsed to a crosshair over whatever page was
-behind and read `useMapStore`'s centre on Confirm. From Manage Farms that is impossible: the
-create form opens *inside* `ManageFarmsModal`'s full-screen overlay, which **swallowed every
-drag**. It also assumed a map was behind at all — open it from any page but Fields and there is
-nothing to pan. **[`MapPicker`](frontend/src/components/MapPicker.jsx) already solved this for the
-first-farm wizard** (own satellite map, place search, pin, undo/clear; `mode="point"` for a farm
-centre, `mode="corners"` for a plot's four points) — `CreateFarmModal` now uses it, and
-ManageFarmsModal **steps aside** while it is open instead of wrapping it in a second scrim. The
-plot form got the other half of the ask: **Admin → Plots now opens on satellite — tap A, B, C, D**
-around the edge, neighbouring plots drawn for context, one tap to take the acres from the shape.
-**The eight number boxes STAY** — a surveyed figure has to get in somehow, and one corner
-sometimes needs nudging without redrawing. Converters in
-[`lib/plotCorners.js`](frontend/src/lib/plotCorners.js) (**12 specs**) read the columns as a
-**PREFIX, not a filter**: with A blank and B set, filtering would slide B into A's slot and
-silently reshape the plot. MapPicker's hardcoded light colours became theme vars — it now renders
-in the dark Admin form too. **382 green.**
+**Just done (18 Sep, 3rd) — "Pick on Map" could not be dragged.** It never had a map of its
+own: it collapsed to a crosshair over whatever page was behind and read `useMapStore`'s centre
+on Confirm, which is impossible from Manage Farms — the create form opens *inside*
+`ManageFarmsModal`'s full-screen overlay, which **swallowed every drag** — and assumed a map was
+behind at all. `CreateFarmModal` now uses [`MapPicker`](frontend/src/components/MapPicker.jsx),
+which carries its own satellite map, and ManageFarmsModal **steps aside** rather than wrapping
+it in a second scrim. Same round: Admin → Plots got that picker too (superseded 21 Sep by the
+full-screen step above), and MapPicker's hardcoded light colours became theme vars so it renders
+in the dark Admin form. Converters in [`lib/plotCorners.js`](frontend/src/lib/plotCorners.js)
+(**12 specs**) read the 8 columns as a **PREFIX, not a filter**: with A blank and B set,
+filtering would slide B into A's slot and silently reshape the plot.
 
 **Just done (18 Sep, 2nd) — every profile-drawer row that opens a window was dead.** The owner:
 *"why manage farm isnt working."* **Manage Farms AND About both did nothing at all** — and that
@@ -817,16 +850,9 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
-**NEXT, APPROVED AND READY TO BUILD (21 Sep) — Add Plot becomes a two-step flow with a
-FULL-SCREEN map.** He sent two screenshots of another farm app and liked its plot creation:
-details form → Next → full-screen satellite map, tap 4 corners, Undo / Clear / GPS, Save Plot.
-**Design is approved and written up in [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md)
-— read it FIRST, it records what already exists and saves re-exploring.** The short of it:
-`MapPicker` in `corners` mode ALREADY does 4-point tapping, Undo, Clear, GPS, live acreage and
-drawing the farm's other plots underneath (`existing` prop, already passed by Admin) — it is
-just rendered at `height={240}` inside a long form, so the job is presentation, not machinery.
-His three decisions: **keep 4 corners** (no migration), **stay in Admin → Plots** (no Field
-entry point), **acres only** plus a point count (no bigha/hectare toggle). Nothing is built yet.
+**Next, if he wants it — "Save & add another" on the drawing step.** He was told at design
+time that adding ten plots in a row means retyping the details each time, and that this is a
+small follow-up if it bites. Not built, and not to be built unprompted.
 
 **NEXT, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
 `go_live_convert` the bill-date standard — then the Books Health check (cash book vs account

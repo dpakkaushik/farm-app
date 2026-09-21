@@ -53,6 +53,14 @@ const ring = pts => [[...pts.map(p => [p.lng, p.lat]), [pts[0].lng, pts[0].lat]]
 
 const emptyFC = { type: 'FeatureCollection', features: [] }
 
+// Where a plot's name is written. The average of its corners, not the polygon's
+// true area centroid — on a four-corner field the two are a few metres apart and
+// this only has to land inside the shape.
+const centre = pts => [
+  pts.reduce((sum, p) => sum + p.lng, 0) / pts.length,
+  pts.reduce((sum, p) => sum + p.lat, 0) / pts.length,
+]
+
 const polygonFC = (pts, props = {}) => (
   pts.length < 3
     ? emptyFC
@@ -66,7 +74,8 @@ export default function MapPicker({
   center,                 // [lng, lat] — where to open
   existing = [],          // read-only polygons to show for context: [{name, points}]
   showSearch = true,      // off where the parent has its own place box (the farm form)
-  height = 260,
+  height = 260,           // px, or 'fill' to take the height of whatever contains it
+  chrome = true,          // false where the parent draws its own hint, readout and buttons
 }) {
   const container = useRef(null)
   const map       = useRef(null)
@@ -102,9 +111,23 @@ export default function MapPicker({
     map.current.on('load', () => {
       map.current.addSource('draft',    { type: 'geojson', data: emptyFC })
       map.current.addSource('existing', { type: 'geojson', data: emptyFC })
+      // Names live on their OWN point source. Labelling the polygon source
+      // directly printed every name twice: maplibre clips a polygon at tile
+      // boundaries and places one label per piece, and a field straddling two
+      // tiles is the normal case, not the exception.
+      map.current.addSource('existing-pts', { type: 'geojson', data: emptyFC })
 
       map.current.addLayer({ id: 'existing-fill', type: 'fill', source: 'existing', paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.14 } })
       map.current.addLayer({ id: 'existing-line', type: 'line', source: 'existing', paint: { 'line-color': '#ffffff', 'line-width': 1.5, 'line-opacity': 0.7, 'line-dasharray': [2, 1] } })
+      // A neighbouring shape without its name is just a dashed box — naming it is
+      // how you know which edge you are drawing against. 'Open Sans Semibold' is
+      // one of the two fontstacks the demotiles glyph server actually serves
+      // (Open Sans Regular 404s), so do not "tidy" it to Regular.
+      map.current.addLayer({
+        id: 'existing-label', type: 'symbol', source: 'existing-pts',
+        layout: { 'text-field': ['get', 'name'], 'text-font': ['Open Sans Semibold'], 'text-size': 11, 'text-allow-overlap': false },
+        paint: { 'text-color': '#ffffff', 'text-halo-color': 'rgba(0,0,0,0.65)', 'text-halo-width': 1.2 },
+      })
       map.current.addLayer({ id: 'draft-fill',    type: 'fill', source: 'draft',    paint: { 'fill-color': '#8A9A5B', 'fill-opacity': 0.35 } })
       map.current.addLayer({ id: 'draft-line',    type: 'line', source: 'draft',    paint: { 'line-color': '#8A9A5B', 'line-width': 2.5 } })
 
@@ -157,11 +180,21 @@ export default function MapPicker({
   // ── Context polygons (plots already drawn in this session) ─────────────────
   useEffect(() => {
     if (!ready || !map.current) return
+    const drawable = existing.filter(e => e.points?.length >= 3)
+
     map.current.getSource('existing')?.setData({
       type: 'FeatureCollection',
-      features: existing
-        .filter(e => e.points?.length >= 3)
-        .map(e => ({ type: 'Feature', properties: { name: e.name }, geometry: { type: 'Polygon', coordinates: ring(e.points) } })),
+      features: drawable.map(e => ({
+        type: 'Feature', properties: { name: e.name },
+        geometry: { type: 'Polygon', coordinates: ring(e.points) },
+      })),
+    })
+    map.current.getSource('existing-pts')?.setData({
+      type: 'FeatureCollection',
+      features: drawable.filter(e => e.name).map(e => ({
+        type: 'Feature', properties: { name: e.name },
+        geometry: { type: 'Point', coordinates: centre(e.points) },
+      })),
     })
   }, [ready, existing])
 
@@ -198,8 +231,13 @@ export default function MapPicker({
   const acres = mode === 'corners' ? polygonAcres(points) : 0
   const done  = mode === 'corners' ? points.length === CORNER_LABELS.length : !!value
 
+  // 'fill' is how the full-screen drawing step gets a map the size of the phone
+  // instead of a 240px box inside a scrolling form. Same map, same corner logic
+  // — only the frame around it changes.
+  const fill = height === 'fill'
+
   return (
-    <div>
+    <div style={fill ? { height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
       {showSearch && (
         <div style={{ marginBottom: '8px' }}>
           <PlaceSearch
@@ -213,17 +251,21 @@ export default function MapPicker({
         </div>
       )}
 
-      <div style={{ position: 'relative' }}>
-        <div ref={container} style={{ height: `${height}px`, borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--c-border-md)' }} />
+      <div style={fill ? { position: 'relative', flex: 1, minHeight: 0 } : { position: 'relative' }}>
+        <div ref={container} style={fill
+          ? { position: 'absolute', inset: 0 }
+          : { height: `${height}px`, borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--c-border-md)' }} />
 
-        <div style={hint}>
-          {mode === 'point'
-            ? (done ? 'Tap again to move the pin' : 'Tap the map to drop a pin on your farm')
-            : (done ? 'All four corners set' : `Tap corner ${CORNER_LABELS[points.length]} of ${CORNER_LABELS.length}`)}
-        </div>
+        {chrome && (
+          <div style={hint}>
+            {mode === 'point'
+              ? (done ? 'Tap again to move the pin' : 'Tap the map to drop a pin on your farm')
+              : (done ? 'All four corners set' : `Tap corner ${CORNER_LABELS[points.length]} of ${CORNER_LABELS.length}`)}
+          </div>
+        )}
       </div>
 
-      <div style={footRow}>
+      {chrome && <div style={footRow}>
         <div style={{ fontSize: '12px', color: 'var(--c-muted)', minWidth: 0 }}>
           {mode === 'corners' && done && (
             <span><strong style={{ color: '#8A9A5B' }}>≈ {acres.toFixed(2)} acres</strong> from the shape you drew</span>
@@ -238,7 +280,7 @@ export default function MapPicker({
             <button type="button" onClick={clear} style={miniBtn}>Clear</button>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   )
 }

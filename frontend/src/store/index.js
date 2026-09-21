@@ -2589,8 +2589,19 @@ const useAppStore = create((set, get) => ({
     const allowed = ['name','area_acres','soil_type','water_source',
       'point_a_lat','point_a_lng','point_b_lat','point_b_lng',
       'point_c_lat','point_c_lng','point_d_lat','point_d_lng','geo_polygon']
+    // The form holds these as STRINGS, and a corner the user cleared comes
+    // through as ''. Postgres refuses ''::numeric outright ("invalid input
+    // syntax for type numeric"), so an un-coerced update failed the whole save
+    // with a raw database error in the toast — pressing Clear on the drawing
+    // step and updating is exactly that path. addPlot has always coerced; this
+    // is the same rule on the way out.
+    const NUMERIC = ['area_acres','point_a_lat','point_a_lng','point_b_lat','point_b_lng',
+      'point_c_lat','point_c_lng','point_d_lat','point_d_lng']
+    const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null }
     const updates = Object.fromEntries(
-      Object.entries(data).filter(([k]) => allowed.includes(k))
+      Object.entries(data)
+        .filter(([k]) => allowed.includes(k))
+        .map(([k, v]) => [k, NUMERIC.includes(k) ? (k === 'area_acres' ? (num(v) ?? 0) : num(v)) : v])
     )
     const { error } = await supabase.from('plots').update(updates).eq('id', id)
     if (error) throw error

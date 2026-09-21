@@ -13,6 +13,7 @@ import Harvest from './Harvest'
 import ResourcesPage from './ResourcesPage'
 import Media from './Media'
 import { PnlTab, ExpensesTab } from './LedgerPage'
+import PlotDrawScreen from '../components/PlotDrawScreen'
 
 // ── DEV-ONLY visual harness (/uikit) ────────────────────────────────────────
 // Not reachable in a production build (App.jsx gates it on import.meta.env.DEV).
@@ -195,6 +196,53 @@ const MoneyOutDemo = () => (
   </div>
 )
 
+// Step 2 of Add Plot. Props only, so it draws here with no session and no
+// plots table — which is the whole reason it takes a draft rather than reading
+// the store. Two neighbours are seeded: the dimmed context polygons are what
+// make a boundary tappable in the right place, and they only show up here.
+const NEIGHBOURS = [
+  { name: 'Plot E1', points: [
+    { lat: 28.5090, lng: 80.4840 }, { lat: 28.5090, lng: 80.4880 },
+    { lat: 28.5065, lng: 80.4880 }, { lat: 28.5065, lng: 80.4840 }] },
+  { name: 'Plot F', points: [
+    { lat: 28.5060, lng: 80.4840 }, { lat: 28.5060, lng: 80.4885 },
+    { lat: 28.5035, lng: 80.4885 }, { lat: 28.5035, lng: 80.4840 }] },
+]
+
+function PlotDrawDemo() {
+  const [draft, setDraft] = useState({ name: 'Back field', area_acres: '', soil_type: 'loamy' })
+  const [open,  setOpen]  = useState(true)
+
+  if (!open) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm" style={{ color: 'var(--c-muted)' }}>
+          Back closed the drawing step — in Admin this returns to the details form.
+        </p>
+        <button onClick={() => setOpen(true)} className="px-4 py-2 rounded-xl text-xs font-bold"
+          style={{ background: '#8A9A5B', color: '#fff' }}>Reopen</button>
+        <button onClick={() => setDraft({ name: 'Back field', area_acres: '4', soil_type: 'loamy' })}
+          className="px-4 py-2 rounded-xl text-xs font-bold border"
+          style={{ borderColor: '#BA751766', color: '#BA7517' }}>
+          Reset with 4 acres typed (to see the mismatch line)
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <PlotDrawScreen
+      draft={draft}
+      onPatch={fields => setDraft(d => ({ ...d, ...fields }))}
+      farmName="Pallia Farm"
+      existing={NEIGHBOURS}
+      center={[80.4863, 28.5073]}
+      onBack={() => setOpen(false)}
+      onSave={() => setOpen(false)}
+    />
+  )
+}
+
 const SCREENS = {
   today:     { label: 'Today',     Component: Today },
   harvest:   { label: 'Harvest',   Component: Harvest },
@@ -202,6 +250,7 @@ const SCREENS = {
   media:     { label: 'Media',     Component: Media },
   pnl:       { label: 'P&L',       Component: PnlDemo },
   moneyout:  { label: 'Money Out', Component: MoneyOutDemo },
+  plotdraw:  { label: 'Draw Plot', Component: PlotDrawDemo },
 }
 
 export default function UiKit() {

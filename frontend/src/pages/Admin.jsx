@@ -10,8 +10,10 @@ import { useAuthStore } from '../store/auth'
 import { canHideWorker, owedToFarm, owedToWorker, splitAdvances } from '../lib/workerRecovery'
 import useBackClose from '../hooks/useBackClose'
 import SelectField from '../components/SelectField'
-import MapPicker, { polygonAcres } from '../components/MapPicker'
-import { cornersFromPlot, plotFromCorners } from '../lib/plotCorners'
+import { polygonAcres } from '../components/MapPicker'
+import PlotDrawScreen from '../components/PlotDrawScreen'
+import { cornersFromPlot } from '../lib/plotCorners'
+import { detailsError, resolveAreaAcres, saveBlock } from '../lib/plotDraft'
 
 const TABS = ['Crops', 'Cycles', 'Inventory', 'Manpower', 'Activity', 'Plots', 'Users', 'Buyers', 'Partners']
 
@@ -1354,15 +1356,25 @@ const EMPTY_PLOT   = { name:'', area_acres:'', soil_type:'loamy', water_source:'
   point_a_lat:'', point_a_lng:'', point_b_lat:'', point_b_lng:'',
   point_c_lat:'', point_c_lng:'', point_d_lat:'', point_d_lng:'' }
 
+// Two steps, the reference app's shape: type the details, then draw the
+// boundary on a full-screen map. 'draw' is an overlay, not a route — nothing to
+// hand over, and it matches every other overlay in the app.
+const STEPS = { DETAILS: 'details', DRAW: 'draw' }
+
 function PlotsMaster() {
   const { plots, cropCycles, addPlot, updatePlot, deletePlot } = useAppStore()
   const [form,    setForm]    = useState(null)
+  const [step,    setStep]    = useState(STEPS.DETAILS)
   const [saving,  setSaving]  = useState(false)
   const [toast,   setToast]   = useState(null)
   const [confirm, setConfirm] = useState(null)
 
   const showToast = (m, type = 'success') => { setToast({ m, type }); setTimeout(() => setToast(null), 3000) }
   const f = (field, val) => setForm(p => ({ ...p, [field]: val }))
+  const patch = (fields) => setForm(p => ({ ...p, ...fields }))
+
+  const openForm = (draft) => { setForm(draft); setStep(STEPS.DETAILS) }
+  const closeForm = () => { setForm(null); setStep(STEPS.DETAILS) }
 
   // Corners the picker draws, and the plots already on the map so a new one can
   // be placed against its neighbours instead of in empty space.
@@ -1377,27 +1389,37 @@ function PlotsMaster() {
   // Without that last one a brand-new farm opens on the whole of India at z3.6,
   // which is the "complicated" the owner meant — you cannot find your field there.
   const farmCentre = useAuthStore(s => s.activeFarm?.map_state?.center)
+  // Named in the drawing screen's header. Admin is already scoped to the active
+  // farm, so there is no farm picker on the form — a picker only invites saving
+  // a plot to the wrong farm.
+  const farmName   = useAuthStore(s => s.activeFarm?.name) || ''
   const firstNeighbour = otherPlots[0]?.points[0]
   const mapCentre  = corners[0] ? [corners[0].lng, corners[0].lat]
     : firstNeighbour ? [firstNeighbour.lng, firstNeighbour.lat]
     : (Array.isArray(farmCentre) && farmCentre.length === 2 ? farmCentre : undefined)
 
-  const hasAllPoints = (d) =>
-    d.point_a_lat && d.point_a_lng && d.point_b_lat && d.point_b_lng &&
-    d.point_c_lat && d.point_c_lng && d.point_d_lat && d.point_d_lng
+  const next = () => {
+    const err = detailsError(form || {})
+    if (err) return showToast(err, 'warn')
+    setStep(STEPS.DRAW)
+  }
 
   const save = async () => {
-    if (!form.name || !form.area_acres) return showToast('Name and area are required', 'warn')
+    // Area blank → the shape fills it. Area typed → it stands, however far the
+    // shape sits from it; the drawing screen has already said so out loud.
+    const row = { ...form, area_acres: resolveAreaAcres(form.area_acres, drawnAcres, corners.length) }
+    const block = saveBlock({ name: row.name, area_acres: row.area_acres, cornerCount: corners.length })
+    if (block) return showToast(block, 'warn')
     setSaving(true)
     try {
-      if (form.id) {
-        await updatePlot(form.id, form)
+      if (row.id) {
+        await updatePlot(row.id, row)
         showToast('Plot updated ✓')
       } else {
-        await addPlot(form)
+        await addPlot(row)
         showToast('Plot added ✓')
       }
-      setForm(null)
+      closeForm()
     } catch (e) { showToast('Save failed: ' + e.message, 'warn') }
     setSaving(false)
   }
@@ -1418,34 +1440,18 @@ function PlotsMaster() {
     })
   }
 
-  const PointRow = ({ label, latKey, lngKey }) => (
-    <div className="flex items-center gap-2">
-      <span className="text-xs font-mono font-semibold text-[#8A9A5B] w-6 shrink-0">{label}</span>
-      <div className="flex-1">
-        <input type="number" step="any" placeholder="Latitude (28.xxx)"
-          value={form?.[latKey] || ''}
-          onChange={e => f(latKey, e.target.value)}
-          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]" />
-      </div>
-      <div className="flex-1">
-        <input type="number" step="any" placeholder="Longitude (80.xxx)"
-          value={form?.[lngKey] || ''}
-          onChange={e => f(lngKey, e.target.value)}
-          className="w-full bg-[var(--c-ghost)] border border-[var(--c-border-md)] rounded-xl px-3 py-2 text-xs text-[var(--c-text)] focus:outline-none focus:border-[#8A9A5B]" />
-      </div>
-    </div>
-  )
-
   return (
     <div className="p-4 space-y-3 pb-6">
-      <button onClick={() => setForm({ ...EMPTY_PLOT })}
+      <button onClick={() => openForm({ ...EMPTY_PLOT })}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#8A9A5B]/30 rounded-2xl text-xs text-[#8A9A5B] hover:border-[#8A9A5B]/60">
         <Plus size={14} /> Add New Plot
       </button>
 
-      {form !== null && (
+      {form !== null && step === STEPS.DETAILS && (
         <div className="bg-[var(--c-nav)] rounded-2xl border border-[#8A9A5B]/30 p-4 space-y-3">
-          <p className="text-xs font-bold text-[#8A9A5B]">{form.id ? 'Edit Plot' : 'New Plot'}</p>
+          <p className="text-xs font-bold text-[#8A9A5B]">
+            {form.id ? 'Edit Plot' : 'New Plot'} <span className="font-normal text-[var(--c-faint)]">· step 1 of 2</span>
+          </p>
 
           <div className="grid grid-cols-2 gap-2">
             <FRow label="Plot name">
@@ -1453,7 +1459,7 @@ function PlotsMaster() {
                 value={form.name || ''} onChange={e => f('name', e.target.value)} />
             </FRow>
             <FRow label="Area (acres)">
-              <input type="number" step="0.5" className="finput" placeholder="2.0"
+              <input type="number" step="0.5" className="finput" placeholder="from the map"
                 value={form.area_acres || ''} onChange={e => f('area_acres', e.target.value)} />
             </FRow>
           </div>
@@ -1471,50 +1477,37 @@ function PlotsMaster() {
             </FRow>
           </div>
 
-          <div className="border-t border-[var(--c-border)] pt-3">
-            <p className="text-[12px] text-[var(--c-muted)] mb-2">GPS boundary corners — A→B→C→D→A draws the plot on the map</p>
-
-            {/* Tap the corners on satellite rather than typing eight latitudes.
-                The number fields below stay: they are how a surveyed figure gets
-                in, and how one corner gets nudged without redrawing the shape. */}
-            <div className="mb-3">
-              <MapPicker
-                mode="corners"
-                value={corners}
-                onChange={pts => setForm(prev => ({ ...prev, ...plotFromCorners(pts) }))}
-                center={mapCentre}
-                existing={otherPlots}
-                height={240}
-              />
-              {corners.length === 4 && (
-                <button type="button" onClick={() => f('area_acres', drawnAcres.toFixed(2))}
-                  className="mt-2 w-full py-2 border border-[#8A9A5B]/40 rounded-xl text-[12px] text-[#8A9A5B]">
-                  Use ≈ {drawnAcres.toFixed(2)} acres from this shape
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-[2px] text-[11px] text-[var(--c-faint)] px-7 mb-1">
-              <span>Latitude</span><span>Longitude</span>
-            </div>
-            <div className="space-y-2">
-              <PointRow label="A" latKey="point_a_lat" lngKey="point_a_lng" />
-              <PointRow label="B" latKey="point_b_lat" lngKey="point_b_lng" />
-              <PointRow label="C" latKey="point_c_lat" lngKey="point_c_lng" />
-              <PointRow label="D" latKey="point_d_lat" lngKey="point_d_lng" />
-            </div>
-            {!hasAllPoints(form || {}) && (
-              <p className="text-[12px] text-[#BA7517] mt-1.5">⚠ Fill all 4 points to draw on map</p>
-            )}
-          </div>
+          {/* The boundary is the next step, on a map the size of the screen —
+              not a 240px box at the bottom of this form. Area is optional here
+              because the shape can supply it. */}
+          <p className="text-[12px] text-[var(--c-muted)]">
+            {corners.length === 4
+              ? `Boundary set · ≈ ${drawnAcres.toFixed(2)} acres from the shape`
+              : 'Next: tap the four corners on the satellite map.'}
+          </p>
 
           <div className="flex gap-2">
-            <button onClick={save} disabled={saving}
-              className="flex-1 py-2.5 bg-[#8A9A5B] text-[var(--c-text)] text-xs font-bold rounded-xl disabled:opacity-40">
-              {saving ? 'Saving…' : form.id ? 'Update Plot' : 'Save to Database'}
+            <button onClick={next}
+              className="flex-1 py-2.5 bg-[#8A9A5B] text-white text-xs font-bold rounded-xl">
+              {corners.length === 4 ? 'Next — check the boundary →' : 'Next — draw the boundary →'}
             </button>
-            <button onClick={() => setForm(null)} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
+            <button onClick={closeForm} className="px-4 py-2.5 bg-[var(--c-ghost)] text-[var(--c-sub)] text-xs rounded-xl">Cancel</button>
           </div>
         </div>
+      )}
+
+      {form !== null && step === STEPS.DRAW && (
+        <PlotDrawScreen
+          draft={form}
+          onPatch={patch}
+          farmName={farmName}
+          existing={otherPlots}
+          center={mapCentre}
+          editing={!!form.id}
+          saving={saving}
+          onBack={() => setStep(STEPS.DETAILS)}
+          onSave={save}
+        />
       )}
 
       {plots.map(plot => {
@@ -1545,7 +1538,7 @@ function PlotsMaster() {
                 {activeCycles > 0 && <p className="text-[12px] text-[#8A9A5B] mt-0.5">{activeCycles} active cycle{activeCycles > 1 ? 's' : ''}</p>}
               </div>
               <div className="flex items-center gap-2 ml-3 shrink-0">
-                <button onClick={() => setForm({
+                <button onClick={() => openForm({
                   id: plot.id, name: plot.name, area_acres: String(plot.area_acres || ''),
                   soil_type: plot.soil_type || 'loamy', water_source: plot.water_source || 'borewell',
                   point_a_lat: String(plot.point_a_lat || ''), point_a_lng: String(plot.point_a_lng || ''),
