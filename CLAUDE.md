@@ -817,6 +817,17 @@ genuine August data and was asserted untouched. The form fix has shipped.
    paddy sell: ₹13.5 L of cost against revenue still to come. Correct — do not offset it.
 4. **No filing-grade FY report.** The owner's sheet is the source for that, not the app.
 
+**NEXT, APPROVED AND READY TO BUILD (21 Sep) — Add Plot becomes a two-step flow with a
+FULL-SCREEN map.** He sent two screenshots of another farm app and liked its plot creation:
+details form → Next → full-screen satellite map, tap 4 corners, Undo / Clear / GPS, Save Plot.
+**Design is approved and written up in [`docs/PLAN-add-plot-drawing.md`](docs/PLAN-add-plot-drawing.md)
+— read it FIRST, it records what already exists and saves re-exploring.** The short of it:
+`MapPicker` in `corners` mode ALREADY does 4-point tapping, Undo, Clear, GPS, live acreage and
+drawing the farm's other plots underneath (`existing` prop, already passed by Admin) — it is
+just rendered at `height={240}` inside a long form, so the job is presentation, not machinery.
+His three decisions: **keep 4 corners** (no migration), **stay in Admin → Plots** (no Field
+entry point), **acres only** plus a point count (no bigha/hectare toggle). Nothing is built yet.
+
 **NEXT, and needs nothing from the owner:** Phase 3 of the fresh-install plan — teach
 `go_live_convert` the bill-date standard — then the Books Health check (cash book vs account
 balances, bill header vs lines). Trial Balance stays rejected; do not relitigate.
